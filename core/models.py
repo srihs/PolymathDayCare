@@ -29,6 +29,7 @@ class Child(BaseClass):
     address_line3 = models.CharField(max_length=200)
     email_address = models.EmailField()
     is_polymath_student = models.BooleanField(default=False)
+    recipt_number = models.CharField(max_length=50)
 
 
 class PackageType(BaseClass):
