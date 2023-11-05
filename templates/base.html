@@ -52,12 +52,13 @@
             <li class="nav-item nav-profile dropdown">
               <a class="nav-link dropdown-toggle" id="profileDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false">
                 <div class="nav-profile-img">
-                    {{ UserImage }}
-                  <img src="{% static 'assets/images/faces/face1.jpg'%}" alt="image">
+                    {% block userImage %} {% endblock %}
+
+
                   <span class="availability-status online"></span>
                 </div>
                 <div class="nav-profile-text">
-                  <p class="mb-1 text-black">{{ UserName}}</p>
+                  <p class="mb-1 text-black">{% block UserName %} {% endblock %}</p>
                 </div>
               </a>
               <div class="dropdown-menu navbar-dropdown" aria-labelledby="profileDropdown">
@@ -185,13 +186,13 @@
             <li class="nav-item nav-profile">
               <a href="#" class="nav-link">
                 <div class="nav-profile-image">
-                  <img src="{% static 'assets/images/faces/face1.jpg'%}" alt="profile">
+                  {% block userProfileImage %} {% endblock %}
                   <span class="login-status online"></span>
                   <!--change to offline or busy as needed-->
                 </div>
                 <div class="nav-profile-text d-flex flex-column">
-                  <span class="font-weight-bold mb-2">{{UserName}}</span>
-                  <span class="text-secondary text-small">{{ Title }}</span>
+                  <span class="font-weight-bold mb-2">{% block Username %}{{UserName}}{% endblock %}</span>
+                  <span class="text-secondary text-small">{% block Title %}{% endblock %}</span>
                 </div>
                 <i class="mdi mdi-bookmark-check text-success nav-profile-badge"></i>
               </a>
@@ -280,8 +281,8 @@
             <div class="page-header">
               <h3 class="page-title">
                 <span class="page-title-icon bg-gradient-primary text-white me-2"><!-- The conetet should be <i class="mdi mdi-home"></i>-->
-                  {{icon}}
-                </span> {{PageTitle}}
+                 {% block Icon %} {{icon}}{% endblock %}
+                </span>{% block PageTitle %} {{PageTitle}}{% endblock %}
               </h3>
               
             </div>
