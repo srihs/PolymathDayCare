@@ -6,4 +6,5 @@ from . import views
 
 urlpatterns = [
    path('', views.index,name='home'),
+   path('child/',views.getChild,name='view_child'),
 ]+ static(settings.MEDIA_URL, document_root = settings.MEDIA_ROOT)

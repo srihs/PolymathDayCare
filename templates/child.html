@@ -1,103 +1,145 @@
 {% extends "base.html" %}
-
-{% block userImage %}<img src="{% static 'assets/images/faces/face1.jpg'%}" alt="image">{% endblock %}
-{% block userProfileImage %}<img src="{% static 'assets/images/faces/face1.jpg'%}" alt="image">{% endblock %}
+{% load static %}
+{% block userImage %}<img src="{% static 'assets/images/faces/face1.jpg'%}">{% endblock %}
+{% block userProfileImage %}<img src="{% static 'assets/images/faces/face1.jpg'%}">{% endblock %}
 {% block UserName %} {{ UserName }} {% endblock %}
-{% block Title %} Child Registration {% endblock %}
+{% block PageTitle %} CHILD REGISTRATION {% endblock %}
 {% block Icon %} <i class="mdi mdi-account-box"></i> {% endblock %}
 {% block content %}
 <div class="row">
 <div class="col-12">
                 <div class="card">
                   <div class="card-body">
-                    <h4 class="card-title">Horizontal Two column</h4>
                     <form class="form-sample">
-                      <p class="card-description"> Personal info </p>
+                        <p class="card-description">ADMISSION INFO </p>
                       <div class="row">
-                        <div class="col-md-6">
+                          <div class="col-md">
                           <div class="form-group row">
-                            <label class="col-sm-3 col-form-label">First Name</label>
-                            <div class="col-sm-9">
-                              <input type="text" class="form-control">
+                            <label >Admission No</label>
+                            <div class="col-sm">
+                              {{form.admission_number}}
                             </div>
                           </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md">
                           <div class="form-group row">
-                            <label class="col-sm-3 col-form-label">Last Name</label>
-                            <div class="col-sm-9">
-                              <input type="text" class="form-control">
+                            <label >Recipt No</label>
+                            <div class="col-sm">
+                              {{form.recipt_number}}
+                            </div>
+                          </div>
+                        </div>
+                          <div class="col-md">
+                          <div class="form-group row">
+                            <label class="">Admission Date</label>
+                            <div class="col-sm">
+                              {{form.date_of_birth}}
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+                      <p class="card-description"> PERSONAL INFO </p>
+                      <div class="row">
+                        <div class="col-md">
+                          <div class="form-group row">
+                            <label >First Name</label>
+                            <div class="col-sm">
+                              {{form.child_first_name}}
+                            </div>
+                          </div>
+                        </div>
+                           <div class="col-md">
+                          <div class="form-group row">
+                            <label>Last Name</label>
+                            <div class="col-sm">
+                              {{form.child_last_name}}
+                            </div>
+                          </div>
+                        </div>
+                          <div class="col-md">
+                          <div class="form-group row">
+                            <label >Date of Birth</label>
+                            <div class="col-sm">
+                              {{ form.date_of_birth }}
                             </div>
                           </div>
                         </div>
                       </div>
+
                       <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md">
                           <div class="form-group row">
-                            <label class="col-sm-3 col-form-label">Gender</label>
-                            <div class="col-sm-9">
-                              <select class="form-control">
-                                <option>Male</option>
-                                <option>Female</option>
-                              </select>
+                            <label>Father's Name</label>
+                            <div class="col-sm">
+                            {{form.fathers_name}}
                             </div>
                           </div>
                         </div>
-                        <div class="col-md-6">
+
+                           <div class="col-md">
                           <div class="form-group row">
-                            <label class="col-sm-3 col-form-label">Date of Birth</label>
-                            <div class="col-sm-9">
-                              <input class="form-control" placeholder="dd/mm/yyyy">
+                            <label >Father's Contact Number</label>
+                            <div class="col-sm">
+                            {{form.fathers_contact_number}}
                             </div>
                           </div>
                         </div>
+
+                           <div class="col-md">
+                          <div class="form-group row">
+                            <label>Father's WhatsApp Number</label>
+                            <div class="col-sm">
+                            {{form.fathers_whatsapp_number}}
+                            </div>
+                          </div>
+                        </div>
+
+
+
                       </div>
-                      <div class="row">
-                        <div class="col-md-6">
+ <div class="row">
+                          <div class="col-md">
                           <div class="form-group row">
-                            <label class="col-sm-3 col-form-label">Category</label>
-                            <div class="col-sm-9">
-                              <select class="form-control">
-                                <option>Category1</option>
-                                <option>Category2</option>
-                                <option>Category3</option>
-                                <option>Category4</option>
-                              </select>
+                            <label>Mother's Name</label>
+                            <div class="col-sm">
+                            {{form.mothers_name}}
                             </div>
                           </div>
                         </div>
-                        <div class="col-md-6">
+
+                           <div class="col-md">
                           <div class="form-group row">
-                            <label class="col-sm-3 col-form-label">Membership</label>
-                            <div class="col-sm-4">
-                              <div class="form-check">
-                                <label class="form-check-label">
-                                  <input type="radio" class="form-check-input" name="membershipRadios" id="membershipRadios1" value="" checked=""> Free <i class="input-helper"></i></label>
-                              </div>
-                            </div>
-                            <div class="col-sm-5">
-                              <div class="form-check">
-                                <label class="form-check-label">
-                                  <input type="radio" class="form-check-input" name="membershipRadios" id="membershipRadios2" value="option2"> Professional <i class="input-helper"></i></label>
-                              </div>
+                            <label >Mother's Contact Number</label>
+                            <div class="col-sm">
+                            {{form.mothers_contact_number}}
                             </div>
                           </div>
                         </div>
-                      </div>
+
+                           <div class="col-md">
+                          <div class="form-group row">
+                            <label>Mother's WhatsApp Number</label>
+                            <div class="col-sm">
+                            {{form.mothers_whatsapp_number}}
+                            </div>
+                          </div>
+                        </div>
+                        </div>
                       <p class="card-description"> Address </p>
                       <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md">
                           <div class="form-group row">
-                            <label class="col-sm-3 col-form-label">Address 1</label>
-                            <div class="col-sm-9">
+                            <label >Address line 1</label>
+                            <div class="col-sm">
                               <input type="text" class="form-control">
                             </div>
                           </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md">
                           <div class="form-group row">
-                            <label class="col-sm-3 col-form-label">State</label>
-                            <div class="col-sm-9">
+                            <label>Address line 2</label>
+                            <div class="col-sm">
                               <input type="text" class="form-control">
                             </div>
                           </div>
@@ -106,7 +148,7 @@
                       <div class="row">
                         <div class="col-md-6">
                           <div class="form-group row">
-                            <label class="col-sm-3 col-form-label">Address 2</label>
+                            <label class="col-sm-3 col-form-label">Address 3</label>
                             <div class="col-sm-9">
                               <input type="text" class="form-control">
                             </div>
