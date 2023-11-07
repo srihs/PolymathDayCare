@@ -30,6 +30,7 @@ class Child(BaseClass):
     email_address = models.EmailField()
     is_polymath_student = models.BooleanField(default=False)
     recipt_number = models.CharField(max_length=50)
+    admission_date = models.DateField()
 
 
 class PackageType(BaseClass):
