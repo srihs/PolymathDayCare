@@ -29,26 +29,37 @@
                         <div class="brand-logo">
                             <img src="{% static 'assets/images/logo.png' %}">
                         </div>
-                        <h4>Hello! let's get started</h4>
-                        <h6 class="font-weight-light">Sign in to continue.</h6>
 
+
+                        <h4>Hello! let's get started</h4>
+                        <h6 class="font-weight-light">Sign in to continue.</h6> </br>
+                        {% if messages %}
+                        <ul class="badge badge-danger">
+                            {% for message in messages %}
+                            <li {% if message.tags %} class="{{ message.tags }}" {% endif %}>{{ message }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}</br>
                         {% if next %}
-                            <form action="/login/?next={{ next }}" method="post">
-                        {% else %}
+                        <form action="/login/?next={{ next }}" method="post">
+                            {% else %}
                             <form action="/login/" method="post">
-                        {% endif %}
-                        {% csrf_token %}
-                        <div class="form-group">
-                            <input type="text" class="form-control form-control-lg" name="username" placeholder="Username">
-                        </div>
-                        <div class="form-group">
-                            <input type="password" class="form-control form-control-lg" name="password" placeholder="Password">
-                        </div>
-                        <div class="mt-3">
-                            <button type="submit" class="btn btn-gradient-primary me-2">Submit</button>
-                        </div>
-                            <input type="hidden" name="next" value="{{ request.GET.next }}" />
-                        </form>
+                                {% endif %}
+                                {% csrf_token %}
+                                <div class="form-group">
+                                    <input type="text" class="form-control form-control-lg" required="required" name="username"
+                                           placeholder="Username">
+                                </div>
+                                <div class="form-group">
+                                    <input type="password" class="form-control form-control-lg" required="required" name="password"
+                                           placeholder="Password">
+                                </div>
+                                <div class="mt-3">
+                                    <button type="submit" class="btn btn-gradient-primary me-2">Submit</button>
+                                </div>
+                                <input type="hidden" name="next" value="{{ request.GET.next }}"/>
+
+                            </form>
                     </div>
                 </div>
             </div>

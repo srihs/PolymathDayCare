@@ -1,205 +1,215 @@
 {% extends "base.html" %}
 {% load static %}
-{% block userImage %}<img src="{% static 'assets/images/faces/face1.jpg' %}">{% endblock %}
-{% block userProfileImage %}<img src="{% static 'assets/images/faces/face1.jpg' %}">{% endblock %}
 {% block UserName %} {{ UserName }} {% endblock %}
-{% block PageTitle %} CHILD REGISTRATION {% endblock %}
-{% block Icon %} <i class="mdi mdi-account-box"></i> {% endblock %}
+{% block Title %} CHILD {% endblock %}
+{% block functionTitle %} REGISTRATION{% endblock %}
+
 {% block content %}
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <form class="form-sample">
-                        <p class="card-description">ADMISSION INFO </p>
-                        <div class="row">
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label>Admission No</label>
-                                    <div class="col-sm">
-                                        {{ form.admission_number }}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label>Recipt No</label>
-                                    <div class="col-sm">
-                                        {{ form.recipt_number }}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label class="">Admission Date</label>
-                                    <div class="col-sm">
-                                        {{ form.date_of_birth }}
-                                    </div>
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header align-items-center d-flex">
+                <h4 class="card-title mb-0 flex-grow-1">Child Details</h4>
+                <div class="flex-shrink-0">
 
-                                </div>
-                            </div>
-
-                        </div>
-                        <div class="row">
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label class="">Polymath Student?</label>
-                                    <div class="col-sm">
-                                        {{ form.is_polymath_student }}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md">
-
-                            </div>
-                            <div class="col-md">
-
-                            </div>
-
-                        </div>
-
-                        <p class="card-description"> PERSONAL INFO </p>
-                        <div class="row">
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label>First Name</label>
-                                    <div class="col-sm">
-                                        {{ form.child_first_name }}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label>Last Name</label>
-                                    <div class="col-sm">
-                                        {{ form.child_last_name }}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label>Date of Birth</label>
-                                    <div class="col-sm">
-                                        {{ form.date_of_birth }}
-                                    </div>
-                                </div>
+                </div>
+            </div><!-- end card header -->
+            <div class="card-body">
+                <div class="live-preview">
+                    <div class="row gy-4">
+                        <div class="col-xxl-3 col-md-6">
+                            <div>
+                                <label class="form-label">Admission No</label>
+                                {{form.admission_number}}
                             </div>
                         </div>
-
-                        <div class="row">
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label>Father's Name</label>
-                                    <div class="col-sm">
-                                        {{ form.fathers_name }}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label>Father's Contact Number</label>
-                                    <div class="col-sm">
-                                        {{ form.fathers_contact_number }}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label>Father's WhatsApp Number</label>
-                                    <div class="col-sm">
-                                        {{ form.fathers_whatsapp_number }}
-                                    </div>
-                                </div>
-                            </div>
-
-
-                        </div>
-                        <div class="row">
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label>Mother's Name</label>
-                                    <div class="col-sm">
-                                        {{ form.mothers_name }}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label>Mother's Contact Number</label>
-                                    <div class="col-sm">
-                                        {{ form.mothers_contact_number }}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label>Mother's WhatsApp Number</label>
-                                    <div class="col-sm">
-                                        {{ form.mothers_whatsapp_number }}
-                                    </div>
-                                </div>
+                        <!--end col-->
+                        <div class="col-xxl-3 col-md-6">
+                            <div>
+                                <label class="form-label">Admission Date</label>
+                                {{form.admission_date}}
                             </div>
                         </div>
-                        <p class="card-description"> CONTACT DETAILS </p>
-                        <div class="row">
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label>Address line 1</label>
-                                    <div class="col-sm">
-                                        {{ form.address_line1 }}
-                                    </div>
-                                </div>
+                        <!--end col-->
+                        <div class="col-xxl-3 col-md-6">
+                            <div>
+                                <label class="form-label">Receipt Number</label>
+                                {{form.recipt_number}}
                             </div>
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label>Address line 2</label>
-                                    <div class="col-sm">
-                                        {{ form.address_line2 }}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label>Address line 3</label>
-                                    <div class="col-sm">
-                                        {{ form.address_line3 }}
-                                    </div>
-                                </div>
-                            </div>
-
                         </div>
-                        <div class="row">
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label>Recident Phone Number</label>
-                                    <div class="col-sm">
-                                        <input type="text" class="form-control">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md">
-                                <div class="form-group row">
-                                    <label>Email</label>
-                                    <div class="col-sm">
-                                        <input type="text" class="form-control">
-                                    </div>
-                                </div>
-                            </div>
+                        <!--end col-->
+                        <div class="col-xxl-3 col-md-6">
+                            <div>
+                                <label class="form-label">A Polymath student?</label></br>
+                                {{form.is_polymath_student}}
 
-                            <div class="col-md">
 
                             </div>
-
                         </div>
-                        <button type="submit" class="btn btn-gradient-primary me-2">Submit</button>
-                        <button class="btn btn-light">Cancel</button>
-                    </form>
+                        <!--end col-->
+                        <div class="col-xxl-3 col-md-6">
+                            <div>
+                                <label class="form-label">First name</label>
+                                {{form.child_first_name}}
+                            </div>
+                        </div>
+                        <!--end col-->
+                        <div class="col-xxl-3 col-md-6">
+                            <div>
+                                <label class="form-label">Last name</label>
+                                {{form.child_last_name}}
+                            </div>
+                        </div>
+                        <!--end col-->
+                        <div class="col-xxl-3 col-md-6">
+                            <div>
+                                <label class="form-label">Date of birth</label>
+                                {{form.date_of_birth}}
+                            </div>
+                        </div>
+                        <!--end col-->
+
+                        <!--end col-->
+
+
+                    </div>
+                    <!--end row-->
                 </div>
             </div>
+
+        </div>
+
+        <div class="card">
+            <div class="card-header align-items-center d-flex">
+                <h4 class="card-title mb-0 flex-grow-1">Parent's Details</h4>
+                <div class="flex-shrink-0">
+
+                </div>
+            </div><!-- end card header -->
+            <div class="card-body">
+                <div class="live-preview">
+                    <div class="row gy-4">
+
+                        <div class=" col-md-4">
+                            <div>
+                                <label class="form-label">Father's name</label>
+                                {{form.fathers_name}}
+                            </div>
+                        </div>
+                        <!--end col-->
+                        <div class=" col-md-4">
+                            <div>
+                                <label class="form-label">Father's contact number</label>
+                                {{form.fathers_contact_number}}
+                            </div>
+                        </div>
+                        <!--end col-->
+                        <div class=" col-md-4">
+                            <div>
+                                <label class="form-label">Father's whatsapp number</label>
+                                {{form.fathers_whatsapp_number}}
+                            </div>
+                        </div>
+                        <!--end col-->
+                        <div class=" col-md-4">
+                            <div>
+                                <label class="form-label">Mother's name</label>
+                                {{form.mothers_name}}
+                            </div>
+                        </div>
+                        <!--end col-->
+                        <div class="col-md-4">
+                            <div>
+                                <label class="form-label">Mother's contact number</label>
+                                {{form.mothers_contact_number}}
+                            </div>
+                        </div>
+                        <!--end col-->
+                        <div class="col-md-4">
+                            <div>
+                                <label class="form-label">Mother's whatsapp number</label>
+                                {{form.mothers_whatsapp_number}}
+                            </div>
+                        </div>
+                        <!--end col-->
+
+                    </div>
+                    <!--end row-->
+                </div>
+            </div>
+
+        </div>
+
+        <div class="card">
+            <div class="card-header align-items-center d-flex">
+                <h4 class="card-title mb-0 flex-grow-1">Contact Details</h4>
+                <div class="flex-shrink-0">
+
+                </div>
+            </div><!-- end card header -->
+            <div class="card-body">
+                <div class="live-preview">
+                    <div class="row gy-4">
+
+                        <div class=" col-md-4">
+                            <div>
+                                <label class="form-label">Residence phone number</label>
+                                {{form.resident_contact_number}}
+                            </div>
+                        </div>
+                        <!--end col-->
+                        <div class=" col-md-4">
+                            <div>
+                                <label class="form-label">Address line 1</label>
+                                {{form.address_line1}}
+                            </div>
+                        </div>
+                        <!--end col-->
+                        <div class=" col-md-4">
+                            <div>
+                                <label class="form-label">Address Line 2</label>
+                                {{form.address_line2}}
+                            </div>
+                        </div>
+                        <!--end col-->
+                        <div class=" col-md-4">
+                            <div>
+                                <label class="form-label">Address line 3</label>
+                                {{form.address_line3}}
+                            </div>
+                        </div>
+                        <!--end col-->
+                        <div class="col-md-4">
+                            <div>
+                                <label class="form-label">Email</label>
+                                {{form.email_address}}
+                            </div>
+                        </div>
+                        <!--end col-->
+                        <!-- Base Buttons -->
+
+
+                    </div>
+                    <!--end row-->
+
+                </div>
+            </div>
+            <div>
+
+            </div>
+
+        </div>
+
+    </div>
+    <!--end col-->
+    <div class="row">
+        <div class="hstack flex-wrap gap-2 mb-3 mb-lg-0">
+            <button class="btn btn-outline-primary btn-border">Primary</button>
+            <button class="btn btn-outline-secondary btn-border">Secondary</button>
+            <button class="btn btn-outline-success btn-border">Success</button>
+            <button class="btn btn-soft-warning btn-border">Warning</button>
+            <button class="btn btn-soft-danger btn-border">Danger</button>
+            <button class="btn btn-soft-dark btn-border">Dark</button>
         </div>
     </div>
-{% endblock %}
+</div>{% endblock %}

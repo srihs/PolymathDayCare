@@ -14,7 +14,8 @@ class CreateChildForm(forms.ModelForm):
     admission_number = forms.CharField(max_length=250,required=True, widget=forms.TextInput(attrs={'readonly':'readonly','class':'form-control'}))
     child_first_name = forms.CharField(max_length=250,required=True, widget=forms.TextInput(attrs={'class':'form-control','required':'true'}))
     child_last_name = forms.CharField(max_length=250,required=True, widget=forms.TextInput(attrs={'class':'form-control', 'required':'true'}))
-    date_of_birth = forms.DateField(required=True, widget=MyDateInput(attrs={'class':'form-control','required':'true', 'id': 'dob'}))
+    date_of_birth = forms.DateField(required=True, widget=MyDateInput(attrs={'class':'form-control','required':'true', 'id': 'dob','data-provider':'flatpickr',
+                                                                              'data-date-format':'d M, Y'}))
     fathers_name = forms.CharField(max_length=250,required=True, widget=forms.TextInput(attrs={'class':'form-control','required':'true'}))
     fathers_contact_number = forms.CharField(max_length=250,required=True, widget=forms.TextInput(attrs={'class':'form-control','required':'true'}))
     fathers_whatsapp_number =forms.CharField(max_length=250,required=True, widget=forms.TextInput(attrs={'class':'form-control','required':'true'}))
@@ -26,9 +27,16 @@ class CreateChildForm(forms.ModelForm):
     address_line2 = forms.CharField(max_length=250, widget=forms.TextInput(attrs={'class':'form-control'}))
     address_line3 = forms.CharField(max_length=250, widget=forms.TextInput(attrs={'class':'form-control'}))
     email_address =  forms.CharField(max_length=50, required=False, widget=forms.EmailInput(attrs={'class': 'form-control', 'id': 'email'}))
-    is_polymath_student =forms.ChoiceField(choices =choices,required=True,widget=forms.RadioSelect(attrs={'class':'form-check-label','required':'true'}))
+    is_polymath_student =forms.ChoiceField(choices =choices,required=True,widget=forms.CheckboxInput(attrs={'class':'form-check-input form-control',
+                                                                                                            'type':'checkbox',
+                                                                                                            'role':'switch',
+                                                                                                            'required':'true','checked':'checked'}))
     recipt_number = forms.CharField(max_length=250,required=True, widget=forms.TextInput(attrs={'class':'form-control'}))
-    admission_date = forms.DateField(required=True, widget=MyDateInput(attrs={'class':'form-control', 'id': 'admission_date', 'required':'true'}))
+    admission_date = forms.DateField(required=True, widget=MyDateInput(attrs={'class':'form-control',
+                                                                              'id': 'admission_date',
+                                                                              'required':'true',
+                                                                              'data-provider':'flatpickr',
+                                                                              'data-date-format':'d M, Y'}))
     class Meta:
         model = Child
         fields = ('admission_number','child_first_name','admission_number','child_first_name','child_last_name',

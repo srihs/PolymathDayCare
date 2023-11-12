@@ -11,26 +11,37 @@ import datetime
 
 
 # Create your views here.
-@login_required(login_url='/login/')
+#@login_required(login_url='/login/')
 def index(request):
     return render(request, '../templates/base.html')
+
 
 def UserLogin(request):
     print("--In Login--")
     username = password = ''
-    if request.method == 'POST':
-        print("--In Post--")
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        print(username)
-        print(password)
-        user = authenticate(username=username, password=password)
-        if user is not None:
-            if user.is_active:
-                login(request, user)
-            return HttpResponseRedirect(request.POST.get('next'))
+    try:
+        if request.method == 'POST':
+            print("--In Post--")
+            username = request.POST.get('username')
+            password = request.POST.get('password')
+            print(username)
+            print(password)
+            user = authenticate(username=username, password=password)
+            print(user)
+            if user is not None:
+                if user.is_active:
+                    print("user in not null")
+                    login(request, user)
+                return HttpResponseRedirect(request.POST.get('next'))
+            else:
+                messages.error(request, "Invalid user credentials. Please check your username and password.")
 
-    return render(request, '../templates/login.html')
+
+        return render(request, '../templates/login.html')
+
+    except Exception as e:
+        messages.error(request, e)
+
 
 @login_required(login_url='/login/')
 def getChild(request):
@@ -46,8 +57,9 @@ def getChild(request):
     except:
         nextId = 1  # if the next ID is null define the record as the first
     print(nextId)
-    child_form = CreateChildForm(initial={'admission_number': 'D' + str(nextId),'admission_date': datetime.datetime.now().date().strftime('%m/%d/%Y')})  # creating the form with the admission ID
+    child_form = CreateChildForm(initial={'admission_number': 'D' + str(nextId),
+                                          'admission_date': datetime.datetime.now().date().strftime(
+                                              '%m/%d/%Y')})  # creating the form with the admission ID
     print(datetime.datetime.now().date().strftime('%m/%d/%Y'))
-
 
     return render(request, '../templates/child.html', {'form': child_form})
