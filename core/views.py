@@ -16,17 +16,21 @@ def index(request):
     return render(request, '../templates/base.html')
 
 def UserLogin(request):
-  username = password = ''
-  if request.method == 'POST':
-    username = request.POST.get('username')
-    password = request.POST.get('password')
+    print("--In Login--")
+    username = password = ''
+    if request.method == 'POST':
+        print("--In Post--")
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        print(username)
+        print(password)
+        user = authenticate(username=username, password=password)
+        if user is not None:
+            if user.is_active:
+                login(request, user)
+            return HttpResponseRedirect(request.POST.get('next'))
 
-    user = authenticate(username=username, password=password)
-    if user is not None:
-      if user.is_active:
-        login(request, user)
-        return HttpResponseRedirect(request.POST.get('next'))
-  return render(request, '../templates/login.html')
+    return render(request, '../templates/login.html')
 
 @login_required(login_url='/login/')
 def getChild(request):
