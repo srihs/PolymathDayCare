@@ -10,6 +10,10 @@ class MyDateInput(forms.widgets.DateInput):
 
 
 class CreateChildForm(forms.ModelForm):
+    CHOICES = [
+        ('1', 'Yes'),
+        ('0', 'No'),
+    ]
     admission_number = forms.CharField(max_length=250, required=True,
                                        widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control'}))
     child_first_name = forms.CharField(max_length=250, required=True,
@@ -49,10 +53,8 @@ class CreateChildForm(forms.ModelForm):
     email_address = forms.CharField(max_length=50, required=False,
                                     widget=forms.EmailInput(
                                         attrs={'class': 'form-control', 'id': 'email', 'placeholder': 'Email'}))
-    is_polymath_student = forms.ChoiceField(widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'type': 'check'}))
-    recipt_number = forms.CharField(max_length=250, required=True,
-                                    widget=forms.TextInput(
-                                        attrs={'class': 'form-control', 'placeholder': 'Receipt Number'}))
+    is_polymath_student = forms.BooleanField(required=False,widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'type': 'checkbox', 'checked': 'checked'}))
+    recipt_number = forms.CharField(max_length=250, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Receipt Number'}))
     admission_date = forms.DateField(required=True, widget=MyDateInput(attrs={'class': 'form-control',
                                                                               'id': 'admission_date',
                                                                               'placeholder': 'Admission Date',
