@@ -38,7 +38,7 @@ def UserLogin(request):
         messages.error(request, e)
 
 
-@login_required(login_url='login/')
+@login_required(login_url='/login/')
 def getChild(request):
     # clearing the session form the system. so the New id will be facilitated
     request.session['child_id'] = None
@@ -59,6 +59,7 @@ def getChild(request):
     return render(request, '../templates/child.html', {'form': child_form,'childrenList':childrenList})
 
 
+@login_required(login_url='/login/')
 def createChild(request):
     try:
         if request.method == 'POST':

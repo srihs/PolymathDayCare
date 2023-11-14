@@ -83,7 +83,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'polymath_dc',
         'USER': 'root',
-        'PASSWORD': 'imaliem123',
+        'PASSWORD': 'Im@liem123#',
         'HOST': 'localhost',
         'PORT': '3306',
     }
@@ -150,3 +150,5 @@ MESSAGE_TAGS = {message_constants.DEBUG: 'debug',
 SESSION_COOKIE_AGE = 300 # 3 minutes. "1209600(2 weeks)" by default
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+LOGIN_REDIRECT_URL = ""

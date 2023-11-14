@@ -49,15 +49,17 @@
                         <div class="card mt-4">
                             <div class="alert  alert-dismissible" role="alert">
                                 {% if messages %}
-                                    {% for message in messages %}
-                                        <!-- Danger Alert -->
-                                        <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
-                                             role="alert">
-                                            <strong> <center> {{ message }}  </center></strong>
-                                            <button type="button" class="btn-close" data-bs-dismiss="alert"
-                                                    aria-label="Close"></button>
-                                        </div>
-                                    {% endfor %}
+                                {% for message in messages %}
+                                <!-- Danger Alert -->
+                                <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
+                                     role="alert">
+                                    <strong>
+                                        <center> {{ message }}</center>
+                                    </strong>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                            aria-label="Close"></button>
+                                </div>
+                                {% endfor %}
                                 {% endif %}       <!-- end row -->
                             </div>
                             <div class="card-body p-4">
@@ -67,37 +69,40 @@
                                 </div>
                                 <div class="p-2 mt-4">
                                     {% if next %}
-                                        <form action="/login/?next={{next}}" method="post">
-                                    {% else %}
+                                    <form action="/login/?next={{next}}" method="post">
+                                        {% else %}
                                         <form action="/login/" method="post">
-                                    {% endif %}
-                                    {% csrf_token %}
+                                            {% endif %}
+                                            {% csrf_token %}
 
 
-                                    <div class="mb-3">
-                                        <label for="username" class="form-label">Username</label>
-                                        <input type="text" class="form-control" name="username" required="required"
-                                               placeholder="Enter username">
-                                    </div>
+                                            <div class="mb-3">
+                                                <label for="username" class="form-label">Username</label>
+                                                <input type="text" class="form-control" name="username"
+                                                       required="required"
+                                                       placeholder="Enter username">
+                                                <input type="hidden" name="next" value="{{ request.GET.next }}"/>
+                                            </div>
 
-                                    <div class="mb-3">
+                                            <div class="mb-3">
 
-                                        <label class="form-label" for="password-input">Password</label>
-                                        <div class="position-relative auth-pass-inputgroup mb-3">
-                                            <input type="password" class="form-control pe-5 password-input"
-                                                   required="required" placeholder="Enter password" name="password">
-                                            <button class="btn btn-link position-absolute end-0 top-0 text-decoration-none text-muted password-addon"
-                                                    type="button" id="password-addon"><i
-                                                    class="ri-eye-fill align-middle"></i></button>
-                                        </div>
-                                    </div>
+                                                <label class="form-label" for="password-input">Password</label>
+                                                <div class="position-relative auth-pass-inputgroup mb-3">
+                                                    <input type="password" class="form-control pe-5 password-input"
+                                                           required="required" placeholder="Enter password"
+                                                           name="password">
+                                                    <button class="btn btn-link position-absolute end-0 top-0 text-decoration-none text-muted password-addon"
+                                                            type="button" id="password-addon"><i
+                                                            class="ri-eye-fill align-middle"></i></button>
+                                                </div>
+                                            </div>
 
 
-                                    <div class="mt-4">
-                                        <button class="btn btn-secondary w-100" type="submit">Sign In</button>
-                                    </div>
+                                            <div class="mt-4">
+                                                <button class="btn btn-secondary w-100" type="submit">Sign In</button>
+                                            </div>
 
-                                    </form>
+                                        </form>
                                 </div>
                             </div>
                             <!-- end card body -->
