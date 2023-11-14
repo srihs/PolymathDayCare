@@ -1,83 +1,151 @@
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-layout="horizontal" data-topbar="dark" data-sidebar-size="lg" data-sidebar="light"
+      data-sidebar-image="none" data-preloader="disable">
 <head>
-    <!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Purple Admin</title>
-    <!-- plugins:css -->
-    <link rel="stylesheet" href="{% static 'assets/vendors/mdi/css/materialdesignicons.min.css' %}">
-    <link rel="stylesheet" href="{% static 'assets/vendors/css/vendor.bundle.base.css' %}">
-    <!-- endinject -->
-    <!-- Plugin css for this page -->
-    <!-- End plugin css for this page -->
-    <!-- inject:css -->
-    <!-- endinject -->
-    <!-- Layout styles -->
-    <link rel="stylesheet" href="{% static 'assets/css/style.css' %}">
-    <!-- End layout styles -->
-    <link rel="shortcut icon" href="{% static 'assets/images/favicon.ico' %}"/>
+    <meta charset="utf-8"/>
+    <title>Sign In | POLYMATH Daycare System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- App favicon -->
+    <link rel="shortcut icon" href="{% static 'assets/images/favicon.ico' %}">
+
+    <!-- Layout config Js -->
+    <script src="{% static 'assets/js/layout.js' %}"></script>
+    <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet" type="text/css"/>
+    <!-- Bootstrap Css -->
+    <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet" type="text/css"/>
+    <!-- Icons Css -->
+    <link href="{% static 'assets/css/icons.min.css' %}" rel="stylesheet" type="text/css"/>
+    <!-- App Css-->
+    <link href="{% static 'assets/css/app.min.css' %}" rel="stylesheet" type="text/css"/>
+    <!-- custom Css-->
+    <link href="{% static 'assets/css/custom.min.css' %}" rel="stylesheet" type="text/css"/>
+
+
 </head>
+
 <body>
-<div class="container-scroller">
-    <div class="container-fluid page-body-wrapper full-page-wrapper">
-        <div class="content-wrapper d-flex align-items-center auth">
-            <div class="row flex-grow">
-                <div class="col-lg-4 mx-auto">
-                    <div class="auth-form-light text-left p-5">
-                        <div class="brand-logo">
-                            <img src="{% static 'assets/images/logo.png' %}">
+
+<div class="auth-page-wrapper pt-5">
+    <!-- auth page bg -->
+
+    <!-- auth page content -->
+    <div class="auth-page-content">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-12">
+                    <div class="text-center mt-sm-5 mb-4 text-white-50">
+                        <div>
+                            <img src="{% static 'assets/images/logo.png' %}" alt="">
+                            </a>
                         </div>
 
+                    </div>
+                </div>
 
-                        <h4>Hello! let's get started</h4>
-                        <h6 class="font-weight-light">Sign in to continue.</h6> </br>
-                        {% if messages %}
-                        <ul class="badge badge-danger">
-                            {% for message in messages %}
-                            <li {% if message.tags %} class="{{ message.tags }}" {% endif %}>{{ message }}</li>
-                            {% endfor %}
-                        </ul>
-                        {% endif %}</br>
-                        {% if next %}
-                        <form action="/login/?next={{ next }}" method="post">
-                            {% else %}
-                            <form action="/login/" method="post">
-                                {% endif %}
-                                {% csrf_token %}
-                                <div class="form-group">
-                                    <input type="text" class="form-control form-control-lg" required="required" name="username"
-                                           placeholder="Username">
-                                </div>
-                                <div class="form-group">
-                                    <input type="password" class="form-control form-control-lg" required="required" name="password"
-                                           placeholder="Password">
-                                </div>
-                                <div class="mt-3">
-                                    <button type="submit" class="btn btn-gradient-primary me-2">Submit</button>
-                                </div>
-                                <input type="hidden" name="next" value="{{ request.GET.next }}"/>
 
-                            </form>
+                <div class="row justify-content-center">
+                    <div class="col-md-8 col-lg-6 col-xl-5">
+                        <div class="card mt-4">
+                            <div class="alert  alert-dismissible" role="alert">
+                                {% if messages %}
+                                    {% for message in messages %}
+                                        <!-- Danger Alert -->
+                                        <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
+                                             role="alert">
+                                            <strong> <center> {{ message }}  </center></strong>
+                                            <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                                    aria-label="Close"></button>
+                                        </div>
+                                    {% endfor %}
+                                {% endif %}       <!-- end row -->
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="text-center mt-2">
+                                    <h5 class="text-primary">Welcome Back !</h5>
+                                    <p class="text-muted">Sign in to continue to POLYMATH daycare system.</p>
+                                </div>
+                                <div class="p-2 mt-4">
+                                    {% if next %}
+                                        <form action="/login/?next={{next}}" method="post">
+                                    {% else %}
+                                        <form action="/login/" method="post">
+                                    {% endif %}
+                                    {% csrf_token %}
+
+
+                                    <div class="mb-3">
+                                        <label for="username" class="form-label">Username</label>
+                                        <input type="text" class="form-control" name="username" required="required"
+                                               placeholder="Enter username">
+                                    </div>
+
+                                    <div class="mb-3">
+
+                                        <label class="form-label" for="password-input">Password</label>
+                                        <div class="position-relative auth-pass-inputgroup mb-3">
+                                            <input type="password" class="form-control pe-5 password-input"
+                                                   required="required" placeholder="Enter password" name="password">
+                                            <button class="btn btn-link position-absolute end-0 top-0 text-decoration-none text-muted password-addon"
+                                                    type="button" id="password-addon"><i
+                                                    class="ri-eye-fill align-middle"></i></button>
+                                        </div>
+                                    </div>
+
+
+                                    <div class="mt-4">
+                                        <button class="btn btn-secondary w-100" type="submit">Sign In</button>
+                                    </div>
+
+                                    </form>
+                                </div>
+                            </div>
+                            <!-- end card body -->
+                        </div>
+                        <!-- end card -->
+
+
+                    </div>
+                </div>
+                <!-- end row -->
+            </div>
+            <!-- end container -->
+        </div>
+        <!-- end auth page content -->
+
+        <!-- footer -->
+        <footer class="footer">
+            <div class="container">
+                <div class="row">
+                    <div class="col-lg-12">
+                        <div class="text-center">
+                            <p class="mb-0 text-muted">&copy;
+                                <script>document.write(new Date().getFullYear())</script>
+                                POLYMATH. Crafted with <i class="mdi mdi-heart text-danger"></i> by POLYMATH IT
+                                Department
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <!-- content-wrapper ends -->
+        </footer>
+        <!-- end Footer -->
     </div>
-    <!-- page-body-wrapper ends -->
-</div>
-<!-- container-scroller -->
-<!-- plugins:js -->
-<script src="{% static 'assets/vendors/js/vendor.bundle.base.js' %}"></script>
-<!-- endinject -->
-<!-- Plugin js for this page -->
-<!-- End plugin js for this page -->
-<!-- inject:js -->
-<script src="{% static 'assets/js/off-canvas.js' %}"></script>
-<script src="{% static 'assets/js/hoverable-collapse.js' %}"></script>
-<script src="{% static 'assets/js/misc.js' %}"></script>
-<!-- endinject -->
+    <!-- end auth-page-wrapper -->
+
+    <!-- JAVASCRIPT -->
+    <script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
+    <script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
+    <script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
+    <script src="{% static 'assets/js/pages/plugins/lord-icon-2.1.0.js' %}"></script>
+    <script src="{% static 'assets/js/plugins.js' %}"></script>
+
+    <!-- particles js -->
+    <script src="{% static 'assets/libs/particles.js/particles.js' %}"></script>
+    <!-- particles app js -->
+    <script src="{% static 'assets/js/pages/particles.app.js' %}"></script>
+    <!-- password-addon init -->
+    <script src="{% static 'assets/js/pages/password-addon.init.js' %}"></script>
 </body>
 </html>

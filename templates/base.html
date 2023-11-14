@@ -8,24 +8,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <!-- App favicon -->
-    <link rel="shortcut icon" href="assets/images/favicon.ico">
+    <link rel="shortcut icon" href="{% static 'assets/images/favicon.ico' %}">
 
     <!-- Layout config Js -->
-    <script src="{% static 'assets/js/layout.js'%}"></script>
+    <script src="{% static 'assets/js/layout.js' %}"></script>
     <!-- Bootstrap Css -->
-    <link href="{% static 'assets/css/bootstrap.min.css'%}" rel="stylesheet" type="text/css"/>
+    <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet" type="text/css"/>
     <!-- Icons Css -->
-    <link href="{% static 'assets/css/icons.min.css'%}" rel="stylesheet" type="text/css"/>
+    <link href="{% static 'assets/css/icons.min.css' %}" rel="stylesheet" type="text/css"/>
     <!-- App Css-->
-    <link href="{% static 'assets/css/app.min.css'%}" rel="stylesheet" type="text/css"/>
+    <link href="{% static 'assets/css/app.min.css' %}" rel="stylesheet" type="text/css"/>
     <!-- custom Css-->
-    <link href="{% static 'assets/css/custom.min.css'%}" rel="stylesheet" type="text/css"/>
+    <link href="{% static 'assets/css/custom.min.css' %}" rel="stylesheet" type="text/css"/>
 
-    <!-- Include Choices JavaScript (latest) -->
-    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="{% static 'assets/libs/flatpickr/flatpickr.min.css'">
+
+    <link rel="stylesheet" href="{% static 'assets/libs/flatpickr/flatpickr.min.css' %}">
+
+
+       <!--datatable css-->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.css" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.2.2/css/buttons.dataTables.min.css">
+    <!--datatable responsive css-->
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.2.9/css/responsive.bootstrap.min.css" />
+
+
+
 
 </head>
 
@@ -42,19 +50,19 @@
                     <div class="navbar-brand-box horizontal-logo">
                         <a href="index.html" class="logo logo-dark">
                         <span class="logo-sm">
-                            <img src="{% static 'assets/images/logo.png'%}" alt="">
+                            <img src="{% static 'assets/images/logo.png' %}" alt="">
                         </span>
                             <span class="logo-lg">
-                            <img src="{% static 'assets/images/logo.png'%}" alt="">
+                            <img src="{% static 'assets/images/logo.png' %}" alt="">
                         </span>
                         </a>
 
                         <a href="index.html" class="logo logo-light">
                         <span class="logo-sm">
-                            <img src="{% static 'assets/images/logo-sm.png'%}" alt="" height="22">
+                            <img src="{% static 'assets/images/logo-sm.png' %}" alt="" height="22">
                         </span>
                             <span class="logo-lg">
-                            <img src="{% static 'assets/images/logo-light.png'%}" alt="" height="17">
+                            <img src="{% static 'assets/images/logo-light.png' %}" alt="" height="17">
                         </span>
                         </a>
                     </div>
@@ -1936,26 +1944,31 @@
     </div>
 </div>
 
+{% block scripts %}
+
+
+
 <!-- JAVASCRIPT -->
-<script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js'%}"></script>
-<script src="{% static 'assets/libs/simplebar/simplebar.min.js'%}"></script>
-<script src="{% static 'assets/libs/node-waves/waves.min.js'%}"></script>
-<script src="{% static 'assets/libs/feather-icons/feather.min.js'%}"></script>
-<script src="{% static 'assets/js/pages/plugins/lord-icon-2.1.0.js'%}"></script>
-<script src="{% static 'assets/js/plugins.js'%}"></script>
+<script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
+<script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
+<script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
+<script src="{% static 'assets/js/pages/plugins/lord-icon-2.1.0.js' %}"></script>
+<script src="{% static 'assets/js/plugins.js' %}"></script>
 
 <!-- apexcharts -->
-<script src="{% static 'assets/libs/apexcharts/apexcharts.min.js'%}"></script>
+<script src="{% static 'assets/libs/apexcharts/apexcharts.min.js' %}"></script>
 
 <!-- flatpickr -->
-<script src="{% static 'assets/libs/flatpickr/flatpickr.min.js'%}"></script>
+<script src="{% static 'assets/libs/flatpickr/flatpickr.min.js' %}"></script>
 
 <!-- Dashboard init -->
-<script src="{% static 'assets/js/pages/dashboard-crm.init.js'%}"></script>
+<script src="{% static 'assets/js/pages/dashboard-crm.init.js' %}"></script>
 
 <!-- App js -->
-<script src="{% static 'assets/js/app.js'%}"></script>
-</body>
+<script src="{% static 'assets/js/app.js' %}"></script>
 
+{% endblock %}
+</body>
 
 </html>

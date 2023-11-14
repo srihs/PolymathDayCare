@@ -5,7 +5,7 @@ class BaseClass(models.Model):
     date_created = models.DateTimeField(auto_now_add=True)
     user_created = models.CharField(max_length=50)
     date_updated = models.DateTimeField(auto_now=True)
-    user_created = models.CharField(max_length=50)
+    user_updated = models.CharField(max_length=50)
     is_active = models.BooleanField(default=True)
 
     class Meta:
