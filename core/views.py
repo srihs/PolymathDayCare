@@ -43,6 +43,7 @@ def getChild(request):
     # clearing the session form the system. so the New id will be facilitated
     request.session['child_id'] = None
     request.session.modified = True
+
     # Child is defined by 'D' + next Id in the Table
     try:
         # trying to retrive the next primaryKey
@@ -82,7 +83,7 @@ def createChild(request):
             is_polymath_student = request.POST.get('is_polymath_student')
             recipt_number = request.POST.get('recipt_number')
             admission_date = request.POST.get('admission_date')
-
+            print(is_polymath_student)
         if is_polymath_student == 'on':
             is_polymath_student = True
         else:
