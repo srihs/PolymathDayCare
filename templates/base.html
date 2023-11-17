@@ -707,7 +707,8 @@
 
                     <li class="nav-item">
                         <a href="#sidebarInvoices" class="nav-link" data-bs-toggle="collapse" role="button"
-                           aria-expanded="false" aria-controls="sidebarInvoices"> <i class="mdi mdi-office-building"></i><span
+                           aria-expanded="false" aria-controls="sidebarInvoices"> <i
+                                class="mdi mdi-office-building"></i><span
                                 data-key="t-invoices">
                             DayCare</span>
                         </a>
@@ -717,29 +718,34 @@
 
                                 <li class="nav-item">
                                     <a href="#sidebarEmail" class="nav-link" data-bs-toggle="collapse" role="button"
-                                       aria-expanded="false" aria-controls="sidebarEmail"><i class="mdi mdi-file-document-multiple"></i><span data-key="t-email">
+                                       aria-expanded="false" aria-controls="sidebarEmail"><i
+                                            class="mdi mdi-file-document-multiple"></i><span data-key="t-email">
                                         Master Files</span>
                                     </a>
                                     <div class="collapse menu-dropdown" id="sidebarEmail">
                                         <ul class="nav nav-sm flex-column">
                                             <li class="nav-item">
-                                                <a href="/child" class="nav-link"><i class="mdi mdi-human-child"></i> <span data-key="t-mailbox">
+                                                <a href="/child" class="nav-link"><i class="mdi mdi-human-child"></i>
+                                                    <span data-key="t-mailbox">
                                                     Children </span> </a>
                                             </li>
 
-                                                    <li class="nav-item">
-                                                        <a href="apps-mailbox.html" class="nav-link"> <i class="mdi mdi-table-clock"></i><span
-                                                                data-key="t-mailbox"></span>
-                                                            Packages </a>
-                                                    </li>
-                                                    <li class="nav-item">
-                                                        <a href="#sidebaremailTemplates" class="nav-link"
-                                                            role="button" aria-expanded="false"
-                                                           aria-controls="sidebaremailTemplates"> <i class="mdi mdi-office-building-marker"></i><span data-key="t-email-templates">Branches</span>
+                                            <li class="nav-item">
+                                                <a href="apps-mailbox.html" class="nav-link"> <i
+                                                        class="mdi mdi-table-clock"></i><span
+                                                        data-key="t-mailbox"></span>
+                                                    Packages </a>
+                                            </li>
+                                            <li class="nav-item">
+                                                <a href="#sidebaremailTemplates" class="nav-link"
+                                                   role="button" aria-expanded="false"
+                                                   aria-controls="sidebaremailTemplates"> <i
+                                                        class="mdi mdi-office-building-marker"></i><span
+                                                        data-key="t-email-templates">Branches</span>
 
-                                                        </a>
+                                                </a>
 
-                                                    </li>
+                                            </li>
 
                                         </ul>
                                     </div>
@@ -1900,8 +1906,12 @@
             {% endblock %}
 
         </div>
+
         <!-- container-fluid -->
+
     </div>
+    {% block modals %}
+    {% endblock %}
     <!-- End Page-content -->
 
     <footer class="footer">
@@ -1944,24 +1954,24 @@
 {% block scripts %}
 
 
-<!-- JAVASCRIPT -->
-<script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
-<script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
-<script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
-<script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
-<script src="{% static 'assets/js/pages/plugins/lord-icon-2.1.0.js' %}"></script>
-<script src="{% static 'assets/js/plugins.js' %}"></script>
+    <!-- JAVASCRIPT -->
+    <script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
+    <script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
+    <script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
+    <script src="{% static 'assets/js/pages/plugins/lord-icon-2.1.0.js' %}"></script>
+    <script src="{% static 'assets/js/plugins.js' %}"></script>
 
-<!-- apexcharts -->
-<script src="{% static 'assets/libs/apexcharts/apexcharts.min.js' %}"></script>
+    <!-- apexcharts -->
+    <script src="{% static 'assets/libs/apexcharts/apexcharts.min.js' %}"></script>
 
 
 
-<!-- Dashboard init -->
-<script src="{% static 'assets/js/pages/dashboard-crm.init.js' %}"></script>
+    <!-- Dashboard init -->
+    <script src="{% static 'assets/js/pages/dashboard-crm.init.js' %}"></script>
 
-<!-- App js -->
-<script src="{% static 'assets/js/app.js' %}"></script>
+    <!-- App js -->
+    <script src="{% static 'assets/js/app.js' %}"></script>
 
 {% endblock %}
 </body>

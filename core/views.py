@@ -57,7 +57,7 @@ def getChild(request):
                                               '%m/%d/%Y')})  # creating the form with the admission ID
     print(datetime.datetime.now().date().strftime('%m/%d/%Y'))
 
-    return render(request, '../templates/child.html', {'form': child_form,'childrenList':childrenList})
+    return render(request, '../templates/child.html', {'form': child_form, 'childrenList': childrenList})
 
 
 @login_required(login_url='/login/')
@@ -120,7 +120,7 @@ def createChild(request):
                 admission_number=admission_number,
                 child_first_name=child_first_name,
                 child_last_name=child_last_name,
-                date_of_birth= datetime.datetime.strptime(date_of_birth, '%Y-%m-%d').date(),
+                date_of_birth=datetime.datetime.strptime(date_of_birth, '%Y-%m-%d').date(),
                 fathers_name=fathers_name,
                 fathers_contact_number=fathers_contact_number,
                 fathers_whatsapp_number=fathers_whatsapp_number,
@@ -134,11 +134,24 @@ def createChild(request):
                 email_address=email_address,
                 is_polymath_student=is_polymath_student,
                 recipt_number=recipt_number,
-                user_created= request.user.username,
-                admission_date=datetime.datetime.strptime(admission_date,'%Y-%m-%d').date())
+                user_created=request.user.username,
+                admission_date=datetime.datetime.strptime(admission_date, '%Y-%m-%d').date())
             objChild.save()
             messages.success(request, "Child details saved.")
     except Exception as e:
         messages.error(request, e)
 
     return redirect('core:view_child')
+
+
+def deleteChild(request,id):
+    try:
+        objChild = get_object_or_404(Child,pk=id)
+
+        if objChild is not None:
+            objChild.is_active = False
+            objChild.save()
+            messages.success(request, "Child details saved.")
+
+    except Exception as e:
+        messages.error(request, e)
