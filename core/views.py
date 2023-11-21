@@ -7,6 +7,7 @@ from django.contrib.auth import authenticate, login
 from django.http import *
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.views.decorators.csrf import csrf_protect
 import datetime
 
 from .models import Child
@@ -55,15 +56,29 @@ def getChild(request):
     child_form = CreateChildForm(initial={'admission_number': 'D' + str(nextId),
                                           'admission_date': datetime.datetime.now().date().strftime(
                                               '%m/%d/%Y')})  # creating the form with the admission ID
-    print(datetime.datetime.now().date().strftime('%m/%d/%Y'))
 
     return render(request, '../templates/child.html', {'form': child_form, 'childrenList': childrenList})
+
+
+def getChildbyID(request, id):
+    try:
+        print("in the getChildbyID method")
+        if request.POST.get('id') is not None:
+            print("--In GET--")
+            objChild = get_object_or_404(Child, pk=request.POST.get('id'))
+            if objChild is not None:
+                child_form = CreateChildForm(instance=objChild)
+
+    except Exception as e:
+                messages.error(request, e)
+    return render(request, '../templates/child.html', {'form': child_form})
 
 
 @login_required(login_url='/login/')
 def createChild(request):
     try:
         if request.method == 'POST':
+            print("in Post")
             # capturing the variables with data
             admission_number = request.POST.get('admission_number')
             child_first_name = request.POST.get('child_first_name')
@@ -83,75 +98,100 @@ def createChild(request):
             is_polymath_student = request.POST.get('is_polymath_student')
             recipt_number = request.POST.get('recipt_number')
             admission_date = request.POST.get('admission_date')
-            print(is_polymath_student)
+            is_active = request.POST.get('is_active')
+
         if is_polymath_student == 'on':
             is_polymath_student = True
         else:
             is_polymath_student = False
 
-        if 'child_id' in request.session and request.session['child_id'] is not None:
-            # Editing the record
-            objChild = get_object_or_404(Child, pk=request.session['child_id'])
-            if objChild is not None:
-                objChild.child_first_name = request.POST.get('child_first_name')
-            objChild.child_last_name = request.POST.get('child_last_name')
-            objChild.date_of_birth = request.POST.get('date_of_birth')
-            objChild.fathers_name = request.POST.get('fathers_name')
-            objChild.fathers_contact_number = request.POST.get('fathers_contact_number')
-            objChild.fathers_whatsapp_number = request.POST.get('fathers_whatsapp_number')
-            objChild.mothers_name = request.POST.get('mothers_name')
-            objChild.mothers_contact_number = request.POST.get('mothers_contact_number')
-            objChild.mothers_whatsapp_number = request.POST.get('mothers_whatsapp_number')
-            objChild.resident_contact_number = request.POST.get('resident_contact_number')
-            objChild.address_line1 = request.POST.get('address_line1')
-            objChild.address_line2 = request.POST.get('address_line2')
-            objChild.address_line3 = request.POST.get('address_line3')
-            objChild.email_address = request.POST.get('email_address')
-            objChild.is_polymath_student = request.POST.get('is_polymath_student')
-            objChild.recipt_number = request.POST.get('recipt_number')
-            objChild.admission_date = request.POST.get('admission_date')
-            objChild.user_updated = request.user.username
-            objChild.save()
-            messages.success(request, "Child details updated.")
+        if is_active == 'on':
+            is_active = True
         else:
-            # New Child
-            print('-in Create-')
-            objChild = Child(
-                admission_number=admission_number,
-                child_first_name=child_first_name,
-                child_last_name=child_last_name,
-                date_of_birth=datetime.datetime.strptime(date_of_birth, '%Y-%m-%d').date(),
-                fathers_name=fathers_name,
-                fathers_contact_number=fathers_contact_number,
-                fathers_whatsapp_number=fathers_whatsapp_number,
-                mothers_name=mothers_name,
-                mothers_contact_number=mothers_contact_number,
-                mothers_whatsapp_number=mothers_whatsapp_number,
-                resident_contact_number=resident_contact_number,
-                address_line1=address_line1,
-                address_line2=address_line2,
-                address_line3=address_line3,
-                email_address=email_address,
-                is_polymath_student=is_polymath_student,
-                recipt_number=recipt_number,
-                user_created=request.user.username,
-                admission_date=datetime.datetime.strptime(admission_date, '%Y-%m-%d').date())
-            objChild.save()
-            messages.success(request, "Child details saved.")
+            is_active = False
+
+        print('-in Create-')
+        objChild = Child(
+            admission_number=admission_number,
+            child_first_name=child_first_name,
+            child_last_name=child_last_name,
+            date_of_birth=datetime.datetime.strptime(date_of_birth, '%Y-%m-%d').date(),
+            fathers_name=fathers_name,
+            fathers_contact_number=fathers_contact_number,
+            fathers_whatsapp_number=fathers_whatsapp_number,
+            mothers_name=mothers_name,
+            mothers_contact_number=mothers_contact_number,
+            mothers_whatsapp_number=mothers_whatsapp_number,
+            resident_contact_number=resident_contact_number,
+            address_line1=address_line1,
+            address_line2=address_line2,
+            address_line3=address_line3,
+            email_address=email_address,
+            is_polymath_student=is_polymath_student,
+            recipt_number=recipt_number,
+            user_created=request.user.username,
+            admission_date=datetime.datetime.strptime(admission_date, '%Y-%m-%d').date(),
+            is_active=is_active)
+        objChild.save()
+        messages.success(request, "Child details saved.")
     except Exception as e:
         messages.error(request, e)
 
     return redirect('core:view_child')
 
 
-def deleteChild(request,id):
+def deleteChild(request, pk):
     try:
-        objChild = get_object_or_404(Child,pk=id)
+        print(pk)
+        objChild = get_object_or_404(Child, pk=pk)
 
         if objChild is not None:
             objChild.is_active = False
+            objChild.user_updated = request.user.username
             objChild.save()
-            messages.success(request, "Child details saved.")
+            print("saved")
+            return JsonResponse({'data': 'Record deleted successfully'})
+
+    except Exception as e:
+        messages.error(request, e)
+
+
+def updateChild(request, pk):
+    try:
+        if request.method == 'GET':
+            if request.POST.get('id'):
+                childId = request.POST.get('id')
+                objChild = Child.objects.get(pk=childId)
+                child_form = CreateChildForm(instance=objChild)
+                return render(request, '../templates/child.html', {'form': child_form})
+
+        if request.method == 'POST':
+            objChild = get_object_or_404(Child, pk=pk)
+            if objChild is not None:
+                objChild = get_object_or_404(Child, pk=request.session['child_id'])
+                if objChild is not None:
+                    objChild.child_first_name = request.POST.get('child_first_name')
+                    objChild.child_last_name = request.POST.get('child_last_name')
+                    objChild.date_of_birth = request.POST.get('date_of_birth')
+                    objChild.fathers_name = request.POST.get('fathers_name')
+                    objChild.fathers_contact_number = request.POST.get('fathers_contact_number')
+                    objChild.fathers_whatsapp_number = request.POST.get('fathers_whatsapp_number')
+                    objChild.mothers_name = request.POST.get('mothers_name')
+                    objChild.mothers_contact_number = request.POST.get('mothers_contact_number')
+                    objChild.mothers_whatsapp_number = request.POST.get('mothers_whatsapp_number')
+                    objChild.resident_contact_number = request.POST.get('resident_contact_number')
+                    objChild.address_line1 = request.POST.get('address_line1')
+                    objChild.address_line2 = request.POST.get('address_line2')
+                    objChild.address_line3 = request.POST.get('address_line3')
+                    objChild.email_address = request.POST.get('email_address')
+                    objChild.is_polymath_student = request.POST.get('is_polymath_student')
+                    objChild.recipt_number = request.POST.get('recipt_number')
+                    objChild.admission_date = request.POST.get('admission_date')
+                    objChild.is_active = request.POST.get('is_active')
+                    objChild.user_updated = request.user.username
+                    objChild.save()
+
+        return JsonResponse({'data': 'Record updated successfully'})
 
     except Exception as e:
         messages.error(request, e)
