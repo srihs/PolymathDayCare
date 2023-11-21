@@ -39,6 +39,26 @@ def UserLogin(request):
         messages.error(request, e)
 
 
+
+def getChildJson(reuest):
+    chilList = list(Child.objects.all()\
+        .values(
+            'id',
+        'admission_number',
+        'child_first_name',
+        'child_last_name',
+        'admission_date',
+        'fathers_contact_number',
+        'mothers_contact_number',
+        'resident_contact_number',
+        'is_polymath_student',
+        'is_active'
+    ))
+    print("-------------------------------------")
+    return JsonResponse(chilList,safe=False)
+
+
+
 @login_required(login_url='/login/')
 def getChild(request):
     # clearing the session form the system. so the New id will be facilitated

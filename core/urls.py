@@ -12,6 +12,7 @@ urlpatterns = [
                   path('login/', views.UserLogin, name='login'),
 
                   path('child/', views.getChild, name='view_child'),
+                   path('childview/', views.getChildJson, name='view_child_j'),
                   path('child/<int:pk>/', views.getChildbyID, name='view_child_with_id'),
                   path('savechild/', views.createChild, name='save_child'),
                   path('deletechild/<int:pk>/', views.deleteChild, name='child_delete'),
