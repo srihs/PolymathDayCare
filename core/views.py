@@ -62,10 +62,11 @@ def getChildJson(reuest):
 
 @login_required(login_url='/login/')
 def getChild(request):
+    print("in the getchild method")
     # clearing the session form the system. so the New id will be facilitated
     request.session['child_id'] = None
     request.session.modified = True
-    
+
     # Child is defined by 'D' + next Id in the Table
     try:
         # trying to retrive the next primaryKey
@@ -73,18 +74,20 @@ def getChild(request):
         nextId += 1
     except:
         nextId = 1  # if the next ID is null define the record as the first
-    childrenList = Child.objects.all()
+
     child_form = CreateChildForm(initial={'admission_number': 'D' + str(nextId),
                                           'admission_date': datetime.datetime.now().date().strftime(
                                               '%m/%d/%Y')})  # creating the form with the admission ID
 
-    return render(request, '../templates/child.html', {'form': child_form, 'childrenList': childrenList})
+    return render(request, '../templates/child.html', {'form': child_form})
 
 
 
-@login_required(login_url='/login/')
+
 def getChildbyID(request, pk):
     try:
+        print('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
+        print(request.POST.get('pk'))
         child_form= None
         print("in the getChildbyID method")
         print(pk)
@@ -94,7 +97,7 @@ def getChildbyID(request, pk):
 
     except Exception as e:
                 messages.error(request, e)
-    return render(request, '../templates/child.html', {'form': child_form})
+    return render(request, '../templates/partials/childUpdate.html', {'formU': child_form})
 
 
 
