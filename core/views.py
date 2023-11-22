@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from .models import Child
-from .forms import CreateChildForm
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, response
 from django.contrib.auth import authenticate, login
@@ -11,6 +11,7 @@ from django.views.decorators.csrf import csrf_protect
 import datetime
 
 from .models import Child
+from .forms import CreateChildForm, UpdateChildForm
 
 
 # Create your views here.
@@ -39,7 +40,7 @@ def UserLogin(request):
         messages.error(request, e)
 
 
-
+@login_required(login_url='login/')
 def getChildJson(reuest):
     chilList = list(Child.objects.all()\
         .values(
@@ -54,7 +55,7 @@ def getChildJson(reuest):
         'is_polymath_student',
         'is_active'
     ))
-    print("-------------------------------------")
+  
     return JsonResponse(chilList,safe=False)
 
 
@@ -64,7 +65,7 @@ def getChild(request):
     # clearing the session form the system. so the New id will be facilitated
     request.session['child_id'] = None
     request.session.modified = True
-
+    
     # Child is defined by 'D' + next Id in the Table
     try:
         # trying to retrive the next primaryKey
@@ -80,18 +81,21 @@ def getChild(request):
     return render(request, '../templates/child.html', {'form': child_form, 'childrenList': childrenList})
 
 
-def getChildbyID(request, id):
+
+@login_required(login_url='/login/')
+def getChildbyID(request, pk):
     try:
+        child_form= None
         print("in the getChildbyID method")
-        if request.POST.get('id') is not None:
-            print("--In GET--")
-            objChild = get_object_or_404(Child, pk=request.POST.get('id'))
-            if objChild is not None:
-                child_form = CreateChildForm(instance=objChild)
+        print(pk)
+        objChild = get_object_or_404(Child, pk=pk)
+        if objChild is not None:
+                child_form = UpdateChildForm(instance=objChild)
 
     except Exception as e:
                 messages.error(request, e)
     return render(request, '../templates/child.html', {'form': child_form})
+
 
 
 @login_required(login_url='/login/')
@@ -130,7 +134,7 @@ def createChild(request):
         else:
             is_active = False
 
-        print('-in Create-')
+        print('-------in Create-------')
         objChild = Child(
             admission_number=admission_number,
             child_first_name=child_first_name,
@@ -153,6 +157,7 @@ def createChild(request):
             admission_date=datetime.datetime.strptime(admission_date, '%Y-%m-%d').date(),
             is_active=is_active)
         objChild.save()
+        
         messages.success(request, "Child details saved.")
     except Exception as e:
         messages.error(request, e)

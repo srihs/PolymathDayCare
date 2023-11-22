@@ -12,8 +12,7 @@ REGISTRATION{% endblock %} {% block content %}
           <button
             class="btn btn-secondary add-btn"
             data-bs-toggle="modal"
-            data-bs-target="#showModal"
-          >
+            data-bs-target="#showModal">
             <i class="ri-add-line align-bottom me-1"></i> Add new child
           </button>
           <button class="btn btn-soft-secondary" id="remove-actions">
@@ -84,7 +83,206 @@ REGISTRATION{% endblock %} {% block content %}
                     <div class="alert alert-dismissible" role="alert">
                       {% if messages %} {% for message in messages %}
                       <!-- Danger Alert -->
-                      <div
+                      <div id="msgID"
+                        class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
+                        role="alert"
+                      >
+                        <strong>
+                          <center>{{ message }}</center>
+                        </strong>
+                        <button
+                          type="button"
+                          class="btn-close"
+                          data-bs-dismiss="alert"
+                          aria-label="Close"
+                        ></button>
+                      </div>
+                      {% endfor %} {% endif %}
+                      <!-- end row -->
+                    </div>
+                  </div>
+                </div>
+                <!-- end card header -->
+                <div class="card-body">
+                  <div class="live-preview">
+                    <div class="row gy-4">
+                      <div class="col-xxl-3 col-md-6">
+                        <div>{{ form.admission_number }}</div>
+                      </div>
+                      <!--end col-->
+                      <div class="col-xxl-3 col-md-6">
+                        <div>{{ form.admission_date }}</div>
+                      </div>
+                      <!--end col-->
+                      <div class="col-xxl-3 col-md-6">
+                        <div>{{ form.recipt_number }}</div>
+                      </div>
+                      <!--end col-->
+                      <div class="col-xxl-3 col-md-6">
+                        <div>
+                          <div class="form-check form-switch">
+                            {{ form.is_polymath_student }}
+                            <label class="form-check-label"
+                              >Is Polymath student?</label
+                            >
+                          </div>
+                        </div>
+                      </div>
+
+                      <!--end col-->
+                      <div class="col-xxl-3 col-md-6">
+                        <div>{{ form.child_first_name }}</div>
+                      </div>
+                      <!--end col-->
+                      <div class="col-xxl-3 col-md-6">
+                        <div>{{ form.child_last_name }}</div>
+                      </div>
+                      <!--end col-->
+                      <div class="col-xxl-3 col-md-6">
+                        <div>{{ form.date_of_birth }}</div>
+                      </div>
+
+                      <div class="col-xxl-3 col-md-6">
+                        <div>
+                          <div class="form-check form-switch">
+                            {{ form.is_active }}
+                            <label class="form-check-label">Active</label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!--end col-->
+
+                      <!--end col-->
+                    </div>
+                    <!--end row-->
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header align-items-center d-flex">
+                  <h4 class="card-title mb-0 flex-grow-1">Parent's Details</h4>
+                  <div class="flex-shrink-0"></div>
+                </div>
+                <!-- end card header -->
+                <div class="card-body">
+                  <div class="live-preview">
+                    <div class="row gy-4">
+                      <div class="col-md-4">
+                        <div>{{ form.fathers_name }}</div>
+                      </div>
+                      <!--end col-->
+                      <div class="col-md-4">
+                        <div>{{ form.fathers_contact_number }}</div>
+                      </div>
+                      <!--end col-->
+                      <div class="col-md-4">
+                        <div>{{ form.fathers_whatsapp_number }}</div>
+                      </div>
+                      <!--end col-->
+                      <div class="col-md-4">
+                        <div>{{ form.mothers_name }}</div>
+                      </div>
+                      <!--end col-->
+                      <div class="col-md-4">
+                        <div>{{ form.mothers_contact_number }}</div>
+                      </div>
+                      <!--end col-->
+                      <div class="col-md-4">
+                        <div>{{ form.mothers_whatsapp_number }}</div>
+                      </div>
+                      <!--end col-->
+                    </div>
+                    <!--end row-->
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header align-items-center d-flex">
+                  <h4 class="card-title mb-0 flex-grow-1">Contact Details</h4>
+                  <div class="flex-shrink-0"></div>
+                </div>
+                <!-- end card header -->
+                <div class="card-body">
+                  <div class="live-preview">
+                    <div class="row gy-4">
+                      <div class="col-md-4">
+                        <div>{{ form.resident_contact_number }}</div>
+                      </div>
+                      <!--end col-->
+                      <div class="col-md-4">
+                        <div>{{ form.address_line1 }}</div>
+                      </div>
+                      <!--end col-->
+                      <div class="col-md-4">
+                        <div>{{ form.address_line2 }}</div>
+                      </div>
+                      <!--end col-->
+                      <div class="col-md-4">
+                        <div>{{ form.address_line3 }}</div>
+                      </div>
+                      <!--end col-->
+                      <div class="col-md-4">
+                        <div>{{ form.email_address }}</div>
+                      </div>
+                      <!--end col-->
+                    </div>
+                    <!--end row-->
+                  </div>
+                </div>
+                <div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: block">
+          <div class="hstack gap-2 justify-content-end">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+              Close
+            </button>
+            <button class="btn btn-secondary" type="submit">Submit form</button>
+            <!-- <button type="button" class="btn btn-success" id="edit-btn">Update</button> -->
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!--Update Form-->
+<div  class="modal fade zoomIn" id="showModal"  tabindex="-1"  aria-labelledby="exampleModalLabel"  style="display: none"  aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0">
+      <div class="modal-header p-3 bg-secondary-subtle">
+        <h5 class="modal-title" id="exampleModalLabel">Update child details</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+          id="close-modal"
+        ></button>
+      </div>
+      <form
+        action="{% url 'core:save_child' %}"
+        method="post"
+        class="tablelist-form"
+        autocomplete="on"
+      >
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-lg-12">
+              <div class="card">
+                <div class="card-header align-items-center d-flex">
+                  <h4 class="card-title mb-0 flex-grow-1">Child Details</h4>
+                  <div class="flex-shrink-0">
+                    <div class="alert alert-dismissible" role="alert">
+                      {% if messages %} {% for message in messages %}
+                      <!-- Danger Alert -->
+                      <div id="msgID"
                         class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
                         role="alert"
                       >
@@ -380,6 +578,7 @@ REGISTRATION{% endblock %} {% block content %}
             var url = "{% url 'core:child_delete' 0 %}";
             var id = row.id;
             url = url.replace(0, id);
+            
             return data =
               '<a href=' +
               url +
@@ -388,6 +587,7 @@ REGISTRATION{% endblock %} {% block content %}
               data-bs-target="#firstmodal"\
               data-bs-toggle="modal"\
               data-bs-dismiss="modal"\
+              role="button"\
               aria-label="close"><i class="ri-delete-bin-line"></i></a>';
           },
         },
@@ -406,6 +606,7 @@ REGISTRATION{% endblock %} {% block content %}
                 data-bs-toggle="modal"\
                 data-bs-dismiss="modal"\
                 class="link-success"\
+                role="button"\
                 data-url='+data_url+'\
                 data-value={{ child.id }}><i class="ri-edit-2-fill"></i></a>';
             },
@@ -424,14 +625,14 @@ REGISTRATION{% endblock %} {% block content %}
           $("td", row)
             .eq(7)
             .html(
-              '<span class="badge bg-warning-subtle text-warning">No</span>'
+              '<span class="badge bg-danger-subtle text-danger">No</span>'
             );
         }
         // Check the condition for the 'is_active' column
         if (data.is_active) {
-          $("td", row).eq(8).html('<span class="badge bg-success">Yes</span>');
+          $("td", row).eq(8).html('<span class="badge bg-success">Active</span>');
         } else {
-          $("td", row).eq(8).html('<span class="badge bg-danger">No</span>');
+          $("td", row).eq(8).html('<span class="badge bg-danger">Inactive</span>');
         }
       },
       dom: "Bfrtip",
@@ -443,35 +644,29 @@ REGISTRATION{% endblock %} {% block content %}
     });
   });
 
-  jQuery.ajax({
-    url: "{% url 'core:view_child_j'%}",
-    method: "GET",
-    success: function (data) {
-      console.log("our data", data);
-    },
-  });
+  
 
   jQuery("#showModal").on("hidden.bs.modal", function () {
     jQuery(this).find("form").trigger("reset");
+    jQuery(this).find("msgID").trigger("reset");
+
   });
 
   var url = "";
-  var childId = "";
 
-  jQuery(".link-danger").click(function () {
-    // Click to only happen on announce links
+  jQuery(document).on("click", ".link-danger", function() {
     url = jQuery(this).attr("href");
+    
   });
 
-  jQuery(".link-success").click(function () {
-    // Click to only happen on announce links
-    url = jQuery(this).attr("href");
+  jQuery(document).on("click", ".link-success", function() {
+      url = jQuery(this).attr("data-url");
+      
   });
 
   jQuery("#btnModelDelete").click(function (e) {
     //e.preventDefault(); // prevent the default behavior of the anchor tag
     var $this = "";
-
     jQuery.ajax({
       type: "GET",
       url: url,

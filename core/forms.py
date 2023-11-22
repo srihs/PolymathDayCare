@@ -69,3 +69,49 @@ class CreateChildForm(forms.ModelForm):
                   'date_of_birth', 'fathers_name', 'fathers_contact_number', 'fathers_whatsapp_number', 'mothers_name',
                   'mothers_contact_number', 'mothers_whatsapp_number', 'resident_contact_number', 'address_line1',
                   'address_line2', 'address_line3', 'email_address', 'is_polymath_student', 'recipt_number','is_active')
+
+
+class UpdateChildForm(forms.ModelForm):
+    admission_number = forms.CharField(max_length=250, required=True,
+                                       widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control'}))
+    
+    fathers_contact_number = forms.CharField(max_length=250, required=True, widget=forms.TextInput(
+        attrs={'class': 'form-control', 'required': 'true', 'placeholder': 'Contact number'}))
+    
+    fathers_whatsapp_number = forms.CharField(max_length=250, required=True, widget=forms.TextInput(
+        attrs={'class': 'form-control', 'required': 'true', 'placeholder': 'Whatsapp no'}))
+    
+    
+    mothers_contact_number = forms.CharField(max_length=250, required=True, widget=forms.TextInput(
+        attrs={'class': 'form-control', 'required': 'true', 'placeholder': 'Contact number'}))
+    
+    mothers_whatsapp_number = forms.CharField(max_length=250, required=True, widget=forms.TextInput(
+        attrs={'class': 'form-control', 'required': 'true', 'placeholder': 'Whatsapp no'}))
+    
+    resident_contact_number = forms.CharField(max_length=250, required=True,
+                                              widget=forms.TextInput(attrs={'class': 'form-control',
+                                                                            'placeholder': 'Residency contact number'}))
+    
+    address_line1 = forms.CharField(max_length=250, widget=forms.TextInput(
+        attrs={'class': 'form-control', 'placeholder': 'Address Line1'}))
+    
+    address_line2 = forms.CharField(max_length=250, required=False,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control', 'placeholder': 'Address Line2'}))
+    
+    address_line3 = forms.CharField(max_length=250, required=False,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control', 'placeholder': 'Address Line3'}))
+    
+    email_address = forms.CharField(max_length=50, required=False,
+                                    widget=forms.EmailInput(
+                                        attrs={'class': 'form-control', 'id': 'email', 'placeholder': 'Email'}))
+    
+    is_active = forms.BooleanField(required=False,widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'type': 'checkbox', 'checked': 'checked'}))
+    is_polymath_student = forms.BooleanField(required=False,widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'type': 'checkbox', 'checked': 'checked'}))
+    
+    class Meta:
+        model = Child
+        fields = ('admission_number', 'fathers_name', 'fathers_contact_number', 'fathers_whatsapp_number', 
+                  'mothers_contact_number', 'mothers_whatsapp_number', 'resident_contact_number', 'address_line1',
+                  'address_line2', 'address_line3', 'email_address', 'is_polymath_student', 'is_active')
