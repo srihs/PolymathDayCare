@@ -86,7 +86,7 @@ class UpdateChildForm(forms.ModelForm):
                                                                     'placeholder': 'Last Name'}))
     date_of_birth = forms.DateField(required=True, widget=MyDateInput(
         attrs={'readonly': 'readonly','class': 'form-control', 'required': 'true', 'id': 'dob', 'data-provider': 'flatpickr',
-               'data-date-format': 'Y-m-d', 'placeholder': 'Date of Birth'}))
+               'data-date-format': '%Y-%m-%d', 'placeholder': 'Date of Birth'}))
     fathers_name = forms.CharField(max_length=250, required=True,
                                    widget=forms.TextInput(attrs={'readonly': 'readonly','class': 'form-control', 'required': 'true',
                                                                  'placeholder': 'Father''s Name'}))
@@ -121,13 +121,13 @@ class UpdateChildForm(forms.ModelForm):
         attrs={'readonly': 'readonly','class': 'form-control', 'placeholder': 'Receipt Number'}))
     admission_date = forms.DateField(required=True, widget=MyDateInput(
         attrs={'readonly': 'readonly','class': 'form-control', 'required': 'true', 'id': 'admission_date', 'data-provider': 'flatpickr',
-               'data-date-format': 'Y-m-d', 'placeholder': 'Admission Date'}))
+               'data-date-format': '%Y-%m-%d', 'placeholder': 'Admission Date'}))
     is_active = forms.BooleanField(required=False, widget=forms.CheckboxInput(
         attrs={'class': 'form-check-input', 'type': 'checkbox'}))
 
     class Meta:
         model = Child
-        fields = ('admission_number', 'child_first_name', 'admission_number', 'child_first_name', 'child_last_name',
+        fields = ('admission_number', 'child_first_name', 'admission_date', 'child_first_name', 'child_last_name',
                   'date_of_birth', 'fathers_name', 'fathers_contact_number', 'fathers_whatsapp_number', 'mothers_name',
                   'mothers_contact_number', 'mothers_whatsapp_number', 'resident_contact_number', 'address_line1',
                   'address_line2', 'address_line3', 'email_address', 'is_polymath_student', 'recipt_number',

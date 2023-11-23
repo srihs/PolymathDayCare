@@ -16,6 +16,6 @@ urlpatterns = [
                   path('child/<int:pk>/', views.getChildbyID, name='view_child_with_id'),
                   path('savechild/', views.createChild, name='save_child'),
                   path('deletechild/<int:pk>/', views.deleteChild, name='child_delete'),
-                  path('updatechild/<int:pk>/', views.updateChild, name='child_update'),
+
 
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

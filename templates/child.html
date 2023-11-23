@@ -4,174 +4,375 @@ REGISTRATION{% endblock %} {% block content %}
 
 <!-- Data Table-->
 <div class="card">
-  <div class="card-header border-0">
-    <div class="d-flex align-items-center">
-      <h5 class="card-title mb-0 flex-grow-1">Registered Children</h5>
-      <div class="flex-shrink-0">
-        <div class="d-flex flex-wrap gap-2">
-          <button
-            class="btn btn-secondary add-btn"
-            data-bs-toggle="modal"
-            data-bs-target="#showModal">
-            <i class="ri-add-line align-bottom me-1"></i> Add new child
-          </button>
-          <button class="btn btn-soft-secondary" id="remove-actions">
-            <i class="ri-delete-bin-2-line"></i>
-          </button>
+    <div class="card-header border-0">
+        <div class="d-flex align-items-center">
+            <h5 class="card-title mb-0 flex-grow-1">Registered Children</h5>
+            <div class="flex-shrink-0">
+                <div class="d-flex flex-wrap gap-2">
+                    <button
+                            class="btn btn-secondary add-btn"
+                            data-bs-toggle="modal"
+                            data-bs-target="#showModalCreate">
+                        <i class="ri-add-line align-bottom me-1"></i> Add new child
+                    </button>
+                    <button class="btn btn-soft-secondary" id="remove-actions">
+                        <i class="ri-delete-bin-2-line"></i>
+                    </button>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
 
-  <div class="card-body">
-    <table id="ChildList" class="display" style="width: 100%">
-      <thead>
-        <tr>
-          <th>Admission No</th>
-          <th>First name</th>
-          <th>Last name</th>
-          <th>Admission date</th>
-          <th>Father's contact number</th>
-          <th>Mother's contact number</th>
-          <th>Residence phone numbers</th>
-          <th>Polymath Student?</th>
-          <th>Status</th>
-          <th  data-orderable="false"></th>
-          <th  data-orderable="false"></th>
-        </tr>
-      </thead>
-    </table>
-  </div>
-  <!-- end card-body -->
+    <div class="card-body">
+        <table id="ChildList" class="display" style="width: 100%">
+            <thead>
+            <tr>
+                <th>Admission No</th>
+                <th>First name</th>
+                <th>Last name</th>
+                <th>Admission date</th>
+                <th>Father's contact number</th>
+                <th>Mother's contact number</th>
+                <th>Residence phone numbers</th>
+                <th>Polymath Student?</th>
+                <th>Status</th>
+                <th data-orderable="false"></th>
+                <th data-orderable="false"></th>
+            </tr>
+            </thead>
+        </table>
+    </div>
+    <!-- end card-body -->
 </div>
 
 {% endblock %} {% block modals %}
 <div
-  class="modal fade zoomIn"
-  id="showModal"
-  tabindex="-1"
-  aria-labelledby="exampleModalLabel"
-  style="display: none"
-  aria-hidden="true"
+        class="modal fade zoomIn"
+        id="showModal"
+        tabindex="-1"
+        aria-labelledby="exampleModalLabel"
+        style="display: none"
+        aria-hidden="true"
 >
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content border-0">
-      <div class="modal-header p-3 bg-secondary-subtle">
-        <h5 class="modal-title" id="exampleModalLabel">Add Child</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-          id="close-modal"
-        ></button>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-<!--Update Form-->
-<div  class="modal fade zoomIn" id="showUpdateModal"  tabindex="-1"  aria-labelledby="exampleModalLabel"  style="display: none"  aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content border-0">
-      <div class="modal-header p-3 bg-secondary-subtle">
-        <h5 class="modal-title" >Update child details</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-          id="close-upmodal"
-        ></button>
-      </div>
-      <div id ="modelForm">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0">
+            <div class="modal-header p-3 bg-secondary-subtle">
+                <h5 class="modal-title" id="exampleModalLabels">Add Child</h5>
+                <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-target="#showModalCreate"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"
+                        id="close-modalAdd"
+                ></button>
+            </div>
 
         </div>
     </div>
-  </div>
+</div>
+
+
+<!-- create Form -->
+<div class="modal fade zoomIn" id="showModalCreate" tabindex="-1" aria-labelledby="exampleModalLabel"
+     style="display: none" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0">
+            <div class="modal-header p-3 bg-secondary-subtle">
+                <h5 class="modal-title">Add Child</h5>
+                <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"
+                        id="close-modal"></button>
+            </div>
+            <form
+                    action="{% url 'core:save_child' %}"
+                    method="post"
+                    class="tablelist-form"
+                    autocomplete="on">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <div class="card">
+                                <div class="card-header align-items-center d-flex">
+                                    <h4 class="card-title mb-0 flex-grow-1">Child Details</h4>
+                                    <div class="flex-shrink-0">
+                                        <div class="alert alert-dismissible" role="alert">
+                                            {% if messages %} {% for message in messages %}
+                                            <!-- Danger Alert -->
+                                            <div
+                                                    class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
+                                                    role="alert"
+                                            >
+                                                <strong>
+                                                    <center>{{ message }}</center>
+                                                </strong>
+                                                <button
+                                                        type="button"
+                                                        class="btn-close"
+                                                        data-bs-dismiss="alert"
+                                                        aria-label="Close"
+                                                ></button>
+                                            </div>
+                                            {% endfor %} {% endif %}
+                                            <!-- end row -->
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- end card header -->
+                                <div class="card-body">
+                                    <div class="live-preview">
+                                        <div class="row gy-4">
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>{{ form.admission_number }}</div>
+                                            </div>
+                                            <!--end col-->
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>{{ form.admission_date }}</div>
+                                            </div>
+                                            <!--end col-->
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>{{ form.recipt_number }}</div>
+                                            </div>
+                                            <!--end col-->
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>
+                                                    <div class="form-check form-switch">
+                                                        {{ form.is_polymath_student }}
+                                                        <label class="form-check-label"
+                                                        >Is Polymath student?</label
+                                                        >
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!--end col-->
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>{{ form.child_first_name }}</div>
+                                            </div>
+                                            <!--end col-->
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>{{ form.child_last_name }}</div>
+                                            </div>
+                                            <!--end col-->
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>{{ form.date_of_birth }}</div>
+                                            </div>
+
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>
+                                                    <div class="form-check form-switch">
+                                                        {{ form.is_active }}
+                                                        <label class="form-check-label">Active</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!--end col-->
+
+                                            <!--end col-->
+                                        </div>
+                                        <!--end row-->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-header align-items-center d-flex">
+                                    <h4 class="card-title mb-0 flex-grow-1">Parent's Details</h4>
+                                    <div class="flex-shrink-0"></div>
+                                </div>
+                                <!-- end card header -->
+                                <div class="card-body">
+                                    <div class="live-preview">
+                                        <div class="row gy-4">
+                                            <div class="col-md-4">
+                                                <div>{{ form.fathers_name }}</div>
+                                            </div>
+                                            <!--end col-->
+                                            <div class="col-md-4">
+                                                <div>{{ form.fathers_contact_number }}</div>
+                                            </div>
+                                            <!--end col-->
+                                            <div class="col-md-4">
+                                                <div>{{ form.fathers_whatsapp_number }}</div>
+                                            </div>
+                                            <!--end col-->
+                                            <div class="col-md-4">
+                                                <div>{{ form.mothers_name }}</div>
+                                            </div>
+                                            <!--end col-->
+                                            <div class="col-md-4">
+                                                <div>{{ form.mothers_contact_number }}</div>
+                                            </div>
+                                            <!--end col-->
+                                            <div class="col-md-4">
+                                                <div>{{ form.mothers_whatsapp_number }}</div>
+                                            </div>
+                                            <!--end col-->
+                                        </div>
+                                        <!--end row-->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-header align-items-center d-flex">
+                                    <h4 class="card-title mb-0 flex-grow-1">Contact Details</h4>
+                                    <div class="flex-shrink-0"></div>
+                                </div>
+                                <!-- end card header -->
+                                <div class="card-body">
+                                    <div class="live-preview">
+                                        <div class="row gy-4">
+                                            <div class="col-md-4">
+                                                <div>{{ form.resident_contact_number }}</div>
+                                            </div>
+                                            <!--end col-->
+                                            <div class="col-md-4">
+                                                <div>{{ form.address_line1 }}</div>
+                                            </div>
+                                            <!--end col-->
+                                            <div class="col-md-4">
+                                                <div>{{ form.address_line2 }}</div>
+                                            </div>
+                                            <!--end col-->
+                                            <div class="col-md-4">
+                                                <div>{{ form.address_line3 }}</div>
+                                            </div>
+                                            <!--end col-->
+                                            <div class="col-md-4">
+                                                <div>{{ form.email_address }}</div>
+                                            </div>
+                                            <!--end col-->
+                                        </div>
+                                        <!--end row-->
+                                    </div>
+                                </div>
+                                <div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: block">
+                    <div class="hstack gap-2 justify-content-end">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                            Close
+                        </button>
+                        <button class="btn btn-secondary" type="submit">Submit form</button>
+                        <!-- <button type="button" class="btn btn-success" id="edit-btn">Update</button> -->
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!--Update Form-->
+<div class="modal fade zoomIn" id="showUpdateModal" tabindex="-1" aria-labelledby="exampleModalLabel"
+     style="display: none" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0">
+            <div class="modal-header p-3 bg-secondary-subtle">
+                <h5 class="modal-title">Update child details</h5>
+                <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Close"
+                        id="close-upmodal"
+                ></button>
+            </div>
+            <div id="modelForm">
+
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- First modal dialog -->
 <div
-  class="modal fade"
-  id="firstmodal"
-  aria-hidden="true"
-  aria-labelledby="..."
-  tabindex="-1"
+        class="modal fade"
+        id="firstmodal"
+        aria-hidden="true"
+        aria-labelledby="..."
+        tabindex="-1"
 >
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-body text-center p-5">
-        <img
-          src="{% static 'assets/images/stop.gif' %}"
-          alt="alert"
-          width="100px"
-          height="100px"
-        />
-        <div class="mt-4 pt-4">
-          <h4>You are about to deactivate this Child!</h4>
-          <p class="text-muted">
-            Are you sure? Please note that hs/she will not be able to check
-            in/out to daycare facility.
-          </p>
-          <!-- Toogle to second dialog -->
-          <button
-            class="btn btn-secondary"
-            data-bs-target="#firstmodal"
-            data-bs-toggle="modal"
-            data-bs-dismiss="modal"
-          >
-            No
-          </button>
-          <button
-            name="btnModelDelete"
-            id="btnModelDelete"
-            class="btn btn-danger"
-          >
-            Yes
-          </button>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center p-5">
+                <img
+                        src="{% static 'assets/images/stop.gif' %}"
+                        alt="alert"
+                        width="100px"
+                        height="100px"
+                />
+                <div class="mt-4 pt-4">
+                    <h4>You are about to deactivate this Child!</h4>
+                    <p class="text-muted">
+                        Are you sure? Please note that hs/she will not be able to check
+                        in/out to daycare facility.
+                    </p>
+                    <!-- Toogle to second dialog -->
+                    <button
+                            class="btn btn-secondary"
+                            data-bs-target="#firstmodal"
+                            data-bs-toggle="modal"
+                            data-bs-dismiss="modal"
+                    >
+                        No
+                    </button>
+                    <button
+                            name="btnModelDelete"
+                            id="btnModelDelete"
+                            class="btn btn-danger"
+                    >
+                        Yes
+                    </button>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
 </div>
 <!-- Second modal dialog -->
 <div
-  class="modal fade"
-  id="secondmodal"
-  aria-hidden="true"
-  aria-labelledby="..."
-  tabindex="-1"
+        class="modal fade"
+        id="secondmodal"
+        aria-hidden="true"
+        aria-labelledby="..."
+        tabindex="-1"
 >
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-body text-center p-5">
-        <img
-          src="{% static 'assets/images/done.gif' %}"
-          alt="alert"
-          width="75px"
-          height="75px"
-        />
-        <div class="mt-4 pt-3">
-          <h4 class="mb-3">Operation completed</h4>
-          <div class="hstack gap-2 justify-content-center">
-            <!-- Toogle to first dialog, `data-bs-dismiss` attribute can be omitted - clicking on link will close dialog anyway -->
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center p-5">
+                <img
+                        src="{% static 'assets/images/done.gif' %}"
+                        alt="alert"
+                        width="75px"
+                        height="75px"
+                />
+                <div class="mt-4 pt-3">
+                    <h4 class="mb-3">Operation completed</h4>
+                    <div class="hstack gap-2 justify-content-center">
+                        <!-- Toogle to first dialog, `data-bs-dismiss` attribute can be omitted - clicking on link will close dialog anyway -->
 
-            <button
-              type="button"
-              id="secondButton"
-              class="btn btn-secondary"
-              onclick="location=URL"
-              data-bs-dismiss="modal"
-            >
-              Close
-            </button>
-          </div>
+                        <button
+                                type="button"
+                                id="secondButton"
+                                class="btn btn-secondary"
+                                onclick="location=URL"
+                                data-bs-dismiss="modal"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
 </div>
 {% endblock %} {% block scripts %}
 <!-- jQuery -->
@@ -196,146 +397,144 @@ REGISTRATION{% endblock %} {% block content %}
 <script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
 
 <script>
-  var $ = jQuery;
-  jQuery(document).ready(function () {
-    var table = $("#ChildList").DataTable({
-      ajax: {
-        processing: true,
-        url: "{% url 'core:view_child_j' %}",
-        dataSrc: "",
-      },
-      columns: [
-        { data: "admission_number" },
-        { data: "child_first_name" },
-        { data: "child_last_name" },
-        { data: "admission_date" },
-        { data: "fathers_contact_number" },
-        { data: "mothers_contact_number" },
-        { data: "resident_contact_number" },
-        { data: "is_polymath_student" },
-        { data: "is_active" },
-        {
-          data: null,
-          render: function (data, type, row) {
-            var url = "{% url 'core:child_delete' 0 %}";
-            var id = row.id;
-            url = url.replace(0, id);
-            
-            return data =
-              '<a href=' +url +' class="link-danger" data-bs-target="#firstmodal"  data-bs-toggle="modal"\
+    var $ = jQuery;
+    jQuery(document).ready(function () {
+        var table = $("#ChildList").DataTable({
+            ajax: {
+                processing: true,
+                url: "{% url 'core:view_child_j' %}",
+                dataSrc: "",
+            },
+            columns: [
+                {data: "admission_number"},
+                {data: "child_first_name"},
+                {data: "child_last_name"},
+                {data: "admission_date"},
+                {data: "fathers_contact_number"},
+                {data: "mothers_contact_number"},
+                {data: "resident_contact_number"},
+                {data: "is_polymath_student"},
+                {data: "is_active"},
+                {
+                    data: null,
+                    render: function (data, type, row) {
+                        var url = "{% url 'core:child_delete' 0 %}";
+                        var id = row.id;
+                        url = url.replace(0, id);
+
+                        return data =
+                            '<a href=' + url + ' class="link-danger" data-bs-target="#firstmodal"  data-bs-toggle="modal"\
               data-bs-dismiss="modal" role="button"\
               aria-label="close"><i class="ri-delete-bin-line"></i></a>';
-          },
-        },
-        {
-            data: null,
-            render: function (data, type, row) {
-              var url = "{% url 'core:view_child_with_id' 0 %}";
-              var id = row.id;
-              url = url.replace(0, id);
-              data_url = "{% url 'core:child_update' 0 %}"
-              data_url = data_url.replace(0, id);
+                    },
+                },
+                {
+                    data: null,
+                    render: function (data, type, row) {
+                        var url = "{% url 'core:view_child_with_id' 0 %}";
+                        var id = row.id;
+                        url = url.replace(0, id);
 
-              return data =
-                '<a href='+ url +' class="link-success"  data-bs-target="#showUpdateModal"\
+
+
+                        return data =
+                            '<a href=' + url + ' class="link-success"  data-bs-target="#showUpdateModal"\
                 data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"\
-                data-url='+data_url+'\
                 data-value={{ child.id }}><i class="ri-edit-2-fill"></i></a>';
+                    },
+                },
+            ],
+
+            createdRow: function (row, data, dataIndex) {
+                // Check the condition for the 'is_polymath_student' column
+                if (data.is_polymath_student) {
+                    $("td", row)
+                        .eq(7)
+                        .html(
+                            '<span class="badge bg-secondary-subtle text-secondary">Yes</span>'
+                        );
+                } else {
+                    $("td", row)
+                        .eq(7)
+                        .html(
+                            '<span class="badge bg-danger-subtle text-danger">No</span>'
+                        );
+                }
+                // Check the condition for the 'is_active' column
+                if (data.is_active) {
+                    $("td", row).eq(8).html('<span class="badge bg-success">Active</span>');
+                } else {
+                    $("td", row).eq(8).html('<span class="badge bg-danger">Inactive</span>');
+                }
             },
-          },
-      ],
+            dom: "Bfrtip",
+            pageLength: 50,
 
-      createdRow: function (row, data, dataIndex) {
-        // Check the condition for the 'is_polymath_student' column
-        if (data.is_polymath_student) {
-          $("td", row)
-            .eq(7)
-            .html(
-              '<span class="badge bg-secondary-subtle text-secondary">Yes</span>'
-            );
-        } else {
-          $("td", row)
-            .eq(7)
-            .html(
-              '<span class="badge bg-danger-subtle text-danger">No</span>'
-            );
-        }
-        // Check the condition for the 'is_active' column
-        if (data.is_active) {
-          $("td", row).eq(8).html('<span class="badge bg-success">Active</span>');
-        } else {
-          $("td", row).eq(8).html('<span class="badge bg-danger">Inactive</span>');
-        }
-      },
-      dom: "Bfrtip",
-      pageLength: 50,
+            buttons: ["excel", "print"],
 
-      buttons: ["excel", "print"],
-
-      order: [[3, "desc"]], // Set default sorting by admission_date in descending order
+            order: [[3, "desc"]], // Set default sorting by admission_date in descending order
+        });
     });
-  });
 
-  
 
-  jQuery("#showModal").on("hidden.bs.modal", function () {
-    jQuery(this).find("form").trigger("reset");
-    jQuery(this).find("msgID").trigger("reset");
+    jQuery("#showModal").on("hidden.bs.modal", function () {
+        jQuery(this).find("form").trigger("reset");
+        jQuery(this).find("msgID").trigger("reset");
 
-  });
-
-  var url = "";
-
-  jQuery(document).on("click", ".link-danger", function() {
-    url = jQuery(this).attr("href");
-    
-  });
-
-  jQuery(document).on("click", ".link-success", function(e) {
-      e.preventDefault();
-      url = jQuery(this).attr("href");
-      // Show the modal
-    jQuery("#showUpdateModal").modal("show");
-
-    // Load the form into the modal using AJAX
-    jQuery.ajax({
-        type: "GET",
-        url: url,
-        dataType: "html",
-        success: function (data) {
-            // Assuming you have a modal body with the id "updateModalBody"
-            jQuery("#modelForm").html(data);
-        },
-        error: function (xhr, textStatus, errorThrown) {
-            alert("Error: " + xhr.status + ", " + xhr.statusText);
-        }
     });
-      
-  });
 
-  jQuery("#btnModelDelete").click(function (e) {
-    //e.preventDefault(); // prevent the default behavior of the anchor tag
-    var $this = "";
-    jQuery.ajax({
-      type: "GET",
-      url: url,
-      dataType: "json",
-      success: function (data) {
-        // Open the second modal on success
-        jQuery("#secondmodal").modal("show");
+    var url = "";
 
-        // Optionally, you can also close the current modal
-        jQuery("#firstmodal").modal("hide");
-      },
-      error: function (xhr, textStatus, errorThrown) {
-        alert("Error: " + xhr.status + ", " + xhr.statusText);
-      },
+    jQuery(document).on("click", ".link-danger", function () {
+        url = jQuery(this).attr("href");
+
     });
-  });
 
-  jQuery("secondButton").click(function () {
-    window.parent.location = window.parent.location.href;
-  });
+    jQuery(document).on("click", ".link-success", function (e) {
+        e.preventDefault();
+        url = jQuery(this).attr("href");
+        // Show the modal
+        jQuery("#showUpdateModal").modal("show");
+
+        // Load the form into the modal using AJAX
+        jQuery.ajax({
+            type: "GET",
+            url: url,
+            dataType: "html",
+            success: function (data) {
+                // Assuming you have a modal body with the id "updateModalBody"
+                jQuery("#modelForm").html(data);
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                alert("Error: " + xhr.status + ", " + xhr.statusText);
+            }
+        });
+
+    });
+
+    jQuery("#btnModelDelete").click(function (e) {
+        //e.preventDefault(); // prevent the default behavior of the anchor tag
+        var $this = "";
+        jQuery.ajax({
+            type: "GET",
+            url: url,
+            dataType: "json",
+            success: function (data) {
+                // Open the second modal on success
+                jQuery("#secondmodal").modal("show");
+
+                // Optionally, you can also close the current modal
+                jQuery("#firstmodal").modal("hide");
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                alert("Error: " + xhr.status + ", " + xhr.statusText);
+            },
+        });
+    });
+
+    jQuery("secondButton").click(function () {
+        window.parent.location = window.parent.location.href;
+    });
 </script>
 
 <!-- App js -->
