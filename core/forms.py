@@ -116,14 +116,14 @@ class UpdateChildForm(forms.ModelForm):
                                     widget=forms.EmailInput(
                                         attrs={'class': 'form-control', 'id': 'email', 'placeholder': 'Email'}))
     is_polymath_student = forms.BooleanField(required=False, widget=forms.CheckboxInput(
-        attrs={'class': 'form-check-input', 'type': 'checkbox', 'checked': 'checked'}))
+        attrs={'class': 'form-check-input', 'type': 'checkbox'}))
     recipt_number = forms.CharField(required=False, max_length=250, widget=forms.TextInput(
         attrs={'readonly': 'readonly','class': 'form-control', 'placeholder': 'Receipt Number'}))
     admission_date = forms.DateField(required=True, widget=MyDateInput(
         attrs={'readonly': 'readonly','class': 'form-control', 'required': 'true', 'id': 'admission_date', 'data-provider': 'flatpickr',
                'data-date-format': 'Y-m-d', 'placeholder': 'Admission Date'}))
     is_active = forms.BooleanField(required=False, widget=forms.CheckboxInput(
-        attrs={'class': 'form-check-input', 'type': 'checkbox', 'checked': 'checked'}))
+        attrs={'class': 'form-check-input', 'type': 'checkbox'}))
 
     class Meta:
         model = Child
