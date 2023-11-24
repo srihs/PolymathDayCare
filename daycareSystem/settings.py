@@ -88,7 +88,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'polymath_dc',
         'USER': 'root',
-        'PASSWORD': 'Im@liem123#',
+        'PASSWORD': 'imaliem123',
         'HOST': 'localhost',
         'PORT': '3306',
     }
@@ -156,7 +156,7 @@ SESSION_COOKIE_AGE = 300 # 3 minutes. "1209600(2 weeks)" by default
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
-LOGIN_REDIRECT_URL = ""
+
 
 ALLOWED_HOSTS=['*']
 CORS_ORIGIN_ALLOW_ALL = True
@@ -169,3 +169,5 @@ CORS_ALLOW_METHODS = [
 'POST',
 'PUT',
 ]
+LOGIN_REDIRECT_URL = "home"
+LOGOUT_REDIRECT_URL = "login"  # new

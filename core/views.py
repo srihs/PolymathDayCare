@@ -3,7 +3,8 @@ from .models import Child
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, response
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
+
 from django.http import *
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -17,8 +18,14 @@ from .forms import CreateChildForm, UpdateChildForm
 # Create your views here.
 @login_required(login_url='login/')
 def index(request):
-    return render(request, '../templates/base.html')
+    UserName =request.user.username
+    return render(request, '../templates/base.html',{'UserName':UserName})
 
+
+def UserLogOut(request):
+    logout(request)
+    return redirect('core:login')
+    
 
 def UserLogin(request):
     username = password = ''
@@ -72,11 +79,10 @@ def getChild(request):
     except:
         nextId = 1  # if the next ID is null define the record as the first
 
-    child_form = CreateChildForm(initial={'admission_number': 'D' + str(nextId),
-                                          'admission_date': datetime.datetime.now().date().strftime(
-                                              '%m/%d/%Y')})  # creating the form with the admission ID
+    child_form = CreateChildForm(initial={'admission_number': 'D' + str(nextId)})  # creating the form with the admission ID
+    
 
-    return render(request, '../templates/child.html', {'form': child_form})
+    return render(request, '../templates/child.html', {'form': child_form,'UserName':request.user.username})
 
 
 def getChildbyID(request, pk):
@@ -96,7 +102,6 @@ def getChildbyID(request, pk):
 def createChild(request):
     try:
         if request.method == 'POST':
-            print("in Post")
             # capturing the variables with data
             admission_number = request.POST.get('admission_number')
             child_first_name = request.POST.get('child_first_name')
@@ -145,7 +150,6 @@ def createChild(request):
                 objChild.user_updated = request.user.username
                 objChild.is_active = is_active
                 objChild.save()
-                print("saved")
                 messages.success(request, "Child details updated.")
     except Exception as e:
         print('-------in Create-------')

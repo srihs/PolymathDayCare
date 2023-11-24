@@ -3,6 +3,7 @@ from django.urls import include, path
 from django.conf.urls.static import static
 from django.conf import settings
 from . import views
+from django.contrib.auth import logout
 
 app_name = 'core'
 
@@ -10,6 +11,7 @@ urlpatterns = [
                   path('', views.index, name='home'),
 
                   path('login/', views.UserLogin, name='login'),
+                  path('logout/', views.UserLogOut, name='logout'),
 
                   path('child/', views.getChild, name='view_child'),
                   path('childview/', views.getChildJson, name='view_child_j'),
