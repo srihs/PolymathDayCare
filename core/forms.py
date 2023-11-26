@@ -2,7 +2,7 @@ from django import forms
 from django.forms import ImageField
 from django.db import models
 from django.contrib.admin.widgets import AdminDateWidget
-from .models import Child
+from .models import Child, BaseRates
 
 
 class MyDateInput(forms.widgets.DateInput):
@@ -132,3 +132,28 @@ class UpdateChildForm(forms.ModelForm):
                   'mothers_contact_number', 'mothers_whatsapp_number', 'resident_contact_number', 'address_line1',
                   'address_line2', 'address_line3', 'email_address', 'is_polymath_student', 'recipt_number',
                   'is_active')
+
+
+
+class SettingsForm(forms.ModelForm):
+    standard_hourly_rate = forms.CharField(max_length=250, required=True,
+                                       widget=forms.TextInput(attrs={'class': 'form-control'}))
+    extra_hours_standard_rate = forms.CharField(max_length=250, required=True,
+                                       widget=forms.TextInput(attrs={'class': 'form-control'}))
+    extra_hours_standard_increase_rate = forms.CharField(max_length=250, required=True,
+                                       widget=forms.TextInput(attrs={'class': 'form-control'}))
+    holiday_hourly_rate = forms.CharField(max_length=250, required=True,
+                                       widget=forms.TextInput(attrs={'class': 'form-control'}))
+    extra_hours_holiday_rate = forms.CharField(max_length=250, required=True,
+                                       widget=forms.TextInput(attrs={'class': 'form-control'}))
+    extra_hours_holiday_increase_rate = forms.CharField(max_length=250, required=True,
+                                       widget=forms.TextInput(attrs={'class': 'form-control'}))
+    effective_from = forms.CharField(max_length=250, required=True,
+                                       widget=forms.TextInput(attrs={'class': 'form-control'}))
+    effective_to = forms.CharField(max_length=250, required=True,
+                                       widget=forms.TextInput(attrs={'class': 'form-control'}))
+    
+    class Meta:
+        model = BaseRates
+        fields=('standard_hourly_rate','extra_hours_standard_rate','extra_hours_standard_increase_rate','holiday_hourly_rate',
+                'extra_hours_holiday_rate','extra_hours_holiday_increase_rate','effective_from','effective_to')

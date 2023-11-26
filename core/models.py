@@ -7,10 +7,23 @@ class BaseClass(models.Model):
     date_updated = models.DateTimeField(auto_now=True)
     user_updated = models.CharField(max_length=50)
     is_active = models.BooleanField(default=True)
+    
 
     class Meta:
         abstract = True    
 
+class BaseRates(BaseClass):
+     standard_hourly_rate = models.DecimalField(max_digits=8, decimal_places=2)
+     extra_hours_standard_rate = models.DecimalField(max_digits=8, decimal_places=2)
+     extra_hours_standard_increase_rate = models.DecimalField(max_digits=8, decimal_places=2)
+     holiday_hourly_rate = models.DecimalField(max_digits=8, decimal_places=2)
+     extra_hours_holiday_rate = models.DecimalField(max_digits=8, decimal_places=2)
+     extra_hours_holiday_increase_rate = models.DecimalField(max_digits=8, decimal_places=2)
+     effective_from = models.DateField()
+     effective_to = models.DateField()
+     
+     
+     
 
 class Child(BaseClass):
     admission_number = models.CharField(max_length=10)
@@ -33,21 +46,25 @@ class Child(BaseClass):
     admission_date = models.DateField()
 
 
-class PackageType(BaseClass):
-    package_type_code = models.CharField(max_length=10)
-    package_type = models.CharField(max_length=100)
-    
     
 class Package(BaseClass):
+    Daily ='Daily'
+    Weekly ='Weekly'
+    Monthly = 'Monthly'
+    HOURLY = 'Hourly'
+    
+    package_type = [
+        (Daily ,'Daily'),
+        (Weekly ,'Weekly'),
+        (Monthly , 'Monthly'),
+        (HOURLY, 'Hourly'),
+    ]
     package_code = models.CharField(max_length=10)
-    package_type = models.ForeignKey('PackageType',on_delete=models.CASCADE)
     package_name = models.CharField(max_length=200)
-    hours_per_day = models.IntegerField() 
-    no_of_days = models.IntegerField()
-    days_per_month = models.ImageField()
-    start_time = models.TimeField()
-    end_time = models.TimeField()
-    amount = models.DecimalField(decimal_places=2,max_digits=10)
+    rate = models.DecimalField(max_digits=8, decimal_places=2)
+    from_time = models.DateTimeField(auto_now=False, auto_now_add=False)
+    to_time = models.DateTimeField(auto_now=False, auto_now_add=False)
+
 
 
 class HolidayType(BaseClass):

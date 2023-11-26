@@ -11,11 +11,11 @@ from django.contrib import messages
 from django.views.decorators.csrf import csrf_protect
 import datetime
 
-from .models import Child
-from .forms import CreateChildForm, UpdateChildForm
+from .models import Child,Package,BaseRates
+from .forms import CreateChildForm, UpdateChildForm, SettingsForm
 
 
-# Create your views here.
+
 @login_required(login_url='login/')
 def index(request):
     UserName =request.user.username
@@ -84,7 +84,7 @@ def getChild(request):
 
     return render(request, '../templates/child.html', {'form': child_form,'UserName':request.user.username})
 
-
+@login_required(login_url='/login/')
 def getChildbyID(request, pk):
     try:
 
@@ -133,10 +133,7 @@ def createChild(request):
                 is_active = False
 
         if request.POST.get('admission_number') is not None:
-            print("in request.POST.get('admission_number')")
-            print(request.POST.get('admission_number'))
             objChild = Child.objects.get(admission_number=request.POST.get('admission_number'))
-            print(objChild)
             if objChild is not None:
                 objChild.fathers_contact_number = int(fathers_contact_number)
                 objChild.fathers_whatsapp_number = int(fathers_whatsapp_number)
@@ -152,7 +149,7 @@ def createChild(request):
                 objChild.save()
                 messages.success(request, "Child details updated.")
     except Exception as e:
-        print('-------in Create-------')
+        
         objChild = Child(
             admission_number=admission_number,
             child_first_name=child_first_name,
@@ -179,20 +176,46 @@ def createChild(request):
 
     return redirect('core:view_child')
 
-
+@login_required(login_url='/login/')
 def deleteChild(request, pk):
     try:
-        print(pk)
         objChild = get_object_or_404(Child, pk=pk)
 
         if objChild is not None:
             objChild.is_active = False
             objChild.user_updated = request.user.username
             objChild.save()
-            print("saved")
-            return JsonResponse({'data': 'Record deleted successfully'})
-
+           
     except Exception as e:
         messages.error(request, e)
 
 
+
+@login_required(login_url='login/')
+def getPackagesJson(reuest):
+    packagesList = list(Package.objects.all() \
+        .values(
+        'id',
+        'admission_number',
+        'child_first_name',
+        'child_last_name',
+        'admission_date',
+        'fathers_contact_number',
+        'mothers_contact_number',
+        'resident_contact_number',
+        'is_polymath_student',
+        'is_active'
+    ))
+
+    return JsonResponse(chilList, safe=False)
+
+
+def getSettings(request):
+    
+        objSettings = BaseRates.objects.all().first()
+        settings_form = SettingsForm(instance=objSettings)  # creating the form with the admission ID        
+            
+        return render(request, '../templates/settings.html', {'form': settings_form,'UserName':request.user.username})
+
+
+    
