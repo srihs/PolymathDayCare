@@ -21,7 +21,7 @@ class Rates(BaseClass):
 
 
 class AdditionalCharges(BaseClass):
-    base_rate = models.ForeignKey("Rates", on_delete=models.CASCADE)
+    rate = models.ForeignKey("Rates", on_delete=models.CASCADE)
     extra_hours_standard_rate_first_hour = models.DecimalField(max_digits=8, decimal_places=2)
     extra_hours_standard_rate_Second_hour = models.DecimalField(max_digits=8, decimal_places=2)
     extra_hours_standard_rate_third_hour = models.DecimalField(max_digits=8, decimal_places=2)
