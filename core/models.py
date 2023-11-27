@@ -1,29 +1,41 @@
 from django.db import models
 
-# Create your models here.
+
 class BaseClass(models.Model):
     date_created = models.DateTimeField(auto_now_add=True)
     user_created = models.CharField(max_length=50)
     date_updated = models.DateTimeField(auto_now=True)
     user_updated = models.CharField(max_length=50)
     is_active = models.BooleanField(default=True)
-    
 
     class Meta:
-        abstract = True    
+        abstract = True
 
-class BaseRates(BaseClass):
-     standard_hourly_rate = models.DecimalField(max_digits=8, decimal_places=2)
-     extra_hours_standard_rate = models.DecimalField(max_digits=8, decimal_places=2)
-     extra_hours_standard_increase_rate = models.DecimalField(max_digits=8, decimal_places=2)
-     holiday_hourly_rate = models.DecimalField(max_digits=8, decimal_places=2)
-     extra_hours_holiday_rate = models.DecimalField(max_digits=8, decimal_places=2)
-     extra_hours_holiday_increase_rate = models.DecimalField(max_digits=8, decimal_places=2)
-     effective_from = models.DateField()
-     effective_to = models.DateField()
-     
-     
-     
+
+class Rates(BaseClass):
+    rate_name = models.CharField(max_length=550)
+    standard_hourly_rate = models.DecimalField(max_digits=8, decimal_places=2)
+    is_holiday_rate = models.BooleanField(default=False)
+
+    
+
+
+class AdditionalCharges(BaseClass):
+    base_rate = models.ForeignKey("Rates", on_delete=models.CASCADE)
+    extra_hours_standard_rate_first_hour = models.DecimalField(max_digits=8, decimal_places=2)
+    extra_hours_standard_rate_Second_hour = models.DecimalField(max_digits=8, decimal_places=2)
+    extra_hours_standard_rate_third_hour = models.DecimalField(max_digits=8, decimal_places=2)
+    extra_hours_standard_rate_fourth_hour = models.DecimalField(max_digits=8, decimal_places=2)
+    extra_hours_standard_rate_fifth_hour = models.DecimalField(max_digits=8, decimal_places=2)
+    extra_hours_standard_rate_sixth_hour = models.DecimalField(max_digits=8, decimal_places=2)
+    extra_hours_standard_rate_seventh_hour = models.DecimalField(max_digits=8, decimal_places=2)
+    extra_hours_standard_rate_eighth_hour = models.DecimalField(max_digits=8, decimal_places=2)
+    extra_hours_standard_rate_nineth_hour = models.DecimalField(max_digits=8, decimal_places=2)
+    extra_hours_standard_rate_tenth_hour = models.DecimalField(max_digits=8, decimal_places=2)
+    effective_from = models.DateField()
+    effective_to = models.DateField()
+    
+
 
 class Child(BaseClass):
     admission_number = models.CharField(max_length=10)
@@ -46,36 +58,33 @@ class Child(BaseClass):
     admission_date = models.DateField()
 
 
-    
 class Package(BaseClass):
-    Daily ='Daily'
-    Weekly ='Weekly'
-    Monthly = 'Monthly'
-    HOURLY = 'Hourly'
-    
+    Daily = "Daily"
+    Weekly = "Weekly"
+    Monthly = "Monthly"
+    HOURLY = "Hourly"
+
     package_type = [
-        (Daily ,'Daily'),
-        (Weekly ,'Weekly'),
-        (Monthly , 'Monthly'),
-        (HOURLY, 'Hourly'),
+        (Daily, "Daily"),
+        (Weekly, "Weekly"),
+        (Monthly, "Monthly"),
+        (HOURLY, "Hourly"),
     ]
     package_code = models.CharField(max_length=10)
     package_name = models.CharField(max_length=200)
     rate = models.DecimalField(max_digits=8, decimal_places=2)
     from_time = models.DateTimeField(auto_now=False, auto_now_add=False)
     to_time = models.DateTimeField(auto_now=False, auto_now_add=False)
-
+    discount_precentage_for_Unutilized_packages = models.IntegerField()
 
 
 class HolidayType(BaseClass):
     holiday_code = models.CharField(max_length=10)
-    holiday_type =models.CharField(max_length=100)
+    holiday_type = models.CharField(max_length=100)
 
 
 class Holiday(BaseClass):
     title = models.CharField(max_length=100)
-    holiday_type = models.ForeignKey('HolidayType',on_delete=models.CASCADE)
+    holiday_type = models.ForeignKey("HolidayType", on_delete=models.CASCADE)
     start_date = models.DateField()
     end_date = models.DateField()
-
-

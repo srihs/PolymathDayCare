@@ -19,6 +19,6 @@ urlpatterns = [
                   path('savechild/', views.createChild, name='save_child'),
                   path('deletechild/<int:pk>/', views.deleteChild, name='child_delete'),
                   
-                  path('settings/', views.getSettings, name='view_settings'),
+                  path('settingspkg/', views.getSettings, name='view_settings_packagess'),
 
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

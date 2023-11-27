@@ -98,15 +98,6 @@
                         </div>
                     </div>
 
-
-                   
-
-                   
-
-                 
-
-                    
-
                     <div class="dropdown ms-sm-3 header-item topbar-user">
                         <button type="button" class="btn" id="page-header-user-dropdown" data-bs-toggle="dropdown"
                                 aria-haspopup="true" aria-expanded="false">
@@ -262,12 +253,38 @@
                         </a>
                     </li>
 
-                    <li class="nav-item"><a class="nav-link menu-link" href="/settings"
-                                            role="button"
-                                            aria-expanded="false" aria-controls="sidebarAdvanceUI">
-                        <i class="ri-settings-3-line"></i> <span
-                            data-key="t-advance-ui">Settings</span>
-                    </a>
+                    <li class="nav-item"> <a href="#sidebarEmail" class="nav-link" data-bs-toggle="collapse" role="button"
+                        aria-expanded="false" aria-controls="sidebarEmail"><i
+                             class=" ri-settings-5-line"></i><span data-key="t-email">
+                         Settings</span>
+                     </a>
+                    <div class="collapse menu-dropdown" id="sidebarEmail">
+                        <ul class="nav nav-sm flex-column">
+                            <li class="nav-item">
+                                <a href="/settingspkg" class="nav-link"><i class="bx bx-money"></i>
+                                    <span data-key="t-mailbox">
+                                    Package Settings </span> </a>
+                            </li>
+
+                            <li class="nav-item">
+                                <a href="apps-mailbox.html" class="nav-link"> <i
+                                        class="mdi mdi-table-clock"></i><span
+                                        data-key="t-mailbox"></span>
+                                    User settings </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="#sidebaremailTemplates" class="nav-link"
+                                   role="button" aria-expanded="false"
+                                   aria-controls="sidebaremailTemplates"> <i
+                                        class="mdi mdi-office-building-marker"></i><span
+                                        data-key="t-email-templates">Application Settings</span>
+
+                                </a>
+
+                            </li>
+
+                        </ul>
+                    </div>
                     </li>
                 </ul>
             </div>

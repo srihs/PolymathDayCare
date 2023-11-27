@@ -11,8 +11,8 @@ from django.contrib import messages
 from django.views.decorators.csrf import csrf_protect
 import datetime
 
-from .models import Child,Package,BaseRates
-from .forms import CreateChildForm, UpdateChildForm, SettingsForm
+from .models import Child,Package,Rates
+from .forms import CreateChildForm, UpdateChildForm#, SettingsForm
 
 
 
@@ -213,9 +213,11 @@ def getPackagesJson(reuest):
 def getSettings(request):
     
         objSettings = BaseRates.objects.all().first()
-        settings_form = SettingsForm(instance=objSettings)  # creating the form with the admission ID        
+        settings_form = SettingsForm(instance=objSettings)  
             
-        return render(request, '../templates/settings.html', {'form': settings_form,'UserName':request.user.username})
+        return render(request, '../templates/settings.html', {'form': settings_form,'UserName':request.user.username,'settings':objSettings})
 
 
+def saveSettings(request):
+    return true
     

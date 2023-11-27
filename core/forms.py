@@ -2,7 +2,9 @@ from django import forms
 from django.forms import ImageField
 from django.db import models
 from django.contrib.admin.widgets import AdminDateWidget
-from .models import Child, BaseRates
+from django.core.validators import MinValueValidator
+from .models import Child, Rates
+from decimal import *
 
 
 class MyDateInput(forms.widgets.DateInput):
@@ -135,25 +137,86 @@ class UpdateChildForm(forms.ModelForm):
 
 
 
-class SettingsForm(forms.ModelForm):
-    standard_hourly_rate = forms.CharField(max_length=250, required=True,
-                                       widget=forms.TextInput(attrs={'class': 'form-control'}))
-    extra_hours_standard_rate = forms.CharField(max_length=250, required=True,
-                                       widget=forms.TextInput(attrs={'class': 'form-control'}))
-    extra_hours_standard_increase_rate = forms.CharField(max_length=250, required=True,
-                                       widget=forms.TextInput(attrs={'class': 'form-control'}))
-    holiday_hourly_rate = forms.CharField(max_length=250, required=True,
-                                       widget=forms.TextInput(attrs={'class': 'form-control'}))
-    extra_hours_holiday_rate = forms.CharField(max_length=250, required=True,
-                                       widget=forms.TextInput(attrs={'class': 'form-control'}))
-    extra_hours_holiday_increase_rate = forms.CharField(max_length=250, required=True,
-                                       widget=forms.TextInput(attrs={'class': 'form-control'}))
-    effective_from = forms.CharField(max_length=250, required=True,
-                                       widget=forms.TextInput(attrs={'class': 'form-control'}))
-    effective_to = forms.CharField(max_length=250, required=True,
-                                       widget=forms.TextInput(attrs={'class': 'form-control'}))
+# class SettingsForm(forms.ModelForm):
+#     standard_hourly_rate = forms.DecimalField(max_digits=15,
+#         decimal_places=2,
+#         validators=[MinValueValidator(Decimal('0.01'))],
+#         required=True,
+#         widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Standard rate (hourly)'}))
     
-    class Meta:
-        model = BaseRates
-        fields=('standard_hourly_rate','extra_hours_standard_rate','extra_hours_standard_increase_rate','holiday_hourly_rate',
-                'extra_hours_holiday_rate','extra_hours_holiday_increase_rate','effective_from','effective_to')
+#     extra_hours_standard_rate_first_hour = forms.DecimalField(max_digits=15,
+#         decimal_places=2,
+#         validators=[MinValueValidator(Decimal('0.01'))],
+#         required=True,
+#         widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Extra rate (1st hour)'}))
+    
+#     extra_hours_standard_rate_second_hour = forms.DecimalField(max_digits=15,
+#         decimal_places=2,
+#         validators=[MinValueValidator(Decimal('0.01'))],
+#         required=True,
+#         widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Extra rate (2nd hour)'}))
+    
+#     extra_hours_standard_rate_third_hour = forms.DecimalField(max_digits=15,
+#         decimal_places=2,
+#         validators=[MinValueValidator(Decimal('0.01'))],
+#         required=True,
+#         widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Extra rate (3rd hour)'}))
+    
+#     extra_hours_standard_rate_fourth_hour = forms.DecimalField(max_digits=15,
+#         decimal_places=2,
+#         validators=[MinValueValidator(Decimal('0.01'))],
+#         required=True,
+#         widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Extra rate (4th hour)'}))
+    
+#     holiday_hourly_rate = forms.DecimalField(max_digits=15,
+#         decimal_places=2,
+#         validators=[MinValueValidator(Decimal('0.01'))],
+#         required=True,
+#         widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Holiday rate (hourly)'}))
+    
+#     extra_hours_holiday_first_hour_rate = forms.DecimalField(max_digits=15,
+#         decimal_places=2,
+#         validators=[MinValueValidator(Decimal('0.01'))],
+#         required=True,
+#         widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Additional extra hour rate for holiday  (hourly)'}))
+    
+#     extra_hours_holiday_first_second_rate = forms.DecimalField(max_digits=15,
+#         decimal_places=2,
+#         validators=[MinValueValidator(Decimal('0.01'))],
+#         required=True,
+#         widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Additional extra hour increase rate for holiday  (hourly)'}))
+    
+#     extra_hours_holiday_first_third_rate = forms.DecimalField(max_digits=15,
+#         decimal_places=2,
+#         validators=[MinValueValidator(Decimal('0.01'))],
+#         required=True,
+#         widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Additional extra hour increase rate for holiday  (hourly)'}))
+    
+#     extra_hours_holiday_first_fourth_rate = forms.DecimalField(max_digits=15,
+#         decimal_places=2,
+#         validators=[MinValueValidator(Decimal('0.01'))],
+#         required=True,
+#         widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Additional extra hour increase rate for holiday  (hourly)'}))
+    
+#     effective_from = forms.DecimalField(max_digits=15,
+#         decimal_places=2,
+#         validators=[MinValueValidator(Decimal('0.01'))],
+#         required=True,
+#         widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Effective from'}))
+    
+#     effective_to = forms.DecimalField(max_digits=15,
+#         decimal_places=2,
+#         validators=[MinValueValidator(Decimal('0.01'))],
+#         required=True,
+#         widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Effective to'}))
+    
+#     discount_precentage_for_other_packages = forms.DecimalField(max_digits=15,
+#         decimal_places=2,
+#         validators=[MinValueValidator(Decimal('0.01'))],
+#         required=True,
+#         widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Discount ''%'' for Packages'}))
+    
+#     class Meta:
+#         model = Rates
+#         # fields=('standard_hourly_rate','extra_hours_standard_rate','extra_hours_standard_increase_rate','holiday_hourly_rate',
+#         #         'extra_hours_holiday_rate','extra_hours_holiday_increase_rate','effective_from','effective_to')
