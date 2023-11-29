@@ -11,64 +11,67 @@ from django.contrib import messages
 from django.views.decorators.csrf import csrf_protect
 import datetime
 
-from .models import Child,Package,Rates
-from .forms import CreateChildForm, UpdateChildForm, SettingsForm
+from .models import Child, Package, Rates, AdditionalCharges
+from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateAdditionalChargesForm
 
 
-
-@login_required(login_url='login/')
+@login_required(login_url="login/")
 def index(request):
-    UserName =request.user.username
-    return render(request, '../templates/base.html',{'UserName':UserName})
+    UserName = request.user.username
+    return render(request, "../templates/base.html", {"UserName": UserName})
 
 
 def UserLogOut(request):
     logout(request)
-    return redirect('core:login')
-    
+    return redirect("core:login")
+
 
 def UserLogin(request):
-    username = password = ''
+    username = password = ""
     try:
-        if request.method == 'POST':
-            username = request.POST.get('username')
-            password = request.POST.get('password')
+        if request.method == "POST":
+            username = request.POST.get("username")
+            password = request.POST.get("password")
             user = authenticate(username=username, password=password)
             if user is not None:
                 if user.is_active:
                     login(request, user)
-                    return HttpResponseRedirect(request.POST.get('next'))
+                    return HttpResponseRedirect(request.POST.get("next"))
             else:
-                messages.error(request, "Invalid user credentials.Please check your username and password.")
-        return render(request, '../templates/login.html')
+                messages.error(
+                    request,
+                    "Invalid user credentials.Please check your username and password.",
+                )
+        return render(request, "../templates/login.html")
 
     except Exception as e:
         messages.error(request, e)
 
 
-@login_required(login_url='login/')
+@login_required(login_url="login/")
 def getChildJson(reuest):
-    chilList = list(Child.objects.all() \
-        .values(
-        'id',
-        'admission_number',
-        'child_first_name',
-        'child_last_name',
-        'admission_date',
-        'fathers_contact_number',
-        'mothers_contact_number',
-        'resident_contact_number',
-        'is_polymath_student',
-        'is_active'
-    ))
+    chilList = list(
+        Child.objects.all().values(
+            "id",
+            "admission_number",
+            "child_first_name",
+            "child_last_name",
+            "admission_date",
+            "fathers_contact_number",
+            "mothers_contact_number",
+            "resident_contact_number",
+            "is_polymath_student",
+            "is_active",
+        )
+    )
 
     return JsonResponse(chilList, safe=False)
 
 
-@login_required(login_url='/login/')
+@login_required(login_url="/login/")
 def getChild(request):
     # clearing the session form the system. so the New id will be facilitated
-    request.session['child_id'] = None
+    request.session["child_id"] = None
     request.session.modified = True
 
     # Child is defined by 'D' + next Id in the Table
@@ -79,15 +82,20 @@ def getChild(request):
     except:
         nextId = 1  # if the next ID is null define the record as the first
 
-    child_form = CreateChildForm(initial={'admission_number': 'D' + str(nextId)})  # creating the form with the admission ID
-    
+    child_form = CreateChildForm(
+        initial={"admission_number": "D" + str(nextId)}
+    )  # creating the form with the admission ID
 
-    return render(request, '../templates/child.html', {'form': child_form,'UserName':request.user.username})
+    return render(
+        request,
+        "../templates/child.html",
+        {"form": child_form, "UserName": request.user.username},
+    )
 
-@login_required(login_url='/login/')
+
+@login_required(login_url="/login/")
 def getChildbyID(request, pk):
     try:
-
         child_form = None
         objChild = get_object_or_404(Child, pk=pk)
         if objChild is not None:
@@ -95,45 +103,49 @@ def getChildbyID(request, pk):
 
     except Exception as e:
         messages.error(request, e)
-    return render(request, '../templates/partials/childUpdate.html', {'formU': child_form})
+    return render(
+        request, "../templates/partials/childUpdate.html", {"formU": child_form}
+    )
 
 
-@login_required(login_url='/login/')
+@login_required(login_url="/login/")
 def createChild(request):
     try:
-        if request.method == 'POST':
+        if request.method == "POST":
             # capturing the variables with data
-            admission_number = request.POST.get('admission_number')
-            child_first_name = request.POST.get('child_first_name')
-            child_last_name = request.POST.get('child_last_name')
-            date_of_birth = request.POST.get('date_of_birth')
-            fathers_name = request.POST.get('fathers_name')
-            fathers_contact_number = request.POST.get('fathers_contact_number')
-            fathers_whatsapp_number = request.POST.get('fathers_whatsapp_number')
-            mothers_name = request.POST.get('mothers_name')
-            mothers_contact_number = request.POST.get('mothers_contact_number')
-            mothers_whatsapp_number = request.POST.get('mothers_whatsapp_number')
-            resident_contact_number = request.POST.get('resident_contact_number')
-            address_line1 = request.POST.get('address_line1')
-            address_line2 = request.POST.get('address_line2')
-            address_line3 = request.POST.get('address_line3')
-            email_address = request.POST.get('email_address')
-            is_polymath_student = request.POST.get('is_polymath_student')
-            recipt_number = request.POST.get('recipt_number')
-            admission_date = request.POST.get('admission_date')
-            is_active = request.POST.get('is_active')
-            if is_polymath_student == 'on':
+            admission_number = request.POST.get("admission_number")
+            child_first_name = request.POST.get("child_first_name")
+            child_last_name = request.POST.get("child_last_name")
+            date_of_birth = request.POST.get("date_of_birth")
+            fathers_name = request.POST.get("fathers_name")
+            fathers_contact_number = request.POST.get("fathers_contact_number")
+            fathers_whatsapp_number = request.POST.get("fathers_whatsapp_number")
+            mothers_name = request.POST.get("mothers_name")
+            mothers_contact_number = request.POST.get("mothers_contact_number")
+            mothers_whatsapp_number = request.POST.get("mothers_whatsapp_number")
+            resident_contact_number = request.POST.get("resident_contact_number")
+            address_line1 = request.POST.get("address_line1")
+            address_line2 = request.POST.get("address_line2")
+            address_line3 = request.POST.get("address_line3")
+            email_address = request.POST.get("email_address")
+            is_polymath_student = request.POST.get("is_polymath_student")
+            recipt_number = request.POST.get("recipt_number")
+            admission_date = request.POST.get("admission_date")
+            is_active = request.POST.get("is_active")
+            if is_polymath_student == "on":
                 is_polymath_student = True
             else:
                 is_polymath_student = False
 
-            if is_active == 'on':
+            if is_active == "on":
                 is_active = True
             else:
                 is_active = False
 
-        if request.POST.get('admission_number') is not None:
-            objChild = Child.objects.get(admission_number=request.POST.get('admission_number'))
+        if request.POST.get("admission_number") is not None:
+            objChild = Child.objects.get(
+                admission_number=request.POST.get("admission_number")
+            )
             if objChild is not None:
                 objChild.fathers_contact_number = int(fathers_contact_number)
                 objChild.fathers_whatsapp_number = int(fathers_whatsapp_number)
@@ -149,12 +161,11 @@ def createChild(request):
                 objChild.save()
                 messages.success(request, "Child details updated.")
     except Exception as e:
-        
         objChild = Child(
             admission_number=admission_number,
             child_first_name=child_first_name,
             child_last_name=child_last_name,
-            date_of_birth=datetime.datetime.strptime(date_of_birth, '%Y-%m-%d').date(),
+            date_of_birth=datetime.datetime.strptime(date_of_birth, "%Y-%m-%d").date(),
             fathers_name=fathers_name,
             fathers_contact_number=fathers_contact_number,
             fathers_whatsapp_number=fathers_whatsapp_number,
@@ -169,14 +180,18 @@ def createChild(request):
             is_polymath_student=is_polymath_student,
             recipt_number=recipt_number,
             user_created=request.user.username,
-            admission_date=datetime.datetime.strptime(admission_date, '%Y-%m-%d').date(),
-            is_active=is_active)
+            admission_date=datetime.datetime.strptime(
+                admission_date, "%Y-%m-%d"
+            ).date(),
+            is_active=is_active,
+        )
         objChild.save()
         messages.success(request, "Child details saved.")
 
-    return redirect('core:view_child')
+    return redirect("core:view_child")
 
-@login_required(login_url='/login/')
+
+@login_required(login_url="/login/")
 def deleteChild(request, pk):
     try:
         objChild = get_object_or_404(Child, pk=pk)
@@ -185,39 +200,101 @@ def deleteChild(request, pk):
             objChild.is_active = False
             objChild.user_updated = request.user.username
             objChild.save()
-           
+
     except Exception as e:
         messages.error(request, e)
 
 
+@login_required(login_url="login/")
+def getRatesJs(reuest):
+    rateList = list(
+        Rates.objects.all().values(
+            "id",
+            "rate_name",
+            "standard_hourly_rate",
+            "effective_from",
+            "effective_to",
+            "is_holiday_rate",
+            "is_active",
+        )
+    )
 
-@login_required(login_url='login/')
-def getPackagesJson(reuest):
-    packagesList = list(Package.objects.all() \
-        .values(
-        'id',
-        'admission_number',
-        'child_first_name',
-        'child_last_name',
-        'admission_date',
-        'fathers_contact_number',
-        'mothers_contact_number',
-        'resident_contact_number',
-        'is_polymath_student',
-        'is_active'
-    ))
+    return JsonResponse(rateList, safe=False)
 
-    return JsonResponse(chilList, safe=False)
-
-
-def getSettings(request):
+@login_required(login_url="login/")
+def getRates(request):
+    if request.method == "GET":
+        settings_form = CreateRatesForm()
     
-    objSettings = Rates.objects.all().first()
-    settings_form = SettingsForm(instance=objSettings)
-            
-    return render(request, '../templates/ratesettings.html', {'form': settings_form,'UserName':request.user.username,'settings':objSettings})
+    else:    
+        objSettings = Rates.objects.all().first()
+        settings_form = CreateRatesForm(instance=objSettings)
 
+    return render(
+        request,
+        "../templates/ratesettings.html",
+        {
+            "form": settings_form,
+            "UserName": request.user.username,
+        },
+    )
 
-def saveSettings(request):
-    return true
+@login_required(login_url="login/")
+def saveRates(request):
+    if request.method == "POST":
+        form = CreateRatesForm(request.POST)
+        print(form.is_valid())
+        if form.is_valid():
+            objSettings= form.save(commit=False)
+            objSettings.user_created = request.user.username,
+            form.save()
+            messages.success(request, "Rate details saved.")
+        else:
+            messages.error(request,form.errors)
+            print(form.errors)
+                
+    return redirect("core:view_settings_packagess")        
     
+
+@login_required(login_url="login/")
+def getAdditionalRates(request):
+    if request.method == "GET":
+        additional_chargs_form = CreateAdditionalChargesForm()
+    
+    else:    
+        objAdditionalRates = AdditionalCharges.objects.all().first()
+        additional_chargs_form = CreateAdditionalChargesForm(instance=objSettings)
+
+    return render(
+        request,
+        "../templates/additionalrates.html",
+        {
+            "form": additional_chargs_form,
+            "UserName": request.user.username,
+        },
+    )
+    
+    
+@login_required(login_url="login/")
+def getAdditionalRatesJs(reuest):
+    additionalRatesList = list(
+        AdditionalCharges.objects.all().values(
+            "id",
+            "additional_rate_name", 
+            "extra_hours_standard_rate_first_hour",
+            "extra_hours_standard_rate_Second_hour",
+            "extra_hours_standard_rate_third_hour" ,
+            "extra_hours_standard_rate_fourth_hour",
+            "extra_hours_standard_rate_fifth_hour", 
+            "extra_hours_standard_rate_sixth_hour" ,
+            "extra_hours_standard_rate_seventh_hour" ,
+            "extra_hours_standard_rate_eighth_hour" ,
+            "extra_hours_standard_rate_nineth_hour" ,
+            "extra_hours_standard_rate_tenth_hour",
+            "effective_from",
+            "effective_to",
+            "is_active",
+        )
+    )
+
+    return JsonResponse(additionalRatesList, safe=False)

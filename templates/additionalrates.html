@@ -1,14 +1,14 @@
 {% extends "base.html" %} {% load static %} 
 {% block UserName %} {{ UserName }}{% endblock %} 
 {% block Title %} SETTINGS {% endblock %} 
-{% block functionTitle %}RATES{% endblock %} 
+{% block functionTitle %}ADDITIONAL RATES{% endblock %} 
 {% block content %}
 
 <!-- Data Table-->
 <div class="card">
     <div class="card-header border-0">
         <div class="d-flex align-items-center">
-            <h5 class="card-title mb-0 flex-grow-1">Base rates</h5>
+            <h5 class="card-title mb-0 flex-grow-1">Additional hours rates</h5>
             <div class="flex-shrink-0">
                 <div class="d-flex flex-wrap gap-2">
                     <button
@@ -30,10 +30,18 @@
             <thead>
             <tr>
                 <th>Rate Name</th>
-                <th>Hourly Rate</th>
+                <th>1st hr rate</th>
+                <th>2nd hr rate</th>
+                <th>3rd hr rate</th>
+                <th>4th hr rate</th>
+                <th>5th hr rate</th>
+                <th>6th hr rate</th>
+                <th>7th hr rate</th>
+                <th>8th hr rate</th>
+                <th>9th hr rate</th>
+                <th>10th hr rate</th>
                 <th>Effective from</th>
                 <th>Effective to</th>
-                <th>is a holiday rate?</th>
                 <th data-orderable="false"></th>
                 
             </tr>
@@ -305,16 +313,23 @@
         var table = $("#RateList").DataTable({
             ajax: {
                 processing: true,
-                url: "{% url 'core:view_rates_js' %}",
+                url: "{% url 'core:view_additional_rates_js' %}",
                 dataSrc: "",
             },
             columns: [
-                {data: "rate_name"},
-                {data: "standard_hourly_rate"},
+                {data: "additional_rate_name"},
+                {data: "extra_hours_standard_rate_first_hour"},
+                {data: "extra_hours_standard_rate_Second_hour"},
+                {data: "extra_hours_standard_rate_third_hour"},
+                {data: "extra_hours_standard_rate_fourth_hour"},
+                {data: "extra_hours_standard_rate_fifth_hour"},
+                {data: "extra_hours_standard_rate_sixth_hour"},
+                {data: "extra_hours_standard_rate_seventh_hour"},
+                {data: "extra_hours_standard_rate_eighth_hour"},
+                {data: "extra_hours_standard_rate_nineth_hour"},
+                {data: "extra_hours_standard_rate_tenth_hour"},
                 {data: "effective_from"},
-                {data: "effective_to"},
-                {data: "is_holiday_rate"},
-                
+                {data: "effective_to"},         
                 {
                     data: null,
                     render: function (data, type, row) {

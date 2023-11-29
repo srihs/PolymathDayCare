@@ -136,7 +136,7 @@ class UpdateChildForm(forms.ModelForm):
                   'is_active')
 
 
-class SettingsForm(forms.ModelForm):
+class CreateRatesForm(forms.ModelForm):
     rate_name = forms.CharField(max_length=250, required=False,
                                     widget=forms.TextInput(
                                         attrs={'class': 'form-control', 'placeholder': 'Rate name'}))
@@ -149,11 +149,22 @@ class SettingsForm(forms.ModelForm):
     
     is_holiday_rate = forms.BooleanField(required=False, 
                                          widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'type': 'checkbox'}))
+    effective_from = forms.DateField(required=True, widget=MyDateInput(
+        attrs={'class': 'form-control', 'required': 'true', 'id': 'effective_from', 'data-provider': 'flatpickr',
+               'data-date-format': 'Y-m-d', 'placeholder': 'Effective Date'}))
+    
+    
     class Meta:
         model = Rates
-        fields = ('rate_name','standard_hourly_rate','is_holiday_rate')
+        fields = ('rate_name','standard_hourly_rate','is_holiday_rate','effective_from')
+        
+        
+        
     
-class AdditionalChargesForm(forms.ModelForm):
+class CreateAdditionalChargesForm(forms.ModelForm):
+    additional_rate_name=forms.CharField(max_length=250, required=False,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control', 'placeholder': 'Additional rate name'}))
     extra_hours_standard_rate_first_hour =forms.DecimalField(max_digits=15,
                                             decimal_places=2,
                                             validators=[MinValueValidator(Decimal('0.01'))],
@@ -215,16 +226,16 @@ class AdditionalChargesForm(forms.ModelForm):
                                             widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Extra rate 10th hour'}))
     
     effective_from = forms.DateField(required=True, widget=MyDateInput(
-        attrs={'readonly': 'readonly','class': 'form-control', 'required': 'true', 'id': 'admission_date', 'data-provider': 'flatpickr',
+        attrs={'class': 'form-control', 'required': 'true', 'id': 'admission_date', 'data-provider': 'flatpickr',
                'data-date-format': '%Y-%m-%d', 'placeholder': 'Admission Date'}))
     effective_to = forms.DateField(required=True, widget=MyDateInput(
-        attrs={'readonly': 'readonly','class': 'form-control', 'required': 'true', 'id': 'admission_date', 'data-provider': 'flatpickr',
+        attrs={'class': 'form-control', 'required': 'true', 'id': 'admission_date', 'data-provider': 'flatpickr',
                'data-date-format': '%Y-%m-%d', 'placeholder': 'Admission Date'}))
 
-class Meta:
+    class Meta:
         model = AdditionalCharges
-        fields = ('extra_hours_standard_rate_first_hour','extra_hours_standard_rate_Second_hour',
+        fields = ('additional_rate_name','extra_hours_standard_rate_first_hour','extra_hours_standard_rate_Second_hour',
                   'extra_hours_standard_rate_third_hour','extra_hours_standard_rate_fourth_hour',
                   'extra_hours_standard_rate_fifth_hour','extra_hours_standard_rate_sixth_hour',
                   'extra_hours_standard_rate_seventh_hour','extra_hours_standard_rate_eighth_hour',
-                  'extra_hours_standard_rate_nineth_hour','extra_hours_standard_rate_tenth_hour')
+                  'extra_hours_standard_rate_nineth_hour','extra_hours_standard_rate_tenth_hour','effective_from','effective_to')

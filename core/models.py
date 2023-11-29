@@ -16,12 +16,14 @@ class Rates(BaseClass):
     rate_name = models.CharField(max_length=550)
     standard_hourly_rate = models.DecimalField(max_digits=8, decimal_places=2)
     is_holiday_rate = models.BooleanField(default=False)
+    effective_from = models.DateField()
+    effective_to = models.DateField(null=True)
 
     
 
 
 class AdditionalCharges(BaseClass):
-    rate = models.ForeignKey("Rates", on_delete=models.CASCADE)
+    additional_rate_name = models.CharField(max_length=550)
     extra_hours_standard_rate_first_hour = models.DecimalField(max_digits=8, decimal_places=2)
     extra_hours_standard_rate_Second_hour = models.DecimalField(max_digits=8, decimal_places=2)
     extra_hours_standard_rate_third_hour = models.DecimalField(max_digits=8, decimal_places=2)
@@ -33,7 +35,7 @@ class AdditionalCharges(BaseClass):
     extra_hours_standard_rate_nineth_hour = models.DecimalField(max_digits=8, decimal_places=2)
     extra_hours_standard_rate_tenth_hour = models.DecimalField(max_digits=8, decimal_places=2)
     effective_from = models.DateField()
-    effective_to = models.DateField()
+    effective_to = models.DateField(null=True)
     
 
 

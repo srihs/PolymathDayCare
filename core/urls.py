@@ -19,6 +19,11 @@ urlpatterns = [
                   path('savechild/', views.createChild, name='save_child'),
                   path('deletechild/<int:pk>/', views.deleteChild, name='child_delete'),
                   
-                  path('settingspkg/', views.getSettings, name='view_settings_packagess'),
-
+                  path('rates/', views.getRates, name='view_rates'),
+                  path('ratesjs/', views.getRatesJs, name='view_rates_js'),
+                  path('save_rates/', views.saveRates, name='save_rates'),
+                  
+                  path('additional_rates/', views.getAdditionalRates, name='view_additional_rates'),
+                  path('additional_rates_js/', views.getAdditionalRatesJs, name='view_additional_rates_js'),
+                  
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
