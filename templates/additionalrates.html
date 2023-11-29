@@ -104,7 +104,7 @@
                         <div class="col-lg-12">
                             <div class="card">
                                 <div class="card-header align-items-center d-flex">
-                                    <h4 class="card-title mb-0 flex-grow-1">Rate Details</h4>
+                                    <h4 class="card-title mb-0 flex-grow-1">Additional Rate Details</h4>
                                     <div class="flex-shrink-0">
                                         <div class="alert alert-dismissible" role="alert">
                                             {% if messages %} {% for message in messages %}
@@ -132,31 +132,81 @@
                                 <div class="card-body">
                                     <div class="live-preview">
                                         <div class="row gy-4">
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div>{{ form.rate_name }}</div>
+<div class="col-12">
+                                                {{ form.additional_rate_name }}
                                             </div>
+
                                             <!--end col-->
                                             <div class="col-xxl-3 col-md-6">
-                                                <div>{{ form.standard_hourly_rate }}</div>
+                                                <div>{{ form.extra_hours_standard_rate_first_hour }}</div>
                                             </div>
                                             <!--end col-->
 
                                             <div class="col-xxl-3 col-md-6">
                                                 <div>
-                                                        {{ form.effective_from }}
-                                                        
+                                                        {{ form.extra_hours_standard_rate_Second_hour }}
                                                 </div>
                                             </div>
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>
+                                                        {{ form.extra_hours_standard_rate_third_hour }}
+                                                </div>
+                                            </div>
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>
+                                                        {{ form.extra_hours_standard_rate_fourth_hour }}
+                                                </div>
+                                            </div>
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>
+                                                        {{ form.extra_hours_standard_rate_fifth_hour }}
+                                                </div>
+                                            </div>
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>
+                                                        {{ form.extra_hours_standard_rate_sixth_hour }}
+                                                </div>
+                                            </div>
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>
+                                                        {{ form.extra_hours_standard_rate_seventh_hour }}
+                                                </div>
+                                            </div>
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>
+                                                        {{ form.extra_hours_standard_rate_eighth_hour }}
+                                                </div>
+                                            </div>
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>
+                                                        {{ form.extra_hours_standard_rate_nineth_hour }}
+                                                </div>
+                                            </div>
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>
+                                                        {{ form.extra_hours_standard_rate_tenth_hour }}
+
+                                                    </div>
+
+                                            </div>
+                                             <div class="col-xxl-3 col-md-6">
+                                                <div>
+                                                        {{ form.effective_from }}
+
+                                                    </div>
+
+                                            </div>
+                                             <div class="col-xxl-3 col-md-6">
+                                                <div>
+                                                        {{ form.effective_to }}
+
+                                                    </div>
+
+                                            </div>
+
 
                                             <!--end col-->
 
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div class="form-check form-switch">
-                                                <div>{{ form.is_holiday_rate }}</div>
-                                                <label class="form-check-label"
-                                                        >Is holiday rate?</label>
-                                                    </div>
-                                            </div>
                                         </div>
                                         <!--end row-->
                                     </div>

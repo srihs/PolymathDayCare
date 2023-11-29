@@ -227,10 +227,10 @@ class CreateAdditionalChargesForm(forms.ModelForm):
     
     effective_from = forms.DateField(required=True, widget=MyDateInput(
         attrs={'class': 'form-control', 'required': 'true', 'id': 'admission_date', 'data-provider': 'flatpickr',
-               'data-date-format': '%Y-%m-%d', 'placeholder': 'Admission Date'}))
+               'data-date-format': 'Y-m-d', 'placeholder': 'Effective from'}))
     effective_to = forms.DateField(required=True, widget=MyDateInput(
         attrs={'class': 'form-control', 'required': 'true', 'id': 'admission_date', 'data-provider': 'flatpickr',
-               'data-date-format': '%Y-%m-%d', 'placeholder': 'Admission Date'}))
+               'data-date-format': 'Y-m-d', 'placeholder': 'Effective to'}))
 
     class Meta:
         model = AdditionalCharges
