@@ -276,25 +276,21 @@ def getAdditionalRates(request):
     
     
 @login_required(login_url="login/")
-def getAdditionalRatesJs(reuest):
-    additionalRatesList = list(
-        AdditionalCharges.objects.all().values(
+def getAdditionalRatesJs(request):
+    print("--getAdditionalRatesJs-")
+    if request.GET.get('base_rate_id') is not None:
+        print(request.GET.get('base_rate_id'))
+        id = request.GET.get('base_rate_id')
+        additionalRatesList = list(
+            AdditionalCharges.objects.filter(pk=id).values(
             "id",
-            "additional_rate_name", 
-            "extra_hours_standard_rate_first_hour",
-            "extra_hours_standard_rate_Second_hour",
-            "extra_hours_standard_rate_third_hour" ,
-            "extra_hours_standard_rate_fourth_hour",
-            "extra_hours_standard_rate_fifth_hour", 
-            "extra_hours_standard_rate_sixth_hour" ,
-            "extra_hours_standard_rate_seventh_hour" ,
-            "extra_hours_standard_rate_eighth_hour" ,
-            "extra_hours_standard_rate_nineth_hour" ,
-            "extra_hours_standard_rate_tenth_hour",
+            "base_rate", 
+            "Slot_number_hour",
+            "extra_rate",
             "effective_from",
             "effective_to",
             "is_active",
-        )
+            )
     )
 
     return JsonResponse(additionalRatesList, safe=False)

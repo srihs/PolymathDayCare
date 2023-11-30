@@ -18,22 +18,17 @@ class Rates(BaseClass):
     is_holiday_rate = models.BooleanField(default=False)
     effective_from = models.DateField()
     effective_to = models.DateField(null=True)
+    
+    def __str__(self):
+        return self.rate_name
 
     
 
 
 class AdditionalCharges(BaseClass):
-    additional_rate_name = models.CharField(max_length=550)
-    extra_hours_standard_rate_first_hour = models.DecimalField(max_digits=8, decimal_places=2)
-    extra_hours_standard_rate_Second_hour = models.DecimalField(max_digits=8, decimal_places=2)
-    extra_hours_standard_rate_third_hour = models.DecimalField(max_digits=8, decimal_places=2)
-    extra_hours_standard_rate_fourth_hour = models.DecimalField(max_digits=8, decimal_places=2)
-    extra_hours_standard_rate_fifth_hour = models.DecimalField(max_digits=8, decimal_places=2)
-    extra_hours_standard_rate_sixth_hour = models.DecimalField(max_digits=8, decimal_places=2)
-    extra_hours_standard_rate_seventh_hour = models.DecimalField(max_digits=8, decimal_places=2)
-    extra_hours_standard_rate_eighth_hour = models.DecimalField(max_digits=8, decimal_places=2)
-    extra_hours_standard_rate_nineth_hour = models.DecimalField(max_digits=8, decimal_places=2)
-    extra_hours_standard_rate_tenth_hour = models.DecimalField(max_digits=8, decimal_places=2)
+    base_rate = models.ForeignKey(Rates, on_delete=models.CASCADE)
+    Slot_number_hour = models.IntegerField()
+    extra_rate = models.DecimalField(max_digits=8, decimal_places=2)
     effective_from = models.DateField()
     effective_to = models.DateField(null=True)
     

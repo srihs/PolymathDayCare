@@ -4,51 +4,59 @@
 {% block functionTitle %}ADDITIONAL RATES{% endblock %} 
 {% block content %}
 
-<!-- Data Table-->
+
 <div class="card">
     <div class="card-header border-0">
         <div class="d-flex align-items-center">
             <h5 class="card-title mb-0 flex-grow-1">Additional hours rates</h5>
-            <div class="flex-shrink-0">
-                <div class="d-flex flex-wrap gap-2">
-                    <button
-                            class="btn btn-secondary add-btn"
-                            data-bs-toggle="modal"
-                            data-bs-target="#showModalCreate">
-                        <i class="ri-add-line align-bottom me-1"></i> Add new rate
-                    </button>
-                    <button class="btn btn-soft-secondary" id="remove-actions">
-                        <i class="ri-delete-bin-2-line"></i>
-                    </button>
-                </div>
-            </div>
+            
         </div>
     </div>
 
-    <div class="card-body">
-        <table id="RateList" class="display" style="width: 100%">
-            <thead>
-            <tr>
-                <th>Rate Name</th>
-                <th>1st hr rate</th>
-                <th>2nd hr rate</th>
-                <th>3rd hr rate</th>
-                <th>4th hr rate</th>
-                <th>5th hr rate</th>
-                <th>6th hr rate</th>
-                <th>7th hr rate</th>
-                <th>8th hr rate</th>
-                <th>9th hr rate</th>
-                <th>10th hr rate</th>
-                <th>Effective from</th>
-                <th>Effective to</th>
-                <th data-orderable="false"></th>
+    <form>
+        <div class="card-body">
+            <div class="row ">
+                <div class="col-sm-2">
+                    {{form.base_rate}}
+                </div>
+                <!--end col-->
+                <div class="col-sm-2">
+                    {{form.slot_number}}
+                </div>
+                <div class="col-sm-2">
+                    {{form.extra_hour_rate}}
+                </div>
+                <div class="col-sm-2">
+                    {{form.effective_from}}
+                </div>
                 
-            </tr>
-            </thead>
-        </table>
-    </div>
-    <!-- end card-body -->
+                <div class="col-sm-2">
+                    <button
+                    class="btn btn-secondary add-btn">
+                <i class="ri-add-line align-bottom me-1"></i> Add new rate
+            </button>
+                </div>
+
+           
+            </div> </br>
+            <div id="tblDiv" class="row align-items-center g-3" style="visibility: hidden">
+                <table id="RateList" class="display" style="width: 100%">
+                    <thead>
+                    <tr>
+                        <th>Slot</th>
+                        <th>Rate</th>
+                        <th>Effective from</th>
+                        <th>Effective to</th>
+                        <th data-orderable="false"></th>
+                    </tr>
+                    </thead>
+                </table>
+            </div>
+            
+        </div>
+        <!-- end card-body -->
+    </form>
+   
 </div>
 
 {% endblock %} {% block modals %}
@@ -99,9 +107,11 @@
                     class="tablelist-form"
                     autocomplete="on">
                 {% csrf_token %}
+
                 <div class="modal-body">
+                    
                     <div class="row">
-                        <div class="col-lg-12">
+                        
                             <div class="card">
                                 <div class="card-header align-items-center d-flex">
                                     <h4 class="card-title mb-0 flex-grow-1">Additional Rate Details</h4>
@@ -129,72 +139,31 @@
                                     </div>
                                 </div>
                                 <!-- end card header -->
+                                
                                 <div class="card-body">
                                     <div class="live-preview">
                                         <div class="row gy-4">
 <div class="col-12">
-                                                {{ form.additional_rate_name }}
+                                                {{ form.base_rate }}
                                             </div>
 
                                             <!--end col-->
                                             <div class="col-xxl-3 col-md-6">
-                                                <div>{{ form.extra_hours_standard_rate_first_hour }}</div>
+                                                <div>{{ form.slot_number }}</div>
                                             </div>
                                             <!--end col-->
 
                                             <div class="col-xxl-3 col-md-6">
                                                 <div>
-                                                        {{ form.extra_hours_standard_rate_Second_hour }}
+                                                        {{ form.extra_hour_rate }}
                                                 </div>
                                             </div>
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div>
-                                                        {{ form.extra_hours_standard_rate_third_hour }}
-                                                </div>
-                                            </div>
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div>
-                                                        {{ form.extra_hours_standard_rate_fourth_hour }}
-                                                </div>
-                                            </div>
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div>
-                                                        {{ form.extra_hours_standard_rate_fifth_hour }}
-                                                </div>
-                                            </div>
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div>
-                                                        {{ form.extra_hours_standard_rate_sixth_hour }}
-                                                </div>
-                                            </div>
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div>
-                                                        {{ form.extra_hours_standard_rate_seventh_hour }}
-                                                </div>
-                                            </div>
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div>
-                                                        {{ form.extra_hours_standard_rate_eighth_hour }}
-                                                </div>
-                                            </div>
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div>
-                                                        {{ form.extra_hours_standard_rate_nineth_hour }}
-                                                </div>
-                                            </div>
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div>
-                                                        {{ form.extra_hours_standard_rate_tenth_hour }}
-
-                                                    </div>
-
-                                            </div>
+                                            
                                              <div class="col-xxl-3 col-md-6">
                                                 <div>
                                                         {{ form.effective_from }}
 
                                                     </div>
-
                                             </div>
                                              <div class="col-xxl-3 col-md-6">
                                                 <div>
@@ -206,6 +175,15 @@
 
 
                                             <!--end col-->
+                                            <div class="hstack gap-2 justify-content-end">
+                                                <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                                                    Close
+                                                </button>
+                                                <button class="btn btn-secondary" type="submit">Save</button>
+                                                
+                                            </div>
+
+                                            
 
                                         </div>
                                         <!--end row-->
@@ -217,13 +195,7 @@
                     </div>
                 </div>
                 <div class="modal-footer" style="display: block">
-                    <div class="hstack gap-2 justify-content-end">
-                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
-                            Close
-                        </button>
-                        <button class="btn btn-secondary" type="submit">Submit form</button>
-                        
-                    </div>
+                   
                 </div>
             </form>
                 
@@ -359,69 +331,7 @@
 
 <script>
     var $ = jQuery;
-    jQuery(document).ready(function () {
-        var table = $("#RateList").DataTable({
-            ajax: {
-                processing: true,
-                url: "{% url 'core:view_additional_rates_js' %}",
-                dataSrc: "",
-            },
-            columns: [
-                {data: "additional_rate_name"},
-                {data: "extra_hours_standard_rate_first_hour"},
-                {data: "extra_hours_standard_rate_Second_hour"},
-                {data: "extra_hours_standard_rate_third_hour"},
-                {data: "extra_hours_standard_rate_fourth_hour"},
-                {data: "extra_hours_standard_rate_fifth_hour"},
-                {data: "extra_hours_standard_rate_sixth_hour"},
-                {data: "extra_hours_standard_rate_seventh_hour"},
-                {data: "extra_hours_standard_rate_eighth_hour"},
-                {data: "extra_hours_standard_rate_nineth_hour"},
-                {data: "extra_hours_standard_rate_tenth_hour"},
-                {data: "effective_from"},
-                {data: "effective_to"},         
-                {
-                    data: null,
-                    render: function (data, type, row) {
-                        var url = "{% url 'core:view_child_with_id' 0 %}";
-                        var id = row.id;
-                        url = url.replace(0, id);
-
-
-
-                        return data =
-                            '<a href=' + url + ' class="link-success"  data-bs-target="#showUpdateModal"\
-                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"\
-                data-value={{ child.id }}><i class="ri-edit-2-fill"></i></a>';
-                    },
-                },
-                
-            ],
-
-            createdRow: function (row, data, dataIndex) {
-                // Check the condition for the 'is_polymath_student' column
-                if (!data.effective_to) {
-                    $("td", row)
-                        .eq(3)
-                        .html(
-                            '<span>-</span>'
-                        );
-                } 
-                // Check the condition for the 'is_holiday_rate' column
-                if (data.is_holiday_rate) {
-                    $("td", row).eq(4).html('<span class="badge bg-success">Yes</span>');
-                } else {
-                    $("td", row).eq(4).html('<span class="badge bg-warning">No</span>');
-                }
-            },
-            dom: "Bfrtip",
-            pageLength: 50,
-
-            buttons: ["excel", "print"],
-
-            order: [[0, "desc"]], // Set default sorting by admission_date in descending order
-        });
-    });
+    
 
 
     jQuery("#showModal").on("hidden.bs.modal", function () {
@@ -441,7 +351,7 @@
         // Load the form into the modal using AJAX
         jQuery.ajax({
             type: "GET",
-            url: url,
+            url: "{% url 'core:view_additional_rates_js' %}",
             dataType: "html",
             success: function (data) {
                 // Assuming you have a modal body with the id "updateModalBody"
@@ -454,6 +364,53 @@
 
     });
 
+
+    jQuery('#base_rate').change(function () {
+        var baseRateId = jQuery(this).val();
+     
+        var dataTable = jQuery('#RateList').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: {
+                processing: true,
+                serverSide: false,
+                url: "{% url 'core:view_additional_rates_js' %}",
+                type: "GET",
+                data: { base_rate_id: baseRateId },
+                dataType: "json",
+            },
+            columns: [
+                { data: "Slot_number_hour" },
+                { data: "extra_rate" },
+                { data: "effective_from" },
+                { data: "effective_to" },
+                {
+                    data: null,
+                    render: function (data, type, row) {
+                        var url = "{% url 'core:view_child_with_id' 0 %}".replace(0, row.id);
+                        return '<a href="' + url + '" class="link-success" data-bs-target="#showUpdateModal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button" data-value="' + row.id + '"><i class="ri-edit-2-fill"></i></a>';
+                    },
+                },
+            ],
+
+            
+            createdRow: function (row, data, dataIndex) {
+                if (!data.effective_to) {
+                    jQuery("td", row)
+                        .eq(3)
+                        .html('<span>-</span>');
+                }
+            },
+            dom: "Bfrtip",
+            pageLength: 10,
+            buttons: ["excel", "print"],
+            order: [[0, "desc"]],
+            retrieve: true,
+        });
+        jQuery('#tblDiv').css("visibility", "visible");
+    });
+    
+   
     jQuery("secondButton").click(function () {
         window.parent.location = window.parent.location.href;
     });
