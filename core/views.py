@@ -243,7 +243,6 @@ def getRates(request):
 def saveRates(request):
     if request.method == "POST":
         form = CreateRatesForm(request.POST)
-        print(form.is_valid())
         if form.is_valid():
             objSettings= form.save(commit=False)
             objSettings.user_created = request.user.username,
@@ -251,9 +250,8 @@ def saveRates(request):
             messages.success(request, "Rate details saved.")
         else:
             messages.error(request,form.errors)
-            print(form.errors)
                 
-    return redirect("core:view_settings_packagess")        
+    return redirect("core:view_rates")        
     
 
 @login_required(login_url="login/")
@@ -277,20 +275,39 @@ def getAdditionalRates(request):
     
 @login_required(login_url="login/")
 def getAdditionalRatesJs(request):
-    print("--getAdditionalRatesJs-")
+   
     if request.GET.get('base_rate_id') is not None:
-        print(request.GET.get('base_rate_id'))
+       
         id = request.GET.get('base_rate_id')
         additionalRatesList = list(
-            AdditionalCharges.objects.filter(pk=id).values(
+            AdditionalCharges.objects.filter(base_rate_id=id).values(
             "id",
             "base_rate", 
-            "Slot_number_hour",
+            "slot_number_hour",
             "extra_rate",
             "effective_from",
             "effective_to",
             "is_active",
             )
     )
+        for i,n in enumerate(additionalRatesList):
+            if n['effective_to']==None:
+                additionalRatesList[i]["effective_to"] ="-"
+
+        print(additionalRatesList)
 
     return JsonResponse(additionalRatesList, safe=False)
+
+def saveAdditionalRates(request):
+    if request.method == "POST":
+        form = CreateAdditionalChargesForm(request.POST)
+        print(form.is_valid())
+        if form.is_valid():
+            objAdditionalRates= form.save(commit=False)
+            objAdditionalRates.user_created = request.user.username
+            form.save()
+            messages.success(request, "Additional rate details saved.")
+        else:
+            messages.error(request,form.errors)
+                
+    return redirect("core:view_additional_rates") 

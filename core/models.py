@@ -27,7 +27,7 @@ class Rates(BaseClass):
 
 class AdditionalCharges(BaseClass):
     base_rate = models.ForeignKey(Rates, on_delete=models.CASCADE)
-    Slot_number_hour = models.IntegerField()
+    slot_number_hour = models.IntegerField()
     extra_rate = models.DecimalField(max_digits=8, decimal_places=2)
     effective_from = models.DateField()
     effective_to = models.DateField(null=True)

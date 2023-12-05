@@ -165,24 +165,24 @@ class CreateAdditionalChargesForm(forms.ModelForm):
     base_rate = forms.ModelChoiceField(required=True, queryset=Rates.objects.all().order_by('rate_name'),empty_label="-Select Base Rate-",
                                     widget=forms.Select(
                                         attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'base_rate'}))
-    slot_number = forms.DecimalField(max_digits=15,
+    slot_number_hour = forms.DecimalField(max_digits=15,
                                             decimal_places=2,
                                             validators=[MinValueValidator(Decimal('0.01'))],
                                             required=True,
                                             widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Slot number'}))
     
-    extra_hour_rate =forms.DecimalField(max_digits=15,
+    extra_rate =forms.DecimalField(max_digits=15,
                                             decimal_places=2,
                                             validators=[MinValueValidator(Decimal('0.01'))],
                                             required=True,
                                             widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Rate'}))
     effective_from = forms.DateField(required=True, widget=MyDateInput(
-        attrs={'class': 'form-control', 'required': 'true', 'id': 'admission_date', 'data-provider': 'flatpickr',
+        attrs={'class': 'form-control', 'required': 'true', 'id': 'effective_from', 'data-provider': 'flatpickr',
                'data-date-format': 'Y-m-d', 'placeholder': 'Effective from'}))
     effective_to = forms.DateField(required=False, widget=MyDateInput(
-        attrs={'class': 'form-control', 'required': 'true', 'id': 'admission_date', 'data-provider': 'flatpickr',
+        attrs={'class': 'form-control', 'id': 'effective_to', 'data-provider': 'flatpickr',
                'data-date-format': 'Y-m-d', 'placeholder': 'Effective to'}))
 
     class Meta:
         model = AdditionalCharges
-        fields = ('base_rate','slot_number','extra_hour_rate','effective_from','effective_to')
+        fields = ('base_rate','slot_number_hour','extra_rate','effective_from','effective_to')

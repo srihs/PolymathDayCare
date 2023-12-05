@@ -13,7 +13,10 @@
         </div>
     </div>
 
-    <form>
+    <form  action="{% url 'core:save_additional_rates' %}"
+    method="POST">
+    {% csrf_token %}
+
         <div class="card-body">
             <div class="row ">
                 <div class="col-sm-2">
@@ -21,10 +24,10 @@
                 </div>
                 <!--end col-->
                 <div class="col-sm-2">
-                    {{form.slot_number}}
+                    {{form.slot_number_hour}}
                 </div>
                 <div class="col-sm-2">
-                    {{form.extra_hour_rate}}
+                    {{form.extra_rate}}
                 </div>
                 <div class="col-sm-2">
                     {{form.effective_from}}
@@ -33,13 +36,13 @@
                 <div class="col-sm-2">
                     <button
                     class="btn btn-secondary add-btn">
-                <i class="ri-add-line align-bottom me-1"></i> Add new rate
+                <i class="ri-add-line align-bottom me-1"></i> Save rate
             </button>
                 </div>
 
            
             </div> </br>
-            <div id="tblDiv" class="row align-items-center g-3" style="visibility: hidden">
+            <div id="tblDiv" class="row align-items-center g-3">
                 <table id="RateList" class="display" style="width: 100%">
                     <thead>
                     <tr>
@@ -102,8 +105,8 @@
                         id="close-modal"></button>
             </div>
             <form
-                    action="{% url 'core:save_rates' %}"
-                    method="post"
+                    action="{% url 'core:save_additional_rates' %}"
+                    method="POST"
                     class="tablelist-form"
                     autocomplete="on">
                 {% csrf_token %}
@@ -192,14 +195,12 @@
                             </div>
                      
                         </div>
-                    </div>
+                    
                 </div>
                 <div class="modal-footer" style="display: block">
                    
                 </div>
             </form>
-                
-            
         </div>
     </div>
 </div>
@@ -363,51 +364,50 @@
         });
 
     });
-
-
-    jQuery('#base_rate').change(function () {
-        var baseRateId = jQuery(this).val();
-     
-        var dataTable = jQuery('#RateList').DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: {
-                processing: true,
-                serverSide: false,
-                url: "{% url 'core:view_additional_rates_js' %}",
-                type: "GET",
-                data: { base_rate_id: baseRateId },
-                dataType: "json",
-            },
-            columns: [
-                { data: "Slot_number_hour" },
-                { data: "extra_rate" },
-                { data: "effective_from" },
-                { data: "effective_to" },
-                {
-                    data: null,
-                    render: function (data, type, row) {
-                        var url = "{% url 'core:view_child_with_id' 0 %}".replace(0, row.id);
-                        return '<a href="' + url + '" class="link-success" data-bs-target="#showUpdateModal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button" data-value="' + row.id + '"><i class="ri-edit-2-fill"></i></a>';
-                    },
-                },
-            ],
-
-            
-            createdRow: function (row, data, dataIndex) {
-                if (!data.effective_to) {
-                    jQuery("td", row)
-                        .eq(3)
-                        .html('<span>-</span>');
-                }
-            },
+    var dataTable;
+    jQuery(document).ready(function () {
+        dataTable = $('#RateList').DataTable({
             dom: "Bfrtip",
             pageLength: 10,
             buttons: ["excel", "print"],
-            order: [[0, "desc"]],
+            order: [[0, "asc"]],
             retrieve: true,
+    });
+        
+        
+    });
+
+    jQuery('#base_rate').change(function () {
+        var baseRateId = jQuery(this).val();
+        alert
+        jQuery.ajax({
+                url: "{% url 'core:view_additional_rates_js' %}",
+                type: "GET",
+                data: { base_rate_id: baseRateId },
+                beforeSend: function () { },
+                success: function (response) {       
+                    
+                jQuery.each(response, function(i, item) {
+                var url = "{% url 'core:view_child_with_id' 0 %}".replace(0, response[i].id);
+
+                console.log(response[i].id)
+                dataTable.row.add(                 
+                [response[i].slot_number_hour,
+                response[i].extra_rate,
+                response[i].effective_from,
+                response[i].effective_to,
+                '<a href="' + url + '" class="link-success" data-bs-target="#showUpdateModal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button" data-value="' + response[i].id + '"><i class="ri-edit-2-fill"></i></a>',
+                ],)
+                });
+
+             
+
+            dataTable.draw();
+                },error: function(response){
+                    console.log(response);
+            }
         });
-        jQuery('#tblDiv').css("visibility", "visible");
+     
     });
     
    

@@ -25,5 +25,6 @@ urlpatterns = [
                   
                   path('additional_rates/', views.getAdditionalRates, name='view_additional_rates'),
                   path('additional_rates_js/', views.getAdditionalRatesJs, name='view_additional_rates_js'),
+                  path('save_additional_rates/', views.saveAdditionalRates, name='save_additional_rates'),
                   
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

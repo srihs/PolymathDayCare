@@ -33,7 +33,7 @@
                 <th>Hourly Rate</th>
                 <th>Effective from</th>
                 <th>Effective to</th>
-                <th>is a holiday rate?</th>
+                <th>Is a holiday rate?</th>
                 <th data-orderable="false"></th>
                 
             </tr>
@@ -351,7 +351,8 @@
             },
             dom: "Bfrtip",
             pageLength: 50,
-
+            searching: false,
+            lengthMenu: [[25, 100, -1], [25, 100, "All"]],
             buttons: ["excel", "print"],
 
             order: [[0, "desc"]], // Set default sorting by admission_date in descending order
