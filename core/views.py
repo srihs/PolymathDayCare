@@ -12,8 +12,8 @@ from django.views.decorators.csrf import csrf_protect
 import datetime
 from decimal import Decimal
 
-from .models import Child, Package, Rates, AdditionalCharges
-from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateAdditionalChargesForm, UpdateRatesForm
+from .models import Child, Package, Rates, AdditionalCharges,RateHistory
+from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateAdditionalChargesForm, UpdateRatesForm,CreateRateHistoryForm
 
 
 @login_required(login_url="login/")
@@ -245,7 +245,6 @@ def getRateByID(request, pk):
         
         if objRate is not None:
             rate_form = UpdateRatesForm(instance=objRate)
-            print(objRate.id)
 
     except Exception as e:
         messages.error(request, e)
@@ -258,9 +257,7 @@ def getRateByID(request, pk):
 @login_required(login_url="login/")
 def saveRates(request):
     try:
-        print("in Saving")
         if request.method == "POST":
-            print("in update")
             form = UpdateRatesForm(request.POST)
             objRates= form.save(commit=False)
             # capturing the variables with data
@@ -268,17 +265,14 @@ def saveRates(request):
             rate_name = request.POST.get("rate_name")
             is_holiday_rate = request.POST.get("is_holiday_rate")
             is_active = request.POST.get("is_active")
-            print(objRates.id)
 
             if is_holiday_rate == "on":
                 is_holiday_rate = True
             else:
                 is_holiday_rate = False
-            print(request.POST.get("id"))
 
 
             if request.POST.get("id") is not None:
-                print("id is not null")
                 objRate = Rates.objects.get(
                     id=request.POST.get("id")
                 )
@@ -287,25 +281,21 @@ def saveRates(request):
                     objRate.rate_name = rate_name
                     objRate.is_holiday_rate = is_holiday_rate
                     objRate.is_active = True
+                    objRate.user_updated =request.user.username
+                    objRate.date_updated = datetime.datetime.now()
                     objRate.save()
                     messages.success(request, "Rate details updated.")
             else:
-                print("in create")
                 objRate = Rates(
                 rate_name = rate_name,
                 is_holiday_rate = is_holiday_rate,
                 is_active = True,
                 user_created=request.user.username)
                 objRate.save()
-                print("saved")
                 messages.success(request, "Rate details saved.")
 
     except Exception as e:
         messages.error(request, e)
-         
-        
-           
-        
     return redirect("core:view_rates")        
     
 
@@ -330,8 +320,6 @@ def getAdditionalRates(request):
     
 @login_required(login_url="login/")
 def getAdditionalRatesJs(request):
-    print("here")
-    print(request.GET.get('base_rate_id'))
 
     if request.GET.get('base_rate_id') is not None:
         id = request.GET.get('base_rate_id')
@@ -349,16 +337,12 @@ def getAdditionalRatesJs(request):
         for i,n in enumerate(additionalRatesList):
             if n['effective_to']==None:
                 additionalRatesList[i]["effective_to"] ="-"
-
-        print(additionalRatesList)
-
     return JsonResponse(additionalRatesList, safe=False)
 
 @login_required(login_url="login/")
 def saveAdditionalRates(request):
     if request.method == "POST":
         form = CreateAdditionalChargesForm(request.POST)
-        print(form.is_valid())
         if form.is_valid():
             objAdditionalRates= form.save(commit=False)
             objAdditionalRates.user_created = request.user.username
@@ -368,3 +352,69 @@ def saveAdditionalRates(request):
             messages.error(request,form.errors)
                 
     return redirect("core:view_additional_rates") 
+
+@login_required(login_url="login/")
+def saveBaseRate(request):
+    try:
+        if request.method == "POST":
+            rate = Rates.objects.get(
+                    id=request.POST.get(request.POST.get("rate_id"))
+                )
+            standard_hourly_rate = request.POST.get("standard_hourly_rate")
+            effective_from = request.POST.get("effective_from")
+            effective_to= effective_from
+
+            is_active= None
+
+            if effective_to == effective_from:
+                is_active = False
+            else:
+                is_active = True
+
+            
+            if request.POST.get("id") is not None:
+                objRateHistory = RateHistory.objects.get(
+                    id=request.POST.get("id")
+                )
+                if objRateHistory is not None:
+                    objRateHistory.standard_hourly_rate = standard_hourly_rate
+                    objRateHistory.effective_from =  datetime.datetime.strptime(effective_from, "%Y-%m-%d").date()
+                    objRateHistory.effective_to = datetime.datetime.strptime(effective_to, "%Y-%m-%d").date()
+                    objRateHistory.is_active = is_active 
+                    objRateHistory.user_updated = request.user.username
+                    objRateHistory.save()
+                    messages.success(request, "Rate details updated.")
+            else:
+                objRateHistory = RateHistory(
+                standard_hourly_rate = standard_hourly_rate,
+                effective_from =  datetime.datetime.strptime(effective_from, "%Y-%m-%d").date(),
+                effective_to = datetime.datetime.strptime(effective_to, "%Y-%m-%d").date(),
+                is_active = is_active,
+                user_updated = request.user.username)
+                objRateHistory.save()
+                messages.success(request, "Rate details saved.")
+
+    except Exception as e:
+        messages.error(request, e)
+    return redirect("core:view_rates")   
+
+@login_required(login_url="login/")
+def getRatesforRatesJs(request):
+   print('Request Recived')
+   if request.GET.get('rate_id') is not None:
+        print('Request Recived')
+        id = request.GET.get('rate_id')
+        ratesList = list(
+            RateHistory.objects.filter(base_rate_id=id).values(
+            "id",
+            "standard_hourly_rate",
+            "effective_from",
+            "effective_to",
+            "is_active",
+            )
+    )
+        for i,n in enumerate(additionalRatesList):
+            if n['effective_to']==None:
+                additionalRatesList[i]["effective_to"] ="-"
+                
+            return JsonResponse(additionalRatesList, safe=False)

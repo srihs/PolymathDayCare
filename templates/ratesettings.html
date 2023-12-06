@@ -144,7 +144,6 @@
 </div>
 
 <!--Additional Rates Form-->
-
 <div id="flipModal" class="modal fade flip" tabindex="-1" aria-labelledby="flipModalLabel" style="display: none;" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -155,6 +154,37 @@
             <div class="modal-body">
                 <div>
                     <table id="AdditionalRateList" class="display" style="width: 100%">
+                        <thead>
+                        <tr>
+                        <th>Slot (hr)</th>
+                        <th>Rate</th>
+                        <th>Effective from</th>
+                        <th>Effective to</th>
+                            
+                        </tr>
+                        </thead>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+            </div>
+
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div>
+
+<!--Rate History pop-up-->
+<div id="historyModal" class="modal fade flip" tabindex="-1" aria-labelledby="flipModalLabel" style="display: none;" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="flipModalLabel">Rate History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div>
+                    <table id="RateHistoryList" class="display" style="width: 100%">
                         <thead>
                         <tr>
                         <th>Slot (hr)</th>
@@ -321,11 +351,11 @@
                 {
                     data: null,
                     render: function (data, type, row) {
-                        var url = "{% url 'core:view_additional_rates_js' %}";
+                        var url = "{% url 'core:view_rates_rate_js' %}";
                         id= row.id;
                         return data =
-                            '<a href=' + url + ' id="additionalLink" class="btn btn-soft-primary  waves-effect waves-light btn-sm" data-id='+ id +'  data-bs-target="#flipModal"\
-                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"\
+                            '<a href=' + url + ' id="addRates" class="btn btn-soft-primary  waves-effect waves-light btn-sm" data-id='+ id +' \
+                  data-bs-dismiss="modal" role="button"\
                 >Add rate</a>';
                     },
                 },
@@ -348,7 +378,7 @@
                         var url = "{% url 'core:view_additional_rates_js' %}";
                         id= row.id;
                         return data =
-                            '<a href=' + url + ' id="additionalLink" class="btn btn-soft-dark  waves-effect waves-light btn-sm" data-id='+ id +'  data-bs-target="#flipModal"\
+                            '<a href=' + url + ' id="historyLink" class="btn btn-soft-dark  waves-effect waves-light btn-sm" data-id='+ id +'  data-bs-target="#historyModal"\
                 data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"\
                 >View rate history</a>';
                     },
@@ -422,13 +452,39 @@
 
     });
 
+
+    jQuery(document).on("click", "#addRates", function (e) {
+        e.preventDefault();
+        url = jQuery(this).attr("href");
+        alert(url);
+       
+        // Show the modal
+        jQuery("#showUpdateModal").modal("show");
+
+        // Load the form into the modal using AJAX
+        jQuery.ajax({
+            type: "GET",
+            url: url,
+            dataType: "html",
+            success: function (data) {
+                // Assuming you have a modal body with the id "updateModalBody"
+                jQuery("#modelForm").html(data);
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                alert("Error: " + xhr.status + ", " + xhr.statusText);
+            }
+        });
+
+    });
+
+
     jQuery("secondButton").click(function () {
         window.parent.location = window.parent.location.href;
     });
 
     
     jQuery(document).ready(function () {
-        dataTable = $('#AdditionalRateList').DataTable({
+        dataTable = $('#AdditionalRateList,#RateHistoryList').DataTable({
             
             paging: false,
             searching: false,
