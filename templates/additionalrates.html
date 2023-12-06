@@ -379,7 +379,7 @@
 
     jQuery('#base_rate').change(function () {
         var baseRateId = jQuery(this).val();
-        alert
+        
         jQuery.ajax({
                 url: "{% url 'core:view_additional_rates_js' %}",
                 type: "GET",

@@ -21,10 +21,13 @@ urlpatterns = [
                   
                   path('rates/', views.getRates, name='view_rates'),
                   path('ratesjs/', views.getRatesJs, name='view_rates_js'),
+                  path('view_rate_byId/<int:pk>/', views.getRateByID, name='view_rates_byId'),
                   path('save_rates/', views.saveRates, name='save_rates'),
                   
                   path('additional_rates/', views.getAdditionalRates, name='view_additional_rates'),
                   path('additional_rates_js/', views.getAdditionalRatesJs, name='view_additional_rates_js'),
                   path('save_additional_rates/', views.saveAdditionalRates, name='save_additional_rates'),
+                  path('view_additional_rates_byId/<int:pk>/', views.saveAdditionalRates, name='view_additional_rates_byId'),
+
                   
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

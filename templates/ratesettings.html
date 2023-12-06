@@ -20,20 +20,22 @@
                     <button class="btn btn-soft-secondary" id="remove-actions">
                         <i class="ri-delete-bin-2-line"></i>
                     </button>
+                   
                 </div>
             </div>
         </div>
     </div>
 
     <div class="card-body">
+         
         <table id="RateList" class="display" style="width: 100%">
             <thead>
             <tr>
                 <th>Rate Name</th>
-                <th>Hourly Rate</th>
-                <th>Effective from</th>
-                <th>Effective to</th>
                 <th>Is a holiday rate?</th>
+                <th data-orderable="false"></th>
+                <th data-orderable="false"></th>
+                <th data-orderable="false"></th>
                 <th data-orderable="false"></th>
                 
             </tr>
@@ -44,6 +46,7 @@
 </div>
 
 {% endblock %} {% block modals %}
+
 <div
         class="modal fade zoomIn"
         id="showModal"
@@ -98,26 +101,6 @@
                                 <div class="card-header align-items-center d-flex">
                                     <h4 class="card-title mb-0 flex-grow-1">Rate Details</h4>
                                     <div class="flex-shrink-0">
-                                        <div class="alert alert-dismissible" role="alert">
-                                            {% if messages %} {% for message in messages %}
-                                            <!-- Danger Alert -->
-                                            <div
-                                                    class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
-                                                    role="alert"
-                                            >
-                                                <strong>
-                                                    <center>{{ message }}</center>
-                                                </strong>
-                                                <button
-                                                        type="button"
-                                                        class="btn-close"
-                                                        data-bs-dismiss="alert"
-                                                        aria-label="Close"
-                                                ></button>
-                                            </div>
-                                            {% endfor %} {% endif %}
-                                            <!-- end row -->
-                                        </div>
                                     </div>
                                 </div>
                                 <!-- end card header -->
@@ -128,20 +111,6 @@
                                                 <div>{{ form.rate_name }}</div>
                                             </div>
                                             <!--end col-->
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div>{{ form.standard_hourly_rate }}</div>
-                                            </div>
-                                            <!--end col-->
-
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div>
-                                                        {{ form.effective_from }}
-                                                        
-                                                </div>
-                                            </div>
-
-                                            <!--end col-->
-
                                             <div class="col-xxl-3 col-md-6">
                                                 <div class="form-check form-switch">
                                                 <div>{{ form.is_holiday_rate }}</div>
@@ -174,13 +143,45 @@
     </div>
 </div>
 
+<!--Additional Rates Form-->
+
+<div id="flipModal" class="modal fade flip" tabindex="-1" aria-labelledby="flipModalLabel" style="display: none;" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="flipModalLabel">Extra hour rates</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div>
+                    <table id="AdditionalRateList" class="display" style="width: 100%">
+                        <thead>
+                        <tr>
+                        <th>Slot (hr)</th>
+                        <th>Rate</th>
+                        <th>Effective from</th>
+                        <th>Effective to</th>
+                            
+                        </tr>
+                        </thead>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+            </div>
+
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div>
+
 <!--Update Form-->
 <div class="modal fade zoomIn" id="showUpdateModal" tabindex="-1" aria-labelledby="exampleModalLabel"
      style="display: none" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0">
             <div class="modal-header p-3 bg-secondary-subtle">
-                <h5 class="modal-title">Update child details</h5>
+                <h5 class="modal-title">Update base rate details</h5>
                 <button
                         type="button"
                         class="btn-close"
@@ -189,7 +190,7 @@
                         id="close-upmodal"
                 ></button>
             </div>
-            <div id="modelForm">
+            <div id="modelForm" bs-focus="false">
 
             </div>
         </div>
@@ -301,8 +302,14 @@
 
 <script>
     var $ = jQuery;
+    var id;
+    var dataTable;
     jQuery(document).ready(function () {
         var table = $("#RateList").DataTable({
+            columnDefs: [
+            { "width": "65%", "targets": 0,
+            }
+                        ],
             ajax: {
                 processing: true,
                 url: "{% url 'core:view_rates_js' %}",
@@ -310,43 +317,67 @@
             },
             columns: [
                 {data: "rate_name"},
-                {data: "standard_hourly_rate"},
-                {data: "effective_from"},
-                {data: "effective_to"},
                 {data: "is_holiday_rate"},
+                {
+                    data: null,
+                    render: function (data, type, row) {
+                        var url = "{% url 'core:view_additional_rates_js' %}";
+                        id= row.id;
+                        return data =
+                            '<a href=' + url + ' id="additionalLink" class="btn btn-soft-primary  waves-effect waves-light btn-sm" data-id='+ id +'  data-bs-target="#flipModal"\
+                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"\
+                >Add rate</a>';
+                    },
+                },
+
+                {
+                    data: null,
+                    render: function (data, type, row) {
+                        var url = "{% url 'core:view_additional_rates_js' %}";
+                        id= row.id;
+                        return data =
+                            '<a href=' + url + ' id="additionalLink" class="btn btn-soft-secondary  waves-effect waves-light btn-sm" data-id='+ id +'  data-bs-target="#flipModal"\
+                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"\
+                >View extra hour rates</a>';
+                    },
+                },
                 
                 {
                     data: null,
                     render: function (data, type, row) {
-                        var url = "{% url 'core:view_child_with_id' 0 %}";
+                        var url = "{% url 'core:view_additional_rates_js' %}";
+                        id= row.id;
+                        return data =
+                            '<a href=' + url + ' id="additionalLink" class="btn btn-soft-dark  waves-effect waves-light btn-sm" data-id='+ id +'  data-bs-target="#flipModal"\
+                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"\
+                >View rate history</a>';
+                    },
+                },
+
+                {
+                    data: null,
+                    render: function (data, type, row) {
+                        var url = "{% url 'core:view_rates_byId' 0 %}";
                         var id = row.id;
                         url = url.replace(0, id);
 
-
-
                         return data =
-                            '<a href=' + url + ' class="link-success"  data-bs-target="#showUpdateModal"\
+                            '<a href=' + url + ' class="link-success"  data-id='+ id +' data-bs-target="#showUpdateModal"\
                 data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"\
-                data-value={{ child.id }}><i class="ri-edit-2-fill"></i></a>';
+                ><i class="ri-edit-2-fill"></i></a>';
                     },
                 },
+
+                
                 
             ],
 
             createdRow: function (row, data, dataIndex) {
-                // Check the condition for the 'is_polymath_student' column
-                if (!data.effective_to) {
-                    $("td", row)
-                        .eq(3)
-                        .html(
-                            '<span>-</span>'
-                        );
-                } 
                 // Check the condition for the 'is_holiday_rate' column
                 if (data.is_holiday_rate) {
-                    $("td", row).eq(4).html('<span class="badge bg-success">Yes</span>');
+                    $("td", row).eq(1).html('<span class="badge bg-success">Yes</span>');
                 } else {
-                    $("td", row).eq(4).html('<span class="badge bg-warning">No</span>');
+                    $("td", row).eq(1).html('<span class="badge bg-warning">No</span>');
                 }
             },
             dom: "Bfrtip",
@@ -355,7 +386,7 @@
             lengthMenu: [[25, 100, -1], [25, 100, "All"]],
             buttons: ["excel", "print"],
 
-            order: [[0, "desc"]], // Set default sorting by admission_date in descending order
+            order: [[0, "asc"]], // Set default sorting by admission_date in descending order
         });
     });
 
@@ -371,6 +402,7 @@
     jQuery(document).on("click", ".link-success", function (e) {
         e.preventDefault();
         url = jQuery(this).attr("href");
+       
         // Show the modal
         jQuery("#showUpdateModal").modal("show");
 
@@ -393,6 +425,51 @@
     jQuery("secondButton").click(function () {
         window.parent.location = window.parent.location.href;
     });
+
+    
+    jQuery(document).ready(function () {
+        dataTable = $('#AdditionalRateList').DataTable({
+            
+            paging: false,
+            searching: false,
+            ordering:  false,
+            order: [[0, "asc"]],
+            retrieve: true,
+    });
+        
+        
+    });
+
+
+    jQuery(document).on("click", "#additionalLink", function (e) {
+        dataTable.clear();
+        id = jQuery(this).attr("data-id");
+        jQuery.ajax({
+                url: "{% url 'core:view_additional_rates_js' %}",
+                type: "GET",
+                data: { base_rate_id: id },
+                beforeSend: function () { },
+                success: function (response) {       
+                jQuery.each(response, function(i, item) {
+                    
+                console.log(response[i].id)
+                dataTable.row.add(                 
+                [response[i].slot_number_hour,
+                response[i].extra_rate,
+                response[i].effective_from,
+                response[i].effective_to
+                ],)
+                });
+
+             
+
+            dataTable.draw();
+                },error: function(response){
+                    console.log(response);
+            }
+        });
+    });
+    
 </script>
 
 <!-- App js -->

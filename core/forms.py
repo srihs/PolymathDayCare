@@ -3,7 +3,7 @@ from django.forms import ImageField
 from django.db import models
 from django.contrib.admin.widgets import AdminDateWidget
 from django.core.validators import MinValueValidator
-from .models import Child, Rates, AdditionalCharges
+from .models import Child, Rates, AdditionalCharges,RateHistory
 from decimal import *
 
 
@@ -140,23 +140,51 @@ class CreateRatesForm(forms.ModelForm):
     rate_name = forms.CharField(max_length=250, required=False,
                                     widget=forms.TextInput(
                                         attrs={'class': 'form-control', 'placeholder': 'Rate name'}))
+    is_holiday_rate = forms.BooleanField(required=False, 
+                                         widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'type': 'checkbox'}))
     
+    
+    class Meta:
+        model = Rates
+        fields = ('rate_name','is_holiday_rate')
+
+
+class CreateRateHistoryForm(forms.ModelForm):
     standard_hourly_rate = forms.DecimalField(max_digits=15,
                                             decimal_places=2,
                                             validators=[MinValueValidator(Decimal('0.01'))],
                                             required=True,
                                             widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Rate'}))
-    
-    is_holiday_rate = forms.BooleanField(required=False, 
-                                         widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'type': 'checkbox'}))
     effective_from = forms.DateField(required=True, widget=MyDateInput(
         attrs={'class': 'form-control', 'required': 'true', 'id': 'effective_from', 'data-provider': 'flatpickr',
                'data-date-format': 'Y-m-d', 'placeholder': 'Effective Date'}))
     
+    effective_to = forms.DateField(required=True, widget=MyDateInput(
+        attrs={'class': 'form-control', 'required': 'true', 'id': 'effective_from', 'data-provider': 'flatpickr',
+               'data-date-format': 'Y-m-d', 'placeholder': 'Effective To'}))
+    
+    class Meta:
+        model = RateHistory
+        fields = ('standard_hourly_rate','effective_from','effective_to')
+
+    
+
+
+class UpdateRatesForm(forms.ModelForm):
+    rate_name = forms.CharField(max_length=250, required=False,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control', }))
+    
+    id = forms.CharField(max_length=250, required=False,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control', }))
+    
+    is_holiday_rate = forms.BooleanField(required=False, 
+                                         widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'type': 'checkbox'}))
     
     class Meta:
         model = Rates
-        fields = ('rate_name','standard_hourly_rate','is_holiday_rate','effective_from')
+        fields = ('rate_name','id','is_holiday_rate')
         
         
         

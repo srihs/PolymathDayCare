@@ -14,15 +14,18 @@ class BaseClass(models.Model):
 
 class Rates(BaseClass):
     rate_name = models.CharField(max_length=550)
-    standard_hourly_rate = models.DecimalField(max_digits=8, decimal_places=2)
     is_holiday_rate = models.BooleanField(default=False)
-    effective_from = models.DateField()
-    effective_to = models.DateField(null=True)
+    
     
     def __str__(self):
         return self.rate_name
 
-    
+
+class RateHistory(BaseClass): 
+    rate = models.ForeignKey(Rates, on_delete=models.CASCADE)
+    standard_hourly_rate = models.DecimalField(max_digits=8, decimal_places=2)
+    effective_from = models.DateField()
+    effective_to = models.DateField(null=True)
 
 
 class AdditionalCharges(BaseClass):

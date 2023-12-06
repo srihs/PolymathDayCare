@@ -10,9 +10,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.decorators.csrf import csrf_protect
 import datetime
+from decimal import Decimal
 
 from .models import Child, Package, Rates, AdditionalCharges
-from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateAdditionalChargesForm
+from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateAdditionalChargesForm, UpdateRatesForm
 
 
 @login_required(login_url="login/")
@@ -208,12 +209,9 @@ def deleteChild(request, pk):
 @login_required(login_url="login/")
 def getRatesJs(reuest):
     rateList = list(
-        Rates.objects.all().values(
+        Rates.objects.filter(is_active=1).values(
             "id",
             "rate_name",
-            "standard_hourly_rate",
-            "effective_from",
-            "effective_to",
             "is_holiday_rate",
             "is_active",
         )
@@ -239,18 +237,75 @@ def getRates(request):
         },
     )
 
+@login_required(login_url="/login/")
+def getRateByID(request, pk):
+    try:
+        rate_form = None
+        objRate = get_object_or_404(Rates, pk=pk)
+        
+        if objRate is not None:
+            rate_form = UpdateRatesForm(instance=objRate)
+            print(objRate.id)
+
+    except Exception as e:
+        messages.error(request, e)
+    return render(
+        request, "../templates/partials/rateUpdate.html", {"formU": rate_form}
+    )
+    
+
+
 @login_required(login_url="login/")
 def saveRates(request):
-    if request.method == "POST":
-        form = CreateRatesForm(request.POST)
-        if form.is_valid():
-            objSettings= form.save(commit=False)
-            objSettings.user_created = request.user.username,
-            form.save()
-            messages.success(request, "Rate details saved.")
-        else:
-            messages.error(request,form.errors)
-                
+    try:
+        print("in Saving")
+        if request.method == "POST":
+            print("in update")
+            form = UpdateRatesForm(request.POST)
+            objRates= form.save(commit=False)
+            # capturing the variables with data
+            
+            rate_name = request.POST.get("rate_name")
+            is_holiday_rate = request.POST.get("is_holiday_rate")
+            is_active = request.POST.get("is_active")
+            print(objRates.id)
+
+            if is_holiday_rate == "on":
+                is_holiday_rate = True
+            else:
+                is_holiday_rate = False
+            print(request.POST.get("id"))
+
+
+            if request.POST.get("id") is not None:
+                print("id is not null")
+                objRate = Rates.objects.get(
+                    id=request.POST.get("id")
+                )
+                if objRate is not None:
+
+                    objRate.rate_name = rate_name
+                    objRate.is_holiday_rate = is_holiday_rate
+                    objRate.is_active = True
+                    objRate.save()
+                    messages.success(request, "Rate details updated.")
+            else:
+                print("in create")
+                objRate = Rates(
+                rate_name = rate_name,
+                is_holiday_rate = is_holiday_rate,
+                is_active = True,
+                user_created=request.user.username)
+                objRate.save()
+                print("saved")
+                messages.success(request, "Rate details saved.")
+
+    except Exception as e:
+        messages.error(request, e)
+         
+        
+           
+        
     return redirect("core:view_rates")        
     
 
@@ -275,9 +330,10 @@ def getAdditionalRates(request):
     
 @login_required(login_url="login/")
 def getAdditionalRatesJs(request):
-   
+    print("here")
+    print(request.GET.get('base_rate_id'))
+
     if request.GET.get('base_rate_id') is not None:
-       
         id = request.GET.get('base_rate_id')
         additionalRatesList = list(
             AdditionalCharges.objects.filter(base_rate_id=id).values(
@@ -298,6 +354,7 @@ def getAdditionalRatesJs(request):
 
     return JsonResponse(additionalRatesList, safe=False)
 
+@login_required(login_url="login/")
 def saveAdditionalRates(request):
     if request.method == "POST":
         form = CreateAdditionalChargesForm(request.POST)
