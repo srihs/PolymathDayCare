@@ -155,17 +155,19 @@ class CreateRateHistoryForm(forms.ModelForm):
                                             validators=[MinValueValidator(Decimal('0.01'))],
                                             required=True,
                                             widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Rate'}))
-    effective_from = forms.DateField(required=True, widget=MyDateInput(
-        attrs={'class': 'form-control', 'required': 'true', 'id': 'effective_from', 'data-provider': 'flatpickr',
-               'data-date-format': 'Y-m-d', 'placeholder': 'Effective Date'}))
     
-    effective_to = forms.DateField(required=True, widget=MyDateInput(
-        attrs={'class': 'form-control', 'required': 'true', 'id': 'effective_from', 'data-provider': 'flatpickr',
-               'data-date-format': 'Y-m-d', 'placeholder': 'Effective To'}))
+    effective_from = forms.DateField(required=True, widget=MyDateInput(attrs={'class': 'form-control',
+                                                                              'id': 'effective_from',
+                                                                              'placeholder': 'Effective From',
+                                                                              'required': 'required',
+                                                                              'data-provider': 'flatpickr',
+                                                                                      'data-date-format': 'Y-m-d'}))
+    
+    
     
     class Meta:
         model = RateHistory
-        fields = ('standard_hourly_rate','effective_from','effective_to')
+        fields = ('standard_hourly_rate','effective_from')
 
     
 
@@ -190,7 +192,7 @@ class UpdateRatesForm(forms.ModelForm):
         
     
 class CreateAdditionalChargesForm(forms.ModelForm):
-    base_rate = forms.ModelChoiceField(required=True, queryset=Rates.objects.all().order_by('rate_name'),empty_label="-Select Base Rate-",
+    base_rate = forms.ModelChoiceField(required=True, queryset=Rates.objects.filter(is_active=True).order_by('rate_name'),empty_label="-Select Base Rate-",
                                     widget=forms.Select(
                                         attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'base_rate'}))
     slot_number_hour = forms.DecimalField(max_digits=15,

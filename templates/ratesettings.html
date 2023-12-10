@@ -249,6 +249,24 @@
     </div>
 </div>
 
+<!--Rate Form-->
+<div id="rateModals" class="modal fade zoomIn" tabindex="-1" style="display: none;" aria-modal="true" role="dialog">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 overflow-hidden">
+            <div class="modal-header p-3">
+                <h4 class="card-title mb-0">Set rates</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="alert alert-danger  rounded-0 mb-0">
+                <p class="mb-0"><center><strong>Please note that this operation will change the rates for all pcakages associated with this base rate from the selected effective date.</strong></center> </p>
+            </div>
+            <div id="modelRateForm" bs-focus="false">
+                
+            </div>
+           
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div>
 
 
 {% endblock %} {% block scripts %}
@@ -277,7 +295,16 @@
     var $ = jQuery;
     var id;
     var dataTable;
+
+    
+
     jQuery(document).ready(function () {
+        const flatpickr_time = jQuery('#effective_from').flatpickr({
+    //static: position the calendar inside the wrapper and next to the input element*.
+    static: true
+  });
+
+
         var table = $("#RateList").DataTable({
             columnDefs: [
             { "width": "65%", "targets": 0,
@@ -294,8 +321,9 @@
                 {
                     data: null,
                     render: function (data, type, row) {
-                        var url = "{% url 'core:view_rates_rate_js' %}";
+                        var url = "{% url 'core:view_baserate_update_byId' 0 %}";
                         id= row.id;
+                        url = url.replace(0, id);
                         return data =
                             '<a href=' + url + ' id="addRates" class="btn btn-soft-primary  waves-effect waves-light btn-sm" data-id='+ id +' \
                   data-bs-dismiss="modal" role="button"\
@@ -402,7 +430,7 @@
         id = jQuery(this).attr("data-id");
        
         // Show the modal
-        jQuery("#showUpdateModal").modal("show");
+        jQuery("#rateModals").modal("show");
 
         // Load the form into the modal using AJAX
         jQuery.ajax({
@@ -412,7 +440,9 @@
             dataType: "html",
             success: function (data) {
                 // Assuming you have a modal body with the id "updateModalBody"
-                jQuery("#modelForm").html(data);
+                jQuery("#modelRateForm").html(data);
+                jQuery('#effective_from').flatpickr();
+                
             },
             error: function (xhr, textStatus, errorThrown) {
                 alert("Error: " + xhr.status + ", " + xhr.statusText);

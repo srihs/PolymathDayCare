@@ -1,0 +1,19 @@
+{% load static %}
+<div class="modal-body" bs-focus="false">
+    <form>
+        
+        <div class="mb-3">
+         <strong>  You are applying this rate to : {{baseRateName}} </strong>
+        </div>
+        <div class="mb-3">
+            {{formU.standard_hourly_rate}}
+        </div>
+        <div class="mb-3">
+            {{formU.effective_from}}
+        </div>
+        
+        <div class="text-end">
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </div>
+    </form>
+</div>

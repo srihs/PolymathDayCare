@@ -327,7 +327,7 @@ def getAdditionalRatesJs(request):
     if request.GET.get('base_rate_id') is not None:
         id = request.GET.get('base_rate_id')
         additionalRatesList = list(
-            AdditionalCharges.objects.filter(base_rate_id=id).values(
+            AdditionalCharges.objects.filter(base_rate_id=id, is_active=True).values(
             "id",
             "base_rate", 
             "slot_number_hour",
@@ -356,48 +356,37 @@ def saveAdditionalRates(request):
                 
     return redirect("core:view_additional_rates") 
 
+
+# This method will save the Rate history for a give base rate. 
+# Operation :- get the base rate id. Check for the validity and retrive the previous rates and set the effective_to date to effective_date
+#if not previous rates are found, Create a new rate entry.
 @login_required(login_url="login/")
 @transaction.atomic
 def saveBaseRate(request):
     try:
+        standard_hourly_rate = request.POST.get("standard_hourly_rate")
+        effective_from = request.POST.get("effective_from")
+
         if request.method == "POST":
-            rate = Rates.objects.get(
-                    id=request.POST.get(request.POST.get("rate_id"))
-                )
-            standard_hourly_rate = request.POST.get("standard_hourly_rate")
-            effective_from = request.POST.get("effective_from")
-
-            effective_to= effective_from
-
-            is_active= None
-
-            if effective_to == effective_from:
-                is_active = False
-            else:
-                is_active = True
-
-            
-            if request.POST.get("id") is not None:
-                objRateHistory = RateHistory.objects.get(
-                    id=request.POST.get("id")
-                )
-                if objRateHistory is not None:
-                    objRateHistory.standard_hourly_rate = standard_hourly_rate
-                    objRateHistory.effective_from =  datetime.datetime.strptime(effective_from, "%Y-%m-%d").date()
-                    objRateHistory.effective_to = datetime.datetime.strptime(effective_to, "%Y-%m-%d").date()
-                    objRateHistory.is_active = is_active 
+            if request.POST.get("rate_id") is not None:
+                oldRate = RateHistory.objects.get(
+                        rate_id=request.POST.get(request.POST.get("rate_id"))
+                    )
+                if oldRate.effective_to == None:
+                    oldRate.effective_to =datetime.datetime.strptime(effective_from, "%Y-%m-%d").date()
+                    oldRate.is_active = False
                     objRateHistory.user_updated = request.user.username
-                    objRateHistory.save()
+                    objRateHistory.date_updated = datetime.datetime.now
+                    oldRate.save()
                     messages.success(request, "Rate details updated.")
-            else:
-                objRateHistory = RateHistory(
-                standard_hourly_rate = standard_hourly_rate,
-                effective_from =  datetime.datetime.strptime(effective_from, "%Y-%m-%d").date(),
-                effective_to = datetime.datetime.strptime(effective_to, "%Y-%m-%d").date(),
-                is_active = is_active,
-                user_updated = request.user.username)
-                objRateHistory.save()
-                messages.success(request, "Rate details saved.")
+                else:
+                    objRateHistory = RateHistory(
+                    standard_hourly_rate = standard_hourly_rate,
+                    effective_from =  datetime.datetime.strptime(effective_from, "%Y-%m-%d").date(),
+                    is_active = True,
+                    user_created = request.user.username)
+                    objRateHistory.save()
+                    messages.success(request, "Rate details saved.")
 
     except Exception as e:
         messages.error(request, e)
@@ -405,18 +394,18 @@ def saveBaseRate(request):
 
 
 @login_required
-def getRateHistoryById(request,id):
-    try:
-        history_form = None
-        objRateHistory = get_object_or_404(RateHistory, pk=id)
+def getRateHistoryById(request,pk):
+    baseRateName = None
+    if request.GET.get('rate_id') is not None:
+        id = request.GET.get('rate_id')
+        objBaseRate = Rates.objects.get(pk=id)
+        if objBaseRate is not None:
+            baseRateName = objBaseRate.rate_name
+
         
-        if objRateHistory is not None:
-            rate_form = UpdateRatesForm(instance=objRateHistory)
-
-    except Exception as e:
-        messages.error(request, e)
-
-    return render(request, "../templates/partials/rateUpdate.html", {"formU": history_form})
+        
+    history_form = CreateRateHistoryForm()   
+    return render(request, "../templates/partials/addratesforbase.html", {"formU": history_form, "baseRateName":baseRateName})
 
 
 @login_required(login_url="login/")
