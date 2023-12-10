@@ -9,8 +9,11 @@ from django.http import *
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.decorators.csrf import csrf_protect
+
 import datetime
+
 from decimal import Decimal
+from django.db import transaction
 
 from .models import Child, Package, Rates, AdditionalCharges,RateHistory
 from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateAdditionalChargesForm, UpdateRatesForm,CreateRateHistoryForm
@@ -354,6 +357,7 @@ def saveAdditionalRates(request):
     return redirect("core:view_additional_rates") 
 
 @login_required(login_url="login/")
+@transaction.atomic
 def saveBaseRate(request):
     try:
         if request.method == "POST":
@@ -362,6 +366,7 @@ def saveBaseRate(request):
                 )
             standard_hourly_rate = request.POST.get("standard_hourly_rate")
             effective_from = request.POST.get("effective_from")
+
             effective_to= effective_from
 
             is_active= None
@@ -398,6 +403,20 @@ def saveBaseRate(request):
         messages.error(request, e)
     return redirect("core:view_rates")   
 
+
+@login_required
+def getRateHistoryById(request,id):
+    try:
+        history_form = None
+        objRateHistory = get_object_or_404(RateHistory, pk=id)
+        
+        if objRateHistory is not None:
+            rate_form = UpdateRatesForm(instance=objRateHistory)
+
+    except Exception as e:
+        messages.error(request, e)
+
+    return render(request, "../templates/partials/rateUpdate.html", {"formU": history_form})
 
 
 @login_required(login_url="login/")

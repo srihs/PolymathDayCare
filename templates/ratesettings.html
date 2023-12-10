@@ -22,12 +22,34 @@
                     </button>
                    
                 </div>
+               
             </div>
         </div>
     </div>
 
     <div class="card-body">
-         
+        <div class="flex-shrink-0">
+            <div class="alert alert-dismissible" role="alert">
+                {% if messages %} {% for message in messages %}
+                <!-- Danger Alert -->
+                <div
+                        class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
+                        role="alert"
+                >
+                    <strong>
+                        <center>{{ message }}</center>
+                    </strong>
+                    <button
+                            type="button"
+                            class="btn-close"
+                            data-bs-dismiss="alert"
+                            aria-label="Close"
+                    ></button>
+                </div>
+                {% endfor %} {% endif %}
+                <!-- end row -->
+            </div>
+        </div>
         <table id="RateList" class="display" style="width: 100%">
             <thead>
             <tr>
@@ -227,87 +249,8 @@
     </div>
 </div>
 
-<!-- First modal dialog -->
-<div
-        class="modal fade"
-        id="firstmodal"
-        aria-hidden="true"
-        aria-labelledby="..."
-        tabindex="-1"
->
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-body text-center p-5">
-                <img
-                        src="{% static 'assets/images/stop.gif' %}"
-                        alt="alert"
-                        width="100px"
-                        height="100px"
-                />
-                <div class="mt-4 pt-4">
-                    <h4>You are about to deactivate this Child!</h4>
-                    <p class="text-muted">
-                        Are you sure? Please note that hs/she will not be able to check
-                        in/out to daycare facility.
-                    </p>
-                    <!-- Toogle to second dialog -->
-                    <button
-                            class="btn btn-secondary"
-                            data-bs-target="#firstmodal"
-                            data-bs-toggle="modal"
-                            data-bs-dismiss="modal"
-                    >
-                        No
-                    </button>
-                    <button
-                            name="btnModelDelete"
-                            id="btnModelDelete"
-                            class="btn btn-danger"
-                    >
-                        Yes
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<!-- Second modal dialog -->
-<div
-        class="modal fade"
-        id="secondmodal"
-        aria-hidden="true"
-        aria-labelledby="..."
-        tabindex="-1"
->
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-body text-center p-5">
-                <img
-                        src="{% static 'assets/images/done.gif' %}"
-                        alt="alert"
-                        width="75px"
-                        height="75px"
-                />
-                <div class="mt-4 pt-3">
-                    <h4 class="mb-3">Operation completed</h4>
-                    <div class="hstack gap-2 justify-content-center">
-                        <!-- Toogle to first dialog, `data-bs-dismiss` attribute can be omitted - clicking on link will close dialog anyway -->
 
-                        <button
-                                type="button"
-                                id="secondButton"
-                                class="btn btn-secondary"
-                                onclick="location=URL"
-                                data-bs-dismiss="modal"
-                        >
-                            Close
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+
 {% endblock %} {% block scripts %}
 <!-- jQuery -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
@@ -356,7 +299,7 @@
                         return data =
                             '<a href=' + url + ' id="addRates" class="btn btn-soft-primary  waves-effect waves-light btn-sm" data-id='+ id +' \
                   data-bs-dismiss="modal" role="button"\
-                >Add rate</a>';
+                >Add base rate</a>';
                     },
                 },
 
@@ -463,7 +406,7 @@
 
         // Load the form into the modal using AJAX
         jQuery.ajax({
-            type: "GET",
+            type: "GET",    
             url: url,
             data: { rate_id: id },
             dataType: "html",

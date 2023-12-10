@@ -35,6 +35,9 @@ class AdditionalCharges(BaseClass):
     effective_from = models.DateField()
     effective_to = models.DateField(null=True)
     
+    class meta:
+        unique_together = ('base_rate', 'slot_number_hour','extra_rate','effective_from','effective_to')
+    
 
 
 class Child(BaseClass):
