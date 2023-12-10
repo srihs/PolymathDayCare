@@ -398,23 +398,25 @@ def saveBaseRate(request):
         messages.error(request, e)
     return redirect("core:view_rates")   
 
+
+
 @login_required(login_url="login/")
 def getRatesforRatesJs(request):
    print('Request Recived')
+   print(request.GET.get('rate_id'))
    if request.GET.get('rate_id') is not None:
         print('Request Recived')
         id = request.GET.get('rate_id')
         ratesList = list(
-            RateHistory.objects.filter(base_rate_id=id).values(
+            RateHistory.objects.filter(rate_id=id).values(
             "id",
             "standard_hourly_rate",
             "effective_from",
             "effective_to",
             "is_active",
-            )
-    )
-        for i,n in enumerate(additionalRatesList):
+            ))
+        for i,n in enumerate(ratesList):
             if n['effective_to']==None:
-                additionalRatesList[i]["effective_to"] ="-"
-                
-            return JsonResponse(additionalRatesList, safe=False)
+                ratesList[i]["effective_to"] ="-"
+        print(ratesList)
+        return JsonResponse(ratesList, safe=False)
