@@ -25,6 +25,7 @@ urlpatterns = [
                   path('save_rates/', views.saveRates, name='save_rates'),
                   path('rates_rate_js/', views.getRatesforRatesJs, name='view_rates_rate_js'),
                   path('rates_rate_js/<int:pk>/', views.getRateHistoryById, name='view_baserate_update_byId'),
+                  path('save_rates_for_base_rate/', views.saveBaseRate, name='save_rates_forBaseRate'),
 
                   
                   path('additional_rates/', views.getAdditionalRates, name='view_additional_rates'),

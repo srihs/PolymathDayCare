@@ -209,11 +209,10 @@
                     <table id="RateHistoryList" class="display" style="width: 100%">
                         <thead>
                         <tr>
-                        <th>Slot (hr)</th>
-                        <th>Rate</th>
+                        <th>Rate (hr)</th>
                         <th>Effective from</th>
                         <th>Effective to</th>
-                            
+                        <th>Status</th>
                         </tr>
                         </thead>
                     </table>
@@ -346,7 +345,7 @@
                 {
                     data: null,
                     render: function (data, type, row) {
-                        var url = "{% url 'core:view_additional_rates_js' %}";
+                        var url = "{% url 'core:view_rates_rate_js' %}";
                         id= row.id;
                         return data =
                             '<a href=' + url + ' id="historyLink" class="btn btn-soft-dark  waves-effect waves-light btn-sm" data-id='+ id +'  data-bs-target="#historyModal"\
@@ -488,6 +487,38 @@
                 response[i].extra_rate,
                 response[i].effective_from,
                 response[i].effective_to
+                ],)
+                });
+
+             
+
+            dataTable.draw();
+                },error: function(response){
+                    console.log(response);
+            }
+        });
+    });
+
+
+    jQuery(document).on("click", "#historyLink", function (e) {
+        dataTable.clear();
+        id = jQuery(this).attr("data-id");
+        jQuery.ajax({
+                url: "{% url 'core:view_rates_rate_js' %}",
+                type: "GET",
+                data: { rate_id: id },
+                beforeSend: function () { },
+                success: function (response) {       
+                jQuery.each(response, function(i, item) {
+                    
+                console.log(response[i].id)
+                dataTable.row.add(                 
+                [response[i].standard_hourly_rate,
+                response[i].effective_from,
+                response[i].effective_to,
+                response[i].is_active
+                
+
                 ],)
                 });
 

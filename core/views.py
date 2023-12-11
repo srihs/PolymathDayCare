@@ -364,29 +364,49 @@ def saveAdditionalRates(request):
 @transaction.atomic
 def saveBaseRate(request):
     try:
+        objRateHistory = None
+        print('--in Save--')
         standard_hourly_rate = request.POST.get("standard_hourly_rate")
         effective_from = request.POST.get("effective_from")
 
         if request.method == "POST":
+            print('---in Post---')
+            print(request.POST.get("rate_id"))
             if request.POST.get("rate_id") is not None:
-                oldRate = RateHistory.objects.get(
-                        rate_id=request.POST.get(request.POST.get("rate_id"))
-                    )
-                if oldRate.effective_to == None:
-                    oldRate.effective_to =datetime.datetime.strptime(effective_from, "%Y-%m-%d").date()
-                    oldRate.is_active = False
-                    objRateHistory.user_updated = request.user.username
-                    objRateHistory.date_updated = datetime.datetime.now
-                    oldRate.save()
-                    messages.success(request, "Rate details updated.")
+                print('----rate_id not null----')
+                oldRate = RateHistory.objects.filter(
+                        rate_id=request.POST.get("rate_id"),is_active=True
+                    ).first() 
+                if oldRate is not None:
+                    print(' is not null')
+                    print(oldRate.effective_to)
+                    if oldRate.effective_to is None and oldRate.is_active == True:
+                        print(effective_from)
+                        oldRate.effective_to =datetime.datetime.strptime(effective_from, "%Y-%m-%d").date()
+                        print(oldRate.effective_to)
+                        oldRate.is_active = False
+                        oldRate.user_updated = request.user.username
+                        oldRate.date_updated = datetime.datetime.now
+                        oldRate.save()
+                        print('saved')
+                        objRateHistory = RateHistory(
+                        rate =  Rates.objects.get(pk=request.POST.get("rate_id")),
+                        standard_hourly_rate = standard_hourly_rate,
+                        effective_from =  datetime.datetime.strptime(effective_from, "%Y-%m-%d").date(),
+                        is_active = True,
+                        user_created = request.user.username)
+                        objRateHistory.save()
+                        messages.success(request, "Rate details updated.")
                 else:
-                    objRateHistory = RateHistory(
-                    standard_hourly_rate = standard_hourly_rate,
-                    effective_from =  datetime.datetime.strptime(effective_from, "%Y-%m-%d").date(),
-                    is_active = True,
-                    user_created = request.user.username)
-                    objRateHistory.save()
-                    messages.success(request, "Rate details saved.")
+                        print('----No previous Rates----')
+                        objRateHistory = RateHistory(
+                        rate =  Rates.objects.get(pk=request.POST.get("rate_id")),
+                        standard_hourly_rate = standard_hourly_rate,
+                        effective_from =  datetime.datetime.strptime(effective_from, "%Y-%m-%d").date(),
+                        is_active = True,
+                        user_created = request.user.username)
+                        objRateHistory.save()
+                        messages.success(request, "Rate details saved.")
 
     except Exception as e:
         messages.error(request, e)
@@ -401,11 +421,12 @@ def getRateHistoryById(request,pk):
         objBaseRate = Rates.objects.get(pk=id)
         if objBaseRate is not None:
             baseRateName = objBaseRate.rate_name
+            id = objBaseRate.id
 
         
         
     history_form = CreateRateHistoryForm()   
-    return render(request, "../templates/partials/addratesforbase.html", {"formU": history_form, "baseRateName":baseRateName})
+    return render(request, "../templates/partials/addratesforbase.html", {"formU": history_form, "baseRateName":baseRateName,"id":id})
 
 
 @login_required(login_url="login/")
@@ -426,5 +447,10 @@ def getRatesforRatesJs(request):
         for i,n in enumerate(ratesList):
             if n['effective_to']==None:
                 ratesList[i]["effective_to"] ="-"
-        print(ratesList)
-        return JsonResponse(ratesList, safe=False)
+            if n['is_active'] == True:
+                ratesList[i]["is_active"] ="Active"
+            else:
+                 ratesList[i]["is_active"] ="Inactive"
+
+    
+   return JsonResponse(ratesList, safe=False)

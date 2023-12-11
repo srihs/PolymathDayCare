@@ -1,6 +1,11 @@
 {% load static %}
 <div class="modal-body" bs-focus="false">
-    <form>
+    <form action="{% url 'core:save_rates_forBaseRate'  %}"
+    method="POST"
+    class="tablelist-form"
+    autocomplete="on"
+  >
+    {% csrf_token %}
         
         <div class="mb-3">
          <strong>  You are applying this rate to : {{baseRateName}} </strong>
@@ -11,6 +16,7 @@
         <div class="mb-3">
             {{formU.effective_from}}
         </div>
+        <input type="hidden" id="rate_id" name="rate_id" value={{id}}>
         
         <div class="text-end">
             <button type="submit" class="btn btn-primary">Submit</button>
