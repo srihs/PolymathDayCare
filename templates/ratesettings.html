@@ -389,12 +389,9 @@
                     $("td", row).eq(1).html('<span class="badge bg-warning">No</span>');
                 }
             },
-            dom: "Bfrtip",
-            pageLength: 50,
+            
             searching: false,
-            lengthMenu: [[25, 100, -1], [25, 100, "All"]],
-            buttons: ["excel", "print"],
-
+            paging: false,
             order: [[0, "asc"]], // Set default sorting by admission_date in descending order
         });
     });
