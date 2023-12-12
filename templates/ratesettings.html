@@ -28,7 +28,7 @@
     </div>
 
     <div class="card-body">
-        <div class="flex-shrink-0">
+        
             <div class="alert alert-dismissible" role="alert">
                 {% if messages %} {% for message in messages %}
                 <!-- Danger Alert -->
@@ -49,7 +49,7 @@
                 {% endfor %} {% endif %}
                 <!-- end row -->
             </div>
-        </div>
+        
         <table id="RateList" class="display" style="width: 100%">
             <thead>
             <tr>
@@ -298,11 +298,20 @@
     
 
     jQuery(document).ready(function () {
-        const flatpickr_time = jQuery('#effective_from').flatpickr({
-    //static: position the calendar inside the wrapper and next to the input element*.
-    static: true
-  });
+        window.setTimeout(function() {
+    // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
+    var alertDiv = jQuery(".alert");
 
+    // Check if the inner div contains a success message
+    var successMessageFound = alertDiv.find('.alert-success').length > 0;
+
+    // If a success message is found, apply the fade-out effect
+    if (successMessageFound) {
+        alertDiv.fadeTo(1000, 0).slideUp(1000, function() {
+            jQuery(this).remove();
+        });
+    }
+}, 2000);
 
         var table = $("#RateList").DataTable({
             columnDefs: [
