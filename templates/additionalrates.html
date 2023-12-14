@@ -4,7 +4,55 @@
 {% block functionTitle %}ADDITIONAL RATES{% endblock %} 
 {% block content %}
 
+ <div class="row">
+<div class="card">
+    <div class="card-header align-items-center d-flex">
+        <h4 class="card-title mb-0 flex-grow-1">Base Rate</h4>
+        <div class="flex-shrink-0">
+            <div class="form-check form-switch form-switch-right form-switch-md">
+                <label for="inline-form-showcode" class="form-label text-muted">Show Code</label>
+                <input class="form-check-input code-switcher" type="checkbox" id="inline-form-showcode">
+            </div>
+        </div>
+    </div><!-- end card header -->
+    <div class="card-body">
+        <p class="text-muted">Select the base rate.</p>
+        <div class="live-preview">
+            <form action="javascript:void(0);">
+                <div class="row">
+                        <div class="col-lg-6">
+                            {{form.base_rate}}
+                    </div>
+                </div>
+                <!--end row-->
+                <div class="row">
+                        <div class="row gy-4">
+                            <div id="tblDiv">
+                                <table id="RateList" class="display" style="width: 100%">
+                                    <thead>
+                                    <tr>
+                                        <th>Slot</th>
+                                        <th>Rate</th>
+                                        <th>Effective from</th>
+                                        <th>Effective to</th>
+                                        <th data-orderable="false"></th>
+                                    </tr>
+                                    </thead>
+                                </table>
+                            </div>
+                        </div>
+            </form>
+        </div>
+        
+    </div>
+    <!--end card-body-->
+</div>
 
+</div>
+
+
+
+<div class="row">
 <div class="card">
     <div class="card-header border-0">
         <div class="d-flex align-items-center">
@@ -13,55 +61,46 @@
         </div>
     </div>
 
-    <form  action="{% url 'core:save_additional_rates' %}"
-    method="POST">
-    {% csrf_token %}
-
+    <div class="row ">
         <div class="card-body">
-            <div class="row ">
-                <div class="col-sm-2">
-                    {{form.base_rate}}
-                </div>
-                <!--end col-->
-                <div class="col-sm-2">
-                    {{form.slot_number_hour}}
-                </div>
-                <div class="col-sm-2">
-                    {{form.extra_rate}}
-                </div>
-                <div class="col-sm-2">
-                    {{form.effective_from}}
-                </div>
+            <form  action="{% url 'core:save_additional_rates' %}"
+            method="POST">
+            {% csrf_token %}
+        
                 
-                <div class="col-sm-2">
-                    <button
-                    class="btn btn-secondary add-btn">
-                <i class="ri-add-line align-bottom me-1"></i> Save rate
-            </button>
+                    <div class="row ">
+                       
+                        <!--end col-->
+                        <div class="col-sm-2">
+                            {{form.slot_number_hour}}
+                        </div>
+                        <div class="col-sm-2">
+                            {{form.extra_rate}}
+                        </div>
+                        <div class="col-sm-2">
+                            {{form.effective_from}}
+                        </div>
+                        <div class="col-sm-2">
+                            <button
+                            class="btn btn-secondary add-btn">
+                        <i class="ri-add-line align-bottom me-1"></i> Save rate
+                    </button>
+                        </div>
+        
+                   
+                    </div> </br>
+                  
+                </form>
                 </div>
-
-           
-            </div> </br>
-            <div id="tblDiv" class="row align-items-center g-3">
-                <table id="RateList" class="display" style="width: 100%">
-                    <thead>
-                    <tr>
-                        <th>Slot</th>
-                        <th>Rate</th>
-                        <th>Effective from</th>
-                        <th>Effective to</th>
-                        <th data-orderable="false"></th>
-                    </tr>
-                    </thead>
-                </table>
-            </div>
-            
-        </div>
+    </div>
+    
         <!-- end card-body -->
-    </form>
+
+        
+
    
 </div>
-
+</div>
 {% endblock %} {% block modals %}
 <div
         class="modal fade zoomIn"
@@ -332,7 +371,7 @@
 
 <script>
     var $ = jQuery;
-    
+    dataTable = "";
 
 
     jQuery("#showModal").on("hidden.bs.modal", function () {
@@ -367,8 +406,10 @@
     var dataTable;
     jQuery(document).ready(function () {
         dataTable = $('#RateList').DataTable({
-            dom: "Bfrtip",
-            pageLength: 10,
+            
+           dom: "Bfrtip",
+            pageLength: 50,
+
             buttons: ["excel", "print"],
             order: [[0, "asc"]],
             retrieve: true,
@@ -379,7 +420,7 @@
 
     jQuery('#base_rate').change(function () {
         var baseRateId = jQuery(this).val();
-        
+        dataTable.clear();
         jQuery.ajax({
                 url: "{% url 'core:view_additional_rates_js' %}",
                 type: "GET",

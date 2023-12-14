@@ -199,7 +199,7 @@ class CreateAdditionalChargesForm(forms.ModelForm):
                                             decimal_places=2,
                                             validators=[MinValueValidator(Decimal('0.01'))],
                                             required=True,
-                                            widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Slot number'}))
+                                            widget=forms.NumberInput(attrs={'id':'slot_number_hour','class': 'form-control','placeholder': 'Slot number'}))
     
     extra_rate =forms.DecimalField(max_digits=15,
                                             decimal_places=2,

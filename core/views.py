@@ -305,17 +305,17 @@ def saveRates(request):
 @login_required(login_url="login/")
 def getAdditionalRates(request):
     if request.method == "GET":
-        additional_chargs_form = CreateAdditionalChargesForm()
-    
-    else:    
-        objAdditionalRates = AdditionalCharges.objects.all().first()
-        additional_chargs_form = CreateAdditionalChargesForm(instance=objSettings)
+        forms = []
+        for i in range(1, 11):
+        # Create a form instance with a specific slot_number_hour
+            form = CreateAdditionalChargesForm()
+            forms.append(form)
 
     return render(
         request,
         "../templates/additionalrates.html",
         {
-            "form": additional_chargs_form,
+            "form": forms,
             "UserName": request.user.username,
         },
     )
