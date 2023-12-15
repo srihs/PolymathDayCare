@@ -4,52 +4,7 @@
 {% block functionTitle %}ADDITIONAL RATES{% endblock %} 
 {% block content %}
 
- <div class="row">
-<div class="card">
-    <div class="card-header align-items-center d-flex">
-        <h4 class="card-title mb-0 flex-grow-1">Base Rate</h4>
-        <div class="flex-shrink-0">
-            <div class="form-check form-switch form-switch-right form-switch-md">
-                <label for="inline-form-showcode" class="form-label text-muted">Show Code</label>
-                <input class="form-check-input code-switcher" type="checkbox" id="inline-form-showcode">
-            </div>
-        </div>
-    </div><!-- end card header -->
-    <div class="card-body">
-        <p class="text-muted">Select the base rate.</p>
-        <div class="live-preview">
-            <form action="javascript:void(0);">
-                <div class="row">
-                        <div class="col-lg-6">
-                            {{form.base_rate}}
-                    </div>
-                </div>
-                <!--end row-->
-                <div class="row">
-                        <div class="row gy-4">
-                            <div id="tblDiv">
-                                <table id="RateList" class="display" style="width: 100%">
-                                    <thead>
-                                    <tr>
-                                        <th>Slot</th>
-                                        <th>Rate</th>
-                                        <th>Effective from</th>
-                                        <th>Effective to</th>
-                                        <th data-orderable="false"></th>
-                                    </tr>
-                                    </thead>
-                                </table>
-                            </div>
-                        </div>
-            </form>
-        </div>
-        
-    </div>
-    <!--end card-body-->
-</div>
-
-</div>
-
+ 
 
 
 <div class="row">
@@ -63,13 +18,16 @@
 
     <div class="row ">
         <div class="card-body">
-            <form  action="{% url 'core:save_additional_rates' %}"
+            <form id="additionalRatesForm"  action="{% url 'core:save_additional_rates' %}"
             method="POST">
             {% csrf_token %}
         
                 
                     <div class="row ">
-                       
+                        <div class="col-sm-2">
+                            {{form.base_rate}}
+                        </div>
+                        
                         <!--end col-->
                         <div class="col-sm-2">
                             {{form.slot_number_hour}}
@@ -89,7 +47,24 @@
         
                    
                     </div> </br>
-                  
+                    <div class="row">
+                        <div class="row gy-4">
+                            <div id="tblDiv">
+                                <table id="RateList" class="display" style="width: 100%">
+                                    <thead>
+                                    <tr>
+                                        <th>Slot</th>
+                                        <th>Rate</th>
+                                        <th>Effective from</th>
+                                        <th>Effective to</th>
+                                        <th data-orderable="false"></th>
+                                    </tr>
+                                    </thead>
+                                </table>
+                            </div>
+                        </div>
+                        </div>
+                    
                 </form>
                 </div>
     </div>
@@ -158,7 +133,7 @@
                                 <div class="card-header align-items-center d-flex">
                                     <h4 class="card-title mb-0 flex-grow-1">Additional Rate Details</h4>
                                     <div class="flex-shrink-0">
-                                        <div class="alert alert-dismissible" role="alert">
+                                        <div id="message" class="alert alert-dismissible" role="alert">
                                             {% if messages %} {% for message in messages %}
                                             <!-- Danger Alert -->
                                             <div
@@ -376,7 +351,6 @@
 
     jQuery("#showModal").on("hidden.bs.modal", function () {
         jQuery(this).find("form").trigger("reset");
-        
 
     });
 
@@ -408,20 +382,40 @@
         dataTable = $('#RateList').DataTable({
             
            dom: "Bfrtip",
-            pageLength: 50,
+            pageLength: 10,
 
             buttons: ["excel", "print"],
             order: [[0, "asc"]],
             retrieve: true,
     });
-        
+    getRatesforTable();
+   
+
+         
         
     });
 
     jQuery('#base_rate').change(function () {
         var baseRateId = jQuery(this).val();
         dataTable.clear();
-        jQuery.ajax({
+        getRatesforTable();
+     
+    });
+    
+   
+    jQuery("secondButton").click(function () {
+        window.parent.location = window.parent.location.href;
+    });
+
+
+    function getRatesforTable(){
+        var baseRateId = jQuery("#base_rate").val();
+        if (baseRateId) 
+        {
+            
+        // do something
+   
+            jQuery.ajax({
                 url: "{% url 'core:view_additional_rates_js' %}",
                 type: "GET",
                 data: { base_rate_id: baseRateId },
@@ -431,7 +425,7 @@
                 jQuery.each(response, function(i, item) {
                 var url = "{% url 'core:view_child_with_id' 0 %}".replace(0, response[i].id);
 
-                console.log(response[i].id)
+                
                 dataTable.row.add(                 
                 [response[i].slot_number_hour,
                 response[i].extra_rate,
@@ -448,13 +442,11 @@
                     console.log(response);
             }
         });
-     
-    });
-    
-   
-    jQuery("secondButton").click(function () {
-        window.parent.location = window.parent.location.href;
-    });
+        }
+        else{
+            dataTable.clear().draw();
+        }
+    }
 </script>
 
 <!-- App js -->

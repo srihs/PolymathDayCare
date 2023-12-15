@@ -305,17 +305,15 @@ def saveRates(request):
 @login_required(login_url="login/")
 def getAdditionalRates(request):
     if request.method == "GET":
-        forms = []
-        for i in range(1, 11):
-        # Create a form instance with a specific slot_number_hour
+        if not request.session.get('base_rate_id') is None:
+            form = CreateAdditionalChargesForm(initial={'base_rate': request.session.get('base_rate_id')})
+        else:
             form = CreateAdditionalChargesForm()
-            forms.append(form)
-
     return render(
         request,
         "../templates/additionalrates.html",
         {
-            "form": forms,
+            "form": form,
             "UserName": request.user.username,
         },
     )
@@ -342,14 +340,21 @@ def getAdditionalRatesJs(request):
                 additionalRatesList[i]["effective_to"] ="-"
     return JsonResponse(additionalRatesList, safe=False)
 
+
+
 @login_required(login_url="login/")
 def saveAdditionalRates(request):
+    request.session['base_rate_id'] = None
+    request.session.modified = True
     if request.method == "POST":
         form = CreateAdditionalChargesForm(request.POST)
         if form.is_valid():
+           
             objAdditionalRates= form.save(commit=False)
             objAdditionalRates.user_created = request.user.username
-            form.save()
+            request.session['base_rate_id'] = objAdditionalRates.base_rate.id
+            request.session.modified = True
+            objAdditionalRates.save()
             messages.success(request, "Additional rate details saved.")
         else:
             messages.error(request,form.errors)
@@ -365,30 +370,21 @@ def saveAdditionalRates(request):
 def saveBaseRate(request):
     try:
         objRateHistory = None
-        print('--in Save--')
         standard_hourly_rate = request.POST.get("standard_hourly_rate")
         effective_from = request.POST.get("effective_from")
 
         if request.method == "POST":
-            print('---in Post---')
-            print(request.POST.get("rate_id"))
             if request.POST.get("rate_id") is not None:
-                print('----rate_id not null----')
                 oldRate = RateHistory.objects.filter(
                         rate_id=request.POST.get("rate_id"),is_active=True
                     ).first() 
                 if oldRate is not None:
-                    print(' is not null')
-                    print(oldRate.effective_to)
                     if oldRate.effective_to is None and oldRate.is_active == True:
-                        print(effective_from)
                         oldRate.effective_to =datetime.datetime.strptime(effective_from, "%Y-%m-%d").date()
-                        print(oldRate.effective_to)
                         oldRate.is_active = False
                         oldRate.user_updated = request.user.username
                         oldRate.date_updated = datetime.datetime.now
                         oldRate.save()
-                        print('saved')
                         objRateHistory = RateHistory(
                         rate =  Rates.objects.get(pk=request.POST.get("rate_id")),
                         standard_hourly_rate = standard_hourly_rate,
@@ -398,7 +394,6 @@ def saveBaseRate(request):
                         objRateHistory.save()
                         messages.success(request, "Rate details updated.")
                 else:
-                        print('----No previous Rates----')
                         objRateHistory = RateHistory(
                         rate =  Rates.objects.get(pk=request.POST.get("rate_id")),
                         standard_hourly_rate = standard_hourly_rate,
@@ -431,10 +426,7 @@ def getRateHistoryById(request,pk):
 
 @login_required(login_url="login/")
 def getRatesforRatesJs(request):
-   print('Request Recived')
-   print(request.GET.get('rate_id'))
    if request.GET.get('rate_id') is not None:
-        print('Request Recived')
         id = request.GET.get('rate_id')
         ratesList = list(
             RateHistory.objects.filter(rate_id=id).values(
