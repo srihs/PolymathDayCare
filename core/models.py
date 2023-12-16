@@ -28,15 +28,16 @@ class RateHistory(BaseClass):
     effective_to = models.DateField(null=True)
 
 
-class AdditionalCharges(BaseClass):
+class ExtraCharges(BaseClass):
     base_rate = models.ForeignKey(Rates, on_delete=models.CASCADE)
-    slot_number_hour = models.IntegerField()
+    from_time = models.TimeField()
+    to_time = models.TimeField()
     extra_rate = models.DecimalField(max_digits=8, decimal_places=2)
     effective_from = models.DateField()
     effective_to = models.DateField(null=True)
     
     class meta:
-        unique_together = ('base_rate', 'slot_number_hour','extra_rate','effective_from','effective_to')
+        unique_together = ('base_rate', 'from_time','to_time','extra_rate','effective_from','effective_to')
     
 
 

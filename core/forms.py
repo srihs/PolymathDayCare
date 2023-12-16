@@ -3,7 +3,7 @@ from django.forms import ImageField
 from django.db import models
 from django.contrib.admin.widgets import AdminDateWidget
 from django.core.validators import MinValueValidator
-from .models import Child, Rates, AdditionalCharges,RateHistory
+from .models import Child, Rates, ExtraCharges,RateHistory
 from decimal import *
 
 
@@ -191,15 +191,13 @@ class UpdateRatesForm(forms.ModelForm):
         
         
     
-class CreateAdditionalChargesForm(forms.ModelForm):
+class CreateExtraChargesForm(forms.ModelForm):
     base_rate = forms.ModelChoiceField(required=True, queryset=Rates.objects.filter(is_active=True).order_by('rate_name'),empty_label="-Select Base Rate-",
                                     widget=forms.Select(
                                         attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'base_rate'}))
-    slot_number_hour = forms.DecimalField(max_digits=15,
-                                            decimal_places=2,
-                                            validators=[MinValueValidator(Decimal('0.01'))],
-                                            required=True,
-                                            widget=forms.NumberInput(attrs={'id':'slot_number_hour','class': 'form-control','placeholder': 'Slot number'}))
+    from_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'id':'from_time','class': 'form-control','placeholder': 'From Time',
+                                                                             'data-provider': 'flatpickr','required': 'true'}))
+    to_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'id':'to_time','class': 'form-control','placeholder': 'To Time','required': 'true'}))
     
     extra_rate =forms.DecimalField(max_digits=15,
                                             decimal_places=2,
@@ -214,5 +212,5 @@ class CreateAdditionalChargesForm(forms.ModelForm):
                'data-date-format': 'Y-m-d', 'placeholder': 'Effective to'}))
 
     class Meta:
-        model = AdditionalCharges
-        fields = ('base_rate','slot_number_hour','extra_rate','effective_from','effective_to')
+        model = ExtraCharges
+        fields = ('base_rate','from_time','extra_rate','to_time','effective_from','effective_to')

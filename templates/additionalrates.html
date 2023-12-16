@@ -24,19 +24,25 @@
         
                 
                     <div class="row ">
-                        <div class="col-sm-2">
+                        <div class="col-sm-4">
                             {{form.base_rate}}
                         </div>
                         
                         <!--end col-->
-                        <div class="col-sm-2">
-                            {{form.slot_number_hour}}
+                        <div class="col-sm">
+                            {{form.from_time}}
                         </div>
-                        <div class="col-sm-2">
+                        <div class="col-sm">
+                            {{form.to_time}}
+                        </div>
+                        <div class="col-sm">
                             {{form.extra_rate}}
                         </div>
-                        <div class="col-sm-2">
+                        <div class="col-sm">
                             {{form.effective_from}}
+                        </div>
+                        <div class="col-sm">
+                            {{form.effective_to}}
                         </div>
                         <div class="col-sm-2">
                             <button
@@ -388,8 +394,25 @@
             order: [[0, "asc"]],
             retrieve: true,
     });
+
     getRatesforTable();
+
+    jQuery('#from_time').flatpickr({
+        enableTime: true,
+        noCalendar:true,
+                enableSeconds: false,
+                dateFormat: "H:i",
+    });
+
+
+    jQuery('#to_time').flatpickr({
+        enableTime: true,
+        noCalendar:true,
+                enableSeconds: false,
+                dateFormat: "H:i",
+    });
    
+
 
          
         

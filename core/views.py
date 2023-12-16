@@ -15,8 +15,8 @@ import datetime
 from decimal import Decimal
 from django.db import transaction
 
-from .models import Child, Package, Rates, AdditionalCharges,RateHistory
-from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateAdditionalChargesForm, UpdateRatesForm,CreateRateHistoryForm
+from .models import Child, Package, Rates, ExtraCharges,RateHistory
+from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, UpdateRatesForm,CreateRateHistoryForm
 
 
 @login_required(login_url="login/")
@@ -306,9 +306,9 @@ def saveRates(request):
 def getAdditionalRates(request):
     if request.method == "GET":
         if not request.session.get('base_rate_id') is None:
-            form = CreateAdditionalChargesForm(initial={'base_rate': request.session.get('base_rate_id')})
+            form = CreateExtraChargesForm(initial={'base_rate': request.session.get('base_rate_id')})
         else:
-            form = CreateAdditionalChargesForm()
+            form = CreateExtraChargesForm()
     return render(
         request,
         "../templates/additionalrates.html",
