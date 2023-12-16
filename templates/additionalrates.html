@@ -59,7 +59,8 @@
                                 <table id="RateList" class="display" style="width: 100%">
                                     <thead>
                                     <tr>
-                                        <th>Slot</th>
+                                        <th>From Time</th>
+                                        <th>To Time</th>
                                         <th>Rate</th>
                                         <th>Effective from</th>
                                         <th>Effective to</th>
@@ -450,7 +451,8 @@
 
                 
                 dataTable.row.add(                 
-                [response[i].slot_number_hour,
+                [response[i].from_time,
+                response[i].to_time,
                 response[i].extra_rate,
                 response[i].effective_from,
                 response[i].effective_to,

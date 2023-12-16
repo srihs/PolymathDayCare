@@ -325,10 +325,11 @@ def getAdditionalRatesJs(request):
     if request.GET.get('base_rate_id') is not None:
         id = request.GET.get('base_rate_id')
         additionalRatesList = list(
-            AdditionalCharges.objects.filter(base_rate_id=id, is_active=True).values(
+            ExtraCharges.objects.filter(base_rate_id=id, is_active=True).values(
             "id",
             "base_rate", 
-            "slot_number_hour",
+            "from_time",
+            "to_time",
             "extra_rate",
             "effective_from",
             "effective_to",
@@ -347,7 +348,7 @@ def saveAdditionalRates(request):
     request.session['base_rate_id'] = None
     request.session.modified = True
     if request.method == "POST":
-        form = CreateAdditionalChargesForm(request.POST)
+        form = CreateExtraChargesForm(request.POST)
         if form.is_valid():
            
             objAdditionalRates= form.save(commit=False)
