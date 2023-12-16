@@ -9,6 +9,7 @@ from django.http import *
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.decorators.csrf import csrf_protect
+from django.utils.http import url_has_allowed_host_and_scheme
 
 import datetime
 
@@ -19,7 +20,7 @@ from .models import Child, Package, Rates, ExtraCharges,RateHistory
 from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, UpdateRatesForm,CreateRateHistoryForm
 
 
-@login_required(login_url="login/")
+@login_required
 def index(request):
     UserName = request.user.username
     return render(request, "../templates/base.html", {"UserName": UserName})
@@ -27,7 +28,7 @@ def index(request):
 
 def UserLogOut(request):
     logout(request)
-    return redirect("core:login")
+    return redirect("core:home")
 
 
 def UserLogin(request):
@@ -40,19 +41,30 @@ def UserLogin(request):
             if user is not None:
                 if user.is_active:
                     login(request, user)
-                    return HttpResponseRedirect(request.POST.get("next"))
+
+                    next_url = request.POST.get("next", "")
+                    if url_has_allowed_host_and_scheme(next_url, allowed_hosts=request.get_host()):
+                        return HttpResponseRedirect(next_url)
+                    else:
+                        # Handle invalid or unsafe redirect URLs
+                        return redirect("")  # Redirect to a default URL or homepage
+                
+                   
+                        
             else:
                 messages.error(
                     request,
                     "Invalid user credentials.Please check your username and password.",
                 )
-        return render(request, "../templates/login.html")
+        
 
     except Exception as e:
         messages.error(request, e)
+    
+    return render(request, "../templates/login.html")
 
 
-@login_required(login_url="login/")
+@login_required
 def getChildJson(reuest):
     chilList = list(
         Child.objects.all().values(
@@ -72,7 +84,7 @@ def getChildJson(reuest):
     return JsonResponse(chilList, safe=False)
 
 
-@login_required(login_url="/login/")
+@login_required
 def getChild(request):
     # clearing the session form the system. so the New id will be facilitated
     request.session["child_id"] = None
@@ -97,7 +109,7 @@ def getChild(request):
     )
 
 
-@login_required(login_url="/login/")
+@login_required
 def getChildbyID(request, pk):
     try:
         child_form = None
@@ -112,7 +124,7 @@ def getChildbyID(request, pk):
     )
 
 
-@login_required(login_url="/login/")
+@login_required
 def createChild(request):
     try:
         if request.method == "POST":
@@ -195,7 +207,7 @@ def createChild(request):
     return redirect("core:view_child")
 
 
-@login_required(login_url="/login/")
+@login_required
 def deleteChild(request, pk):
     try:
         objChild = get_object_or_404(Child, pk=pk)
@@ -209,7 +221,7 @@ def deleteChild(request, pk):
         messages.error(request, e)
 
 
-@login_required(login_url="login/")
+@login_required
 def getRatesJs(reuest):
     rateList = list(
         Rates.objects.filter(is_active=1).values(
@@ -222,7 +234,7 @@ def getRatesJs(reuest):
 
     return JsonResponse(rateList, safe=False)
 
-@login_required(login_url="login/")
+@login_required
 def getRates(request):
     if request.method == "GET":
         settings_form = CreateRatesForm()
@@ -240,7 +252,7 @@ def getRates(request):
         },
     )
 
-@login_required(login_url="/login/")
+@login_required
 def getRateByID(request, pk):
     try:
         rate_form = None
@@ -257,7 +269,7 @@ def getRateByID(request, pk):
     
 
 
-@login_required(login_url="login/")
+@login_required
 def saveRates(request):
     try:
         if request.method == "POST":
@@ -302,7 +314,7 @@ def saveRates(request):
     return redirect("core:view_rates")        
     
 
-@login_required(login_url="login/")
+@login_required
 def getAdditionalRates(request):
     if request.method == "GET":
         if not request.session.get('base_rate_id') is None:
@@ -319,7 +331,7 @@ def getAdditionalRates(request):
     )
     
     
-@login_required(login_url="login/")
+@login_required
 def getAdditionalRatesJs(request):
 
     if request.GET.get('base_rate_id') is not None:
@@ -343,7 +355,7 @@ def getAdditionalRatesJs(request):
 
 
 
-@login_required(login_url="login/")
+@login_required
 def saveAdditionalRates(request):
     request.session['base_rate_id'] = None
     request.session.modified = True
@@ -366,7 +378,7 @@ def saveAdditionalRates(request):
 # This method will save the Rate history for a give base rate. 
 # Operation :- get the base rate id. Check for the validity and retrive the previous rates and set the effective_to date to effective_date
 #if not previous rates are found, Create a new rate entry.
-@login_required(login_url="login/")
+@login_required
 @transaction.atomic
 def saveBaseRate(request):
     try:
@@ -425,7 +437,7 @@ def getRateHistoryById(request,pk):
     return render(request, "../templates/partials/addratesforbase.html", {"formU": history_form, "baseRateName":baseRateName,"id":id})
 
 
-@login_required(login_url="login/")
+@login_required
 def getRatesforRatesJs(request):
    if request.GET.get('rate_id') is not None:
         id = request.GET.get('rate_id')

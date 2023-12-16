@@ -169,5 +169,5 @@ CORS_ALLOW_METHODS = [
 'POST',
 'PUT',
 ]
-LOGIN_REDIRECT_URL = "home"
-LOGOUT_REDIRECT_URL = "login"  # new
+
+LOGIN_URL = 'core:login'

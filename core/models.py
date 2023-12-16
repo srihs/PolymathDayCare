@@ -37,7 +37,7 @@ class ExtraCharges(BaseClass):
     effective_to = models.DateField(null=True)
     
     class meta:
-        unique_together = ('base_rate', 'from_time','to_time','extra_rate','effective_from','effective_to')
+        unique_together = (("base_rate", "from_time","to_time"),)
     
 
 
