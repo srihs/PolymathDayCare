@@ -17,7 +17,7 @@ from decimal import Decimal
 from django.db import transaction
 
 from .models import Child, Package, Rates, ExtraCharges,RateHistory
-from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, UpdateRatesForm,CreateRateHistoryForm
+from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, UpdateRatesForm,CreateRateHistoryForm,UpdateExtraChargesForm
 
 
 @login_required
@@ -333,7 +333,7 @@ def getAdditionalRates(request):
     
 @login_required
 def getAdditionalRatesJs(request):
-
+    additionalRatesList = None
     if request.GET.get('base_rate_id') is not None:
         id = request.GET.get('base_rate_id')
         additionalRatesList = list(
@@ -353,6 +353,23 @@ def getAdditionalRatesJs(request):
                 additionalRatesList[i]["effective_to"] ="-"
     return JsonResponse(additionalRatesList, safe=False)
 
+
+@login_required
+def getAdditionalRateById(request):
+    try:
+        rate_form = None
+        if request.GET.get('rate_id') is not None:
+            objRate = get_object_or_404(ExtraCharges, pk=request.GET.get('rate_id'))
+        
+        if objRate is not None:
+            rate_form = UpdateExtraChargesForm(instance=objRate)
+
+    except Exception as e:
+        messages.error(request, e)
+    return render(
+        request, "../templates/partials/extrarateupdate.html", {"formU": rate_form}
+    )
+    
 
 
 @login_required
@@ -382,6 +399,18 @@ def saveAdditionalRates(request):
             messages.error(request,form.errors)
                 
     return redirect("core:view_additional_rates") 
+
+
+@login_required
+def updateAdditionalRates(request):
+    try:
+        return
+         
+    except Exception as e:
+        messages.error(request, e)
+
+
+
 
 
 # This method will save the Rate history for a give base rate. 
@@ -439,9 +468,6 @@ def getRateHistoryById(request,pk):
         if objBaseRate is not None:
             baseRateName = objBaseRate.rate_name
             id = objBaseRate.id
-
-        
-        
     history_form = CreateRateHistoryForm()   
     return render(request, "../templates/partials/addratesforbase.html", {"formU": history_form, "baseRateName":baseRateName,"id":id})
 

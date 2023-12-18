@@ -247,12 +247,12 @@
 </div>
 
 <!--Update Form-->
-<div class="modal fade zoomIn" id="showUpdateModal" tabindex="-1" aria-labelledby="exampleModalLabel"
+<div class="modal fade bs-example-modal-sm show" id="showUpdateModal" tabindex="-1" aria-labelledby="exampleModalLabel"
      style="display: none" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-sm">
         <div class="modal-content border-0">
             <div class="modal-header p-3 bg-secondary-subtle">
-                <h5 class="modal-title">Update child details</h5>
+                <h5 class="modal-title">Update extra rate details</h5>
                 <button
                         type="button"
                         class="btn-close"
@@ -286,10 +286,9 @@
                         height="100px"
                 />
                 <div class="mt-4 pt-4">
-                    <h4>You are about to deactivate this Child!</h4>
+                    <h4>You are about change the extra charges!</h4>
                     <p class="text-muted">
-                        Are you sure? Please note that hs/she will not be able to check
-                        in/out to daycare facility.
+                        Please note that this operation will cancell the existing extra rates and add new rates to the system. <br><br>All the calcluation will be based on the new rates from the effective date you select.
                     </p>
                     <!-- Toogle to second dialog -->
                     <button
@@ -298,14 +297,15 @@
                             data-bs-toggle="modal"
                             data-bs-dismiss="modal"
                     >
-                        No
+                    No
                     </button>
                     <button
                             name="btnModelDelete"
                             id="btnModelDelete"
                             class="btn btn-danger"
+                            
                     >
-                        Yes
+                    Yes
                     </button>
                 </div>
             </div>
@@ -374,6 +374,7 @@
 <script>
     var $ = jQuery;
     dataTable = "";
+    id = "";
 
 
     jQuery("#showModal").on("hidden.bs.modal", function () {
@@ -386,17 +387,41 @@
     jQuery(document).on("click", ".link-success", function (e) {
         e.preventDefault();
         url = jQuery(this).attr("href");
+        id = jQuery(this).attr("data-value");
+        // Show the modal
+        jQuery("#firstmodal").modal("show");
+    });
+
+    jQuery(document).on("click", "#btnModelDelete", function (e) {
+        e.preventDefault();
+        
+      
         // Show the modal
         jQuery("#showUpdateModal").modal("show");
+        jQuery("#firstmodal").modal("hide");
 
         // Load the form into the modal using AJAX
         jQuery.ajax({
             type: "GET",
-            url: "{% url 'core:view_additional_rates_js' %}",
+            url: "{% url 'core:view_additional_rates_byId' %}",
+            data: { rate_id: id },
             dataType: "html",
             success: function (data) {
                 // Assuming you have a modal body with the id "updateModalBody"
                 jQuery("#modelForm").html(data);
+
+                
+
+            jQuery('#to_time').flatpickr({
+                enableTime: true,
+                noCalendar:true,
+                        enableSeconds: false,
+                        dateFormat: "H:i",
+            });
+
+            jQuery('#effective_from').flatpickr();
+            
+                
             },
             error: function (xhr, textStatus, errorThrown) {
                 alert("Error: " + xhr.status + ", " + xhr.statusText);
@@ -448,10 +473,6 @@
                 dateFormat: "H:i",
     });
    
-
-
-         
-        
     });
 
     jQuery('#base_rate').change(function () {
@@ -471,9 +492,6 @@
         var baseRateId = jQuery("#base_rate").val();
         if (baseRateId) 
         {
-            
-        // do something
-   
             jQuery.ajax({
                 url: "{% url 'core:view_additional_rates_js' %}",
                 type: "GET",
@@ -491,7 +509,7 @@
                 response[i].extra_rate,
                 response[i].effective_from,
                 response[i].effective_to,
-                '<a href="' + url + '" class="link-success" data-bs-target="#showUpdateModal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button" data-value="' + response[i].id + '"><i class="ri-edit-2-fill"></i></a>',
+                '<a href="' + url + '" class="link-success" data-bs-target="#firstmodal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button" data-value="' + response[i].id + '"><i class="ri-edit-2-fill"></i></a>',
                 ],)
                 });
 

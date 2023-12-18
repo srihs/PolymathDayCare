@@ -214,3 +214,26 @@ class CreateExtraChargesForm(forms.ModelForm):
     class Meta:
         model = ExtraCharges
         fields = ('base_rate','from_time','extra_rate','to_time','effective_from','effective_to')
+
+
+class UpdateExtraChargesForm(forms.ModelForm):
+    
+    from_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'id':'from_time','class': 'form-control','placeholder': 'From Time',
+                                                                             'data-provider': 'flatpickr','required': 'true','disabled': 'true'}))
+    to_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'id':'to_time','class': 'form-control','placeholder': 'To Time','required': 'true','disabled': 'true'}))
+    
+    extra_rate =forms.DecimalField(max_digits=15,
+                                            decimal_places=2,
+                                            validators=[MinValueValidator(Decimal('0.01'))],
+                                            required=True,
+                                            widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Rate'}))
+    effective_from = forms.DateField(required=True, widget=MyDateInput(
+        attrs={'class': 'form-control', 'required': 'true', 'id': 'effective_from', 'data-provider': 'flatpickr',
+               'data-date-format': 'Y-m-d', 'placeholder': 'Effective from'}))
+    effective_to = forms.DateField(required=False, widget=MyDateInput(
+        attrs={'class': 'form-control', 'id': 'effective_to', 'data-provider': 'flatpickr',
+               'data-date-format': 'Y-m-d', 'placeholder': 'Effective to'}))
+
+    class Meta:
+        model = ExtraCharges
+        fields = ('from_time','extra_rate','to_time','effective_from','effective_to')        

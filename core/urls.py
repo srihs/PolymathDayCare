@@ -31,7 +31,7 @@ urlpatterns = [
                   path('additional_rates/', views.getAdditionalRates, name='view_additional_rates'),
                   path('additional_rates_js/', views.getAdditionalRatesJs, name='view_additional_rates_js'),
                   path('save_additional_rates/', views.saveAdditionalRates, name='save_additional_rates'),
-                  path('view_additional_rates_byId/<int:pk>/', views.saveAdditionalRates, name='view_additional_rates_byId'),
+                  path('view_additional_rates_byId', views.getAdditionalRateById, name='view_additional_rates_byId'),
 
                   
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
