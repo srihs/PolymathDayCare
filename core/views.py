@@ -17,7 +17,8 @@ from decimal import Decimal
 from django.db import transaction
 
 from .models import Child, Package, Rates, ExtraCharges,RateHistory
-from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, UpdateRatesForm,CreateRateHistoryForm,UpdateExtraChargesForm
+from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, \
+                    UpdateRatesForm,CreateRateHistoryForm,UpdateExtraChargesForm,CreatePackagesForm
 
 
 #   This method 
@@ -527,3 +528,45 @@ def getRatesforRatesJs(request):
 
 
 
+def getPackages(request):
+    if request.method == "GET":
+        package_form = CreatePackagesForm()
+    
+    
+
+    return render(
+        request,
+        "../templates/packages.html",
+        {
+            "form": package_form,
+            "UserName": request.user.username,
+        },
+    )
+
+
+@login_required
+def getPackagesJs(request):
+   if request.method == "GET":
+        packageList = list(
+            Package.objects.all().values(
+            "id",
+            "package_type",
+            "base_rate",
+            "package_code",
+            "package_name",
+            "from_time",
+            "to_time",
+            "no_hours", 
+            "no_days_week",
+            "no_days_months",
+            "is_holiday_package",
+            ))
+        for i,n in enumerate(packageList):
+            packageList[i]["base_rate"] = Rates.objects.get(pk=packageList[i]["base_rate"])
+            if n['is_holiday_package'] == True:
+                packageList[i]["is_holiday_package"] ="Yes"
+            else:
+                 packageList[i]["is_holiday_package"] ="No"
+
+    
+   return JsonResponse(packageList, safe=False)

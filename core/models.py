@@ -15,8 +15,7 @@ class BaseClass(models.Model):
 class Rates(BaseClass):
     rate_name = models.CharField(max_length=550)
     is_holiday_rate = models.BooleanField(default=False)
-    
-    
+
     def __str__(self):
         return self.rate_name
 
@@ -61,25 +60,30 @@ class Child(BaseClass):
     recipt_number = models.CharField(max_length=50)
     admission_date = models.DateField()
 
+    def __str__(self):
+        return self.admission_number +" - " +self.child_first_name + self.child_last_name
+
+    
+
+
 
 class Package(BaseClass):
-    Daily = "Daily"
-    Weekly = "Weekly"
-    Monthly = "Monthly"
-    HOURLY = "Hourly"
-
-    package_type = [
-        (Daily, "Daily"),
-        (Weekly, "Weekly"),
-        (Monthly, "Monthly"),
-        (HOURLY, "Hourly"),
-    ]
+    
+    package_type= models.CharField(max_length=10)
     package_code = models.CharField(max_length=10)
     package_name = models.CharField(max_length=200)
-    rate = models.DecimalField(max_digits=8, decimal_places=2)
-    from_time = models.DateTimeField(auto_now=False, auto_now_add=False)
-    to_time = models.DateTimeField(auto_now=False, auto_now_add=False)
-    discount_precentage_for_Unutilized_packages = models.IntegerField()
+    base_rate = models.ForeignKey(Rates, on_delete=models.CASCADE)
+    from_time = models.TimeField()
+    to_time = models.TimeField()
+    no_hours = models.DecimalField(max_digits=8, decimal_places=2)
+    no_days_week = models.IntegerField()
+    no_days_months = models.IntegerField()
+    is_holiday_package = models.BooleanField()
+    
+    
+    def __str__(self):
+        return self.package_code +" - "+self.package_name
+    
 
 
 class HolidayType(BaseClass):

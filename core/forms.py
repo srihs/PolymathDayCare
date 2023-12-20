@@ -236,4 +236,52 @@ class UpdateExtraChargesForm(forms.ModelForm):
 
     class Meta:
         model = ExtraCharges
-        fields = ('from_time','extra_rate','to_time','effective_from','effective_to')        
+        fields = ('from_time','extra_rate','to_time','effective_from','effective_to')  
+
+
+
+class CreatePackagesForm(forms.ModelForm):
+    Daily = "Daily"
+    Weekly = "Weekly"
+    Monthly = "Monthly"
+    HOURLY = "Hourly"
+
+    packageType = [
+        (Daily, "Daily"),
+        (Weekly, "Weekly"),
+        (Monthly, "Monthly"),
+        (HOURLY, "Hourly"),
+    ]
+
+    package_name = forms.CharField(max_length=250, required=False,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Package Name' }))
+    
+    package_code = forms.CharField(max_length=250, required=False,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Package Code' }))
+    
+    package_type = forms.TypedChoiceField(required=True, choices = packageType,
+                                    widget=forms.Select(
+                                        attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'base_rate'}))
+  
+    from_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'id':'from_time','class': 'form-control','placeholder': 'From Time',
+                                                                             'data-provider': 'flatpickr','required': 'true','readonly': 'true'}))
+    to_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'id':'to_time','class': 'form-control','placeholder': 'To Time','required': 'true','readonly': 'true'}))
+    
+    no_hours = forms.IntegerField( validators=[MinValueValidator(int('0'))],
+                                            required=True,
+                                            widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'No of hours'}))
+    no_days_week = forms.IntegerField(validators=[MinValueValidator(int('0'))],
+                                            required=True,
+                                            widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'No of days for a week'}))
+    no_days_months =forms.IntegerField(validators=[MinValueValidator(int('0'))],
+                                            required=True,
+                                            widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'No of days for a month'}))
+    is_holiday_package = forms.BooleanField(required=False, 
+                                         widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'type': 'checkbox'}))
+   
+
+    class Meta:
+        model = ExtraCharges
+        fields = ('from_time','extra_rate','to_time','effective_from','effective_to')             

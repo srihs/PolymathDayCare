@@ -34,5 +34,8 @@ urlpatterns = [
                   path('view_additional_rates_byId', views.getAdditionalRateById, name='view_additional_rates_byId'),
                   path('update_additional_rates/', views.updateAdditionalRates, name='update_additional_rates'),
 
+                  path('packages/', views.getPackages, name='view_packages'),
+                  path('get_packages_js/', views.getPackagesJs, name='view_packages_js'),
+
                   
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
