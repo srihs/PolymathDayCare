@@ -20,6 +20,7 @@ from .models import Child, Package, Rates, ExtraCharges,RateHistory
 from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, UpdateRatesForm,CreateRateHistoryForm,UpdateExtraChargesForm
 
 
+#   This method 
 @login_required
 def index(request):
     UserName = request.user.username
@@ -360,6 +361,8 @@ def getAdditionalRateById(request):
         rate_form = None
         if request.GET.get('rate_id') is not None:
             objRate = get_object_or_404(ExtraCharges, pk=request.GET.get('rate_id'))
+            request.session['id'] = objRate.id
+            request.session.modified = True
         
         if objRate is not None:
             rate_form = UpdateExtraChargesForm(instance=objRate)
@@ -403,11 +406,36 @@ def saveAdditionalRates(request):
 
 @login_required
 def updateAdditionalRates(request):
+    base_rate_id =None
     try:
-        return
-         
+        if request.method == "POST":
+            form = UpdateExtraChargesForm(request.POST)
+            if request.session['id'] is not None:
+                objAdditionalRates = ExtraCharges.objects.get(pk=request.session['id'])
+                if objAdditionalRates is not None:
+                    with transaction.atomic():
+                        base_rate_id =objAdditionalRates.base_rate.id
+                        objAdditionalRates.is_active =False
+                        objAdditionalRates.user_updated =request.user.username
+                        objAdditionalRates.save()
+                        if form.is_valid():
+                            objNewAdditionalRates= form.save(commit=False)
+                            print(objNewAdditionalRates)
+                            objNewAdditionalRates.base_rate = Rates.objects.get(pk=base_rate_id)
+                            objNewAdditionalRates.user_created = request.user.username
+                            objNewAdditionalRates.save()
+                            messages.success(request, "Additional rate details Updated.")
+                        else:
+                            messages.error(request,form.errors)
+
+                else:
+                    messages.error(request,form.errors)
+            else:
+                    messages.error(request,"No rate found")
     except Exception as e:
         messages.error(request, e)
+
+    return redirect("core:view_additional_rates") 
 
 
 
@@ -429,31 +457,33 @@ def saveBaseRate(request):
                 oldRate = RateHistory.objects.filter(
                         rate_id=request.POST.get("rate_id"),is_active=True
                     ).first() 
-                if oldRate is not None:
-                    if oldRate.effective_to is None and oldRate.is_active == True:
-                        oldRate.effective_to =datetime.datetime.strptime(effective_from, "%Y-%m-%d").date()
-                        oldRate.is_active = False
-                        oldRate.user_updated = request.user.username
-                        oldRate.date_updated = datetime.datetime.now
-                        oldRate.save()
-                        objRateHistory = RateHistory(
-                        rate =  Rates.objects.get(pk=request.POST.get("rate_id")),
-                        standard_hourly_rate = standard_hourly_rate,
-                        effective_from =  datetime.datetime.strptime(effective_from, "%Y-%m-%d").date(),
-                        is_active = True,
-                        user_created = request.user.username)
-                        objRateHistory.save()
-                        messages.success(request, "Rate details updated.")
-                else:
-                        objRateHistory = RateHistory(
-                        rate =  Rates.objects.get(pk=request.POST.get("rate_id")),
-                        standard_hourly_rate = standard_hourly_rate,
-                        effective_from =  datetime.datetime.strptime(effective_from, "%Y-%m-%d").date(),
-                        is_active = True,
-                        user_created = request.user.username)
-                        objRateHistory.save()
-                        messages.success(request, "Rate details saved.")
-
+                with transaction.atomic():
+                    if oldRate is not None:
+                        if oldRate.effective_to is None and oldRate.is_active == True:
+                            oldRate.effective_to =datetime.datetime.strptime(effective_from, "%Y-%m-%d").date()
+                            oldRate.is_active = False
+                            oldRate.user_updated = request.user.username
+                            oldRate.date_updated = datetime.datetime.now
+                            oldRate.save()
+                            objRateHistory = RateHistory(
+                            rate =  Rates.objects.get(pk=request.POST.get("rate_id")),
+                            standard_hourly_rate = standard_hourly_rate,
+                            effective_from =  datetime.datetime.strptime(effective_from, "%Y-%m-%d").date(),
+                            is_active = True,
+                            user_created = request.user.username)
+                            objRateHistory.save()
+                            messages.success(request, "Rate details updated.")
+                    else:
+                            objRateHistory = RateHistory(
+                            rate =  Rates.objects.get(pk=request.POST.get("rate_id")),
+                            standard_hourly_rate = standard_hourly_rate,
+                            effective_from =  datetime.datetime.strptime(effective_from, "%Y-%m-%d").date(),
+                            is_active = True,
+                            user_created = request.user.username)
+                            objRateHistory.save()
+                            messages.success(request, "Rate details saved.")
+            else:
+                messages.error(request, "Rate ")
     except Exception as e:
         messages.error(request, e)
     return redirect("core:view_rates")   

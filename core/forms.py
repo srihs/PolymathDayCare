@@ -219,8 +219,8 @@ class CreateExtraChargesForm(forms.ModelForm):
 class UpdateExtraChargesForm(forms.ModelForm):
     
     from_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'id':'from_time','class': 'form-control','placeholder': 'From Time',
-                                                                             'data-provider': 'flatpickr','required': 'true','disabled': 'true'}))
-    to_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'id':'to_time','class': 'form-control','placeholder': 'To Time','required': 'true','disabled': 'true'}))
+                                                                             'data-provider': 'flatpickr','required': 'true','readonly': 'true'}))
+    to_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'id':'to_time','class': 'form-control','placeholder': 'To Time','required': 'true','readonly': 'true'}))
     
     extra_rate =forms.DecimalField(max_digits=15,
                                             decimal_places=2,

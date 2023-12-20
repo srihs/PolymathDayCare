@@ -1,6 +1,6 @@
 {% load static %}
 <form
-  action="{% url 'core:save_rates'  %}"
+  action="{% url 'core:update_additional_rates'  %}"
   method="POST"
   class="tablelist-form"
   autocomplete="on"
@@ -10,35 +10,34 @@
     <div class="row">
       <div class="col-lg-12">
         <div class="live-preview">
-              
-                           
-            <div class="mb-3">
-                <label for="employeeName" class="form-label">From time</label>
-                {{ formU.from_time }} {{ formU.id.as_hidden }}
-            </div>
-            <div class="mb-3">
-                <label for="employeeUrl" class="form-label">To time</label>
-                {{ formU.to_time }}
-            </div>
-            <div class="mb-3">
-                <label for="StartleaveDate" class="form-label">Extra rate</label>
-                <div>{{ formU.extra_rate }}</div>
-            </div>
-            <div class="mb-3">
-                <label for="EndleaveDate" class="form-label">Effective From</label>
-                {{ formU.effective_from }}
-            </div>
-            <div class="mb-3">
-                <label for="VertimeassageInput" class="form-label">Effective To</label>
-                {{ formU.effective_to }}
-            </div>
+          <div class="mb-3">
+            <label for="employeeName" class="form-label">From time</label>
+            {{ formU.from_time }} {{ formU.id.as_hidden }}
+          </div>
+          <div class="mb-3">
+            <label for="employeeUrl" class="form-label">To time</label>
+            {{ formU.to_time }}
+          </div>
+          <div class="mb-3">
+            <label for="StartleaveDate" class="form-label">Extra rate</label>
+            <div>{{ formU.extra_rate }}</div>
+          </div>
+          <div class="mb-3">
+            <label for="EndleaveDate" class="form-label">Effective From</label>
+            {{ formU.effective_from }}
+          </div>
+          <div class="mb-3">
+            <label for="VertimeassageInput" class="form-label"
+              >Effective To</label
+            >
+            {{ formU.effective_to }}
+          </div>
         </div>
       </div>
     </div>
   </div>
   <div class="modal-footer" style="display: block">
     <div class="hstack gap-2 justify-content-end">
-      
       <button class="btn btn-secondary" type="submit">Save</button>
       <!-- <button type="button" class="btn btn-success" id="edit-btn">Update</button> -->
     </div>
