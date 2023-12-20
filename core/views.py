@@ -527,7 +527,7 @@ def getRatesforRatesJs(request):
    return JsonResponse(ratesList, safe=False)
 
 
-
+@login_required
 def getPackages(request):
     if request.method == "GET":
         package_form = CreatePackagesForm()

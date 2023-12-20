@@ -3,7 +3,7 @@ from django.forms import ImageField
 from django.db import models
 from django.contrib.admin.widgets import AdminDateWidget
 from django.core.validators import MinValueValidator
-from .models import Child, Rates, ExtraCharges,RateHistory
+from .models import Child, Rates, ExtraCharges,RateHistory,Package
 from decimal import *
 
 
@@ -283,5 +283,5 @@ class CreatePackagesForm(forms.ModelForm):
    
 
     class Meta:
-        model = ExtraCharges
-        fields = ('from_time','extra_rate','to_time','effective_from','effective_to')             
+        model = Package
+        fields = ('package_name','package_code','package_type','from_time','to_time','no_hours','no_days_week','no_days_months','is_holiday_package')             
