@@ -524,3 +524,6 @@ def getRatesforRatesJs(request):
 
     
    return JsonResponse(ratesList, safe=False)
+
+
+
