@@ -253,6 +253,10 @@ class CreatePackagesForm(forms.ModelForm):
         (HOURLY, "Hourly"),
     ]
 
+    base_rate = forms.ModelChoiceField(required=True, queryset=Rates.objects.filter(is_active=True).order_by('rate_name'),empty_label="-Select Base Rate-",
+                                    widget=forms.Select(
+                                        attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'base_rate'}))
+
     package_name = forms.CharField(max_length=250, required=False,
                                     widget=forms.TextInput(
                                         attrs={'class': 'form-control','placeholder': 'Package Name' }))
@@ -261,13 +265,13 @@ class CreatePackagesForm(forms.ModelForm):
                                     widget=forms.TextInput(
                                         attrs={'class': 'form-control','placeholder': 'Package Code' }))
     
-    package_type = forms.TypedChoiceField(required=True, choices = packageType,
+    package_type = forms.ChoiceField(required=True, choices = packageType,label="- Package Type -",
                                     widget=forms.Select(
                                         attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'base_rate'}))
   
     from_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'id':'from_time','class': 'form-control','placeholder': 'From Time',
-                                                                             'data-provider': 'flatpickr','required': 'true','readonly': 'true'}))
-    to_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'id':'to_time','class': 'form-control','placeholder': 'To Time','required': 'true','readonly': 'true'}))
+                                                                             'required': 'true'}))
+    to_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'id':'to_time','class': 'form-control','placeholder': 'To Time','required': 'true'}))
     
     no_hours = forms.IntegerField( validators=[MinValueValidator(int('0'))],
                                             required=True,

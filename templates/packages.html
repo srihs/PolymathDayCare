@@ -1,249 +1,312 @@
-{% extends "base.html" %} {% load static %} 
-{% block UserName %} {{ UserName }}{% endblock %} 
-{% block Title %} SETTINGS {% endblock %} 
-{% block functionTitle %}RATES{% endblock %} 
-{% block content %}
+{% extends "base.html" %} {% load static %} {% block UserName %} {{ UserName}}
+{% endblock %} {% block Title %} SETTINGS {% endblock %} {% block functionTitle%}RATES{% endblock %} {% block content %}
 
 <!-- Data Table-->
 <div class="card">
-    <div class="card-header border-0">
-        <div class="d-flex align-items-center">
-            <h5 class="card-title mb-0 flex-grow-1">Packages</h5>
-            <div class="flex-shrink-0">
-                <div class="d-flex flex-wrap gap-2">
-                    <button
-                            class="btn btn-secondary add-btn"
-                            data-bs-toggle="modal"
-                            data-bs-target="#showModalCreate">
-                        <i class="ri-add-line align-bottom me-1"></i> Add new package
-                    </button>
-                    <button class="btn btn-soft-secondary" id="remove-actions">
-                        <i class="ri-delete-bin-2-line"></i>
-                    </button>
-                   
-                </div>
-               
-            </div>
+  <div class="card-header border-0">
+    <div class="d-flex align-items-center">
+      <h5 class="card-title mb-0 flex-grow-1">Packages</h5>
+      <div class="flex-shrink-0">
+        <div class="d-flex flex-wrap gap-2">
+          <button
+            class="btn btn-secondary add-btn"
+            data-bs-toggle="modal"
+            data-bs-target="#showModalCreate"
+          >
+            <i class="ri-add-line align-bottom me-1"></i> Add new package
+          </button>
+          <button class="btn btn-soft-secondary" id="remove-actions">
+            <i class="ri-delete-bin-2-line"></i>
+          </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div class="alert alert-dismissible" role="alert">
+      {% if messages %} {% for message in messages %}
+      <!-- Danger Alert -->
+      <div
+        class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
+        role="alert"
+      >
+        <strong>
+          <center>{{ message }}</center>
+        </strong>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="alert"
+          aria-label="Close"
+        ></button>
+      </div>
+      {% endfor %} {% endif %}
+      <!-- end row -->
     </div>
 
-    <div class="card-body">
-        
-            <div class="alert alert-dismissible" role="alert">
-                {% if messages %} {% for message in messages %}
-                <!-- Danger Alert -->
-                <div
-                        class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
-                        role="alert"
-                >
-                    <strong>
-                        <center>{{ message }}</center>
-                    </strong>
-                    <button
-                            type="button"
-                            class="btn-close"
-                            data-bs-dismiss="alert"
-                            aria-label="Close"
-                    ></button>
-                </div>
-                {% endfor %} {% endif %}
-                <!-- end row -->
-            </div>
-        
-        <table id="packageList" class="display" style="width: 100%">
-            <thead>
-            <tr>
-                <th>Package Code</th>
-                <th>Package Name</th>
-                <th>Package Type</th>
-                <th>From</th>
-                <th>To</th>
-                <th>No of hours per day</th>
-                <th>No of days per week</th>
-                <th>No of days per month</th>
-                <th>Holiday package?</th>
-                <th data-orderable="false"></th>
-                
-                
-            </tr>
-            </thead>
-        </table>
-    </div>
-    <!-- end card-body -->
+    <table id="packageList" class="display" style="width: 100%">
+      <thead>
+        <tr>
+          <th>Package Code</th>
+          <th>Package Name</th>
+          <th>Package Type</th>
+          <th>From</th>
+          <th>To</th>
+          <th>No of hours per day</th>
+          <th>No of days per week</th>
+          <th>No of days per month</th>
+          <th>Holiday package?</th>
+          <th data-orderable="false"></th>
+        </tr>
+      </thead>
+    </table>
+  </div>
+  <!-- end card-body -->
 </div>
 
 {% endblock %} {% block modals %}
 
 <div
-        class="modal fade zoomIn"
-        id="showModal"
-        tabindex="-1"
-        aria-labelledby="exampleModalLabel"
-        style="display: none"
-        aria-hidden="true"
+  class="modal fade zoomIn"
+  id="showModal"
+  tabindex="-1"
+  aria-labelledby="exampleModalLabel"
+  style="display: none"
+  aria-hidden="true"
 >
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0">
-            <div class="modal-header p-3 bg-secondary-subtle">
-                <h5 class="modal-title" id="exampleModalLabels">Add Child</h5>
-                <button
-                        type="button"
-                        class="btn-close"
-                        data-bs-target="#showModalCreate"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                        id="close-modalAdd"
-                ></button>
-            </div>
-
-        </div>
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0">
+      <div class="modal-header p-3 bg-secondary-subtle">
+        <h5 class="modal-title" id="exampleModalLabels">Add Child</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-target="#showModalCreate"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+          id="close-modalAdd"
+        ></button>
+      </div>
     </div>
+  </div>
 </div>
 
-
 <!-- Settings Form -->
-<div class="modal fade zoomIn" id="showModalCreate" tabindex="-1" aria-labelledby="exampleModalLabel"
-     style="display: none" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0">
-            <div class="modal-header">
-                <h5 class="modal-title">Add Rates</h5>
-                <button
-                        type="button"
-                        class="btn-close"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                        id="close-modal"></button>
-            </div>
-            <form
-                    action="{% url 'core:save_rates' %}"
-                    method="post"
-                    class="tablelist-form"
-                    autocomplete="on">
-                {% csrf_token %}
-                 <div class="modal-body">
-                    <div class="row">
-                        
-                    </div>
-                </div> 
-                <div class="modal-footer" style="display: block">
-                    <div class="hstack gap-2 justify-content-end">
-                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
-                            Close
-                        </button>
-                        <button class="btn btn-secondary" type="submit">Submit form</button>
-                        
-                    </div>
+<div
+  class="modal fade zoomIn"
+  id="showModalCreate"
+  tabindex="-1"
+  aria-labelledby="exampleModalLabel"
+  style="display: none"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Packages</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+          id="close-modal"
+        ></button>
+      </div>
+      <form
+        action="{% url 'core:save_rates' %}"
+        method="post"
+        class="tablelist-form"
+        autocomplete="on"
+      >
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-sm-4">{{form.base_rate}}</div>
+            <div class="col-sm-4">{{form.package_code}}</div>
+            <div class="col-sm-4">{{form.package_name}}</div>
+            <div class="col-sm-4">{{form.package_type}}</div>
+            <div class="col-sm-4">{{form.from_time}}</div>
+            <div class="col-sm-4">{{form.to_time}}</div>
+            <div class="col-sm-4">{{form.no_hours}}</div>
+            <div class="col-sm-4">{{form.no_days_week}}</div>
+            <div class="col-sm-4">{{form.no_days_months}}</div>
+            <div class="col-sm-4">
+              <div>
+                <div class="form-check form-switch">
+                  {{form.is_holiday_package}}
+                  <label class="form-check-label">Is holiday package?</label>
                 </div>
-            </form>
-                
-            
+              </div>
+            </div>
+          </div>
         </div>
+        <div class="modal-footer" style="display: block">
+          <div class="hstack gap-2 justify-content-end">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+              Close
+            </button>
+            <button class="btn btn-secondary" type="submit">Save</button>
+          </div>
+        </div>
+      </form>
     </div>
+  </div>
 </div>
 
 <!--Additional Rates Form-->
-<div id="flipModal" class="modal fade flip" tabindex="-1" aria-labelledby="flipModalLabel" style="display: none;" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="flipModalLabel">Extra hour rates</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div>
-                    <table id="AdditionalRateList" class="display" style="width: 100%">
-                        <thead>
-                        <tr>
-                        <th>Slot (hr)</th>
-                        <th>Rate</th>
-                        <th>Effective from</th>
-                        <th>Effective to</th>
-                            
-                        </tr>
-                        </thead>
-                    </table>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
-            </div>
-
-        </div><!-- /.modal-content -->
-    </div><!-- /.modal-dialog -->
+<div
+  id="flipModal"
+  class="modal fade flip"
+  tabindex="-1"
+  aria-labelledby="flipModalLabel"
+  style="display: none"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="flipModalLabel">Extra hour rates</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div>
+          <table id="AdditionalRateList" class="display" style="width: 100%">
+            <thead>
+              <tr>
+                <th>Slot (hr)</th>
+                <th>Rate</th>
+                <th>Effective from</th>
+                <th>Effective to</th>
+              </tr>
+            </thead>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+          Close
+        </button>
+      </div>
+    </div>
+    <!-- /.modal-content -->
+  </div>
+  <!-- /.modal-dialog -->
 </div>
 
 <!--Rate History pop-up-->
-<div id="historyModal" class="modal fade flip" tabindex="-1" aria-labelledby="flipModalLabel" style="display: none;" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="flipModalLabel">Rate History</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div>
-                    <table id="RateHistoryList" class="display" style="width: 100%">
-                        <thead>
-                        <tr>
-                        <th>Rate (hr)</th>
-                        <th>Effective from</th>
-                        <th>Effective to</th>
-                        <th>Status</th>
-                        </tr>
-                        </thead>
-                    </table>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
-            </div>
-
-        </div><!-- /.modal-content -->
-    </div><!-- /.modal-dialog -->
+<div
+  id="historyModal"
+  class="modal fade flip"
+  tabindex="-1"
+  aria-labelledby="flipModalLabel"
+  style="display: none"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="flipModalLabel">Rate History</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div>
+          <table id="RateHistoryList" class="display" style="width: 100%">
+            <thead>
+              <tr>
+                <th>Rate (hr)</th>
+                <th>Effective from</th>
+                <th>Effective to</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+          Close
+        </button>
+      </div>
+    </div>
+    <!-- /.modal-content -->
+  </div>
+  <!-- /.modal-dialog -->
 </div>
 
 <!--Update Form-->
-<div class="modal fade zoomIn" id="showUpdateModal" tabindex="-1" aria-labelledby="exampleModalLabel"
-     style="display: none" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0">
-            <div class="modal-header p-3 bg-secondary-subtle">
-                <h5 class="modal-title">Update base rate details</h5>
-                <button
-                        type="button"
-                        class="btn-close"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                        id="close-upmodal"
-                ></button>
-            </div>
-            <div id="modelForm" bs-focus="false">
-
-            </div>
-        </div>
+<div
+  class="modal fade zoomIn"
+  id="showUpdateModal"
+  tabindex="-1"
+  aria-labelledby="exampleModalLabel"
+  style="display: none"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0">
+      <div class="modal-header p-3 bg-secondary-subtle">
+        <h5 class="modal-title">Update base rate details</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+          id="close-upmodal"
+        ></button>
+      </div>
+      <div id="modelForm" bs-focus="false"></div>
     </div>
+  </div>
 </div>
 
 <!--Rate Form-->
-<div id="rateModals" class="modal fade zoomIn" tabindex="-1" style="display: none;" aria-modal="true" role="dialog">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 overflow-hidden">
-            <div class="modal-header p-3">
-                <h4 class="card-title mb-0">Set rates</h4>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="alert alert-danger  rounded-0 mb-0">
-                <p class="mb-0"><center><strong>Please note that this operation will change the rates for all pcakages associated with this base rate from the selected effective date.</strong></center> </p>
-            </div>
-            <div id="modelRateForm" bs-focus="false">
-                
-            </div>
-           
-        </div><!-- /.modal-content -->
-    </div><!-- /.modal-dialog -->
+<div
+  id="rateModals"
+  class="modal fade zoomIn"
+  tabindex="-1"
+  style="display: none"
+  aria-modal="true"
+  role="dialog"
+>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 overflow-hidden">
+      <div class="modal-header p-3">
+        <h4 class="card-title mb-0">Set rates</h4>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="alert alert-danger rounded-0 mb-0">
+        <p class="mb-0">
+          <center>
+            <strong
+              >Please note that this operation will change the rates for all
+              pcakages associated with this base rate from the selected
+              effective date.</strong
+            >
+          </center>
+        </p>
+      </div>
+      <div id="modelRateForm" bs-focus="false"></div>
+    </div>
+    <!-- /.modal-content -->
+  </div>
+  <!-- /.modal-dialog -->
 </div>
-
 
 {% endblock %} {% block scripts %}
 <!-- jQuery -->
@@ -268,203 +331,222 @@
 <script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
 
 <script>
-    var $ = jQuery;
-    var id;
-    var dataTable;
+  var $ = jQuery;
+  var id;
+  var dataTable;
 
-    
+  jQuery(document).ready(function () {
+    window.setTimeout(function () {
+      // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
+      var alertDiv = jQuery(".alert");
 
-    jQuery(document).ready(function () {
-        window.setTimeout(function() {
-    // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
-    var alertDiv = jQuery(".alert");
+      // Check if the inner div contains a success message
+      var successMessageFound = alertDiv.find(".alert-success").length > 0;
 
-    // Check if the inner div contains a success message
-    var successMessageFound = alertDiv.find('.alert-success').length > 0;
-
-    // If a success message is found, apply the fade-out effect
-    if (successMessageFound) {
-        alertDiv.fadeTo(1000, 0).slideUp(1000, function() {
-            jQuery(this).remove();
+      // If a success message is found, apply the fade-out effect
+      if (successMessageFound) {
+        alertDiv.fadeTo(1000, 0).slideUp(1000, function () {
+          jQuery(this).remove();
         });
-    }
-}, 2000);
+      }
+    }, 2000);
 
-        var table = $("#packageList").DataTable({
-           
-            ajax: {
-                processing: true,
-                url: "{% url 'core:view_packages_js' %}",
-                dataSrc: "",
-            },
-            columns: [
-                {data: "package_code"},
-                {data: "package_name"},
-                {data: "package_type"},
-                {data: "from_time"},
-                {data: "to_time"},
-                {data: "no_hours"},
-                {data: "no_days_week"},
-                {data: "no_days_months"},
-                {data: "is_holiday_package"},
-                {
-                    data: null,
-                    render: function (data, type, row) {
-                        var url = "{% url 'core:view_baserate_update_byId' 0 %}";
-                        id= row.id;
-                        url = url.replace(0, id);
-                        return data =
-                            '<a href=' + url + ' id="addRates" class="btn btn-soft-primary  waves-effect waves-light btn-sm" data-id='+ id +' \
+    var table = $("#packageList").DataTable({
+      ajax: {
+        processing: true,
+        url: "{% url 'core:view_packages_js' %}",
+        dataSrc: "",
+      },
+      columns: [
+        { data: "package_code" },
+        { data: "package_name" },
+        { data: "package_type" },
+        { data: "from_time" },
+        { data: "to_time" },
+        { data: "no_hours" },
+        { data: "no_days_week" },
+        { data: "no_days_months" },
+        { data: "is_holiday_package" },
+        {
+          data: null,
+          render: function (data, type, row) {
+            var url = "{% url 'core:view_baserate_update_byId' 0 %}";
+            id = row.id;
+            url = url.replace(0, id);
+            return (data =
+              "<a href=" +
+              url +
+              ' id="addRates" class="btn btn-soft-primary  waves-effect waves-light btn-sm" data-id=' +
+              id +
+              ' \
                   data-bs-dismiss="modal" role="button"\
-                >Add base rate</a>';
-                    },
-                },
-                
-            ],
+                >Add base rate</a>');
+          },
+        },
+      ],
 
-            createdRow: function (row, data, dataIndex) {
-                // Check the condition for the 'is_holiday_rate' column
-                if (data.is_holiday_package) {
-                    $("td", row).eq(8).html('<span class="badge bg-success">Yes</span>');
-                } else {
-                    $("td", row).eq(8).html('<span class="badge bg-warning">No</span>');
-                }
-            },
-            
-            searching: false,
-            paging: false,
-            order: [[0, "asc"]], // Set default sorting by admission_date in descending order
+      createdRow: function (row, data, dataIndex) {
+        // Check the condition for the 'is_holiday_rate' column
+        if (data.is_holiday_package) {
+          $("td", row).eq(8).html('<span class="badge bg-success">Yes</span>');
+        } else {
+          $("td", row).eq(8).html('<span class="badge bg-warning">No</span>');
+        }
+      },
+
+      searching: false,
+      paging: false,
+      order: [[0, "asc"]], // Set default sorting by admission_date in descending order
+    });
+  });
+
+  jQuery("#from_time").flatpickr({
+    enableTime: true,
+    noCalendar: true,
+    enableSeconds: false,
+    dateFormat: "H:i",
+  });
+
+  jQuery("#to_time").flatpickr({
+    enableTime: true,
+    noCalendar: true,
+    enableSeconds: false,
+    dateFormat: "H:i",
+  });
+
+  jQuery("#showModal").on("hidden.bs.modal", function () {
+    jQuery(this).find("form").trigger("reset");
+  });
+
+  var url = "";
+
+  jQuery(document).on("click", ".link-success", function (e) {
+    e.preventDefault();
+    url = jQuery(this).attr("href");
+
+    // Show the modal
+    jQuery("#showUpdateModal").modal("show");
+
+    // Load the form into the modal using AJAX
+    jQuery.ajax({
+      type: "GET",
+      url: url,
+      dataType: "html",
+      success: function (data) {
+        // Assuming you have a modal body with the id "updateModalBody"
+        jQuery("#modelForm").html(data);
+      },
+      error: function (xhr, textStatus, errorThrown) {
+        alert("Error: " + xhr.status + ", " + xhr.statusText);
+      },
+    });
+  });
+
+  jQuery(document).on("click", "#addRates", function (e) {
+    e.preventDefault();
+    url = jQuery(this).attr("href");
+    id = jQuery(this).attr("data-id");
+
+    // Show the modal
+    jQuery("#rateModals").modal("show");
+
+    // Load the form into the modal using AJAX
+    jQuery.ajax({
+      type: "GET",
+      url: url,
+      data: { rate_id: id },
+      dataType: "html",
+      success: function (data) {
+        // Assuming you have a modal body with the id "updateModalBody"
+        jQuery("#modelRateForm").html(data);
+        jQuery("#effective_from").flatpickr();
+      },
+      error: function (xhr, textStatus, errorThrown) {
+        alert("Error: " + xhr.status + ", " + xhr.statusText);
+      },
+    });
+  });
+
+  jQuery("secondButton").click(function () {
+    window.parent.location = window.parent.location.href;
+  });
+
+  jQuery(document).on("click", "#additionalLink", function (e) {
+    dataTable.clear();
+    id = jQuery(this).attr("data-id");
+    jQuery.ajax({
+      url: "{% url 'core:view_additional_rates_js' %}",
+      type: "GET",
+      data: { base_rate_id: id },
+      beforeSend: function () {},
+      success: function (response) {
+        jQuery.each(response, function (i, item) {
+          console.log(response[i].id);
+          dataTable.row.add([
+            response[i].slot_number_hour,
+            response[i].extra_rate,
+            response[i].effective_from,
+            response[i].effective_to,
+          ]);
         });
+
+        dataTable.draw();
+      },
+      error: function (response) {
+        console.log(response);
+      },
     });
+  });
 
-
-    jQuery("#showModal").on("hidden.bs.modal", function () {
-        jQuery(this).find("form").trigger("reset");
-        
-
-    });
-
-    var url = "";
-
-    jQuery(document).on("click", ".link-success", function (e) {
-        e.preventDefault();
-        url = jQuery(this).attr("href");
-       
-        // Show the modal
-        jQuery("#showUpdateModal").modal("show");
-
-        // Load the form into the modal using AJAX
-        jQuery.ajax({
-            type: "GET",
-            url: url,
-            dataType: "html",
-            success: function (data) {
-                // Assuming you have a modal body with the id "updateModalBody"
-                jQuery("#modelForm").html(data);
-            },
-            error: function (xhr, textStatus, errorThrown) {
-                alert("Error: " + xhr.status + ", " + xhr.statusText);
-            }
+  jQuery(document).on("click", "#historyLink", function (e) {
+    dataTable.clear();
+    id = jQuery(this).attr("data-id");
+    jQuery.ajax({
+      url: "{% url 'core:view_rates_rate_js' %}",
+      type: "GET",
+      data: { rate_id: id },
+      beforeSend: function () {},
+      success: function (response) {
+        jQuery.each(response, function (i, item) {
+          console.log(response[i].id);
+          dataTable.row.add([
+            response[i].standard_hourly_rate,
+            response[i].effective_from,
+            response[i].effective_to,
+            response[i].is_active,
+          ]);
         });
 
+        dataTable.draw();
+      },
+      error: function (response) {
+        console.log(response);
+      },
     });
+  });
+  
+  jQuery(document).on("change", "#base_rate", function (e) {
+    var baseRateId = jQuery(this).val();
 
-
-    jQuery(document).on("click", "#addRates", function (e) {
-        e.preventDefault();
-        url = jQuery(this).attr("href");
-        id = jQuery(this).attr("data-id");
-       
-        // Show the modal
-        jQuery("#rateModals").modal("show");
-
-        // Load the form into the modal using AJAX
-        jQuery.ajax({
-            type: "GET",    
-            url: url,
-            data: { rate_id: id },
-            dataType: "html",
-            success: function (data) {
-                // Assuming you have a modal body with the id "updateModalBody"
-                jQuery("#modelRateForm").html(data);
-                jQuery('#effective_from').flatpickr();
-                
-            },
-            error: function (xhr, textStatus, errorThrown) {
-                alert("Error: " + xhr.status + ", " + xhr.statusText);
-            }
-        });
-
+    jQuery.ajax({
+      url: "{% url 'core:Check_packages_for_holidays_js' %}",
+      type: "GET",
+      data: { rate_id: baseRateId },
+      beforeSend: function () {},
+      success: function (response) {
+        if (response) {
+         
+            document.getElementById("is_holiday_package").checked = true;
+            alert("ddfff")
+         
+        } else {
+        }
+      },
+      error: function (response) {
+        console.log(response);
+      },
     });
-
-
-    jQuery("secondButton").click(function () {
-        window.parent.location = window.parent.location.href;
-    });
-
-
-
-    jQuery(document).on("click", "#additionalLink", function (e) {
-        dataTable.clear();
-        id = jQuery(this).attr("data-id");
-        jQuery.ajax({
-                url: "{% url 'core:view_additional_rates_js' %}",
-                type: "GET",
-                data: { base_rate_id: id },
-                beforeSend: function () { },
-                success: function (response) {       
-                jQuery.each(response, function(i, item) {
-                    
-                console.log(response[i].id)
-                dataTable.row.add(                 
-                [response[i].slot_number_hour,
-                response[i].extra_rate,
-                response[i].effective_from,
-                response[i].effective_to
-                ],)
-                });
-
-             
-
-            dataTable.draw();
-                },error: function(response){
-                    console.log(response);
-            }
-        });
-    });
-
-
-    jQuery(document).on("click", "#historyLink", function (e) {
-        dataTable.clear();
-        id = jQuery(this).attr("data-id");
-        jQuery.ajax({
-                url: "{% url 'core:view_rates_rate_js' %}",
-                type: "GET",
-                data: { rate_id: id },
-                beforeSend: function () { },
-                success: function (response) {       
-                jQuery.each(response, function(i, item) {
-                    
-                console.log(response[i].id)
-                dataTable.row.add(                 
-                [response[i].standard_hourly_rate,
-                response[i].effective_from,
-                response[i].effective_to,
-                response[i].is_active
-                
-
-                ],)
-                });
-
-             
-
-            dataTable.draw();
-                },error: function(response){
-                    console.log(response);
-            }
-        });
-    });
-    
+  });
 </script>
 
 <!-- App js -->

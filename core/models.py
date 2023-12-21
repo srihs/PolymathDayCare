@@ -68,7 +68,7 @@ class Child(BaseClass):
 
 
 class Package(BaseClass):
-    
+    base_rate = models.ForeignKey("Rates", on_delete=models.CASCADE)
     package_type= models.CharField(max_length=10)
     package_code = models.CharField(max_length=10)
     package_name = models.CharField(max_length=200)

@@ -491,6 +491,24 @@ def saveBaseRate(request):
 
 
 @login_required
+def checkIfHolidayRateJS(request):
+    is_holiday =None
+    print("in the method")
+    print(request.GET.get('rate_id'))
+    if request.GET.get('rate_id') is not None:
+        id = request.GET.get('rate_id')
+        print(id)
+        objBaseRate = Rates.objects.get(pk=id)
+        if objBaseRate.is_holiday_rate:
+           is_holiday = True
+        else:
+           is_holiday = False
+
+    return JsonResponse(is_holiday, safe=False)
+
+
+
+@login_required
 def getRateHistoryById(request,pk):
     baseRateName = None
     if request.GET.get('rate_id') is not None:
@@ -570,3 +588,6 @@ def getPackagesJs(request):
 
     
    return JsonResponse(packageList, safe=False)
+
+
+

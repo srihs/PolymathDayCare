@@ -36,6 +36,7 @@ urlpatterns = [
 
                   path('packages/', views.getPackages, name='view_packages'),
                   path('get_packages_js/', views.getPackagesJs, name='view_packages_js'),
+                  path('check_packages_for_holidays_js/', views.checkIfHolidayRateJS, name='Check_packages_for_holidays_js'),
 
                   
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
