@@ -16,8 +16,18 @@ class Rates(BaseClass):
     rate_name = models.CharField(max_length=550)
     is_holiday_rate = models.BooleanField(default=False)
 
+    class meta:
+        verbose_name_plural = "Rates"
+
     def __str__(self):
         return self.rate_name
+    
+    def checkIfHolidayPackage(self):
+        if self.is_holiday_rate:
+            return True
+        else:
+            return False
+    
 
 
 class RateHistory(BaseClass): 
@@ -25,6 +35,9 @@ class RateHistory(BaseClass):
     standard_hourly_rate = models.DecimalField(max_digits=8, decimal_places=2)
     effective_from = models.DateField()
     effective_to = models.DateField(null=True)
+
+    def __str__(self):
+        return self.rate.rate_name 
 
 
 class ExtraCharges(BaseClass):
@@ -37,7 +50,11 @@ class ExtraCharges(BaseClass):
     
     class meta:
         unique_together = (("base_rate", "from_time","to_time"),)
+        verbose_name = 'Extra Charge'
+        verbose_name_plural = 'Extra Charges'
     
+    def __str__(self):
+        return self.base_rate.rate_name + "-" + str(self.from_time) + "-" +  str(self.to_time) +"-"+str(self.is_active)
 
 
 class Child(BaseClass):
@@ -59,16 +76,20 @@ class Child(BaseClass):
     is_polymath_student = models.BooleanField(default=False)
     recipt_number = models.CharField(max_length=50)
     admission_date = models.DateField()
+    
+    class meta:
+        verbose_name = 'Child'
+        verbose_name_plural = 'Children'
 
     def __str__(self):
         return self.admission_number +" - " +self.child_first_name + self.child_last_name
 
-    
+   
 
 
 
 class Package(BaseClass):
-    base_rate = models.ForeignKey("Rates", on_delete=models.CASCADE)
+    
     package_type= models.CharField(max_length=10)
     package_code = models.CharField(max_length=10)
     package_name = models.CharField(max_length=200)
@@ -84,11 +105,15 @@ class Package(BaseClass):
     def __str__(self):
         return self.package_code +" - "+self.package_name
     
+   
 
 
 class HolidayType(BaseClass):
     holiday_code = models.CharField(max_length=10)
     holiday_type = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.holiday_code +" - "+ self.holiday_type
 
 
 class Holiday(BaseClass):

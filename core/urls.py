@@ -26,6 +26,7 @@ urlpatterns = [
                   path('rates_rate_js/', views.getRatesforRatesJs, name='view_rates_rate_js'),
                   path('rates_rate_js/<int:pk>/', views.getRateHistoryById, name='view_baserate_update_byId'),
                   path('save_rates_for_base_rate/', views.saveBaseRate, name='save_rates_forBaseRate'),
+                  path('get_Rate_Amount_By_Id_Js/', views.getRateAmountByIdJs, name='get_Rate_amount_By_Id_Js'),
 
                   
                   path('additional_rates/', views.getAdditionalRates, name='view_additional_rates'),
@@ -36,7 +37,7 @@ urlpatterns = [
 
                   path('packages/', views.getPackages, name='view_packages'),
                   path('get_packages_js/', views.getPackagesJs, name='view_packages_js'),
-                  path('check_packages_for_holidays_js/', views.checkIfHolidayRateJS, name='Check_packages_for_holidays_js'),
+                  path('save_package/', views.savePackage, name='save_package'),
 
                   
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

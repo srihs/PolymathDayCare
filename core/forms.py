@@ -257,11 +257,11 @@ class CreatePackagesForm(forms.ModelForm):
                                     widget=forms.Select(
                                         attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'base_rate'}))
 
-    package_name = forms.CharField(max_length=250, required=False,
+    package_name = forms.CharField(max_length=250, required=True,
                                     widget=forms.TextInput(
                                         attrs={'class': 'form-control','placeholder': 'Package Name' }))
     
-    package_code = forms.CharField(max_length=250, required=False,
+    package_code = forms.CharField(max_length=250, required=True,
                                     widget=forms.TextInput(
                                         attrs={'class': 'form-control','placeholder': 'Package Code' }))
     
@@ -270,8 +270,8 @@ class CreatePackagesForm(forms.ModelForm):
                                         attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'base_rate'}))
   
     from_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'id':'from_time','class': 'form-control','placeholder': 'From Time',
-                                                                             'required': 'true'}))
-    to_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'id':'to_time','class': 'form-control','placeholder': 'To Time','required': 'true'}))
+                                                                             'required': 'required'}))
+    to_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'id':'to_time','class': 'form-control','placeholder': 'To Time','required': 'required'}))
     
     no_hours = forms.IntegerField( validators=[MinValueValidator(int('0'))],
                                             required=True,

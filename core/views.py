@@ -15,6 +15,7 @@ import datetime
 
 from decimal import Decimal
 from django.db import transaction
+from django.core import serializers
 
 from .models import Child, Package, Rates, ExtraCharges,RateHistory
 from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, \
@@ -269,7 +270,25 @@ def getRateByID(request, pk):
         request, "../templates/partials/rateUpdate.html", {"formU": rate_form}
     )
     
-
+@login_required
+def getRateAmountByIdJs(request):
+     if request.method == "GET":
+        print("in the method")
+        print(request.session.get('base_rate_id'))
+        if not request.GET.get('base_rate_id') is None:
+            print("base ID is not Null")
+            objRateHistory = RateHistory.objects.get(pk =request.GET.get('base_rate_id'),is_active=True)
+            if objRateHistory is not None:
+                if request.GET.get('no_hours') is not None and request.GET.get('no_days_months') is not None:
+                    print(Decimal(request.GET.get('no_hours')))
+                    print(Decimal(request.GET.get('no_days_months')))
+                    print(objRateHistory.standard_hourly_rate)
+                    total_package_amount = objRateHistory.standard_hourly_rate * Decimal(request.GET.get('no_hours')) * Decimal(request.GET.get('no_days_months'))
+                    
+                    return JsonResponse("{:,.2f}".format(total_package_amount), safe=False)  
+            else:
+                return JsonResponse(None,safe=False)
+        return JsonResponse("000.00",safe=False)
 
 @login_required
 def saveRates(request):
@@ -391,7 +410,6 @@ def saveAdditionalRates(request):
                                                                to_time=objAdditionalRates.to_time).first()
             
             if objExtraChargestchek is not None:
-                print(objExtraChargestchek.id)
                 messages.error(request,"This time slot is already defined")
             else:
                 objAdditionalRates.user_created = request.user.username
@@ -421,7 +439,6 @@ def updateAdditionalRates(request):
                         objAdditionalRates.save()
                         if form.is_valid():
                             objNewAdditionalRates= form.save(commit=False)
-                            print(objNewAdditionalRates)
                             objNewAdditionalRates.base_rate = Rates.objects.get(pk=base_rate_id)
                             objNewAdditionalRates.user_created = request.user.username
                             objNewAdditionalRates.save()
@@ -490,21 +507,6 @@ def saveBaseRate(request):
     return redirect("core:view_rates")   
 
 
-@login_required
-def checkIfHolidayRateJS(request):
-    is_holiday =None
-    print("in the method")
-    print(request.GET.get('rate_id'))
-    if request.GET.get('rate_id') is not None:
-        id = request.GET.get('rate_id')
-        print(id)
-        objBaseRate = Rates.objects.get(pk=id)
-        if objBaseRate.is_holiday_rate:
-           is_holiday = True
-        else:
-           is_holiday = False
-
-    return JsonResponse(is_holiday, safe=False)
 
 
 
@@ -548,10 +550,14 @@ def getRatesforRatesJs(request):
 @login_required
 def getPackages(request):
     if request.method == "GET":
-        package_form = CreatePackagesForm()
+        try:
+        # trying to retrive the next primaryKey
+            nextId = Package.objects.all().count()
+            nextId += 1
+        except:
+            nextId = 1  # if the next ID is null define the record as the first
     
-    
-
+        package_form = CreatePackagesForm(initial={'package_code': "PKG00" + str(nextId)})
     return render(
         request,
         "../templates/packages.html",
@@ -569,7 +575,6 @@ def getPackagesJs(request):
             Package.objects.all().values(
             "id",
             "package_type",
-            "base_rate",
             "package_code",
             "package_name",
             "from_time",
@@ -578,16 +583,62 @@ def getPackagesJs(request):
             "no_days_week",
             "no_days_months",
             "is_holiday_package",
+            "base_rate",
             ))
+        
         for i,n in enumerate(packageList):
-            packageList[i]["base_rate"] = Rates.objects.get(pk=packageList[i]["base_rate"])
-            if n['is_holiday_package'] == True:
+            # query =Rates.objects.filter(pk=packageList[i]["base_rate"])
+            # packageList[i]["base_rate"] = serializers.serialize('json',query)
+            
+            if n['is_holiday_package']:
                 packageList[i]["is_holiday_package"] ="Yes"
+                
             else:
                  packageList[i]["is_holiday_package"] ="No"
 
+       
     
    return JsonResponse(packageList, safe=False)
+
+@login_required
+def checkIfHolidayPackage(id):
+    is_holiday =None
+    
+    objBaseRate = Rates.objects.get(pk=id)
+    if objBaseRate.is_holiday_rate:
+        is_holiday = True
+    else:
+        is_holiday = False
+    
+    return is_holiday
+
+
+@login_required
+def savePackage(request):
+    if request.method == "POST":
+        form = CreatePackagesForm(request.POST)
+        if form.is_valid():
+            objPackage= form.save(commit=False)
+           
+            objBaseRate = Rates.objects.get(pk = request.POST.get("base_rate"))
+            
+            objPackage.base_rate = objBaseRate
+            objPackage.user_created = request.user.username
+            
+            is_holiday_package = objBaseRate.checkIfHolidayPackage()
+
+            objPackage.is_holiday_package = is_holiday_package
+            objPackage.save()
+        else:
+            messages.error(request,form.errors)
+
+    else:
+        messages.error(request,"Something went wrong")
+    
+    return redirect("core:view_packages")               
+            
+        
+        
 
 
 

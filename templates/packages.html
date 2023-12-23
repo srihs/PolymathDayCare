@@ -48,15 +48,16 @@
     <table id="packageList" class="display" style="width: 100%">
       <thead>
         <tr>
-          <th>Package Code</th>
-          <th>Package Name</th>
-          <th>Package Type</th>
+          <th>Package code</th>
+          <th>Package name</th>
+          <th>Package type</th>
           <th>From</th>
           <th>To</th>
           <th>No of hours per day</th>
           <th>No of days per week</th>
           <th>No of days per month</th>
           <th>Holiday package?</th>
+          <th>Package amount</th>
           <th data-orderable="false"></th>
         </tr>
       </thead>
@@ -114,7 +115,7 @@
         ></button>
       </div>
       <form
-        action="{% url 'core:save_rates' %}"
+        action="{% url 'core:save_package' %}"
         method="post"
         class="tablelist-form"
         autocomplete="on"
@@ -133,10 +134,14 @@
             <div class="col-sm-4">{{form.no_days_months}}</div>
             <div class="col-sm-4">
               <div>
-                <div class="form-check form-switch">
+                 <div class="form-check form-switch">
                   {{form.is_holiday_package}}
-                  <label class="form-check-label">Is holiday package?</label>
-                </div>
+                  <label class="form-check-label" for="formCheck8">
+                    Is holiday package?
+                  </label>
+              </div> 
+
+                
               </div>
             </div>
           </div>
@@ -367,6 +372,7 @@
         { data: "no_days_week" },
         { data: "no_days_months" },
         { data: "is_holiday_package" },
+        {data:"base_rate", className: "text-right"},
         {
           data: null,
           render: function (data, type, row) {
@@ -374,25 +380,44 @@
             id = row.id;
             url = url.replace(0, id);
             return (data =
-              "<a href=" +
-              url +
-              ' id="addRates" class="btn btn-soft-primary  waves-effect waves-light btn-sm" data-id=' +
-              id +
-              ' \
-                  data-bs-dismiss="modal" role="button"\
-                >Add base rate</a>');
+              '<a href=' + url + ' class="badge bg-success" data-bs-target="#showUpdateModal"  data-bs-toggle="modal"\
+              data-bs-dismiss="modal" role="button"\
+              aria-label="close"><i class="ri-pencil-fill"></i></a>');
           },
         },
       ],
 
       createdRow: function (row, data, dataIndex) {
         // Check the condition for the 'is_holiday_rate' column
-        if (data.is_holiday_package) {
+        
+        if (data.is_holiday_package ==='Yes') 
+        {
           $("td", row).eq(8).html('<span class="badge bg-success">Yes</span>');
-        } else {
+        } else 
+        {
+          
           $("td", row).eq(8).html('<span class="badge bg-warning">No</span>');
         }
+
+         // Fetch rate amount asynchronously
+        $.ajax({
+          url: "{% url 'core:get_Rate_amount_By_Id_Js' %}",
+          type: "GET",
+          data: { base_rate_id: data.base_rate, no_hours: data.no_hours, no_days_months: data.no_days_months},
+          success: function (response) {
+            
+              // Update the content in the ninth cell with the fetched rate amount
+            $("td", row).eq(9).html(response).addClass("text-center");
+          },
+          error: function (error) {
+              console.error("Error fetching rate amount:", error);
+          }
+        });
+
+
       },
+
+      
 
       searching: false,
       paging: false,
@@ -405,6 +430,7 @@
     noCalendar: true,
     enableSeconds: false,
     dateFormat: "H:i",
+    allowInput: true,
   });
 
   jQuery("#to_time").flatpickr({
@@ -412,6 +438,7 @@
     noCalendar: true,
     enableSeconds: false,
     dateFormat: "H:i",
+    allowInput: true,
   });
 
   jQuery("#showModal").on("hidden.bs.modal", function () {
@@ -481,7 +508,7 @@
       beforeSend: function () {},
       success: function (response) {
         jQuery.each(response, function (i, item) {
-          console.log(response[i].id);
+          
           dataTable.row.add([
             response[i].slot_number_hour,
             response[i].extra_rate,
@@ -508,7 +535,7 @@
       beforeSend: function () {},
       success: function (response) {
         jQuery.each(response, function (i, item) {
-          console.log(response[i].id);
+          
           dataTable.row.add([
             response[i].standard_hourly_rate,
             response[i].effective_from,
@@ -525,28 +552,12 @@
     });
   });
   
-  jQuery(document).on("change", "#base_rate", function (e) {
-    var baseRateId = jQuery(this).val();
+  jQuery("#showModalCreate").on("hidden.bs.modal", function () {
+        jQuery(this).find("form").trigger("reset");
 
-    jQuery.ajax({
-      url: "{% url 'core:Check_packages_for_holidays_js' %}",
-      type: "GET",
-      data: { rate_id: baseRateId },
-      beforeSend: function () {},
-      success: function (response) {
-        if (response) {
-         
-            document.getElementById("is_holiday_package").checked = true;
-            alert("ddfff")
-         
-        } else {
-        }
-      },
-      error: function (response) {
-        console.log(response);
-      },
     });
-  });
+
+  
 </script>
 
 <!-- App js -->
