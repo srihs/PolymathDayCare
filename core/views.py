@@ -19,7 +19,8 @@ from django.core import serializers
 
 from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch
 from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, \
-                    UpdateRatesForm,CreateRateHistoryForm,UpdateExtraChargesForm,CreatePackagesForm, CreateBranchForm
+                    UpdateRatesForm,CreateRateHistoryForm,UpdateExtraChargesForm,CreatePackagesForm, CreateBranchForm, \
+                    CreateBranchForm
 
 
 #   This method 
@@ -629,6 +630,7 @@ def savePackage(request):
 
             objPackage.is_holiday_package = is_holiday_package
             objPackage.save()
+            messages.success(request, "Package details saved.")
         else:
             messages.error(request,form.errors)
 
@@ -676,11 +678,26 @@ def getBranchesJs(request):
             "address_line2",
             "address_line3"
             ))
-        print(branchList)
+        
         
    return JsonResponse(branchList, safe=False)
             
-        
+
+
+@login_required
+def saveBranch(request):
+    if request.method == "POST":
+        form = CreateBranchForm(request.POST)
+        if form.is_valid():
+            objBranch = form.save(commit=False)
+            objBranch.user_created = request.user.username
+            objBranch.save()
+            messages.success(request, "Branch details saved.")
+        else:
+            messages.error(request, form.errors)
+
+    return redirect("core:view_branches")     
+
         
 
 

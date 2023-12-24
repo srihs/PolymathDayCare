@@ -101,7 +101,7 @@
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0">
       <div class="modal-header">
-        <h5 class="modal-title">Add Packages</h5>
+        <h5 class="modal-title">Add Branch</h5>
         <button
           type="button"
           class="btn-close"
@@ -111,7 +111,7 @@
         ></button>
       </div>
       <form
-        action="{% url 'core:save_package' %}"
+        action="{% url 'core:save_branch' %}"
         method="post"
         class="tablelist-form"
         autocomplete="on"
@@ -119,8 +119,8 @@
         {% csrf_token %}
         <div class="modal-body">
           <div class="row g-3">
-            <div class="col-sm-4">{{form.base_rate}}</div>
-            <div class="col-sm-4">{{form.package_code}}</div>
+            <div class="col-sm-4">{{form.branch_code}}</div>
+            <div class="col-sm-4">{{form.branch_name}}</div>
             <div class="col-sm-4">{{form.package_name}}</div>
             <div class="col-sm-4">{{form.package_type}}</div>
             <div class="col-sm-4">{{form.from_time}}</div>
@@ -355,7 +355,7 @@
     var table = $("#branchList").DataTable({
       ajax: {
         processing: true,
-        //url: "{% url 'core:view_packages_js' %}",
+        url: "{% url 'core:get_branches_js' %}",
         dataSrc: "",
       },
       columns: [

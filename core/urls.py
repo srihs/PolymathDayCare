@@ -40,6 +40,8 @@ urlpatterns = [
                   path('save_package/', views.savePackage, name='save_package'),
 
                   path('branches/', views.getBranches, name='view_branches'),
+                  path('get_branches_js/', views.getBranchesJs, name='get_branches_js'),
+                  path('save_branch/', views.saveBranch, name='save_branch'),
 
                   
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
