@@ -5,7 +5,7 @@
 <div class="card">
   <div class="card-header border-0">
     <div class="d-flex align-items-center">
-      <h5 class="card-title mb-0 flex-grow-1">Packages</h5>
+      <h5 class="card-title mb-0 flex-grow-1">Branches</h5>
       <div class="flex-shrink-0">
         <div class="d-flex flex-wrap gap-2">
           <button
@@ -13,7 +13,7 @@
             data-bs-toggle="modal"
             data-bs-target="#showModalCreate"
           >
-            <i class="ri-add-line align-bottom me-1"></i> Add new package
+            <i class="ri-add-line align-bottom me-1"></i> Add new branch
           </button>
           <button class="btn btn-soft-secondary" id="remove-actions">
             <i class="ri-delete-bin-2-line"></i>
@@ -45,20 +45,16 @@
       <!-- end row -->
     </div>
 
-    <table id="packageList" class="display" style="width: 100%">
+    <table id="branchList" class="display" style="width: 100%">
       <thead>
         <tr>
-          <th>Package code</th>
-          <th>Package name</th>
-          <th>Package type</th>
-          <th>From</th>
-          <th>To</th>
-          <th>No of hours per day</th>
-          <th>No of days per week</th>
-          <th>No of days per month</th>
-          <th>Holiday package?</th>
-          <th>Package amount</th>
-          
+          <th>Branch code</th>
+          <th>Branch name</th>
+          <th>Contact person</th>
+          <th>Mobile number</th>
+          <th>Telepone number</th>
+          <th>Address</th>
+          <th data-orderable="false"></th>
         </tr>
       </thead>
     </table>
@@ -356,54 +352,38 @@
       }
     }, 2000);
 
-    var table = $("#packageList").DataTable({
+    var table = $("#branchList").DataTable({
       ajax: {
         processing: true,
-        url: "{% url 'core:view_packages_js' %}",
+        //url: "{% url 'core:view_packages_js' %}",
         dataSrc: "",
       },
       columns: [
-        { data: "package_code" },
-        { data: "package_name" },
-        { data: "package_type" },
-        { data: "from_time" },
-        { data: "to_time" },
-        { data: "no_hours" },
-        { data: "no_days_week" },
-        { data: "no_days_months" },
-        { data: "is_holiday_package" },
-        {data:"base_rate", className: "text-right"},
-        
+        { data: "branch_code" },
+        { data: "branch_name" },
+        { data: "branch_contact_person" },
+        { data: "branch_contact_mobile_number" },
+        { data: "branch_contact_number" },
+        { data: "address_line1" },
+        {
+                    data: null,
+                    render: function (data, type, row) {
+                        var url = "{% url 'core:view_baserate_update_byId' 0 %}";
+                        id= row.id;
+                        url = url.replace(0, id);
+                        return data =
+                            '<a href=' + url + ' id="addRates" class="btn btn-soft-primary  waves-effect waves-light btn-sm" data-id='+ id +' \
+                  data-bs-dismiss="modal" role="button"\
+                >Add base rate</a>';
+                    },
+                },
       ],
+      
 
       createdRow: function (row, data, dataIndex) {
-        // Check the condition for the 'is_holiday_rate' column
-        
-        if (data.is_holiday_package ==='Yes') 
-        {
-          $("td", row).eq(8).html('<span class="badge bg-success">Yes</span>');
-        } else 
-        {
-          
-          $("td", row).eq(8).html('<span class="badge bg-warning">No</span>');
-        }
-
-         // Fetch rate amount asynchronously
-        $.ajax({
-          url: "{% url 'core:get_Rate_amount_By_Id_Js' %}",
-          type: "GET",
-          data: { base_rate_id: data.base_rate, no_hours: data.no_hours, no_days_months: data.no_days_months},
-          success: function (response) {
-            
-              // Update the content in the ninth cell with the fetched rate amount
-            $("td", row).eq(9).html(response).addClass("text-center");
-          },
-          error: function (error) {
-              console.error("Error fetching rate amount:", error);
-          }
-        });
-
-
+        // Combining all the address fields
+        var address = data.address_line1 +" "+data.address_line2+" "+data.address_line1
+          $("td", row).eq(5).html(address);
       },
 
       

@@ -17,9 +17,9 @@ from decimal import Decimal
 from django.db import transaction
 from django.core import serializers
 
-from .models import Child, Package, Rates, ExtraCharges,RateHistory
+from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch
 from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, \
-                    UpdateRatesForm,CreateRateHistoryForm,UpdateExtraChargesForm,CreatePackagesForm
+                    UpdateRatesForm,CreateRateHistoryForm,UpdateExtraChargesForm,CreatePackagesForm, CreateBranchForm
 
 
 #   This method 
@@ -635,7 +635,50 @@ def savePackage(request):
     else:
         messages.error(request,"Something went wrong")
     
-    return redirect("core:view_packages")               
+    return redirect("core:view_packages")       
+
+
+@login_required
+def getBranches(request):
+    if request.method == "GET":
+        try:
+        # trying to retrive the next primaryKey
+            nextId = Branch.objects.all().count()
+            nextId += 1
+        except:
+            nextId = 1  # if the next ID is null define the record as the first
+    
+        branch_form = CreateBranchForm(initial={'branch_code': "BRN00" + str(nextId)})
+    
+    return render(
+        request,
+        "../templates/branch.html",
+        {
+            "form": branch_form,
+            "UserName": request.user.username,
+        },
+    )
+
+
+
+@login_required
+def getBranchesJs(request):
+   if request.method == "GET":
+        branchList = list(
+            Branch.objects.all().values(
+            "id",
+            "branch_code",
+            "branch_name",
+            "branch_contact_person",
+            "branch_contact_mobile_number",
+            "branch_contact_number",
+            "address_line1", 
+            "address_line2",
+            "address_line3"
+            ))
+        print(branchList)
+        
+   return JsonResponse(branchList, safe=False)
             
         
         

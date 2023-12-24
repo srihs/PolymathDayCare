@@ -16,7 +16,7 @@ class Rates(BaseClass):
     rate_name = models.CharField(max_length=550)
     is_holiday_rate = models.BooleanField(default=False)
 
-    class meta:
+    class Meta:
         verbose_name_plural = "Rates"
 
     def __str__(self):
@@ -36,6 +36,9 @@ class RateHistory(BaseClass):
     effective_from = models.DateField()
     effective_to = models.DateField(null=True)
 
+    class Meta:
+        verbose_name_plural = "Rate History"
+
     def __str__(self):
         return self.rate.rate_name 
 
@@ -48,7 +51,7 @@ class ExtraCharges(BaseClass):
     effective_from = models.DateField()
     effective_to = models.DateField(null=True)
     
-    class meta:
+    class Meta:
         unique_together = (("base_rate", "from_time","to_time"),)
         verbose_name = 'Extra Charge'
         verbose_name_plural = 'Extra Charges'
@@ -77,7 +80,7 @@ class Child(BaseClass):
     recipt_number = models.CharField(max_length=50)
     admission_date = models.DateField()
     
-    class meta:
+    class Meta:
         verbose_name = 'Child'
         verbose_name_plural = 'Children'
 
@@ -89,7 +92,6 @@ class Child(BaseClass):
 
 
 class Package(BaseClass):
-    
     package_type= models.CharField(max_length=10)
     package_code = models.CharField(max_length=10)
     package_name = models.CharField(max_length=200)
@@ -100,6 +102,10 @@ class Package(BaseClass):
     no_days_week = models.IntegerField()
     no_days_months = models.IntegerField()
     is_holiday_package = models.BooleanField()
+
+    class Meta:
+        verbose_name = 'package'
+        verbose_name_plural = 'packages'
     
     
     def __str__(self):
@@ -112,6 +118,11 @@ class HolidayType(BaseClass):
     holiday_code = models.CharField(max_length=10)
     holiday_type = models.CharField(max_length=100)
 
+    class Meta:
+        verbose_name = 'holiday type'
+        verbose_name_plural = 'holiday Types'
+
+
     def __str__(self):
         return self.holiday_code +" - "+ self.holiday_type
 
@@ -121,3 +132,41 @@ class Holiday(BaseClass):
     holiday_type = models.ForeignKey("HolidayType", on_delete=models.CASCADE)
     start_date = models.DateField()
     end_date = models.DateField()
+
+    class Meta:
+        verbose_name = 'Holiday'
+        verbose_name_plural = 'Holidays'
+
+    
+
+
+class Branch(BaseClass):
+    branch_code = models.CharField(max_length=10)
+    branch_name = models.CharField(max_length=10)
+    branch_contact_person = models.CharField(max_length=10)
+    branch_contact_mobile_number = models.CharField(max_length=10)
+    branch_contact_number = models.CharField(max_length=10)
+    address_line1 = models.CharField(max_length=200)
+    address_line2 = models.CharField(max_length=200)
+    address_line3 = models.CharField(max_length=200)
+
+    class Meta:
+        verbose_name = 'branch'
+        verbose_name_plural = 'branches'
+
+    def __str__(self):
+        return self.branch_code +" - "+ self.branch_name
+
+
+
+class ChildAssignment(BaseClass):
+    child = models.ForeignKey("Child", on_delete=models.CASCADE)
+    package = models.ForeignKey("Package", on_delete=models.CASCADE)
+    branch = models.ForeignKey("Branch", on_delete=models.CASCADE)
+
+    class Meta:
+        verbose_name = 'Child Assignment'
+        verbose_name_plural = 'Child Assignments'
+    
+    def __str__(self):
+        return self.child 

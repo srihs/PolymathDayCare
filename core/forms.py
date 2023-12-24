@@ -3,7 +3,7 @@ from django.forms import ImageField
 from django.db import models
 from django.contrib.admin.widgets import AdminDateWidget
 from django.core.validators import MinValueValidator
-from .models import Child, Rates, ExtraCharges,RateHistory,Package
+from .models import Child, Rates, ExtraCharges,RateHistory,Package, Branch
 from decimal import *
 
 
@@ -288,4 +288,44 @@ class CreatePackagesForm(forms.ModelForm):
 
     class Meta:
         model = Package
-        fields = ('package_name','package_code','package_type','from_time','to_time','no_hours','no_days_week','no_days_months','is_holiday_package')             
+        fields = ('package_name','package_code','package_type','from_time','to_time','no_hours','no_days_week','no_days_months','is_holiday_package')   
+
+
+
+
+class CreateBranchForm(forms.ModelForm):
+
+    branch_code = forms.CharField(max_length=250, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Branch Code' }))
+    
+    branch_name = forms.CharField(max_length=250, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Branch Name' }))
+    
+    branch_contact_person = forms.CharField(max_length=250, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Contact person name' }))
+    
+    branch_contact_mobile_number = forms.CharField(max_length=250, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Mobile number' }))
+    
+    branch_contact_number = forms.CharField(max_length=250, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Phone number' }))
+    
+    address_line1 = forms.CharField(max_length=250, widget=forms.TextInput(
+                                        attrs={'class': 'form-control', 'placeholder': 'Address Line1'}))
+    
+    address_line2 = forms.CharField(max_length=250, required=False,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control', 'placeholder': 'Address Line2'}))
+    
+    address_line3 = forms.CharField(max_length=250, required=False,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control', 'placeholder': 'Address Line3'}))
+    
+    class Meta:
+        model = Branch
+        fields = ('branch_code','branch_name','branch_contact_person','branch_contact_mobile_number','branch_contact_number','address_line1','address_line2','address_line3')  
