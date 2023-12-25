@@ -159,8 +159,20 @@ class Branch(BaseClass):
         return self.branch_code +" - "+ self.branch_name
 
 
+class DayCare(BaseClass):
+    daycare_code = models.CharField(max_length=10)
+    daycare_name = models.CharField(max_length=150)
+    branch = models.ForeignKey("Branch", on_delete=models.CASCADE)
 
-class ChildAssignment(BaseClass):
+
+    class Meta:
+        verbose_name = 'branch'
+        verbose_name_plural = 'branches'
+
+
+class ChildEnrollment(BaseClass):
+    enrollment_code = models.CharField(max_length=20)
+    enrollment_date = models.DateField()
     child = models.ForeignKey("Child", on_delete=models.CASCADE)
     package = models.ForeignKey("Package", on_delete=models.CASCADE)
     branch = models.ForeignKey("Branch", on_delete=models.CASCADE)
