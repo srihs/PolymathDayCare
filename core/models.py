@@ -2,6 +2,7 @@ from django.db import models
 
 
 class BaseClass(models.Model):
+    id = models.AutoField(primary_key=True)
     date_created = models.DateTimeField(auto_now_add=True)
     user_created = models.CharField(max_length=50)
     date_updated = models.DateTimeField(auto_now=True)

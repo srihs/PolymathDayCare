@@ -54,6 +54,7 @@
           <th>Mobile number</th>
           <th>Telepone number</th>
           <th>Address</th>
+          <th>Is active</th>
           <th data-orderable="false"></th>
         </tr>
       </thead>
@@ -354,6 +355,7 @@
         { data: "branch_contact_mobile_number" },
         { data: "branch_contact_number" },
         { data: "address_line1" },
+        { data: "is_active" },
         {
                     data: null,
                     render: function (data, type, row) {
@@ -372,6 +374,12 @@
         // Combining all the address fields
         var address = data.address_line1 +" "+data.address_line2+" "+data.address_line1
           $("td", row).eq(5).html(address);
+
+          if (data.is_active) {
+                    $("td", row).eq(6).html('<span class="badge bg-success">Yes</span>');
+                } else {
+                    $("td", row).eq(6).html('<span class="badge bg-warning">No</span>');
+                }
       },
 
       

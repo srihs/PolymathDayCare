@@ -676,7 +676,8 @@ def getBranchesJs(request):
             "branch_contact_number",
             "address_line1", 
             "address_line2",
-            "address_line3"
+            "address_line3",
+            "is_active"
             ))
         
         
@@ -687,19 +688,44 @@ def getBranchesJs(request):
 @login_required
 def saveBranch(request):
     if request.method == "POST":
-        if request.POST.get("id") is not None:
+        id = request.POST.get("id")
+        branch_code = request.POST.get("branch_code")
+        branch_name = request.POST.get("branch_name")
+        branch_contact_person = request.POST.get("branch_contact_person")
+        branch_contact_mobile_number = request.POST.get("branch_contact_mobile_number")
+        branch_contact_number = request.POST.get("branch_contact_number")
+        address_line1 = request.POST.get("address_line1")
+        address_line2 = request.POST.get("address_line2")
+        address_line3 = request.POST.get("address_line3")
+        is_active = request.POST.get("is_active")
+       
+
+        if branch_code is not None:
                 objBranch = Branch.objects.get(
-                    id=request.POST.get("id")
+                    branch_code=branch_code
                 )
                 if objBranch is not None:
+                    objBranch.branch_code = branch_code
+                    objBranch.branch_name = branch_name
+                    objBranch.branch_contact_person = branch_contact_person
+                    objBranch.branch_contact_mobile_number = branch_contact_mobile_number
+                    objBranch.branch_contact_number = branch_contact_number
+                    objBranch.address_line1 = address_line1
+                    objBranch.address_line2 = address_line2
+                    objBranch.address_line3 = address_line3
+                    
+                    if is_active == "on":
+                        is_active = True
+                    else:
+                        is_active = False
 
-                    objBranch.rate_name = rate_name
-                    objBranch.is_holiday_rate = is_holiday_rate
-                    objBranch.is_active = True
-                    objBranch.user_updated =request.user.username
+                    objBranch.is_active = is_active
+
+                    objBranch.user_updated = request.user.username
                     objBranch.date_updated = datetime.datetime.now()
                     objBranch.save()
-                    messages.success(request, "Rate details updated.")
+
+                    messages.success(request, "Branch details updated.")
                 else:
                     form = CreateBranchForm(request.POST)
                     if form.is_valid():
@@ -720,27 +746,14 @@ def getBranchForUpdateById(request,pk):
         
         if objBranch is not None:
             updateBranch_form = UpdateBranchForm(instance=objBranch)
+        
+        print(objBranch.id)
 
     except Exception as e:
         messages.error(request, e)
     return render(
         request, "../templates/partials/branchUpdate.html", {"form": updateBranch_form}
     )
-
-
-@login_required
-def updateBranch(request,pk):
-    if request.method == "POST":
-        form = UpdateBranchForm(request.POST)
-        if form.is_valid():
-            objBranch = form.save(commit=False)
-            objBranch.user_updated = request.user.username
-            objBranch.save()
-            messages.success(request, "Branch details updated.")
-        else:
-            messages.error(request, form.errors)
-
-    return redirect("core:view_branches")     
 
 
 
