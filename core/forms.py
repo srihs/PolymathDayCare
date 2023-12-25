@@ -297,7 +297,7 @@ class CreateBranchForm(forms.ModelForm):
 
     branch_code = forms.CharField(max_length=250, required=True,
                                     widget=forms.TextInput(
-                                        attrs={'class': 'form-control','placeholder': 'Branch Code' }))
+                                        attrs={'class': 'form-control','placeholder': 'Branch Code','readonly': 'readonly' }))
     
     branch_name = forms.CharField(max_length=250, required=True,
                                     widget=forms.TextInput(
@@ -326,6 +326,54 @@ class CreateBranchForm(forms.ModelForm):
                                     widget=forms.TextInput(
                                         attrs={'class': 'form-control', 'placeholder': 'Address Line3'}))
     
+    
+    
     class Meta:
         model = Branch
         fields = ('branch_code','branch_name','branch_contact_person','branch_contact_mobile_number','branch_contact_number','address_line1','address_line2','address_line3')  
+
+
+
+class UpdateBranchForm(forms.ModelForm):
+
+    id = forms.CharField(max_length=250, required=False,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control', }))
+    
+    branch_code = forms.CharField(max_length=250, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Branch Code','readonly': 'readonly' }))
+    
+    branch_name = forms.CharField(max_length=250, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Branch Name' }))
+    
+    branch_contact_person = forms.CharField(max_length=250, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Contact person name' }))
+    
+    branch_contact_mobile_number = forms.CharField(max_length=250, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Mobile number' }))
+    
+    branch_contact_number = forms.CharField(max_length=250, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Phone number' }))
+    
+    address_line1 = forms.CharField(max_length=250, widget=forms.TextInput(
+                                        attrs={'class': 'form-control', 'placeholder': 'Address Line1'}))
+    
+    address_line2 = forms.CharField(max_length=250, required=False,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control', 'placeholder': 'Address Line2'}))
+    
+    address_line3 = forms.CharField(max_length=250, required=False,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control', 'placeholder': 'Address Line3'}))
+    
+    is_active = forms.BooleanField(required=False, 
+                                         widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'type': 'checkbox'}))
+    
+    class Meta:
+        model = Branch
+        fields = ('branch_code','branch_name','branch_contact_person','branch_contact_mobile_number','branch_contact_number','address_line1','address_line2','address_line3','is_active')  

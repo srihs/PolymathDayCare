@@ -1,5 +1,5 @@
 {% extends "base.html" %} {% load static %} {% block UserName %} {{ UserName}}
-{% endblock %} {% block Title %} SETTINGS {% endblock %} {% block functionTitle%}RATES{% endblock %} {% block content %}
+{% endblock %} {% block Title %} SETTINGS {% endblock %} {% block functionTitle%}PACKAGES{% endblock %} {% block content %}
 
 <!-- Data Table-->
 <div class="card">
@@ -159,95 +159,8 @@
   </div>
 </div>
 
-<!--Additional Rates Form-->
-<div
-  id="flipModal"
-  class="modal fade flip"
-  tabindex="-1"
-  aria-labelledby="flipModalLabel"
-  style="display: none"
-  aria-hidden="true"
->
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="flipModalLabel">Extra hour rates</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-        ></button>
-      </div>
-      <div class="modal-body">
-        <div>
-          <table id="AdditionalRateList" class="display" style="width: 100%">
-            <thead>
-              <tr>
-                <th>Slot (hr)</th>
-                <th>Rate</th>
-                <th>Effective from</th>
-                <th>Effective to</th>
-              </tr>
-            </thead>
-          </table>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
-          Close
-        </button>
-      </div>
-    </div>
-    <!-- /.modal-content -->
-  </div>
-  <!-- /.modal-dialog -->
-</div>
 
-<!--Rate History pop-up-->
-<div
-  id="historyModal"
-  class="modal fade flip"
-  tabindex="-1"
-  aria-labelledby="flipModalLabel"
-  style="display: none"
-  aria-hidden="true"
->
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="flipModalLabel">Rate History</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-        ></button>
-      </div>
-      <div class="modal-body">
-        <div>
-          <table id="RateHistoryList" class="display" style="width: 100%">
-            <thead>
-              <tr>
-                <th>Rate (hr)</th>
-                <th>Effective from</th>
-                <th>Effective to</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-          </table>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
-          Close
-        </button>
-      </div>
-    </div>
-    <!-- /.modal-content -->
-  </div>
-  <!-- /.modal-dialog -->
-</div>
+
 
 <!--Update Form-->
 <div
@@ -275,43 +188,6 @@
   </div>
 </div>
 
-<!--Rate Form-->
-<div
-  id="rateModals"
-  class="modal fade zoomIn"
-  tabindex="-1"
-  style="display: none"
-  aria-modal="true"
-  role="dialog"
->
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 overflow-hidden">
-      <div class="modal-header p-3">
-        <h4 class="card-title mb-0">Set rates</h4>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-        ></button>
-      </div>
-      <div class="alert alert-danger rounded-0 mb-0">
-        <p class="mb-0">
-          <center>
-            <strong
-              >Please note that this operation will change the rates for all
-              pcakages associated with this base rate from the selected
-              effective date.</strong
-            >
-          </center>
-        </p>
-      </div>
-      <div id="modelRateForm" bs-focus="false"></div>
-    </div>
-    <!-- /.modal-content -->
-  </div>
-  <!-- /.modal-dialog -->
-</div>
 
 {% endblock %} {% block scripts %}
 <!-- jQuery -->

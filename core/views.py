@@ -20,7 +20,7 @@ from django.core import serializers
 from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch
 from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, \
                     UpdateRatesForm,CreateRateHistoryForm,UpdateExtraChargesForm,CreatePackagesForm, CreateBranchForm, \
-                    CreateBranchForm
+                    CreateBranchForm, UpdateBranchForm
 
 
 #   This method 
@@ -687,18 +687,61 @@ def getBranchesJs(request):
 @login_required
 def saveBranch(request):
     if request.method == "POST":
-        form = CreateBranchForm(request.POST)
+        if request.POST.get("id") is not None:
+                objBranch = Branch.objects.get(
+                    id=request.POST.get("id")
+                )
+                if objBranch is not None:
+
+                    objBranch.rate_name = rate_name
+                    objBranch.is_holiday_rate = is_holiday_rate
+                    objBranch.is_active = True
+                    objBranch.user_updated =request.user.username
+                    objBranch.date_updated = datetime.datetime.now()
+                    objBranch.save()
+                    messages.success(request, "Rate details updated.")
+                else:
+                    form = CreateBranchForm(request.POST)
+                    if form.is_valid():
+                        objBranch = form.save(commit=False)
+                        objBranch.user_created = request.user.username
+                        objBranch.save()
+                        messages.success(request, "Branch details saved.")
+                    else:
+                        messages.error(request, form.errors)
+
+    return redirect("core:view_branches")     
+
+
+def getBranchForUpdateById(request,pk):
+    try:
+        updateBranch_form = None
+        objBranch = get_object_or_404(Branch, pk=pk)
+        
+        if objBranch is not None:
+            updateBranch_form = UpdateBranchForm(instance=objBranch)
+
+    except Exception as e:
+        messages.error(request, e)
+    return render(
+        request, "../templates/partials/branchUpdate.html", {"form": updateBranch_form}
+    )
+
+
+@login_required
+def updateBranch(request,pk):
+    if request.method == "POST":
+        form = UpdateBranchForm(request.POST)
         if form.is_valid():
             objBranch = form.save(commit=False)
-            objBranch.user_created = request.user.username
+            objBranch.user_updated = request.user.username
             objBranch.save()
-            messages.success(request, "Branch details saved.")
+            messages.success(request, "Branch details updated.")
         else:
             messages.error(request, form.errors)
 
     return redirect("core:view_branches")     
 
-        
 
 
 

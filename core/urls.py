@@ -42,6 +42,7 @@ urlpatterns = [
                   path('branches/', views.getBranches, name='view_branches'),
                   path('get_branches_js/', views.getBranchesJs, name='get_branches_js'),
                   path('save_branch/', views.saveBranch, name='save_branch'),
+                  path('get_Branch_For_Update_By_Id/<int:pk>/', views.getBranchForUpdateById, name='get_Branch_For_Update'),
 
                   
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -89,7 +89,7 @@
   </div>
 </div>
 
-<!-- Settings Form -->
+<!-- Add Modal Form -->
 <div
   class="modal fade zoomIn"
   id="showModalCreate"
@@ -121,27 +121,16 @@
           <div class="row g-3">
             <div class="col-sm-4">{{form.branch_code}}</div>
             <div class="col-sm-4">{{form.branch_name}}</div>
-            <div class="col-sm-4">{{form.package_name}}</div>
-            <div class="col-sm-4">{{form.package_type}}</div>
-            <div class="col-sm-4">{{form.from_time}}</div>
-            <div class="col-sm-4">{{form.to_time}}</div>
-            <div class="col-sm-4">{{form.no_hours}}</div>
-            <div class="col-sm-4">{{form.no_days_week}}</div>
-            <div class="col-sm-4">{{form.no_days_months}}</div>
-            <div class="col-sm-4">
-              <div>
-                 <div class="form-check form-switch">
-                  {{form.is_holiday_package}}
-                  <label class="form-check-label" for="formCheck8">
-                    Is holiday package?
-                  </label>
-              </div> 
-
-                
-              </div>
+            <div class="col-sm-4">{{form.branch_contact_person}}</div>
+            <div class="col-sm-4">{{form.branch_contact_mobile_number}}</div>
+            <div class="col-sm-4">{{form.branch_contact_number}}</div>
+            <div class="col-sm-4">{{form.address_line1}}</div>
+            <div class="col-sm-4">{{form.address_line2}}</div>
+            <div class="col-sm-4">{{form.address_line3}}</div>
+        
             </div>
           </div>
-        </div>
+       
         <div class="modal-footer" style="display: block">
           <div class="hstack gap-2 justify-content-end">
             <button type="button" class="btn btn-light" data-bs-dismiss="modal">
@@ -368,13 +357,12 @@
         {
                     data: null,
                     render: function (data, type, row) {
-                        var url = "{% url 'core:view_baserate_update_byId' 0 %}";
+                        var url = "{% url 'core:get_Branch_For_Update' 0 %}";
                         id= row.id;
                         url = url.replace(0, id);
                         return data =
-                            '<a href=' + url + ' id="addRates" class="btn btn-soft-primary  waves-effect waves-light btn-sm" data-id='+ id +' \
-                  data-bs-dismiss="modal" role="button"\
-                >Add base rate</a>';
+                        '<a href=' + url + ' class="link-success"  data-id='+ id +' data-bs-target="#showUpdateModal"\
+                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="ri-edit-2-fill"></i></a>';
                     },
                 },
       ],
@@ -419,6 +407,7 @@
   jQuery(document).on("click", ".link-success", function (e) {
     e.preventDefault();
     url = jQuery(this).attr("href");
+    
 
     // Show the modal
     jQuery("#showUpdateModal").modal("show");

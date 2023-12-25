@@ -142,10 +142,10 @@ class Holiday(BaseClass):
 
 class Branch(BaseClass):
     branch_code = models.CharField(max_length=10)
-    branch_name = models.CharField(max_length=10)
-    branch_contact_person = models.CharField(max_length=10)
-    branch_contact_mobile_number = models.CharField(max_length=10)
-    branch_contact_number = models.CharField(max_length=10)
+    branch_name = models.CharField(max_length=150)
+    branch_contact_person = models.CharField(max_length=150)
+    branch_contact_mobile_number = models.CharField(max_length=15)
+    branch_contact_number = models.CharField(max_length=15)
     address_line1 = models.CharField(max_length=200)
     address_line2 = models.CharField(max_length=200)
     address_line3 = models.CharField(max_length=200)

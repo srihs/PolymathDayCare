@@ -1,0 +1,59 @@
+{% load static %}
+<form
+        action="{% url 'core:save_rates'  %}"
+        method="POST"
+        class="tablelist-form"
+        autocomplete="on"
+      >
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-lg-12">
+              <div class="card">
+                <div class="card-header align-items-center d-flex">
+                  <h4 class="card-title mb-0 flex-grow-1">Branch</h4>
+                  
+                </div>
+                <!-- end card header -->
+                <div class="card-body">
+                  <div class="live-preview">
+                    <div class="row gy-4">
+                        <div class="col-sm-4">{{form.branch_code}}</div>
+            <div class="col-sm-4">{{form.branch_name}}</div>
+            <div class="col-sm-4">{{form.branch_contact_person}}</div>
+            <div class="col-sm-4">{{form.branch_contact_mobile_number}}</div>
+            <div class="col-sm-4">{{form.branch_contact_number}}</div>
+            <div class="col-sm-4">{{form.address_line1}}</div>
+            <div class="col-sm-4">{{form.address_line2}}</div>
+            <div class="col-sm-4">{{form.address_line3}}</div>
+                      <!--end col-->
+                      <div class="col-xxl-3 col-md-6">
+                        <div>
+                          <div class="form-check form-switch">
+                            {{ form.is_active }}
+                            <label class="form-check-label"
+                              >Is active?</label
+                            >
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <!--end row-->
+                  </div>
+                </div>
+              </div>
+
+            
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: block">
+          <div class="hstack gap-2 justify-content-end">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+              Close
+            </button>
+            <button class="btn btn-secondary" type="submit">Save </button>
+            <!-- <button type="button" class="btn btn-success" id="edit-btn">Update</button> -->
+          </div>
+        </div>
+      </form>
