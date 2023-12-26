@@ -44,5 +44,11 @@ urlpatterns = [
                   path('save_branch/', views.saveBranch, name='save_branch'),
                   path('get_Branch_For_Update_By_Id/<int:pk>/', views.getBranchForUpdateById, name='get_Branch_For_Update'),
 
+                  path('daycare/', views.getDaycareCenters, name='view_centers'),
+                  path('save_daycare/', views.saveDayCareCenter, name='save_daycare'),
+                  path('get_daycares_js/', views.getDayCareCentersJs, name='get_daycares_js'),
+                  path('get_DayCareCenters_byId_Js/', views.getDayCareCenterNamebyIdJs, name='get_DayCareCenters_byId_Js'),
+
+
                   
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

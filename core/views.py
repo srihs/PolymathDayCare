@@ -17,13 +17,13 @@ from decimal import Decimal
 from django.db import transaction
 from django.core import serializers
 
-from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch
+from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch,DayCare
 from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, \
                     UpdateRatesForm,CreateRateHistoryForm,UpdateExtraChargesForm,CreatePackagesForm, CreateBranchForm, \
-                    CreateBranchForm, UpdateBranchForm
+                    CreateBranchForm, UpdateBranchForm, CreateDayCareForm
 
 
-#   This method 
+#   This method
 @login_required
 def index(request):
     UserName = request.user.username
@@ -52,19 +52,19 @@ def UserLogin(request):
                     else:
                         # Handle invalid or unsafe redirect URLs
                         return redirect("")  # Redirect to a default URL or homepage
-                
-                   
-                        
+
+
+
             else:
                 messages.error(
                     request,
                     "Invalid user credentials.Please check your username and password.",
                 )
-        
+
 
     except Exception as e:
         messages.error(request, e)
-    
+
     return render(request, "../templates/login.html")
 
 
@@ -103,7 +103,7 @@ def getChild(request):
         nextId = 1  # if the next ID is null define the record as the first
 
     child_form = CreateChildForm(
-        initial={"admission_number": "D" + str(nextId)}
+        initial={"admission_number": "D0" + str(nextId)}
     )  # creating the form with the admission ID
 
     return render(
@@ -242,8 +242,8 @@ def getRatesJs(reuest):
 def getRates(request):
     if request.method == "GET":
         settings_form = CreateRatesForm()
-    
-    else:    
+
+    else:
         objSettings = Rates.objects.all().first()
         settings_form = CreateRatesForm(instance=objSettings)
 
@@ -261,7 +261,7 @@ def getRateByID(request, pk):
     try:
         rate_form = None
         objRate = get_object_or_404(Rates, pk=pk)
-        
+
         if objRate is not None:
             rate_form = UpdateRatesForm(instance=objRate)
 
@@ -270,7 +270,7 @@ def getRateByID(request, pk):
     return render(
         request, "../templates/partials/rateUpdate.html", {"formU": rate_form}
     )
-    
+
 @login_required
 def getRateAmountByIdJs(request):
      if request.method == "GET":
@@ -285,8 +285,8 @@ def getRateAmountByIdJs(request):
                     print(Decimal(request.GET.get('no_days_months')))
                     print(objRateHistory.standard_hourly_rate)
                     total_package_amount = objRateHistory.standard_hourly_rate * Decimal(request.GET.get('no_hours')) * Decimal(request.GET.get('no_days_months'))
-                    
-                    return JsonResponse("{:,.2f}".format(total_package_amount), safe=False)  
+
+                    return JsonResponse("{:,.2f}".format(total_package_amount), safe=False)
             else:
                 return JsonResponse(None,safe=False)
         return JsonResponse("000.00",safe=False)
@@ -298,7 +298,7 @@ def saveRates(request):
             form = UpdateRatesForm(request.POST)
             objRates= form.save(commit=False)
             # capturing the variables with data
-            
+
             rate_name = request.POST.get("rate_name")
             is_holiday_rate = request.POST.get("is_holiday_rate")
             is_active = request.POST.get("is_active")
@@ -333,8 +333,8 @@ def saveRates(request):
 
     except Exception as e:
         messages.error(request, e)
-    return redirect("core:view_rates")        
-    
+    return redirect("core:view_rates")
+
 
 @login_required
 def getAdditionalRates(request):
@@ -351,8 +351,8 @@ def getAdditionalRates(request):
             "UserName": request.user.username,
         },
     )
-    
-    
+
+
 @login_required
 def getAdditionalRatesJs(request):
     additionalRatesList = None
@@ -361,7 +361,7 @@ def getAdditionalRatesJs(request):
         additionalRatesList = list(
             ExtraCharges.objects.filter(base_rate_id=id, is_active=True).values(
             "id",
-            "base_rate", 
+            "base_rate",
             "from_time",
             "to_time",
             "extra_rate",
@@ -384,7 +384,7 @@ def getAdditionalRateById(request):
             objRate = get_object_or_404(ExtraCharges, pk=request.GET.get('rate_id'))
             request.session['id'] = objRate.id
             request.session.modified = True
-        
+
         if objRate is not None:
             rate_form = UpdateExtraChargesForm(instance=objRate)
 
@@ -393,7 +393,7 @@ def getAdditionalRateById(request):
     return render(
         request, "../templates/partials/extrarateupdate.html", {"formU": rate_form}
     )
-    
+
 
 
 @login_required
@@ -404,12 +404,12 @@ def saveAdditionalRates(request):
         form = CreateExtraChargesForm(request.POST)
 
         if form.is_valid():
-           
+
             objAdditionalRates= form.save(commit=False)
             objExtraChargestchek = ExtraCharges.objects.filter(base_rate=objAdditionalRates.base_rate.id,
                                                                from_time=objAdditionalRates.from_time,
                                                                to_time=objAdditionalRates.to_time).first()
-            
+
             if objExtraChargestchek is not None:
                 messages.error(request,"This time slot is already defined")
             else:
@@ -420,8 +420,8 @@ def saveAdditionalRates(request):
                 messages.success(request, "Additional rate details saved.")
         else:
             messages.error(request,form.errors)
-                
-    return redirect("core:view_additional_rates") 
+
+    return redirect("core:view_additional_rates")
 
 
 @login_required
@@ -454,13 +454,13 @@ def updateAdditionalRates(request):
     except Exception as e:
         messages.error(request, e)
 
-    return redirect("core:view_additional_rates") 
+    return redirect("core:view_additional_rates")
 
 
 
 
 
-# This method will save the Rate history for a give base rate. 
+# This method will save the Rate history for a give base rate.
 # Operation :- get the base rate id. Check for the validity and retrive the previous rates and set the effective_to date to effective_date
 #if not previous rates are found, Create a new rate entry.
 @login_required
@@ -475,7 +475,7 @@ def saveBaseRate(request):
             if request.POST.get("rate_id") is not None:
                 oldRate = RateHistory.objects.filter(
                         rate_id=request.POST.get("rate_id"),is_active=True
-                    ).first() 
+                    ).first()
                 with transaction.atomic():
                     if oldRate is not None:
                         if oldRate.effective_to is None and oldRate.is_active == True:
@@ -505,7 +505,7 @@ def saveBaseRate(request):
                 messages.error(request, "Rate ")
     except Exception as e:
         messages.error(request, e)
-    return redirect("core:view_rates")   
+    return redirect("core:view_rates")
 
 
 
@@ -520,7 +520,7 @@ def getRateHistoryById(request,pk):
         if objBaseRate is not None:
             baseRateName = objBaseRate.rate_name
             id = objBaseRate.id
-    history_form = CreateRateHistoryForm()   
+    history_form = CreateRateHistoryForm()
     return render(request, "../templates/partials/addratesforbase.html", {"formU": history_form, "baseRateName":baseRateName,"id":id})
 
 
@@ -544,7 +544,7 @@ def getRatesforRatesJs(request):
             else:
                  ratesList[i]["is_active"] ="Inactive"
 
-    
+
    return JsonResponse(ratesList, safe=False)
 
 
@@ -557,7 +557,7 @@ def getPackages(request):
             nextId += 1
         except:
             nextId = 1  # if the next ID is null define the record as the first
-    
+
         package_form = CreatePackagesForm(initial={'package_code': "PKG00" + str(nextId)})
     return render(
         request,
@@ -580,37 +580,37 @@ def getPackagesJs(request):
             "package_name",
             "from_time",
             "to_time",
-            "no_hours", 
+            "no_hours",
             "no_days_week",
             "no_days_months",
             "is_holiday_package",
             "base_rate",
             ))
-        
+
         for i,n in enumerate(packageList):
             # query =Rates.objects.filter(pk=packageList[i]["base_rate"])
             # packageList[i]["base_rate"] = serializers.serialize('json',query)
-            
+
             if n['is_holiday_package']:
                 packageList[i]["is_holiday_package"] ="Yes"
-                
+
             else:
                  packageList[i]["is_holiday_package"] ="No"
 
-       
-    
+
+
    return JsonResponse(packageList, safe=False)
 
 @login_required
 def checkIfHolidayPackage(id):
     is_holiday =None
-    
+
     objBaseRate = Rates.objects.get(pk=id)
     if objBaseRate.is_holiday_rate:
         is_holiday = True
     else:
         is_holiday = False
-    
+
     return is_holiday
 
 
@@ -620,12 +620,12 @@ def savePackage(request):
         form = CreatePackagesForm(request.POST)
         if form.is_valid():
             objPackage= form.save(commit=False)
-           
+
             objBaseRate = Rates.objects.get(pk = request.POST.get("base_rate"))
-            
+
             objPackage.base_rate = objBaseRate
             objPackage.user_created = request.user.username
-            
+
             is_holiday_package = objBaseRate.checkIfHolidayPackage()
 
             objPackage.is_holiday_package = is_holiday_package
@@ -636,8 +636,8 @@ def savePackage(request):
 
     else:
         messages.error(request,"Something went wrong")
-    
-    return redirect("core:view_packages")       
+
+    return redirect("core:view_packages")
 
 
 @login_required
@@ -649,9 +649,9 @@ def getBranches(request):
             nextId += 1
         except:
             nextId = 1  # if the next ID is null define the record as the first
-    
+
         branch_form = CreateBranchForm(initial={'branch_code': "BRN00" + str(nextId)})
-    
+
     return render(
         request,
         "../templates/branch.html",
@@ -674,15 +674,15 @@ def getBranchesJs(request):
             "branch_contact_person",
             "branch_contact_mobile_number",
             "branch_contact_number",
-            "address_line1", 
+            "address_line1",
             "address_line2",
             "address_line3",
             "is_active"
             ))
-        
-        
+
+
    return JsonResponse(branchList, safe=False)
-            
+
 
 
 @login_required
@@ -698,7 +698,7 @@ def saveBranch(request):
         address_line2 = request.POST.get("address_line2")
         address_line3 = request.POST.get("address_line3")
         is_active = request.POST.get("is_active")
-       
+
 
         if branch_code is not None:
                 objBranch = Branch.objects.get(
@@ -713,7 +713,7 @@ def saveBranch(request):
                     objBranch.address_line1 = address_line1
                     objBranch.address_line2 = address_line2
                     objBranch.address_line3 = address_line3
-                    
+
                     if is_active == "on":
                         is_active = True
                     else:
@@ -736,17 +736,17 @@ def saveBranch(request):
                     else:
                         messages.error(request, form.errors)
 
-    return redirect("core:view_branches")     
+    return redirect("core:view_branches")
 
-
+@login_required
 def getBranchForUpdateById(request,pk):
     try:
         updateBranch_form = None
         objBranch = get_object_or_404(Branch, pk=pk)
-        
+
         if objBranch is not None:
             updateBranch_form = UpdateBranchForm(instance=objBranch)
-        
+
         print(objBranch.id)
 
     except Exception as e:
@@ -756,5 +756,120 @@ def getBranchForUpdateById(request,pk):
     )
 
 
+@login_required
+def getDaycareCenters(request):
+    if request.method == "GET":
+        try:
+        # trying to retrive the next primaryKey
+            nextId = DayCare.objects.all().count()
+            nextId += 1
+        except:
+            nextId = 1  # if the next ID is null define the record as the first
+
+        branch_form = CreateDayCareForm(initial={'daycare_code': "DC00" + str(nextId)})
+
+    return render(
+        request,
+        "../templates/dccenters.html",
+        {
+            "form": branch_form,
+            "UserName": request.user.username,
+        },
+    )
 
 
+@login_required
+def saveDayCareCenter(request):
+     if request.method == "POST":
+        print("In the method")
+        daycare_code = request.POST.get("daycare_code")
+        daycare_name = request.POST.get("daycare_name")
+        branch = request.POST.get("branch")
+        daycare_incharge = request.POST.get("daycare_incharge")
+        daycare_contact_mobile_number = request.POST.get("daycare_contact_mobile_number")
+        daycare_contact_number = request.POST.get("daycare_contact_number")
+        is_active = request.POST.get("is_active")
+
+
+        print(daycare_incharge)
+        print(daycare_contact_mobile_number)
+        print(daycare_contact_number)
+
+        try:
+                if daycare_code is not None:
+                    objDayCare = DayCare.objects.get(
+                        daycare_code=daycare_code
+                    )
+                    if objDayCare is not None:
+                        objDayCare.daycare_code = daycare_code
+                        objDayCare.daycare_name = daycare_name
+                        objDayCare.branch = branch
+                        objDayCare.daycare_incharge = daycare_incharge
+                        objDayCare.daycare_contact_mobile_number = daycare_contact_mobile_number
+                        objDayCare.daycare_contact_number = daycare_contact_number
+                        
+                        if is_active == "on":
+                            is_active = True
+                        else:
+                            is_active = False
+
+                        objDayCare.is_active = is_active
+
+                        objDayCare.user_updated = request.user.username
+                        objDayCare.date_updated = datetime.datetime.now()
+                        objDayCare.save()
+                        messages.success(request, "Center details updated.")
+
+        except :
+            form = CreateDayCareForm(request.POST)
+            if form.is_valid():
+                objDayCare = form.save(commit=False)
+                objDayCare.user_created = request.user.username
+                objDayCare.save()
+                messages.success(request, "Center details saved.")
+            else:
+                messages.error(request, form.errors)
+                    
+    
+            return redirect("core:view_centers")
+
+
+@login_required
+def getDayCareCentersJs(request):
+   if request.method == "GET":
+        daycareList = list(
+            DayCare.objects.all().values(
+            "id",
+            "daycare_code",
+            "daycare_name",
+            "daycare_incharge",
+            "daycare_contact_number",
+            "daycare_contact_mobile_number",
+            "branch",
+            "is_active",
+            ))
+
+        for i,n in enumerate(daycareList):
+           
+
+            if n['is_active']:
+                daycareList[i]["is_active"] ="Yes"
+
+            else:
+                 daycareList[i]["is_active"] ="No"
+            
+   return JsonResponse(daycareList, safe=False)
+
+
+@login_required
+def getDayCareCenterNamebyIdJs(request):
+    print(request.GET.get('id'))
+    if request.GET.get('id') is not None:
+        id = request.GET.get('id')
+        print("------------------")
+        objBranch = Branch.objects.get(pk=id)
+
+        if objBranch is not None:
+            centerName = objBranch.branch_code + "-" + objBranch.branch_name
+       
+        return JsonResponse(centerName, safe=False)

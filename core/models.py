@@ -162,6 +162,9 @@ class Branch(BaseClass):
 class DayCare(BaseClass):
     daycare_code = models.CharField(max_length=10)
     daycare_name = models.CharField(max_length=150)
+    daycare_incharge = models.CharField(max_length=150)
+    daycare_contact_number = models.CharField(max_length=15)
+    daycare_contact_mobile_number = models.CharField(max_length=15)
     branch = models.ForeignKey("Branch", on_delete=models.CASCADE)
 
 

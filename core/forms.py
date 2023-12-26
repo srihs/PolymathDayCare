@@ -3,7 +3,7 @@ from django.forms import ImageField
 from django.db import models
 from django.contrib.admin.widgets import AdminDateWidget
 from django.core.validators import MinValueValidator
-from .models import Child, Rates, ExtraCharges,RateHistory,Package, Branch
+from .models import Child, Rates, ExtraCharges,RateHistory,Package, Branch,DayCare
 from decimal import *
 
 
@@ -377,3 +377,36 @@ class UpdateBranchForm(forms.ModelForm):
     class Meta:
         model = Branch
         fields = ('branch_code','branch_name','branch_contact_person','branch_contact_mobile_number','branch_contact_number','address_line1','address_line2','address_line3','is_active')  
+
+
+class CreateDayCareForm(forms.ModelForm):
+
+    daycare_code = forms.CharField(max_length=250, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Center Code','readonly': 'readonly' }))
+    
+    daycare_name = forms.CharField(max_length=250, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Center Name' }))
+    
+    branch = forms.ModelChoiceField(required=True, queryset=Branch.objects.filter(is_active=True).order_by('branch_code'),empty_label="-Select branch-",
+                                    widget=forms.Select(
+                                        attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'branch'}))
+    
+    daycare_incharge = forms.CharField(max_length=250, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Incharge Name' }))
+    
+    daycare_contact_number = forms.CharField(max_length=10, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Mobile Number' }))
+
+    daycare_contact_mobile_number = forms.CharField(max_length=10, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Contact Number' }))
+    
+    
+    class Meta:
+        model = DayCare
+        fields = ('daycare_code','daycare_name','branch','daycare_incharge','daycare_contact_number','daycare_contact_mobile_number')  
+

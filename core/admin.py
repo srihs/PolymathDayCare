@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Child, Rates,RateHistory, ExtraCharges, Package, HolidayType, Holiday,Branch,ChildAssignment
+from .models import Child, Rates,RateHistory, ExtraCharges, Package, HolidayType, Holiday,Branch,ChildEnrollment
 
 # Register your models here.
 admin.site.register(Child)
@@ -10,4 +10,4 @@ admin.site.register(Package)
 admin.site.register(HolidayType)
 admin.site.register(Holiday)
 admin.site.register(Branch)
-admin.site.register(ChildAssignment)
+admin.site.register(ChildEnrollment)
