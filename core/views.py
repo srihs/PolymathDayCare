@@ -17,10 +17,10 @@ from decimal import Decimal
 from django.db import transaction
 from django.core import serializers
 
-from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch,DayCare
+from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch,DayCare,ChildEnrollment
 from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, \
                     UpdateRatesForm,CreateRateHistoryForm,UpdateExtraChargesForm,CreatePackagesForm, CreateBranchForm, \
-                    CreateBranchForm, UpdateBranchForm, CreateDayCareForm
+                    CreateBranchForm, UpdateBranchForm, CreateDayCareForm, UpdateDayCareForm
 
 
 #   This method
@@ -850,11 +850,8 @@ def getDayCareCentersJs(request):
             ))
 
         for i,n in enumerate(daycareList):
-           
-
             if n['is_active']:
                 daycareList[i]["is_active"] ="Yes"
-
             else:
                  daycareList[i]["is_active"] ="No"
             
@@ -863,13 +860,47 @@ def getDayCareCentersJs(request):
 
 @login_required
 def getDayCareCenterNamebyIdJs(request):
-    print(request.GET.get('id'))
     if request.GET.get('id') is not None:
         id = request.GET.get('id')
-        print("------------------")
         objBranch = Branch.objects.get(pk=id)
-
         if objBranch is not None:
             centerName = objBranch.branch_code + "-" + objBranch.branch_name
-       
         return JsonResponse(centerName, safe=False)
+    
+
+@login_required
+def getDayCareCenterForUpdateById(request,pk):
+    try:
+        updateBranch_form = None
+        objDaycareCenter = get_object_or_404(DayCare, pk=pk)
+
+        if objDaycareCenter is not None:
+            updateBranch_form = UpdateDayCareForm(instance=objDaycareCenter)
+
+    except Exception as e:
+        messages.error(request, e)
+    return render(
+        request, "../templates/partials/centerUpdate.html", {"form": updateBranch_form}
+    )
+
+
+@login_required
+def getEnrollments(request):
+    if request.method=="GET":
+        try:
+        # trying to retrive the next primaryKey
+            nextId = ChildEnrollment.objects.all().count()
+            nextId += 1
+        except:
+            nextId = 1  # if the next ID is null define the record as the first
+
+        branch_form = CreateDayCareForm(initial={'enrollment_code': "E00" + str(nextId)})
+
+    return render(
+        request,
+        "../templates/dccenters.html",
+        {
+            "form": branch_form,
+            "UserName": request.user.username,
+        },
+    )

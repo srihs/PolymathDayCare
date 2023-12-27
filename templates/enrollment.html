@@ -1,0 +1,532 @@
+{% extends "base.html" %} {% load static %} {% block UserName %} {{ UserName}}
+{% endblock %} {% block Title %} SETTINGS {% endblock %} {% block functionTitle%}ENROLLMENT{% endblock %} {% block content %}
+
+<!-- Data Table-->
+<div class="card">
+  <div class="card-header border-0">
+    <div class="d-flex align-items-center">
+      <h5 class="card-title mb-0 flex-grow-1">Enrollments</h5>
+      <div class="flex-shrink-0">
+        <div class="d-flex flex-wrap gap-2">
+          <button
+            class="btn btn-secondary add-btn"
+            data-bs-toggle="modal"
+            data-bs-target="#showModalCreate"
+          >
+            <i class="ri-add-line align-bottom me-1"></i> Add new enrollment
+          </button>
+          <button class="btn btn-soft-secondary" id="remove-actions">
+            <i class="ri-delete-bin-2-line"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div class="alert alert-dismissible" role="alert">
+      {% if messages %} {% for message in messages %}
+      <!-- Danger Alert -->
+      <div
+        class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
+        role="alert"
+      >
+        <strong>
+          <center>{{ message }}</center>
+        </strong>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="alert"
+          aria-label="Close"
+        ></button>
+      </div>
+      {% endfor %} {% endif %}
+      <!-- end row -->
+    </div>
+
+    <table id="branchList" class="display" style="width: 100%">
+      <thead>
+        <tr>
+          <th>Branch code</th>
+          <th>Branch name</th>
+          <th>Contact person</th>
+          <th>Mobile number</th>
+          <th>Telepone number</th>
+          <th>Address</th>
+          <th>Is active</th>
+          <th data-orderable="false"></th>
+        </tr>
+      </thead>
+    </table>
+  </div>
+  <!-- end card-body -->
+</div>
+
+{% endblock %} {% block modals %}
+
+<div
+  class="modal fade zoomIn"
+  id="showModal"
+  tabindex="-1"
+  aria-labelledby="exampleModalLabel"
+  style="display: none"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0">
+      <div class="modal-header p-3 bg-secondary-subtle">
+        <h5 class="modal-title" id="exampleModalLabels">Add Child</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-target="#showModalCreate"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+          id="close-modalAdd"
+        ></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Modal Form -->
+<div
+  class="modal fade zoomIn"
+  id="showModalCreate"
+  tabindex="-1"
+  aria-labelledby="exampleModalLabel"
+  style="display: none"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Branch</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+          id="close-modal"
+        ></button>
+      </div>
+      <form
+        action="{% url 'core:save_branch' %}"
+        method="post"
+        class="tablelist-form"
+        autocomplete="on"
+      >
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-sm-4">{{form.branch_code}}</div>
+            <div class="col-sm-4">{{form.branch_name}}</div>
+            <div class="col-sm-4">{{form.branch_contact_person}}</div>
+            <div class="col-sm-4">{{form.branch_contact_mobile_number}}</div>
+            <div class="col-sm-4">{{form.branch_contact_number}}</div>
+            <div class="col-sm-4">{{form.address_line1}}</div>
+            <div class="col-sm-4">{{form.address_line2}}</div>
+            <div class="col-sm-4">{{form.address_line3}}</div>
+        
+            </div>
+          </div>
+       
+        <div class="modal-footer" style="display: block">
+          <div class="hstack gap-2 justify-content-end">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+              Close
+            </button>
+            <button class="btn btn-secondary" type="submit">Save</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!--Additional Rates Form-->
+<div
+  id="flipModal"
+  class="modal fade flip"
+  tabindex="-1"
+  aria-labelledby="flipModalLabel"
+  style="display: none"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="flipModalLabel">Extra hour rates</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div>
+          <table id="AdditionalRateList" class="display" style="width: 100%">
+            <thead>
+              <tr>
+                <th>Slot (hr)</th>
+                <th>Rate</th>
+                <th>Effective from</th>
+                <th>Effective to</th>
+              </tr>
+            </thead>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+          Close
+        </button>
+      </div>
+    </div>
+    <!-- /.modal-content -->
+  </div>
+  <!-- /.modal-dialog -->
+</div>
+
+<!--Rate History pop-up-->
+<div
+  id="historyModal"
+  class="modal fade flip"
+  tabindex="-1"
+  aria-labelledby="flipModalLabel"
+  style="display: none"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="flipModalLabel">Rate History</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div>
+          <table id="RateHistoryList" class="display" style="width: 100%">
+            <thead>
+              <tr>
+                <th>Rate (hr)</th>
+                <th>Effective from</th>
+                <th>Effective to</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+          Close
+        </button>
+      </div>
+    </div>
+    <!-- /.modal-content -->
+  </div>
+  <!-- /.modal-dialog -->
+</div>
+
+<!--Update Form-->
+<div
+  class="modal fade zoomIn"
+  id="showUpdateModal"
+  tabindex="-1"
+  aria-labelledby="exampleModalLabel"
+  style="display: none"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0">
+      <div class="modal-header p-3 bg-secondary-subtle">
+        <h5 class="modal-title">Update base rate details</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+          id="close-upmodal"
+        ></button>
+      </div>
+      <div id="modelForm" bs-focus="false"></div>
+    </div>
+  </div>
+</div>
+
+<!--Rate Form-->
+<div
+  id="rateModals"
+  class="modal fade zoomIn"
+  tabindex="-1"
+  style="display: none"
+  aria-modal="true"
+  role="dialog"
+>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 overflow-hidden">
+      <div class="modal-header p-3">
+        <h4 class="card-title mb-0">Set rates</h4>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="alert alert-danger rounded-0 mb-0">
+        <p class="mb-0">
+          <center>
+            <strong
+              >Please note that this operation will change the rates for all
+              pcakages associated with this base rate from the selected
+              effective date.</strong
+            >
+          </center>
+        </p>
+      </div>
+      <div id="modelRateForm" bs-focus="false"></div>
+    </div>
+    <!-- /.modal-content -->
+  </div>
+  <!-- /.modal-dialog -->
+</div>
+
+{% endblock %} {% block scripts %}
+<!-- jQuery -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<!--datatable js-->
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+
+<script src="{% static 'assets/js/pages/datatables.init.js' %}"></script>
+<script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
+<script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
+<!-- flatpickr -->
+<script src="{% static 'assets/libs/flatpickr/flatpickr.min.js' %}"></script>
+<script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
+
+<script>
+  var $ = jQuery;
+  var id;
+  var dataTable;
+
+  jQuery(document).ready(function () {
+    window.setTimeout(function () {
+      // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
+      var alertDiv = jQuery(".alert");
+
+      // Check if the inner div contains a success message
+      var successMessageFound = alertDiv.find(".alert-success").length > 0;
+
+      // If a success message is found, apply the fade-out effect
+      if (successMessageFound) {
+        alertDiv.fadeTo(1000, 0).slideUp(1000, function () {
+          jQuery(this).remove();
+        });
+      }
+    }, 2000);
+
+    var table = $("#branchList").DataTable({
+      ajax: {
+        processing: true,
+        url: "{% url 'core:get_branches_js' %}",
+        dataSrc: "",
+      },
+      columns: [
+        { data: "branch_code" },
+        { data: "branch_name" },
+        { data: "branch_contact_person" },
+        { data: "branch_contact_mobile_number" },
+        { data: "branch_contact_number" },
+        { data: "address_line1" },
+        { data: "is_active" },
+        {
+                    data: null,
+                    render: function (data, type, row) {
+                        var url = "{% url 'core:get_Branch_For_Update' 0 %}";
+                        id= row.id;
+                        url = url.replace(0, id);
+                        return data =
+                        '<a href=' + url + ' class="link-success"  data-id='+ id +' data-bs-target="#showUpdateModal"\
+                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="ri-edit-2-fill"></i></a>';
+                    },
+                },
+      ],
+      
+
+      createdRow: function (row, data, dataIndex) {
+        // Combining all the address fields
+        var address = data.address_line1 +" "+data.address_line2+" "+data.address_line1
+          $("td", row).eq(5).html(address);
+
+          if (data.is_active) {
+                    $("td", row).eq(6).html('<span class="badge bg-success">Yes</span>');
+                } else {
+                    $("td", row).eq(6).html('<span class="badge bg-warning">No</span>');
+                }
+      },
+
+      
+
+      searching: false,
+      paging: false,
+      order: [[0, "asc"]], // Set default sorting by admission_date in descending order
+    });
+  });
+
+  jQuery("#from_time").flatpickr({
+    enableTime: true,
+    noCalendar: true,
+    enableSeconds: false,
+    dateFormat: "H:i",
+    allowInput: true,
+  });
+
+  jQuery("#to_time").flatpickr({
+    enableTime: true,
+    noCalendar: true,
+    enableSeconds: false,
+    dateFormat: "H:i",
+    allowInput: true,
+  });
+
+  jQuery("#showModal").on("hidden.bs.modal", function () {
+    jQuery(this).find("form").trigger("reset");
+  });
+
+  var url = "";
+
+  jQuery(document).on("click", ".link-success", function (e) {
+    e.preventDefault();
+    url = jQuery(this).attr("href");
+    
+
+    // Show the modal
+    jQuery("#showUpdateModal").modal("show");
+
+    // Load the form into the modal using AJAX
+    jQuery.ajax({
+      type: "GET",
+      url: url,
+      dataType: "html",
+      success: function (data) {
+        // Assuming you have a modal body with the id "updateModalBody"
+        jQuery("#modelForm").html(data);
+      },
+      error: function (xhr, textStatus, errorThrown) {
+        alert("Error: " + xhr.status + ", " + xhr.statusText);
+      },
+    });
+  });
+
+  jQuery(document).on("click", "#addRates", function (e) {
+    e.preventDefault();
+    url = jQuery(this).attr("href");
+    id = jQuery(this).attr("data-id");
+
+    // Show the modal
+    jQuery("#rateModals").modal("show");
+
+    // Load the form into the modal using AJAX
+    jQuery.ajax({
+      type: "GET",
+      url: url,
+      data: { rate_id: id },
+      dataType: "html",
+      success: function (data) {
+        // Assuming you have a modal body with the id "updateModalBody"
+        jQuery("#modelRateForm").html(data);
+        jQuery("#effective_from").flatpickr();
+      },
+      error: function (xhr, textStatus, errorThrown) {
+        alert("Error: " + xhr.status + ", " + xhr.statusText);
+      },
+    });
+  });
+
+  jQuery("secondButton").click(function () {
+    window.parent.location = window.parent.location.href;
+  });
+
+  jQuery(document).on("click", "#additionalLink", function (e) {
+    dataTable.clear();
+    id = jQuery(this).attr("data-id");
+    jQuery.ajax({
+      url: "{% url 'core:view_additional_rates_js' %}",
+      type: "GET",
+      data: { base_rate_id: id },
+      beforeSend: function () {},
+      success: function (response) {
+        jQuery.each(response, function (i, item) {
+          
+          dataTable.row.add([
+            response[i].slot_number_hour,
+            response[i].extra_rate,
+            response[i].effective_from,
+            response[i].effective_to,
+          ]);
+        });
+
+        dataTable.draw();
+      },
+      error: function (response) {
+        console.log(response);
+      },
+    });
+  });
+
+  jQuery(document).on("click", "#historyLink", function (e) {
+    dataTable.clear();
+    id = jQuery(this).attr("data-id");
+    jQuery.ajax({
+      url: "{% url 'core:view_rates_rate_js' %}",
+      type: "GET",
+      data: { rate_id: id },
+      beforeSend: function () {},
+      success: function (response) {
+        jQuery.each(response, function (i, item) {
+          
+          dataTable.row.add([
+            response[i].standard_hourly_rate,
+            response[i].effective_from,
+            response[i].effective_to,
+            response[i].is_active,
+          ]);
+        });
+
+        dataTable.draw();
+      },
+      error: function (response) {
+        console.log(response);
+      },
+    });
+  });
+  
+  jQuery("#showModalCreate").on("hidden.bs.modal", function () {
+        jQuery(this).find("form").trigger("reset");
+
+    });
+
+  
+</script>
+
+<!-- App js -->
+<script src="{% static 'assets/js/app.js' %}"></script>
+
+{% endblock %}

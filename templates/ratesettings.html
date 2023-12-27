@@ -178,7 +178,8 @@
                     <table id="AdditionalRateList" class="display" style="width: 100%">
                         <thead>
                         <tr>
-                        <th>Slot (hr)</th>
+                        <th>From time</th>
+                        <th>To time</th>
                         <th>Rate</th>
                         <th>Effective from</th>
                         <th>Effective to</th>
@@ -477,6 +478,7 @@
 
 
     jQuery(document).on("click", "#additionalLink", function (e) {
+        dataTable =  $("#AdditionalRateList").DataTable();
         dataTable.clear();
         id = jQuery(this).attr("data-id");
         jQuery.ajax({
@@ -487,9 +489,10 @@
                 success: function (response) {       
                 jQuery.each(response, function(i, item) {
                     
-                console.log(response[i].id)
+                
                 dataTable.row.add(                 
-                [response[i].slot_number_hour,
+                [response[i].from_time,
+                response[i].to_time,
                 response[i].extra_rate,
                 response[i].effective_from,
                 response[i].effective_to
@@ -507,6 +510,8 @@
 
 
     jQuery(document).on("click", "#historyLink", function (e) {
+        
+        dataTable =  $("#RateHistoryList").DataTable();
         dataTable.clear();
         id = jQuery(this).attr("data-id");
         jQuery.ajax({
@@ -517,14 +522,12 @@
                 success: function (response) {       
                 jQuery.each(response, function(i, item) {
                     
-                console.log(response[i].id)
+                
                 dataTable.row.add(                 
                 [response[i].standard_hourly_rate,
                 response[i].effective_from,
                 response[i].effective_to,
                 response[i].is_active
-                
-
                 ],)
                 });
 

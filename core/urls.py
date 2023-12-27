@@ -48,6 +48,7 @@ urlpatterns = [
                   path('save_daycare/', views.saveDayCareCenter, name='save_daycare'),
                   path('get_daycares_js/', views.getDayCareCentersJs, name='get_daycares_js'),
                   path('get_DayCareCenters_byId_Js/', views.getDayCareCenterNamebyIdJs, name='get_DayCareCenters_byId_Js'),
+                  path('get_DayCareCenter_ForUpdate_ById/<int:pk>/', views.getDayCareCenterForUpdateById, name='get_DayCareCenter_ForUpdate_ById'),
 
 
                   
