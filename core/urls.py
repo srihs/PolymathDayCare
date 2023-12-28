@@ -51,5 +51,8 @@ urlpatterns = [
                   path('get_DayCareCenter_ForUpdate_ById/<int:pk>/', views.getDayCareCenterForUpdateById, name='get_DayCareCenter_ForUpdate_ById'),
 
 
+                  path('enrollments/', views.getEnrollments, name='view_enrollments'),
+
+
                   
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

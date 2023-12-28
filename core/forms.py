@@ -3,7 +3,7 @@ from django.forms import ImageField
 from django.db import models
 from django.contrib.admin.widgets import AdminDateWidget
 from django.core.validators import MinValueValidator
-from .models import Child, Rates, ExtraCharges,RateHistory,Package, Branch,DayCare
+from .models import Child, Rates, ExtraCharges,RateHistory,Package, Branch,DayCare, ChildEnrollment, Discount
 from decimal import *
 
 
@@ -440,3 +440,48 @@ class UpdateDayCareForm(forms.ModelForm):
     class Meta:
         model = DayCare
         fields = ('daycare_code','daycare_name','branch','daycare_incharge','daycare_contact_number','daycare_contact_mobile_number','is_active')  
+
+
+class CreateDiscountForm(forms.ModelForm):
+    discount_code = forms.CharField(max_length=250, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Center Code','readonly': 'readonly' }))
+    
+    discount_name = forms.CharField(max_length=250, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Discount Name' }))
+    
+    discount_rate = forms.CharField(max_length=10, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Discounts' }))
+    
+    class Meta:
+        model = Discount
+        fields = ('discount_code','discount_name','discount_rate') 
+
+
+
+class CreateEnrollmentForm(forms.ModelForm):
+
+    enrollment_code = forms.CharField(max_length=250, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Center Code','readonly': 'readonly' }))
+    
+    enrollment_date = forms.CharField(max_length=250, required=True,
+                                    widget=forms.TextInput(
+                                        attrs={'class': 'form-control','placeholder': 'Center Name' }))
+    
+    branch = forms.ModelChoiceField(required=True, queryset=Branch.objects.filter(is_active=True).order_by('branch_code'),empty_label="-Select branch-",
+                                    widget=forms.Select(
+                                        attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'branch'}))
+    
+    package = forms.ModelChoiceField(required=True, queryset=Package.objects.filter(is_active=True).order_by('package_code'),empty_label="-Select package-",
+                                    widget=forms.Select(
+                                        attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'branch'}))
+    
+    
+
+    
+    class Meta:
+        model = ChildEnrollment
+        fields = ('enrollment_code','enrollment_date','branch','package','discount')  

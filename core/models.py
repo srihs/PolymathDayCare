@@ -1,7 +1,9 @@
+import enum
 from django.db import models
 
-
 class BaseClass(models.Model):
+
+    
     id = models.AutoField(primary_key=True)
     date_created = models.DateTimeField(auto_now_add=True)
     user_created = models.CharField(max_length=50)
@@ -11,6 +13,17 @@ class BaseClass(models.Model):
 
     class Meta:
         abstract = True
+
+
+class Discount(BaseClass):
+    discount_code = models.CharField(max_length=250)
+    discount_name = models.CharField(max_length=250)
+    discount_rate = models.DecimalField(max_digits=8, decimal_places=2)
+
+    class Meta:
+        verbose_name = 'discount'
+        verbose_name_plural = 'discounts'
+
 
 
 class Rates(BaseClass):
@@ -174,15 +187,28 @@ class DayCare(BaseClass):
 
 
 class ChildEnrollment(BaseClass):
+    STATUS_CHOICES = {
+        'PENDING_APPROVAL' : "Pending Approval",
+        'APPROVED' : "Approved",
+        'Submitted' : "Submitted",
+    }
     enrollment_code = models.CharField(max_length=20)
     enrollment_date = models.DateField()
     child = models.ForeignKey("Child", on_delete=models.CASCADE)
-    package = models.ForeignKey("Package", on_delete=models.CASCADE)
+    normal_package = models.ForeignKey("Package", on_delete=models.CASCADE, related_name='normal_package')
+    holiday_package = models.ForeignKey("Package", on_delete=models.CASCADE, related_name='holiday_package')
     branch = models.ForeignKey("Branch", on_delete=models.CASCADE)
+    center = models.ForeignKey("DayCare", on_delete=models.CASCADE)
+    discount = models.ForeignKey("Discount", on_delete=models.CASCADE)
+    status = models.CharField(
+        max_length=30,
+        choices=STATUS_CHOICES,
+        default ='Pending Approval'
+    )
 
     class Meta:
-        verbose_name = 'Child Assignment'
-        verbose_name_plural = 'Child Assignments'
+        verbose_name = 'enrollment'
+        verbose_name_plural = 'enrollments'
     
     def __str__(self):
         return self.child 

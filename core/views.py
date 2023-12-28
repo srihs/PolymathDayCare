@@ -17,7 +17,7 @@ from decimal import Decimal
 from django.db import transaction
 from django.core import serializers
 
-from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch,DayCare,ChildEnrollment
+from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch,DayCare,ChildEnrollment,Discount
 from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, \
                     UpdateRatesForm,CreateRateHistoryForm,UpdateExtraChargesForm,CreatePackagesForm, CreateBranchForm, \
                     CreateBranchForm, UpdateBranchForm, CreateDayCareForm, UpdateDayCareForm
@@ -898,7 +898,29 @@ def getEnrollments(request):
 
     return render(
         request,
-        "../templates/dccenters.html",
+        "../templates/enrollment.html",
+        {
+            "form": branch_form,
+            "UserName": request.user.username,
+        },
+    )
+
+
+@login_required
+def getDiscounts(request):
+    if request.method=="GET":
+        try:
+        # trying to retrive the next primaryKey
+            nextId = Discount.objects.all().count()
+            nextId += 1
+        except:
+            nextId = 1  # if the next ID is null define the record as the first
+
+        branch_form = CreateDayCareForm(initial={'enrollment_code': "E00" + str(nextId)})
+
+    return render(
+        request,
+        "../templates/enrollment.html",
         {
             "form": branch_form,
             "UserName": request.user.username,
