@@ -45,18 +45,16 @@
       <!-- end row -->
     </div>
 
-    <table id="centerList" class="display" style="width: 100%">
+    <table id="discountList" class="display" style="width: 100%">
       <thead>
         <tr>
-          <th>Enrollment number</th>
-          <th>Child name</th>
-          <th>Enrollment date</th>
-          <th>Normal package</th>
-          <th>Holiday package</th>
-          <th>Branch</th>
-          <th>Center</th>
-          <th>Discount</th>
-          <th>Status</th>
+          <th>Discount code</th>
+          <th>Discount name</th>
+          <th>Discount rate</th>
+          <th>Active status</th>
+          <th>Is active</th>
+          <th data-orderable="false"></th>
+          <th data-orderable="false"></th>
           <th data-orderable="false"></th>
         </tr>
       </thead>
@@ -114,7 +112,7 @@
         ></button>
       </div>
       <form
-        action="{% url 'core:save_daycare' %}"
+        action="{% url 'core:save_discount' %}"
         method="post"
         class="tablelist-form"
         autocomplete="on"
@@ -122,14 +120,9 @@
         {% csrf_token %}
         <div class="modal-body">
           <div class="row g-3">
-            <div class="col-sm-4">{{form.daycare_code}}</div>
-            <div class="col-sm-4">{{form.daycare_name}}</div>
-            <div class="col-sm-4">{{form.branch}}</div>
-            <div class="col-sm-4">{{form.daycare_incharge}}</div>
-            <div class="col-sm-4">{{form.daycare_contact_mobile_number}}</div>
-            <div class="col-sm-4">{{form.daycare_contact_number}}</div>
-            
-        
+            <div class="col-sm-4">{{form.discount_code}}</div>
+            <div class="col-sm-4">{{form.discount_name}}</div>
+            <div class="col-sm-4">{{form.discount_rate}}</div>
             </div>
           </div>
        
@@ -146,95 +139,7 @@
   </div>
 </div>
 
-<!--Additional Rates Form-->
-<div
-  id="flipModal"
-  class="modal fade flip"
-  tabindex="-1"
-  aria-labelledby="flipModalLabel"
-  style="display: none"
-  aria-hidden="true"
->
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="flipModalLabel">Extra hour rates</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-        ></button>
-      </div>
-      <div class="modal-body">
-        <div>
-          <table id="AdditionalRateList" class="display" style="width: 100%">
-            <thead>
-              <tr>
-                <th>Slot (hr)</th>
-                <th>Rate</th>
-                <th>Effective from</th>
-                <th>Effective to</th>
-              </tr>
-            </thead>
-          </table>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
-          Close
-        </button>
-      </div>
-    </div>
-    <!-- /.modal-content -->
-  </div>
-  <!-- /.modal-dialog -->
-</div>
 
-<!--Rate History pop-up-->
-<div
-  id="historyModal"
-  class="modal fade flip"
-  tabindex="-1"
-  aria-labelledby="flipModalLabel"
-  style="display: none"
-  aria-hidden="true"
->
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="flipModalLabel">Rate History</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-        ></button>
-      </div>
-      <div class="modal-body">
-        <div>
-          <table id="RateHistoryList" class="display" style="width: 100%">
-            <thead>
-              <tr>
-                <th>Rate (hr)</th>
-                <th>Effective from</th>
-                <th>Effective to</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-          </table>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
-          Close
-        </button>
-      </div>
-    </div>
-    <!-- /.modal-content -->
-  </div>
-  <!-- /.modal-dialog -->
-</div>
 
 <!--Update Form-->
 <div
@@ -300,6 +205,82 @@
   <!-- /.modal-dialog -->
 </div>
 
+<!-- First modal dialog -->
+<div
+        class="modal fade"
+        id="firstmodal"
+        aria-hidden="true"
+        aria-labelledby="..."
+        tabindex="-1"
+>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center p-5">
+                <img
+                        src="{% static 'assets/images/approved.gif' %}"
+                        alt="alert"
+                        width="100px"
+                        height="100px"
+                />
+                <div class="mt-4 pt-4">
+                    <h4>You are about approve this record!</h4>
+                    <p class="text-muted">
+                        Please make sure that you have reviewd all the details. <br>This operationa may effect calculations.
+                    </p>
+                    <!-- Toogle to second dialog -->
+                   
+                    <button
+                            name="btnApprove"
+                            id="btnApprove"
+                            class="btn btn-success"
+                            
+                    >
+                    Approve
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Second modal dialog -->
+<div
+        class="modal fade"
+        id="secondmodal"
+        aria-hidden="true"
+        aria-labelledby="..."
+        tabindex="-1"
+>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center p-5">
+                <img
+                        src="{% static 'assets/images/cancel.gif' %}"
+                        alt="alert"
+                        width="75px"
+                        height="75px"
+                />
+                <div class="mt-4 pt-3">
+                    <h4 class="mb-3">You are about reject this record!</h4>
+                    <div class="hstack gap-2 justify-content-center">
+                        <!-- Toogle to first dialog, `data-bs-dismiss` attribute can be omitted - clicking on link will close dialog anyway -->
+
+                        <button
+                                type="button"
+                                id="btnReject"
+                                class="btn btn-danger"
+                                onclick="location=URL"
+                                data-bs-dismiss="modal"
+                        >
+                            Reject
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 {% endblock %} {% block scripts %}
 <!-- jQuery -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
@@ -326,6 +307,7 @@
   var $ = jQuery;
   var id;
   var dataTable;
+  var url = "";
 
   jQuery(document).ready(function () {
     window.setTimeout(function () {
@@ -343,19 +325,17 @@
       }
     }, 2000);
 
-    var table = $("#centerList").DataTable({
+    var table = $("#discountList").DataTable({
       ajax: {
         processing: true,
-        url: "{% url 'core:get_daycares_js' %}",
+        url: "{% url 'core:view_discounts_js' %}",
         dataSrc: "",
       },
       columns: [
-        { data: "daycare_code" },
-        { data: "daycare_name" },
-        { data: "branch" },
-        { data: "daycare_incharge" },
-        { data: "daycare_contact_number" },
-        { data: "daycare_contact_mobile_number" },
+        { data: "discount_code" },
+        { data: "discount_name" },
+        { data: "discount_rate" },
+        { data: "status" },
         { data: "is_active" },
         {
                     data: null,
@@ -364,33 +344,69 @@
                         id= row.id;
                         url = url.replace(0, id);
                         return data =
-                        '<a href=' + url + ' class="link-success"  data-id='+ id +' data-bs-target="#showUpdateModal"\
+                        '<a href=' + url + ' class="link-secondary"  data-id='+ id +' data-bs-target="#showUpdateModal"\
                 data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="ri-edit-2-fill"></i></a>';
                     },
                 },
+                {
+                    data: null,
+                    render: function (data, type, row) {
+                        url = "{% url 'core:approve_discount' %}";
+                        id= row.id;
+                        
+                          return data =
+                        '<a href=' + url + '  class="link-success"  data-id='+ id +' data-bs-target="#firstmodal"\
+                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class=" bx bx-check-square"></i></a>';
+                       
+                        
+                        
+                    },
+                },
+
+                {
+                    data: null,
+                    render: function (data, type, row) {
+                        var url = "{% url 'core:reject_discount' %}";
+                        id= row.id;
+                        return data =
+                        '<a href=' + url + ' class="link-danger"  data-id='+ id +' data-bs-target="#secondmodal"\
+                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class=" bx bx-no-entry"></i></a>';
+                    },
+                },
+
+
       ],
 
+      
+
       createdRow: function (row, data, dataIndex) {
+          if (data.status =="Approved") {
+                    $("td", row).eq(3).html('<span class="badge bg-primary">Approved</span>');
+                    $("td", row).eq(6).html('<a href="/" class="btn-outline-dark waves-effect waves-light" onclick="return false;"><i class=" bx bx-check-square"></i></a>');
+                    $("td", row).eq(7).html('<a href="/" class="btn-outline-dark waves-effect waves-light" onclick="return false;"><i class=" bx bx-no-entry"></i></a>');
+                } 
+                
+                
+                  if (data.status =="Pending Approval") {
+                  $("td", row).eq(3).html('<span class="badge bg-warning">Pending Approval</span>');
+                  }
+                                
+                  if (data.status =="Rejected") {
+                  $("td", row).eq(3).html('<span class="badge bg-danger">Rejected</span>');
+                  $("td", row).eq(5).html('<a href="/" class="btn-outline-dark waves-effect waves-light" onclick="return false;"><i class="ri-edit-2-fill"></i></a>');
+                  $("td", row).eq(6).html('<a href="/" class="btn-outline-dark waves-effect waves-light" onclick="return false;"><i class=" bx bx-check-square"></i></a>');
+                    $("td", row).eq(7).html('<a href="/" class="btn-outline-dark waves-effect waves-light" onclick="return false;"><i class=" bx bx-no-entry"></i></a>');
+                  }
+                 
+                
+
           if (data.is_active) {
-                    $("td", row).eq(6).html('<span class="badge bg-success">Yes</span>');
+                    $("td", row).eq(4).html('<span class="badge bg-success">Yes</span>');
                 } else {
-                    $("td", row).eq(6).html('<span class="badge bg-warning">No</span>');
+                    $("td", row).eq(4).html('<span class="badge bg-warning">No</span>');
                 }
 
-                 // Fetch rate amount asynchronously
-        $.ajax({
-          url: "{% url 'core:get_DayCareCenters_byId_Js' %}",
-          type: "GET",
-          data: { id: data.branch },
-          success: function (response) {
-            
-              // Update the content in the ninth cell with the fetched rate amount
-            $("td", row).eq(2).html(response);
-          },
-          error: function (error) {
-              console.error("Error fetching rate amount:", error);
-          }
-        });
+         
       },
       searching: false,
       paging: false,
@@ -402,7 +418,7 @@
     jQuery(this).find("form").trigger("reset");
   });
 
-  var url = "";
+ 
 
   
   jQuery("#showModalCreate").on("hidden.bs.modal", function () {
@@ -411,7 +427,7 @@
     });
 
 
-    jQuery(document).on("click", ".link-success", function (e) {
+    jQuery(document).on("click", ".link-secondary", function (e) {
     e.preventDefault();
     url = jQuery(this).attr("href");
     
@@ -434,8 +450,53 @@
     });
   });
 
+  jQuery(document).on("click", ".link-danger", function (e) {
+    e.preventDefault();
+    url = jQuery(this).attr("href")
+    id = jQuery(this).attr("data-id")
+  });
+
   
-  
+  jQuery("#btnApprove").click(function (e) {
+        //e.preventDefault(); // prevent the default behavior of the anchor tag
+       
+        var $this = "";
+        jQuery.ajax({
+            type: "GET",
+            url: url,
+            data: { id: id },
+            dataType: "json",
+            success: function (data) {
+              alert(data);
+        
+              window.parent.location = window.parent.location.href;
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                alert("Error: " + xhr.status + ", " + xhr.statusText);
+            },
+        });
+    });
+
+    jQuery("#btnReject").click(function (e) {
+        //e.preventDefault(); // prevent the default behavior of the anchor tag
+       alert(url);
+       alert(id);
+        var $this = "";
+        jQuery.ajax({
+            type: "GET",
+            url: url,
+            data: { id: id },
+            dataType: "json",
+            success: function (data) {
+              alert(data);
+        
+              window.parent.location = window.parent.location.href;
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                alert("Error: " + xhr.status + ", " + xhr.statusText);
+            },
+        });
+    });
 </script>
 
 <!-- App js -->

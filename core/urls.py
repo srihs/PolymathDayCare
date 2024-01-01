@@ -49,6 +49,12 @@ urlpatterns = [
                   path('get_daycares_js/', views.getDayCareCentersJs, name='get_daycares_js'),
                   path('get_DayCareCenters_byId_Js/', views.getDayCareCenterNamebyIdJs, name='get_DayCareCenters_byId_Js'),
                   path('get_DayCareCenter_ForUpdate_ById/<int:pk>/', views.getDayCareCenterForUpdateById, name='get_DayCareCenter_ForUpdate_ById'),
+                  
+                  path('discounts/', views.getDiscounts, name='view_discounts'),
+                  path('get_discounts_js/', views.getDiscountJson, name='view_discounts_js'),
+                  path('save_discount/', views.saveDiscount, name='save_discount'),
+                  path('approve_discount/', views.approveDiscount, name='approve_discount'),
+                  path('reject_discount/', views.rejectDiscount, name='reject_discount'),
 
 
                   path('enrollments/', views.getEnrollments, name='view_enrollments'),

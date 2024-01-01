@@ -16,9 +16,20 @@ class BaseClass(models.Model):
 
 
 class Discount(BaseClass):
+    STATUS_CHOICES = {
+        'PENDING_APPROVAL' : "Pending Approval",
+        'APPROVED' : "Approved",
+        'REJECTED' : "Rejected",
+    }
     discount_code = models.CharField(max_length=250)
     discount_name = models.CharField(max_length=250)
     discount_rate = models.DecimalField(max_digits=8, decimal_places=2)
+    status = models.CharField(
+        max_length=30,
+        choices=STATUS_CHOICES,
+        default ='Pending Approval'
+    )
+
 
     class Meta:
         verbose_name = 'discount'
@@ -190,7 +201,7 @@ class ChildEnrollment(BaseClass):
     STATUS_CHOICES = {
         'PENDING_APPROVAL' : "Pending Approval",
         'APPROVED' : "Approved",
-        'Submitted' : "Submitted",
+        'REJECTED' : "Rejected",
     }
     enrollment_code = models.CharField(max_length=20)
     enrollment_date = models.DateField()

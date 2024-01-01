@@ -20,7 +20,7 @@ from django.core import serializers
 from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch,DayCare,ChildEnrollment,Discount
 from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, \
                     UpdateRatesForm,CreateRateHistoryForm,UpdateExtraChargesForm,CreatePackagesForm, CreateBranchForm, \
-                    CreateBranchForm, UpdateBranchForm, CreateDayCareForm, UpdateDayCareForm
+                    CreateBranchForm, UpdateBranchForm, CreateDayCareForm, UpdateDayCareForm, CreateDiscountForm
 
 
 #   This method
@@ -789,12 +789,6 @@ def saveDayCareCenter(request):
         daycare_contact_mobile_number = request.POST.get("daycare_contact_mobile_number")
         daycare_contact_number = request.POST.get("daycare_contact_number")
         is_active = request.POST.get("is_active")
-
-
-        print(daycare_incharge)
-        print(daycare_contact_mobile_number)
-        print(daycare_contact_number)
-
         try:
                 if daycare_code is not None:
                     objDayCare = DayCare.objects.get(
@@ -916,13 +910,100 @@ def getDiscounts(request):
         except:
             nextId = 1  # if the next ID is null define the record as the first
 
-        branch_form = CreateDayCareForm(initial={'enrollment_code': "E00" + str(nextId)})
+        discount_form = CreateDiscountForm(initial={'discount_code': "DS00" + str(nextId)})
 
     return render(
         request,
-        "../templates/enrollment.html",
+        "../templates/discount.html",
         {
-            "form": branch_form,
+            "form": discount_form,
             "UserName": request.user.username,
         },
     )
+
+@login_required
+def getDiscountJson(reuest):
+    discountList = list(
+        Discount.objects.all().values(
+            "id",
+            "discount_code",
+            "discount_name",
+            "discount_rate",
+            "status",
+            "is_active",
+        )
+    )
+
+    return JsonResponse(discountList, safe=False)
+
+
+@login_required
+def saveDiscount(request):
+    if request.method == "POST":
+        
+        discount_code = request.POST.get("discount_code")
+        discount_name = request.POST.get("discount_name")
+        discount_rate = request.POST.get("discount_rate")
+        status = request.POST.get("status")
+        is_active = request.POST.get("is_active")
+        try:
+                if discount_code is not None:
+                    objDiscount = Discount.objects.get(
+                        discount_code=discount_code
+                    )
+                    if objDiscount is not None:
+                        objDiscount.discount_code = discount_code
+                        objDiscount.discount_name = discount_name
+                        objDiscount.discount_rate = discount_rate
+                        objDiscount.status = status
+                        if is_active == "on":
+                            is_active = True
+                        else:
+                            is_active = False
+
+                        objDiscount.is_active = is_active
+                        objDiscount.user_updated = request.user.username
+                        objDiscount.date_updated = datetime.datetime.now()
+                        objDiscount.save()
+                        messages.success(request, "Discount details updated.")
+
+        except :
+            form = CreateDiscountForm(request.POST)
+            if form.is_valid():
+                objDiscount = form.save(commit=False)
+                objDiscount.user_created = request.user.username
+                objDiscount.status = 'Pending Approval'
+                objDiscount.save()
+                messages.success(request, "Discount details saved.")
+            else:
+                messages.error(request, form.errors)
+    
+            return redirect("core:view_discounts")
+
+
+@login_required
+def approveDiscount(request):
+    if request.GET.get('id') is not None:
+        id = request.GET.get('id')
+        objDiscount = Discount.objects.get(pk=id)
+        if objDiscount is not None:
+            objDiscount.status = "Approved"
+            objDiscount.user_updated = request.user.username
+            objDiscount.date_updated = datetime.datetime.now()
+            objDiscount.save()
+    return JsonResponse("Approved", safe=False)
+
+
+@login_required
+def rejectDiscount(request):
+    print(request.GET.get('id'))
+    if request.GET.get('id') is not None:
+        id = request.GET.get('id')
+        objDiscount = Discount.objects.get(pk=id)
+        if objDiscount is not None:
+            objDiscount.status = "Rejected"
+            objDiscount.is_active = False
+            objDiscount.user_updated = request.user.username
+            objDiscount.date_updated = datetime.datetime.now()
+            objDiscount.save()
+    return JsonResponse("Rejected", safe=False)

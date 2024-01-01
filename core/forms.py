@@ -453,7 +453,7 @@ class CreateDiscountForm(forms.ModelForm):
     
     discount_rate = forms.CharField(max_length=10, required=True,
                                     widget=forms.TextInput(
-                                        attrs={'class': 'form-control','placeholder': 'Discounts' }))
+                                        attrs={'class': 'form-control','placeholder': 'Discount rate' }))
     
     class Meta:
         model = Discount
