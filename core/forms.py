@@ -467,21 +467,29 @@ class CreateEnrollmentForm(forms.ModelForm):
                                     widget=forms.TextInput(
                                         attrs={'class': 'form-control','placeholder': 'Center Code','readonly': 'readonly' }))
     
-    enrollment_date = forms.CharField(max_length=250, required=True,
-                                    widget=forms.TextInput(
-                                        attrs={'class': 'form-control','placeholder': 'Center Name' }))
+    enrollment_date = forms.DateField(required=True, widget=MyDateInput(
+        attrs={'class': 'form-control', 'required': 'true', 'id': 'effective_from', 'data-provider': 'flatpickr',
+               'data-date-format': 'Y-m-d', 'placeholder': 'Enrolment Date'}))
+    child = forms.ModelChoiceField(required=True, queryset=Child.objects.filter(is_active=True).order_by('admission_number'),empty_label="-Select child-",
+                                    widget=forms.Select(
+                                        attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'child'}))
     
     branch = forms.ModelChoiceField(required=True, queryset=Branch.objects.filter(is_active=True).order_by('branch_code'),empty_label="-Select branch-",
                                     widget=forms.Select(
                                         attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'branch'}))
     
+    dayCare = forms.ModelChoiceField(required=True, queryset=DayCare.objects.filter(is_active=True).order_by('daycare_code'),empty_label="-Select daycare-",
+                                    widget=forms.Select(
+                                        attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'package'}))
     package = forms.ModelChoiceField(required=True, queryset=Package.objects.filter(is_active=True).order_by('package_code'),empty_label="-Select package-",
                                     widget=forms.Select(
-                                        attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'branch'}))
+                                        attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'package'}))
     
+    discount = forms.ModelChoiceField(queryset=Discount.objects.filter(is_active=True,status="Approved").order_by('discount_code'),empty_label="-Select discounts-",
+                                    widget=forms.Select(
+                                        attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'discount'}))
     
-
     
     class Meta:
         model = ChildEnrollment
-        fields = ('enrollment_code','enrollment_date','branch','package','discount')  
+        fields = ('enrollment_code','enrollment_date','child','branch','dayCare','package','discount')  

@@ -18,9 +18,11 @@ from django.db import transaction
 from django.core import serializers
 
 from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch,DayCare,ChildEnrollment,Discount
+
 from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, \
                     UpdateRatesForm,CreateRateHistoryForm,UpdateExtraChargesForm,CreatePackagesForm, CreateBranchForm, \
-                    CreateBranchForm, UpdateBranchForm, CreateDayCareForm, UpdateDayCareForm, CreateDiscountForm
+                    CreateBranchForm, UpdateBranchForm, CreateDayCareForm, UpdateDayCareForm, CreateDiscountForm,\
+                    CreateEnrollmentForm
 
 
 #   This method
@@ -878,26 +880,7 @@ def getDayCareCenterForUpdateById(request,pk):
     )
 
 
-@login_required
-def getEnrollments(request):
-    if request.method=="GET":
-        try:
-        # trying to retrive the next primaryKey
-            nextId = ChildEnrollment.objects.all().count()
-            nextId += 1
-        except:
-            nextId = 1  # if the next ID is null define the record as the first
 
-        branch_form = CreateDayCareForm(initial={'enrollment_code': "E00" + str(nextId)})
-
-    return render(
-        request,
-        "../templates/enrollment.html",
-        {
-            "form": branch_form,
-            "UserName": request.user.username,
-        },
-    )
 
 
 @login_required
@@ -1007,3 +990,48 @@ def rejectDiscount(request):
             objDiscount.date_updated = datetime.datetime.now()
             objDiscount.save()
     return JsonResponse("Rejected", safe=False)
+
+
+
+
+@login_required
+def getEnrollments(request):
+    if request.method=="GET":
+        try:
+        # trying to retrive the next primaryKey
+            nextId = ChildEnrollment.objects.all().count()
+            nextId += 1
+        except:
+            nextId = 1  # if the next ID is null define the record as the first
+
+        enrollment_form = CreateEnrollmentForm(initial={'enrollment_code': "E00" + str(nextId)})
+
+    return render(
+        request,
+        "../templates/enrollment.html",
+        {
+            "form": enrollment_form,
+            "UserName": request.user.username,
+        },
+    )
+
+
+@login_required
+def getEnrollmentsJS(request):
+     enrolmentList = list(
+        ChildEnrollment.objects.all().values(
+            "id",
+            "enrollment_code",
+            "enrollment_date",
+            "child",
+            "normal_package",
+            "holiday_package",
+            "branch",
+            "center",
+            "discount",
+            "status",
+             "is_active",
+
+        )
+         )
+     return JsonResponse(enrolmentList, safe=False)

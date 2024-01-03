@@ -34,6 +34,10 @@ class Discount(BaseClass):
     class Meta:
         verbose_name = 'discount'
         verbose_name_plural = 'discounts'
+    
+    def __str__(self):
+        return self.discount_code +" - " +self.discount_name 
+    
 
 
 
@@ -136,7 +140,7 @@ class Package(BaseClass):
     def __str__(self):
         return self.package_code +" - "+self.package_name
     
-   
+    
 
 
 class HolidayType(BaseClass):
@@ -195,6 +199,9 @@ class DayCare(BaseClass):
     class Meta:
         verbose_name = 'branch'
         verbose_name_plural = 'branches'
+    
+    def __str__(self):
+        return self.daycare_code +" - "+ self.daycare_name
 
 
 class ChildEnrollment(BaseClass):

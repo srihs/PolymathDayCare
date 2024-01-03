@@ -58,6 +58,8 @@ urlpatterns = [
 
 
                   path('enrollments/', views.getEnrollments, name='view_enrollments'),
+                  path('enrollments_js/', views.getEnrollmentsJS, name='get_enrollments_js'),
+
 
 
                   

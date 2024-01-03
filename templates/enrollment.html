@@ -45,15 +45,18 @@
       <!-- end row -->
     </div>
 
-    <table id="branchList" class="display" style="width: 100%">
+    <table id="enrollmentList" class="display" style="width: 100%">
       <thead>
         <tr>
-          <th>Branch code</th>
-          <th>Branch name</th>
-          <th>Contact person</th>
-          <th>Mobile number</th>
-          <th>Telepone number</th>
-          <th>Address</th>
+          <th>Enrollment code</th>
+          <th>Enrollment date</th>
+          <th>Child</th>
+          <th>Package</th>
+          <th>Holiday package</th>
+          <th>Branch</th>
+          <th>Center</th>
+          <th>Discount</th>
+          <th>Application status</th>
           <th>Is active</th>
           <th data-orderable="false"></th>
         </tr>
@@ -120,14 +123,13 @@
         {% csrf_token %}
         <div class="modal-body">
           <div class="row g-3">
-            <div class="col-sm-4">{{form.branch_code}}</div>
-            <div class="col-sm-4">{{form.branch_name}}</div>
-            <div class="col-sm-4">{{form.branch_contact_person}}</div>
-            <div class="col-sm-4">{{form.branch_contact_mobile_number}}</div>
-            <div class="col-sm-4">{{form.branch_contact_number}}</div>
-            <div class="col-sm-4">{{form.address_line1}}</div>
-            <div class="col-sm-4">{{form.address_line2}}</div>
-            <div class="col-sm-4">{{form.address_line3}}</div>
+            <div class="col-sm-4">{{form.enrollment_code}}</div>
+            <div class="col-sm-4">{{form.enrollment_date}}</div>
+            <div class="col-sm-4">{{form.child}}</div>
+            <div class="col-sm-4">{{form.branch}}</div>
+            <div class="col-sm-4">{{form.dayCare}}</div>
+            <div class="col-sm-4">{{form.package}}</div>
+            <div class="col-sm-4">{{form.discount}}</div>
         
             </div>
           </div>
@@ -342,19 +344,22 @@
       }
     }, 2000);
 
-    var table = $("#branchList").DataTable({
+    var table = $("#enrollmentList").DataTable({
       ajax: {
         processing: true,
-        url: "{% url 'core:get_branches_js' %}",
+        url: "{% url 'core:get_enrollments_js' %}",
         dataSrc: "",
       },
       columns: [
-        { data: "branch_code" },
-        { data: "branch_name" },
-        { data: "branch_contact_person" },
-        { data: "branch_contact_mobile_number" },
-        { data: "branch_contact_number" },
-        { data: "address_line1" },
+        { data: "enrollment_code" },
+        { data: "enrollment_date" },
+        { data: "child" },
+        { data: "normal_package" },
+        { data: "holiday_package" },
+        { data: "branch" },
+        { data: "center" },
+        { data: "discount" },
+        { data: "status" },
         { data: "is_active" },
         {
                     data: null,
@@ -372,13 +377,12 @@
 
       createdRow: function (row, data, dataIndex) {
         // Combining all the address fields
-        var address = data.address_line1 +" "+data.address_line2+" "+data.address_line1
-          $("td", row).eq(5).html(address);
+        
 
           if (data.is_active) {
-                    $("td", row).eq(6).html('<span class="badge bg-success">Yes</span>');
+                    $("td", row).eq(9).html('<span class="badge bg-success">Yes</span>');
                 } else {
-                    $("td", row).eq(6).html('<span class="badge bg-warning">No</span>');
+                    $("td", row).eq(9).html('<span class="badge bg-warning">No</span>');
                 }
       },
 
