@@ -128,12 +128,12 @@
             <div class="col-sm-4">{{form.child}}</div>
             <div class="col-sm-4">{{form.branch}}</div>
             <div class="col-sm-4">{{form.dayCare}}</div>
-            <div class="col-sm-4">{{form.package}}</div>
+            <div class="col-sm-4">{{form.normal_package}}</div>
+            <div class="col-sm-4">{{form.holiday_package}}</div>
             <div class="col-sm-4">{{form.discount}}</div>
-        
-            </div>
           </div>
-       
+        </div>
+
         <div class="modal-footer" style="display: block">
           <div class="hstack gap-2 justify-content-end">
             <button type="button" class="btn btn-light" data-bs-dismiss="modal">
@@ -362,31 +362,31 @@
         { data: "status" },
         { data: "is_active" },
         {
-                    data: null,
-                    render: function (data, type, row) {
-                        var url = "{% url 'core:get_Branch_For_Update' 0 %}";
-                        id= row.id;
-                        url = url.replace(0, id);
-                        return data =
-                        '<a href=' + url + ' class="link-success"  data-id='+ id +' data-bs-target="#showUpdateModal"\
-                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="ri-edit-2-fill"></i></a>';
-                    },
-                },
+          data: null,
+          render: function (data, type, row) {
+            var url = "{% url 'core:get_Branch_For_Update' 0 %}";
+            id = row.id;
+            url = url.replace(0, id);
+            return (data =
+              "<a href=" +
+              url +
+              ' class="link-success"  data-id=' +
+              id +
+              ' data-bs-target="#showUpdateModal"\
+                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="ri-edit-2-fill"></i></a>');
+          },
+        },
       ],
-      
 
       createdRow: function (row, data, dataIndex) {
         // Combining all the address fields
-        
 
-          if (data.is_active) {
-                    $("td", row).eq(9).html('<span class="badge bg-success">Yes</span>');
-                } else {
-                    $("td", row).eq(9).html('<span class="badge bg-warning">No</span>');
-                }
+        if (data.is_active) {
+          $("td", row).eq(9).html('<span class="badge bg-success">Yes</span>');
+        } else {
+          $("td", row).eq(9).html('<span class="badge bg-warning">No</span>');
+        }
       },
-
-      
 
       searching: false,
       paging: false,
@@ -419,7 +419,6 @@
   jQuery(document).on("click", ".link-success", function (e) {
     e.preventDefault();
     url = jQuery(this).attr("href");
-    
 
     // Show the modal
     jQuery("#showUpdateModal").modal("show");
@@ -478,7 +477,6 @@
       beforeSend: function () {},
       success: function (response) {
         jQuery.each(response, function (i, item) {
-          
           dataTable.row.add([
             response[i].slot_number_hour,
             response[i].extra_rate,
@@ -505,7 +503,6 @@
       beforeSend: function () {},
       success: function (response) {
         jQuery.each(response, function (i, item) {
-          
           dataTable.row.add([
             response[i].standard_hourly_rate,
             response[i].effective_from,
@@ -521,13 +518,48 @@
       },
     });
   });
-  
+
   jQuery("#showModalCreate").on("hidden.bs.modal", function () {
-        jQuery(this).find("form").trigger("reset");
+    jQuery(this).find("form").trigger("reset");
+  });
 
-    });
+  jQuery("#branch").change(function () {
+    var branchID = jQuery(this).val();
 
-  
+//////This section will reset the daycare option valuses to initial///////////
+    $('#dayCare')
+    .find('option')
+    .remove()
+    .end()
+    .append('<option value="">-Select daycare-</option>');
+//////////////////////////////////////////////////////////////////////////////
+    
+    if (branchID) {
+      jQuery.ajax({
+        url: "{% url 'core:get_daycares_by_branch_js' %}",
+        type: "GET",
+        data: { id: branchID },
+        beforeSend: function () {},
+        success: function (response) {
+          
+         
+
+          for (var i in response) {
+            center = response[i];
+            console.log(center.daycare_code + "-" + center.daycare_name)
+           
+            jQuery('#dayCare').append(
+              jQuery('<option>', {
+                  value: center.id,
+                  text: center.daycare_code + "-" + center.daycare_name,
+                })
+              );
+           
+          }
+        },
+      });
+    } 
+  });
 </script>
 
 <!-- App js -->

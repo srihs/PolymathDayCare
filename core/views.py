@@ -880,6 +880,13 @@ def getDayCareCenterForUpdateById(request,pk):
     )
 
 
+@login_required
+def getDayCareCentersByBranchJs(request):
+    
+    if request.GET.get('id') is not None:
+        id = request.GET.get('id')
+        dayCareList =  list(DayCare.objects.filter(branch_id=id, is_active=True).values())
+        return JsonResponse(dayCareList, safe=False)
 
 
 

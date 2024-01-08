@@ -419,7 +419,10 @@
                         dateFormat: "H:i",
             });
 
-            jQuery('#effective_from').flatpickr();
+            jQuery('#effective_from').flatpickr({
+              
+                
+            });
             
                 
             },
@@ -439,6 +442,18 @@
             buttons: ["excel", "print"],
             order: [[0, "asc"]],
             retrieve: true,
+    });
+
+    jQuery('#effective_from').flatpickr({
+                minDate: "today",
+                maxDate: new Date().fp_incr(15), 
+                
+            });
+    
+    jQuery('#effective_to').flatpickr({
+            minDate: new Date().fp_incr(365), 
+            
+                
     });
 
     window.setTimeout(function() {
