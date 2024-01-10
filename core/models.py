@@ -106,7 +106,7 @@ class Child(BaseClass):
     address_line3 = models.CharField(max_length=200)
     email_address = models.EmailField()
     is_polymath_student = models.BooleanField(default=False)
-    recipt_number = models.CharField(max_length=50)
+    
     admission_date = models.DateField()
     
     class Meta:
@@ -218,6 +218,7 @@ class ChildEnrollment(BaseClass):
     branch = models.ForeignKey("Branch", on_delete=models.CASCADE)
     center = models.ForeignKey("DayCare", on_delete=models.CASCADE)
     discount = models.ForeignKey("Discount", on_delete=models.CASCADE)
+    recipt_number = models.CharField(max_length=50)
     status = models.CharField(
         max_length=30,
         choices=STATUS_CHOICES,

@@ -151,7 +151,6 @@ def createChild(request):
             address_line3 = request.POST.get("address_line3")
             email_address = request.POST.get("email_address")
             is_polymath_student = request.POST.get("is_polymath_student")
-            recipt_number = request.POST.get("recipt_number")
             admission_date = request.POST.get("admission_date")
             is_active = request.POST.get("is_active")
             if is_polymath_student == "on":
@@ -200,7 +199,6 @@ def createChild(request):
             address_line3=address_line3,
             email_address=email_address,
             is_polymath_student=is_polymath_student,
-            recipt_number=recipt_number,
             user_created=request.user.username,
             admission_date=datetime.datetime.strptime(
                 admission_date, "%Y-%m-%d"
@@ -1042,3 +1040,69 @@ def getEnrollmentsJS(request):
         )
          )
      return JsonResponse(enrolmentList, safe=False)
+
+
+@login_required
+def saveEnrollments(request):
+   if request.method == "POST":
+        enrollment_code = request.POST.get("enrollment_code")
+        enrollment_date = request.POST.get("enrollment_date")
+        child = request.POST.get("child")
+        branch = request.POST.get("branch")
+        dayCare = request.POST.get("dayCare")
+        normal_package = request.POST.get("normal_package")
+        holiday_package = request.POST.get("holiday_package")
+        discount = request.POST.get("discount")
+        recipt_number = request.POST.get("recipt_number")
+        is_active = request.POST.get("is_active")
+        print('Child ' + child)
+        print(branch)
+        print(dayCare)
+        print('Normal Package '+ normal_package)
+        print(holiday_package)
+        print(discount)
+        try:
+                if enrollment_code is not None:
+                    objEnrollment = ChildEnrollment.objects.get(
+                        enrollment_code=enrollment_code
+                    )
+                    if objEnrollment is not None:
+                        objEnrollment.enrollment_code = enrollment_code
+                        objEnrollment.enrollment_date = enrollment_date
+                        objEnrollment.child = child
+                        objEnrollment.branch = branch
+                        objEnrollment.center = dayCare
+                        objEnrollment.normal_package = normal_package
+                        objEnrollment.holiday_package = holiday_package
+                        objEnrollment.discount = discount
+                        if is_active == "on":
+                            is_active = True
+                        else:
+                            is_active = False
+
+                        objEnrollment.is_active = is_active
+                        objEnrollment.user_updated = request.user.username
+                        objEnrollment.date_updated = datetime.datetime.now()
+                        objEnrollment.save()
+                        messages.success(request, "Enrollment details updated.")
+
+        except :
+            form = CreateEnrollmentForm(request.POST)
+            print(form.fields["branch"].choices)
+            if form.is_valid():
+                objEnrollment = form.save(commit=False)
+                objEnrollment.user_created = request.user.username
+                objEnrollment.status = 'Pending Approval'
+                objEnrollment.child = Child.objects.get(pk=child)
+                objEnrollment.branch = Branch.objects.get(pk=branch)
+                print(objEnrollment.branch)
+                objEnrollment.center =DayCare.objects.filter(pk=dayCare)
+                objEnrollment.normal_package = Package.objects.get(pk=normal_package)
+                objEnrollment.holiday_package = Package.objects.get(pk=holiday_package)
+                objEnrollment.discount = Discount.objects.get(pk = discount)
+                objEnrollment.save()
+                messages.success(request, "Enrollment details saved.")
+            else:
+                messages.error(request, form.errors)
+    
+            return redirect("core:view_enrollments")

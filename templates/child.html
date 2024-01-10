@@ -137,20 +137,23 @@
                                             </div>
                                             <!--end col-->
                                             <div class="col-xxl-3 col-md-6">
-                                                <div>{{ form.recipt_number }}</div>
+                                                <div> <div class="form-check form-switch">
+                                                    {{ form.is_polymath_student }}
+                                                    <label class="form-check-label"
+                                                    >Is Polymath student?</label
+                                                    >
+                                                </div></div>
                                             </div>
-                                            <!--end col-->
                                             <div class="col-xxl-3 col-md-6">
                                                 <div>
                                                     <div class="form-check form-switch">
-                                                        {{ form.is_polymath_student }}
-                                                        <label class="form-check-label"
-                                                        >Is Polymath student?</label
-                                                        >
+                                                        {{ form.is_active }}
+                                                        <label class="form-check-label">Active</label>
                                                     </div>
                                                 </div>
                                             </div>
-
+                                            <!--end col-->
+                                            
                                             <!--end col-->
                                             <div class="col-xxl-3 col-md-6">
                                                 <div>{{ form.child_first_name }}</div>
@@ -164,14 +167,7 @@
                                                 <div>{{ form.date_of_birth }}</div>
                                             </div>
 
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div>
-                                                    <div class="form-check form-switch">
-                                                        {{ form.is_active }}
-                                                        <label class="form-check-label">Active</label>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                          
 
                                             <!--end col-->
 

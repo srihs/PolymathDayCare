@@ -79,7 +79,7 @@
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0">
       <div class="modal-header p-3 bg-secondary-subtle">
-        <h5 class="modal-title" id="exampleModalLabels">Add Child</h5>
+        <h5 class="modal-title" id="exampleModalLabels">New Enrollment</h5>
         <button
           type="button"
           class="btn-close"
@@ -105,7 +105,7 @@
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0">
       <div class="modal-header">
-        <h5 class="modal-title">Add Branch</h5>
+        <h5 class="modal-title">New Enrollmentp</h5>
         <button
           type="button"
           class="btn-close"
@@ -115,7 +115,7 @@
         ></button>
       </div>
       <form
-        action="{% url 'core:save_branch' %}"
+        action="{% url 'core:save_enrollments' %}"
         method="post"
         class="tablelist-form"
         autocomplete="on"
@@ -128,9 +128,15 @@
             <div class="col-sm-4">{{form.child}}</div>
             <div class="col-sm-4">{{form.branch}}</div>
             <div class="col-sm-4">{{form.dayCare}}</div>
+            <datalist id='branches'>
+              
+           </datalist>
+
+            <!-- <div class="col-sm-4">{{form.dayCare}}</div> -->
             <div class="col-sm-4">{{form.normal_package}}</div>
             <div class="col-sm-4">{{form.holiday_package}}</div>
             <div class="col-sm-4">{{form.discount}}</div>
+            <div class="col-sm-4">{{form.recipt_number}}</div>
           </div>
         </div>
 
@@ -547,13 +553,13 @@
           for (var i in response) {
             center = response[i];
             console.log(center.daycare_code + "-" + center.daycare_name)
-           
-            jQuery('#dayCare').append(
-              jQuery('<option>', {
-                  value: center.id,
-                  text: center.daycare_code + "-" + center.daycare_name,
-                })
-              );
+            jQuery("#branches").append(`<option value="${center.daycare_code}">${center.daycare_code + "-" + center.daycare_name}</option>`);
+            // jQuery('#dayCare').append(
+            //   jQuery('<option>', {
+            //       value: center.id,
+            //       text: center.daycare_code + "-" + center.daycare_name,
+            //     })
+            //   );
            
           }
         },

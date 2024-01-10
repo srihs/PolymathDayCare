@@ -56,7 +56,7 @@ class CreateChildForm(forms.ModelForm):
                                     widget=forms.EmailInput(
                                         attrs={'class': 'form-control', 'id': 'email', 'placeholder': 'Email'}))
     is_polymath_student = forms.BooleanField(required=False,widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'type': 'checkbox', 'checked': 'checked'}))
-    recipt_number = forms.CharField(required=False,max_length=250, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Receipt Number'}))
+    
     admission_date = forms.DateField(required=True, widget=MyDateInput(attrs={'class': 'form-control',
                                                                               'id': 'admission_date',
                                                                               'placeholder': 'Admission Date',
@@ -70,7 +70,7 @@ class CreateChildForm(forms.ModelForm):
         fields = ('admission_number', 'child_first_name', 'admission_number', 'child_first_name', 'child_last_name',
                           'date_of_birth', 'fathers_name', 'fathers_contact_number', 'fathers_whatsapp_number', 'mothers_name',
                           'mothers_contact_number', 'mothers_whatsapp_number', 'resident_contact_number', 'address_line1',
-                          'address_line2', 'address_line3', 'email_address', 'is_polymath_student', 'recipt_number','is_active')
+                          'address_line2', 'address_line3', 'email_address', 'is_polymath_student','is_active')
 
 
 class UpdateChildForm(forms.ModelForm):
@@ -119,8 +119,7 @@ class UpdateChildForm(forms.ModelForm):
                                         attrs={'class': 'form-control', 'id': 'email', 'placeholder': 'Email'}))
     is_polymath_student = forms.BooleanField(required=False, widget=forms.CheckboxInput(
         attrs={'class': 'form-check-input', 'type': 'checkbox'}))
-    recipt_number = forms.CharField(required=False, max_length=250, widget=forms.TextInput(
-        attrs={'readonly': 'readonly','class': 'form-control', 'placeholder': 'Receipt Number'}))
+    
     admission_date = forms.DateField(required=True, widget=MyDateInput(
         attrs={'readonly': 'readonly','class': 'form-control', 'required': 'true', 'id': 'admission_date', 'data-provider': 'flatpickr',
                'data-date-format': '%Y-%m-%d', 'placeholder': 'Admission Date'}))
@@ -132,7 +131,7 @@ class UpdateChildForm(forms.ModelForm):
         fields = ('admission_number', 'child_first_name', 'admission_date', 'child_first_name', 'child_last_name',
                   'date_of_birth', 'fathers_name', 'fathers_contact_number', 'fathers_whatsapp_number', 'mothers_name',
                   'mothers_contact_number', 'mothers_whatsapp_number', 'resident_contact_number', 'address_line1',
-                  'address_line2', 'address_line3', 'email_address', 'is_polymath_student', 'recipt_number',
+                  'address_line2', 'address_line3', 'email_address', 'is_polymath_student',
                   'is_active')
 
 
@@ -478,22 +477,25 @@ class CreateEnrollmentForm(forms.ModelForm):
                                     widget=forms.Select(
                                         attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'branch'}))
     
-    dayCare = forms.ModelChoiceField(required=True, queryset=DayCare.objects.filter(is_active=True,branch=0).order_by('daycare_code'),empty_label="-Select daycare-",
+    # dayCare = forms.ModelChoiceField(required=True, queryset=DayCare.objects.filter(is_active=True,branch=0).order_by('daycare_code'),empty_label="-Select daycare-",
+    #                                 widget=forms.Select(
+    #                                     attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'dayCare'}))
+
+    dayCare = forms.CharField(max_length=250,required=True,widget=forms.TextInput(attrs={'class':'form-control','placeholder':'Daycare center','list': 'branches'}))
+
+    normal_package = forms.ModelChoiceField(required=True, queryset=Package.objects.filter(is_active=True,is_holiday_package=False).order_by('package_code'),empty_label="-Select normal package-",
                                     widget=forms.Select(
-                                        attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'dayCare'}))
-    normal_package = forms.ModelChoiceField(required=True, queryset=Package.objects.filter(is_active=True).order_by('package_code'),empty_label="-Select normal package-",
-                                    widget=forms.Select(
-                                        attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'package'}))
+                                        attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'normal_package'}))
     
     holiday_package = forms.ModelChoiceField(required=True, queryset=Package.objects.filter(is_active=True,is_holiday_package=True).order_by('package_code'),empty_label="-Select holiday package-",
                                     widget=forms.Select(
                                         attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'package'}))
     
-    discount = forms.ModelChoiceField(queryset=Discount.objects.filter(is_active=True,status="Approved").order_by('discount_code'),empty_label="-Select discounts-",
+    discount = forms.ModelChoiceField(required=False,queryset=Discount.objects.filter(is_active=True,status="Approved").order_by('discount_code'),empty_label="-Select discounts-",
                                     widget=forms.Select(
                                         attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'discount'}))
-    
+    recipt_number = forms.CharField(required=False,max_length=250, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Receipt Number'}))
     
     class Meta:
         model = ChildEnrollment
-        fields = ('enrollment_code','enrollment_date','child','branch','dayCare','normal_package','holiday_package','discount')  
+        fields = ('enrollment_code','enrollment_date','child','branch','dayCare','normal_package','holiday_package','discount','recipt_number')  

@@ -60,6 +60,7 @@ urlpatterns = [
 
                   path('enrollments/', views.getEnrollments, name='view_enrollments'),
                   path('enrollments_js/', views.getEnrollmentsJS, name='get_enrollments_js'),
+                  path('save_enrollments/', views.saveEnrollments, name='save_enrollments'),
 
 
 
