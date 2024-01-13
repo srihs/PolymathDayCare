@@ -16,6 +16,8 @@ import datetime
 from decimal import Decimal
 from django.db import transaction
 from django.core import serializers
+from django.db.models import F, Value
+from django.db.models.functions import Concat
 
 from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch,DayCare,ChildEnrollment,Discount
 
@@ -1024,21 +1026,28 @@ def getEnrollments(request):
 @login_required
 def getEnrollmentsJS(request):
      enrolmentList = list(
-        ChildEnrollment.objects.all().values(
+        ChildEnrollment.objects.filter(child__enrollement_approved=False).annotate(
+        child_name=Concat(F('child__child_first_name'), Value(' '), F('child__child_last_name')),
+        normal_package_name=Concat(F('normal_package__package_code'), Value('-'), F('normal_package__package_name')),
+        holiday_package_name=Concat(F('holiday_package__package_code'), Value('-'), F('holiday_package__package_name')),
+        branch_name=Concat(F('branch__branch_code'), Value('-'), F('branch__branch_name')),
+        center_name=Concat(F('center__daycare_code'), Value('-'), F('center__daycare_name')),
+        discount_name=Concat(F('discount__discount_code'), Value('-'), F('discount__discount_name')),
+    ).values(
             "id",
             "enrollment_code",
             "enrollment_date",
-            "child",
-            "normal_package",
-            "holiday_package",
-            "branch",
-            "center",
-            "discount",
+            "child_name",
+            "normal_package_name",
+            "holiday_package_name",
+            "branch_name",
+            "center_name",
+            "discount_name",
             "status",
-             "is_active",
-
+            "is_active",
         )
-         )
+    )
+    
      return JsonResponse(enrolmentList, safe=False)
 
 
@@ -1055,15 +1064,10 @@ def saveEnrollments(request):
         discount = request.POST.get("discount")
         recipt_number = request.POST.get("recipt_number")
         is_active = request.POST.get("is_active")
-        print('Child ' + child)
-        print(branch)
-        print(dayCare)
-        print('Normal Package '+ normal_package)
-        print(holiday_package)
-        print(discount)
+        
         try:
                 if enrollment_code is not None:
-                    objEnrollment = ChildEnrollment.objects.get(
+                    objEnrollment = ChildEnrollment.objects.filter(
                         enrollment_code=enrollment_code
                     )
                     if objEnrollment is not None:
@@ -1093,16 +1097,43 @@ def saveEnrollments(request):
                 objEnrollment = form.save(commit=False)
                 objEnrollment.user_created = request.user.username
                 objEnrollment.status = 'Pending Approval'
-                objEnrollment.child = Child.objects.get(pk=child)
-                objEnrollment.branch = Branch.objects.get(pk=branch)
-                print(objEnrollment.branch)
-                objEnrollment.center =DayCare.objects.filter(pk=dayCare)
-                objEnrollment.normal_package = Package.objects.get(pk=normal_package)
-                objEnrollment.holiday_package = Package.objects.get(pk=holiday_package)
-                objEnrollment.discount = Discount.objects.get(pk = discount)
+                objEnrollment.child = Child.objects.get(pk=child,is_active=True)
+                objEnrollment.branch = Branch.objects.get(pk=branch,is_active=True)
+                print(dayCare)
+                objEnrollment.center =DayCare.objects.get(daycare_code=dayCare,is_active=True)
+                objEnrollment.normal_package = Package.objects.get(pk=normal_package,is_active=True)
+                objEnrollment.holiday_package = Package.objects.get(pk=holiday_package,is_active=True)
+                objEnrollment.discount = Discount.objects.get(pk = discount,is_active=True)
                 objEnrollment.save()
                 messages.success(request, "Enrollment details saved.")
             else:
                 messages.error(request, form.errors)
     
-            return redirect("core:view_enrollments")
+        return redirect("core:view_enrollments")
+   
+
+def getAllEnrollmentsJS(request):
+     enrolmentList = list(
+        ChildEnrollment.objects.all().annotate(
+        child_name=Concat(F('child__child_first_name'), Value(' '), F('child__child_last_name')),
+        normal_package_name=Concat(F('normal_package__package_code'), Value('-'), F('normal_package__package_name')),
+        holiday_package_name=Concat(F('holiday_package__package_code'), Value('-'), F('holiday_package__package_name')),
+        branch_name=Concat(F('branch__branch_code'), Value('-'), F('branch__branch_name')),
+        center_name=Concat(F('center__daycare_code'), Value('-'), F('center__daycare_name')),
+        discount_name=Concat(F('discount__discount_code'), Value('-'), F('discount__discount_name')),
+    ).values(
+            "id",
+            "enrollment_code",
+            "enrollment_date",
+            "child_name",
+            "normal_package_name",
+            "holiday_package_name",
+            "branch_name",
+            "center_name",
+            "discount_name",
+            "status",
+            "is_active",
+        )
+    )
+    
+     return JsonResponse(enrolmentList, safe=False)

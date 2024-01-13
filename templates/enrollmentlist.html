@@ -353,7 +353,7 @@
     var table = $("#enrollmentList").DataTable({
       ajax: {
         processing: true,
-        url: "{% url 'core:get_enrollments_js' %}",
+        url: "{% url 'core:get_all_enrollments_js' %}",
         dataSrc: "",
       },
       columns: [

@@ -106,6 +106,8 @@ class Child(BaseClass):
     address_line3 = models.CharField(max_length=200)
     email_address = models.EmailField()
     is_polymath_student = models.BooleanField(default=False)
+    enrollement_approved = models.BooleanField(default=False)
+
     
     admission_date = models.DateField()
     
