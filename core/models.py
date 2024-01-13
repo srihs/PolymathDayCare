@@ -16,11 +16,11 @@ class BaseClass(models.Model):
 
 
 class Discount(BaseClass):
-    STATUS_CHOICES = {
-        'PENDING_APPROVAL' : "Pending Approval",
-        'APPROVED' : "Approved",
-        'REJECTED' : "Rejected",
-    }
+    STATUS_CHOICES = (
+        ('PENDING_APPROVAL' , "Pending Approval"),
+        ('APPROVED' , "Approved"),
+        ('REJECTED' , "Rejected"),
+    )
     discount_code = models.CharField(max_length=250)
     discount_name = models.CharField(max_length=250)
     discount_rate = models.DecimalField(max_digits=8, decimal_places=2)
@@ -107,8 +107,7 @@ class Child(BaseClass):
     email_address = models.EmailField()
     is_polymath_student = models.BooleanField(default=False)
     enrollement_approved = models.BooleanField(default=False)
-
-    
+    is_enrolled =models.BooleanField(default=False)
     admission_date = models.DateField()
     
     class Meta:
@@ -207,11 +206,11 @@ class DayCare(BaseClass):
 
 
 class ChildEnrollment(BaseClass):
-    STATUS_CHOICES = {
-        'PENDING_APPROVAL' : "Pending Approval",
-        'APPROVED' : "Approved",
-        'REJECTED' : "Rejected",
-    }
+    STATUS_CHOICES = (
+        ('PENDING_APPROVAL' , "Pending Approval"),
+       ('APPROVED' , "Approved"),
+       ( 'REJECTED' , "Rejected"),
+    )
     enrollment_code = models.CharField(max_length=20)
     enrollment_date = models.DateField()
     child = models.ForeignKey("Child", on_delete=models.CASCADE)
@@ -219,8 +218,8 @@ class ChildEnrollment(BaseClass):
     holiday_package = models.ForeignKey("Package", on_delete=models.CASCADE, related_name='holiday_package')
     branch = models.ForeignKey("Branch", on_delete=models.CASCADE)
     center = models.ForeignKey("DayCare", on_delete=models.CASCADE)
-    discount = models.ForeignKey("Discount", on_delete=models.CASCADE)
-    recipt_number = models.CharField(max_length=50)
+    discount = models.ForeignKey("Discount", on_delete=models.CASCADE,null=True, blank=True)
+    recipt_number = models.CharField(max_length=50,null=True, blank=True)
     status = models.CharField(
         max_length=30,
         choices=STATUS_CHOICES,

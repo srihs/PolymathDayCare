@@ -514,7 +514,7 @@ def saveBaseRate(request):
 
 
 @login_required
-def getRateHistoryById(request,pk):
+def getRateHistoryById(request):
     baseRateName = None
     if request.GET.get('rate_id') is not None:
         id = request.GET.get('rate_id')
@@ -912,7 +912,7 @@ def getDiscounts(request):
     )
 
 @login_required
-def getDiscountJson(reuest):
+def getDiscountJson():
     discountList = list(
         Discount.objects.all().values(
             "id",
@@ -1024,7 +1024,7 @@ def getEnrollments(request):
 
 
 @login_required
-def getEnrollmentsJS(request):
+def getEnrollmentsJS():
      enrolmentList = list(
         ChildEnrollment.objects.filter(child__enrollement_approved=False).annotate(
         child_name=Concat(F('child__child_first_name'), Value(' '), F('child__child_last_name')),
@@ -1066,11 +1066,13 @@ def saveEnrollments(request):
         is_active = request.POST.get("is_active")
         
         try:
+                print(enrollment_code)
                 if enrollment_code is not None:
-                    objEnrollment = ChildEnrollment.objects.filter(
+                    objEnrollment = ChildEnrollment.objects.get(
                         enrollment_code=enrollment_code
                     )
                     if objEnrollment is not None:
+                        print('Here')
                         objEnrollment.enrollment_code = enrollment_code
                         objEnrollment.enrollment_date = enrollment_date
                         objEnrollment.child = child
@@ -1087,23 +1089,29 @@ def saveEnrollments(request):
                         objEnrollment.is_active = is_active
                         objEnrollment.user_updated = request.user.username
                         objEnrollment.date_updated = datetime.datetime.now()
+                        print('--------------------------------------------------------------')
                         objEnrollment.save()
                         messages.success(request, "Enrollment details updated.")
 
         except :
             form = CreateEnrollmentForm(request.POST)
-            print(form.fields["branch"].choices)
             if form.is_valid():
                 objEnrollment = form.save(commit=False)
                 objEnrollment.user_created = request.user.username
                 objEnrollment.status = 'Pending Approval'
                 objEnrollment.child = Child.objects.get(pk=child,is_active=True)
+                objChild = child
+                objChild.is_enrolled = True
+                objChild.save()
+
                 objEnrollment.branch = Branch.objects.get(pk=branch,is_active=True)
-                print(dayCare)
+                print('Daycare '+ dayCare)
                 objEnrollment.center =DayCare.objects.get(daycare_code=dayCare,is_active=True)
                 objEnrollment.normal_package = Package.objects.get(pk=normal_package,is_active=True)
                 objEnrollment.holiday_package = Package.objects.get(pk=holiday_package,is_active=True)
-                objEnrollment.discount = Discount.objects.get(pk = discount,is_active=True)
+                if discount is not None and discount!= "":
+                    objEnrollment.discount = Discount.objects.get(pk = discount,is_active=True)
+                print('Discount '+discount)
                 objEnrollment.save()
                 messages.success(request, "Enrollment details saved.")
             else:
