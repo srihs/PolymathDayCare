@@ -1024,7 +1024,7 @@ def getEnrollments(request):
 
 
 @login_required
-def getEnrollmentsJS():
+def getEnrollmentsJS(request):
      enrolmentList = list(
         ChildEnrollment.objects.filter(child__enrollement_approved=False).annotate(
         child_name=Concat(F('child__child_first_name'), Value(' '), F('child__child_last_name')),
@@ -1120,6 +1120,7 @@ def saveEnrollments(request):
         return redirect("core:view_enrollments")
    
 
+@login_required
 def getAllEnrollmentsJS(request):
      enrolmentList = list(
         ChildEnrollment.objects.all().annotate(
@@ -1145,3 +1146,23 @@ def getAllEnrollmentsJS(request):
     )
     
      return JsonResponse(enrolmentList, safe=False)
+
+    
+@login_required
+def deleteEnrollments(request,pk):
+    try:
+        objEnrollment = get_object_or_404(ChildEnrollment, pk=pk)
+
+        if objEnrollment is not None:
+            objEnrollment.is_active = False
+            objEnrollment.user_updated = request.user.username
+            objEnrollment.save()
+
+    except Exception as e:
+        messages.error(request, e)
+    
+    return JsonResponse(enrolmentList, safe=False)
+
+
+
+

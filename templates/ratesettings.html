@@ -330,7 +330,7 @@
                 {
                     data: null,
                     render: function (data, type, row) {
-                        var url = "{% url 'core:view_baserate_update_byId' 0 %}";
+                        var url = "{% url 'core:view_baserate_update_byId'  %}";
                         id= row.id;
                         url = url.replace(0, id);
                         return data =

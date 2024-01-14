@@ -153,158 +153,88 @@
   </div>
 </div>
 
-<!--Additional Rates Form-->
+<!--Delete Form-->
 <div
-  id="flipModal"
-  class="modal fade flip"
-  tabindex="-1"
-  aria-labelledby="flipModalLabel"
-  style="display: none"
-  aria-hidden="true"
->
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="flipModalLabel">Extra hour rates</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-        ></button>
-      </div>
-      <div class="modal-body">
-        <div>
-          <table id="AdditionalRateList" class="display" style="width: 100%">
-            <thead>
-              <tr>
-                <th>Slot (hr)</th>
-                <th>Rate</th>
-                <th>Effective from</th>
-                <th>Effective to</th>
-              </tr>
-            </thead>
-          </table>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
-          Close
-        </button>
-      </div>
-    </div>
-    <!-- /.modal-content -->
-  </div>
-  <!-- /.modal-dialog -->
-</div>
-
-<!--Rate History pop-up-->
-<div
-  id="historyModal"
-  class="modal fade flip"
-  tabindex="-1"
-  aria-labelledby="flipModalLabel"
-  style="display: none"
-  aria-hidden="true"
->
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="flipModalLabel">Rate History</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-        ></button>
-      </div>
-      <div class="modal-body">
-        <div>
-          <table id="RateHistoryList" class="display" style="width: 100%">
-            <thead>
-              <tr>
-                <th>Rate (hr)</th>
-                <th>Effective from</th>
-                <th>Effective to</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-          </table>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
-          Close
-        </button>
-      </div>
-    </div>
-    <!-- /.modal-content -->
-  </div>
-  <!-- /.modal-dialog -->
-</div>
-
-<!--Update Form-->
-<div
-  class="modal fade zoomIn"
-  id="showUpdateModal"
-  tabindex="-1"
-  aria-labelledby="exampleModalLabel"
-  style="display: none"
-  aria-hidden="true"
->
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content border-0">
-      <div class="modal-header p-3 bg-secondary-subtle">
-        <h5 class="modal-title">Update base rate details</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-          id="close-upmodal"
-        ></button>
-      </div>
-      <div id="modelForm" bs-focus="false"></div>
-    </div>
-  </div>
-</div>
-
-<!--Rate Form-->
-<div
-  id="rateModals"
+  id="deleteModals"
   class="modal fade zoomIn"
   tabindex="-1"
   style="display: none"
   aria-modal="true"
   role="dialog"
 >
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 overflow-hidden">
-      <div class="modal-header p-3">
-        <h4 class="card-title mb-0">Set rates</h4>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-        ></button>
+<div class="modal-dialog modal-dialog-centered">
+  <div class="modal-content">
+      <div class="modal-body text-center p-5">
+          <img
+                  src="{% static 'assets/images/stop.gif' %}"
+                  alt="alert"
+                  width="100px"
+                  height="100px"
+          />
+          <div class="mt-4 pt-4">
+              <h4>You are about to delete this enrollment!</h4>
+              <p class="text-muted">
+                  Are you sure? 
+              </p>
+              <!-- Toogle to second dialog -->
+              <button
+                      class="btn btn-secondary"
+                      data-bs-target="#firstmodal"
+                      data-bs-toggle="modal"
+                      data-bs-dismiss="modal"
+              >
+                  No
+              </button>
+              <button
+                      name="btnModelDelete"
+                      id="btnModelDelete"
+                      class="btn btn-danger"
+              >
+                  Yes
+              </button>
+          </div>
       </div>
-      <div class="alert alert-danger rounded-0 mb-0">
-        <p class="mb-0">
-          <center>
-            <strong
-              >Please note that this operation will change the rates for all
-              pcakages associated with this base rate from the selected
-              effective date.</strong
-            >
-          </center>
-        </p>
-      </div>
-      <div id="modelRateForm" bs-focus="false"></div>
-    </div>
-    <!-- /.modal-content -->
   </div>
+</div>
   <!-- /.modal-dialog -->
+</div>
+
+<!-- Second modal dialog -->
+<div
+        class="modal fade"
+        id="secondmodal"
+        aria-hidden="true"
+        aria-labelledby="..."
+        tabindex="-1"
+>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center p-5">
+                <img
+                        src="{% static 'assets/images/done.gif' %}"
+                        alt="alert"
+                        width="75px"
+                        height="75px"
+                />
+                <div class="mt-4 pt-3">
+                    <h4 class="mb-3">Operation completed</h4>
+                    <div class="hstack gap-2 justify-content-center">
+                        <!-- Toogle to first dialog, `data-bs-dismiss` attribute can be omitted - clicking on link will close dialog anyway -->
+
+                        <button
+                                type="button"
+                                id="secondButton"
+                                class="btn btn-secondary"
+                                onclick="location=URL"
+                                data-bs-dismiss="modal"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% endblock %} {% block scripts %}
@@ -333,6 +263,7 @@
   var $ = jQuery;
   var id;
   var dataTable;
+  var url;
 
   jQuery(document).ready(function () {
     window.setTimeout(function () {
@@ -370,16 +301,12 @@
         {
           data: null,
           render: function (data, type, row) {
-            var url = "{% url 'core:get_Branch_For_Update' 0 %}";
+            var url = "{% url 'core:enrollments_delete' 0 %}";
             id = row.id;
             url = url.replace(0, id);
             return (data =
-              "<a href=" +
-              url +
-              ' class="link-success"  data-id=' +
-              id +
-              ' data-bs-target="#showUpdateModal"\
-                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="ri-edit-2-fill"></i></a>');
+              "<a href=" + url +' class="link-danger"  data-id=' + id + ' data-bs-target="#deleteModals"\
+                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="ri-delete-bin-line"></i></a>');
           },
         },
       ],
@@ -402,6 +329,11 @@
     });
   });
 
+  jQuery(document).on("click", ".link-danger", function () {
+        url = jQuery(this).attr("href");
+
+    });
+
   jQuery("#from_time").flatpickr({
     enableTime: true,
     noCalendar: true,
@@ -423,28 +355,6 @@
   });
 
   var url = "";
-
-  jQuery(document).on("click", ".link-success", function (e) {
-    e.preventDefault();
-    url = jQuery(this).attr("href");
-
-    // Show the modal
-    jQuery("#showUpdateModal").modal("show");
-
-    // Load the form into the modal using AJAX
-    jQuery.ajax({
-      type: "GET",
-      url: url,
-      dataType: "html",
-      success: function (data) {
-        // Assuming you have a modal body with the id "updateModalBody"
-        jQuery("#modelForm").html(data);
-      },
-      error: function (xhr, textStatus, errorThrown) {
-        alert("Error: " + xhr.status + ", " + xhr.statusText);
-      },
-    });
-  });
 
   jQuery(document).on("click", "#addRates", function (e) {
     e.preventDefault();
@@ -510,6 +420,28 @@
       });
     } 
   });
+
+  jQuery("#btnModelDelete").click(function (e) {
+        //e.preventDefault(); // prevent the default behavior of the anchor tag
+        var $this = "";
+        alert(url)
+        jQuery.ajax({
+            type: "GET",
+            url: url,
+            dataType: "json",
+            success: function (data) {
+                // Open the second modal on success
+                jQuery("#secondmodal").modal("show");
+
+                // Optionally, you can also close the current modal
+                jQuery("#firstmodal").modal("hide");
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                alert("Error: " + xhr.status + ", " + xhr.statusText);
+            },
+        });
+    });
+
 </script>
 
 <!-- App js -->
