@@ -424,17 +424,20 @@
   jQuery("#btnModelDelete").click(function (e) {
         //e.preventDefault(); // prevent the default behavior of the anchor tag
         var $this = "";
-        alert(url)
+        
         jQuery.ajax({
             type: "GET",
             url: url,
             dataType: "json",
             success: function (data) {
+               // Optionally, you can also close the current modal
+               jQuery("#deleteModals").modal("hide");
+               
                 // Open the second modal on success
                 jQuery("#secondmodal").modal("show");
 
-                // Optionally, you can also close the current modal
-                jQuery("#firstmodal").modal("hide");
+               
+                
             },
             error: function (xhr, textStatus, errorThrown) {
                 alert("Error: " + xhr.status + ", " + xhr.statusText);

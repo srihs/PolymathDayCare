@@ -441,7 +441,7 @@
         jQuery("#modelForm").html(data);
       },
       error: function (xhr, textStatus, errorThrown) {
-        alert("Error: " + xhr.status + ", " + xhr.statusText);
+        console.log("Error: " + xhr.status + ", " + xhr.statusText);
       },
     });
   });
@@ -466,7 +466,7 @@
         jQuery("#effective_from").flatpickr();
       },
       error: function (xhr, textStatus, errorThrown) {
-        alert("Error: " + xhr.status + ", " + xhr.statusText);
+        console.log(textStatus)
       },
     });
   });

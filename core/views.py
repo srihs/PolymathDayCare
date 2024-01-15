@@ -1123,7 +1123,9 @@ def saveEnrollments(request):
 @login_required
 def getAllEnrollmentsJS(request):
      enrolmentList = list(
-        ChildEnrollment.objects.all().annotate(
+        ChildEnrollment.objects.filter(
+        is_active=True  # Add this filter for is_active
+    ).annotate(
         child_name=Concat(F('child__child_first_name'), Value(' '), F('child__child_last_name')),
         normal_package_name=Concat(F('normal_package__package_code'), Value('-'), F('normal_package__package_name')),
         holiday_package_name=Concat(F('holiday_package__package_code'), Value('-'), F('holiday_package__package_name')),
@@ -1161,7 +1163,7 @@ def deleteEnrollments(request,pk):
     except Exception as e:
         messages.error(request, e)
     
-    return JsonResponse(enrolmentList, safe=False)
+    return JsonResponse("Sucess", safe=False)
 
 
 
