@@ -1124,7 +1124,7 @@ def saveEnrollments(request):
 def getAllEnrollmentsJS(request):
      enrolmentList = list(
         ChildEnrollment.objects.filter(
-        is_active=True  # Add this filter for is_active
+        is_active=True,  # Add this filter for is_active
     ).annotate(
         child_name=Concat(F('child__child_first_name'), Value(' '), F('child__child_last_name')),
         normal_package_name=Concat(F('normal_package__package_code'), Value('-'), F('normal_package__package_name')),
