@@ -85,12 +85,12 @@ WSGI_APPLICATION = 'daycareSystem.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'polymath_dc',
         'USER': 'root',
         'PASSWORD': 'Im@liem123#',
         'HOST': 'localhost',
-        'PORT': '3306',
+        'PORT': '5432',
     }
 }
 

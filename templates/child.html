@@ -26,6 +26,27 @@
     </div>
 
     <div class="card-body">
+        <div class="alert alert-dismissible" role="alert">
+            {% if messages %} {% for message in messages %}
+            <!-- Danger Alert -->
+            <div
+              class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
+              role="alert"
+            >
+              <strong>
+                <center>{{ message }}</center>
+              </strong>
+              <button
+                type="button"
+                class="btn-close"
+                data-bs-dismiss="alert"
+                aria-label="Close"
+              ></button>
+            </div>
+            {% endfor %} {% endif %}
+            <!-- end row -->
+          </div>
+      
         <div class="table-responsive">
         <table id="ChildList" class="table table-striped table-hover dt-responsive display nowrap" cellspacing="0">
             <thead>
@@ -399,6 +420,22 @@
 <script>
     var $ = jQuery;
     jQuery(document).ready(function () {
+
+        window.setTimeout(function () {
+      // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
+      var alertDiv = jQuery(".alert");
+
+      // Check if the inner div contains a success message
+      var successMessageFound = alertDiv.find(".alert-success").length > 0;
+
+      // If a success message is found, apply the fade-out effect
+      if (successMessageFound) {
+        alertDiv.fadeTo(1000, 0).slideUp(1000, function () {
+          jQuery(this).remove();
+        });
+      }
+    }, 2000);
+
         var table = $("#ChildList").DataTable({
             ajax: {
                 processing: true,
