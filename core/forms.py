@@ -268,13 +268,13 @@ class CreatePackagesForm(forms.ModelForm):
                                     widget=forms.Select(
                                         attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'base_rate'}))
   
-    from_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'id':'from_time','class': 'form-control','placeholder': 'From Time',
+    from_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'autocomplete': 'off','id':'from_time','class': 'form-control','placeholder': 'From Time',
                                                                              'required': 'required'}))
-    to_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'id':'to_time','class': 'form-control','placeholder': 'To Time','required': 'required'}))
+    to_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'autocomplete': 'off','id':'to_time','class': 'form-control','placeholder': 'To Time','required': 'required'}))
     
-    no_hours = forms.IntegerField( validators=[MinValueValidator(int('0'))],
+    no_hours = forms.DecimalField(decimal_places=2, max_digits=4, validators=[MinValueValidator(Decimal('00.00'))],
                                             required=True,
-                                            widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'No of hours'}))
+                                            widget=forms.NumberInput(attrs={'autocomplete': 'off','id':'no_hours','class': 'form-control','placeholder': 'No of hours'}))
     no_days_week = forms.IntegerField(validators=[MinValueValidator(int('0'))],
                                             required=True,
                                             widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'No of days for a week'}))

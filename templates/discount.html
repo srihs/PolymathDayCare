@@ -329,6 +329,7 @@
     }, 2000);
 
     var table = $("#discountList").DataTable({
+      sScrollX: false,
       ajax: {
         processing: true,
         url: "{% url 'core:view_discounts_js' %}",

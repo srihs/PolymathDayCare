@@ -12,12 +12,14 @@ from django.views.decorators.csrf import csrf_protect
 from django.utils.http import url_has_allowed_host_and_scheme
 
 import datetime
+from datetime import datetime, timedelta
 
 from decimal import Decimal
 from django.db import transaction
 from django.core import serializers
 from django.db.models import F, Value
 from django.db.models.functions import Concat
+from django.views.decorators.http import require_POST
 
 from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch,DayCare,ChildEnrollment,Discount
 
@@ -460,6 +462,33 @@ def updateAdditionalRates(request):
 
 
 
+def calculate_duration(request):
+    # Get the values of "from_time" and "to_time" from the POST request
+    from_time_str = request.GET.get('from_time')
+    to_time_str = request.GET.get('to_time')
+    print(from_time_str)
+    print(to_time_str)
+    print("Print is not working")
+
+
+    try:
+        # Convert the time strings to datetime objects
+        from_time = datetime.strptime(from_time_str, '%H:%M')
+        to_time = datetime.strptime(to_time_str, '%H:%M')
+
+       # Calculate the duration
+        duration_seconds = (to_time - from_time).seconds
+        duration_hours = duration_seconds // 3600
+        duration_minutes = (duration_seconds % 3600) // 60
+
+        # Return the result as JSON
+        return JsonResponse({'duration_hours': duration_hours, 'duration_minutes': duration_minutes})
+    except ValueError:
+        # Handle invalid time format
+        return JsonResponse({'error': 'Invalid time format'}, status=400)
+    except Exception as e:
+        # Handle other exceptions
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 # This method will save the Rate history for a give base rate.
@@ -703,9 +732,10 @@ def saveBranch(request):
 
 
         if branch_code is not None:
-                objBranch = Branch.objects.get(
+                objBranch = Branch.objects.filter(
                     branch_code=branch_code
-                )
+                ).first()
+                print(objBranch)
                 if objBranch is not None:
                     objBranch.branch_code = branch_code
                     objBranch.branch_name = branch_name
@@ -724,7 +754,7 @@ def saveBranch(request):
                     objBranch.is_active = is_active
 
                     objBranch.user_updated = request.user.username
-                    objBranch.date_updated = datetime.datetime.now()
+                    objBranch.date_updated = datetime.now()
                     objBranch.save()
 
                     messages.success(request, "Branch details updated.")
@@ -912,7 +942,7 @@ def getDiscounts(request):
     )
 
 @login_required
-def getDiscountJson():
+def getDiscountJson(request):
     discountList = list(
         Discount.objects.all().values(
             "id",
@@ -1126,7 +1156,7 @@ def getAllEnrollmentsJS(request):
         ChildEnrollment.objects.filter(
         is_active=True,  # Add this filter for is_active
     ).annotate(
-        child_name=Concat(F('child__child_first_name'), Value(' '), F('child__child_last_name')),
+        child_name=Concat(F('child__child_first_name'), Value('-'), F('child__child_last_name')),
         normal_package_name=Concat(F('normal_package__package_code'), Value('-'), F('normal_package__package_name')),
         holiday_package_name=Concat(F('holiday_package__package_code'), Value('-'), F('holiday_package__package_name')),
         branch_name=Concat(F('branch__branch_code'), Value('-'), F('branch__branch_name')),

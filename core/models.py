@@ -115,7 +115,7 @@ class Child(BaseClass):
         verbose_name_plural = 'Children'
 
     def __str__(self):
-        return self.admission_number +" - " +self.child_first_name + self.child_last_name
+        return self.admission_number +" - " +self.child_first_name + " " + self.child_last_name
 
    
 

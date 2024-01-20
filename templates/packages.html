@@ -423,7 +423,35 @@
 
     });
 
-  
+    // Add an event listener to the "to_time" field
+        jQuery(document).on('change', '#to_time',function () {
+            
+            // Get the values of "from_time" and "to_time"
+            var fromTime = jQuery('#from_time').val();
+            var toTime = jQuery(this).val();
+           
+
+            // Make an Ajax request to calculate the duration
+            jQuery.ajax({
+                url: "{% url 'core:calculate_duration' %}",
+                method: 'GET',
+                data: {
+                    'from_time': fromTime,
+                    'to_time': toTime,
+                },
+                success: function (data) {
+                    // Combine hours and minutes with a dot separator
+                var durationFormatted = data.duration_hours + '.' + (data.duration_minutes < 10 ? '0' : '') + data.duration_minutes;
+
+                    // Update the "no_hours" field with the formatted duration
+                jQuery('#no_hours').val(durationFormatted);
+                },
+                error: function () {
+                    console.error('Error calculating duration.');
+                }
+            });
+        });
+
 </script>
 
 <!-- App js -->
