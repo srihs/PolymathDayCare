@@ -190,7 +190,7 @@ def createChild(request):
             admission_number=admission_number,
             child_first_name=child_first_name,
             child_last_name=child_last_name,
-            date_of_birth=datetime.datetime.strptime(date_of_birth, "%Y-%m-%d").date(),
+            date_of_birth=datetime.strptime(date_of_birth, "%Y-%m-%d").date(),
             fathers_name=fathers_name,
             fathers_contact_number=fathers_contact_number,
             fathers_whatsapp_number=fathers_whatsapp_number,
@@ -204,7 +204,7 @@ def createChild(request):
             email_address=email_address,
             is_polymath_student=is_polymath_student,
             user_created=request.user.username,
-            admission_date=datetime.datetime.strptime(
+            admission_date=datetime.strptime(
                 admission_date, "%Y-%m-%d"
             ).date(),
             is_active=is_active,
@@ -323,7 +323,7 @@ def saveRates(request):
                     objRate.is_holiday_rate = is_holiday_rate
                     objRate.is_active = True
                     objRate.user_updated =request.user.username
-                    objRate.date_updated = datetime.datetime.now()
+                    objRate.date_updated = datetime.now()
                     objRate.save()
                     messages.success(request, "Rate details updated.")
             else:
@@ -510,15 +510,15 @@ def saveBaseRate(request):
                 with transaction.atomic():
                     if oldRate is not None:
                         if oldRate.effective_to is None and oldRate.is_active == True:
-                            oldRate.effective_to =datetime.datetime.strptime(effective_from, "%Y-%m-%d").date()
+                            oldRate.effective_to =datetime.strptime(effective_from, "%Y-%m-%d").date()
                             oldRate.is_active = False
                             oldRate.user_updated = request.user.username
-                            oldRate.date_updated = datetime.datetime.now
+                            oldRate.date_updated = datetime.now
                             oldRate.save()
                             objRateHistory = RateHistory(
                             rate =  Rates.objects.get(pk=request.POST.get("rate_id")),
                             standard_hourly_rate = standard_hourly_rate,
-                            effective_from =  datetime.datetime.strptime(effective_from, "%Y-%m-%d").date(),
+                            effective_from =  datetime.strptime(effective_from, "%Y-%m-%d").date(),
                             is_active = True,
                             user_created = request.user.username)
                             objRateHistory.save()
@@ -527,7 +527,7 @@ def saveBaseRate(request):
                             objRateHistory = RateHistory(
                             rate =  Rates.objects.get(pk=request.POST.get("rate_id")),
                             standard_hourly_rate = standard_hourly_rate,
-                            effective_from =  datetime.datetime.strptime(effective_from, "%Y-%m-%d").date(),
+                            effective_from =  datetime.strptime(effective_from, "%Y-%m-%d").date(),
                             is_active = True,
                             user_created = request.user.username)
                             objRateHistory.save()
@@ -842,7 +842,7 @@ def saveDayCareCenter(request):
                         objDayCare.is_active = is_active
 
                         objDayCare.user_updated = request.user.username
-                        objDayCare.date_updated = datetime.datetime.now()
+                        objDayCare.date_updated = datetime.now()
                         objDayCare.save()
                         messages.success(request, "Center details updated.")
 
@@ -922,7 +922,7 @@ def getDayCareCentersByBranchJs(request):
 
 @login_required
 def getDiscounts(request):
-    if request.method=="GET":
+    if request.method == "GET":
         try:
         # trying to retrive the next primaryKey
             nextId = Discount.objects.all().count()
@@ -953,6 +953,7 @@ def getDiscountJson(request):
             "is_active",
         )
     )
+    print(discountList)
 
     return JsonResponse(discountList, safe=False)
 
@@ -983,7 +984,7 @@ def saveDiscount(request):
 
                         objDiscount.is_active = is_active
                         objDiscount.user_updated = request.user.username
-                        objDiscount.date_updated = datetime.datetime.now()
+                        objDiscount.date_updated = datetime.now()
                         objDiscount.save()
                         messages.success(request, "Discount details updated.")
 
@@ -1005,12 +1006,15 @@ def saveDiscount(request):
 def approveDiscount(request):
     if request.GET.get('id') is not None:
         id = request.GET.get('id')
+        print(id)
         objDiscount = Discount.objects.get(pk=id)
+        print(objDiscount)
         if objDiscount is not None:
             objDiscount.status = "Approved"
             objDiscount.user_updated = request.user.username
-            objDiscount.date_updated = datetime.datetime.now()
+            objDiscount.date_updated = datetime.now()
             objDiscount.save()
+            print("Saved")
     return JsonResponse("Approved", safe=False)
 
 
@@ -1024,7 +1028,7 @@ def rejectDiscount(request):
             objDiscount.status = "Rejected"
             objDiscount.is_active = False
             objDiscount.user_updated = request.user.username
-            objDiscount.date_updated = datetime.datetime.now()
+            objDiscount.date_updated = datetime.now()
             objDiscount.save()
     return JsonResponse("Rejected", safe=False)
 
@@ -1118,7 +1122,7 @@ def saveEnrollments(request):
 
                         objEnrollment.is_active = is_active
                         objEnrollment.user_updated = request.user.username
-                        objEnrollment.date_updated = datetime.datetime.now()
+                        objEnrollment.date_updated = datetime.now()
                         print('--------------------------------------------------------------')
                         objEnrollment.save()
                         messages.success(request, "Enrollment details updated.")

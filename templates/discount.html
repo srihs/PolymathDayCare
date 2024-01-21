@@ -45,8 +45,8 @@
       <!-- end row -->
     </div>
 
-    <div class="table-responsive">
-    <table id="discountList" class="table table-striped table-hover dt-responsive display nowrap" cellspacing="0">
+    
+    <table id="discountList" class="table table-striped table-hover" cellspacing="0">
       <thead>
         <tr>
           <th>Discount code</th>
@@ -54,15 +54,14 @@
           <th>Discount rate</th>
           <th>Active status</th>
           <th>Is active</th>
-          <th data-orderable="false"></th>
+          
           <th data-orderable="false"></th>
           <th data-orderable="false"></th>
         </tr>
       </thead>
     </table>
   </div>
-    
-  </div>
+
   <!-- end card-body -->
 </div>
 
@@ -330,6 +329,7 @@
 
     var table = $("#discountList").DataTable({
       sScrollX: false,
+      responsive: true,
       ajax: {
         processing: true,
         url: "{% url 'core:view_discounts_js' %}",
@@ -341,17 +341,6 @@
         { data: "discount_rate" },
         { data: "status" },
         { data: "is_active" },
-        {
-                    data: null,
-                    render: function (data, type, row) {
-                        var url = "{% url 'core:get_DayCareCenter_ForUpdate_ById' 0 %}";
-                        id= row.id;
-                        url = url.replace(0, id);
-                        return data =
-                        '<a href=' + url + ' class="link-secondary"  data-id='+ id +' data-bs-target="#showUpdateModal"\
-                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="ri-edit-2-fill"></i></a>';
-                    },
-                },
                 {
                     data: null,
                     render: function (data, type, row) {
@@ -460,6 +449,14 @@
     id = jQuery(this).attr("data-id")
   });
 
+
+  jQuery(document).on("click", ".link-success", function (e) {
+    e.preventDefault();
+    url = jQuery(this).attr("href")
+    id = jQuery(this).attr("data-id")
+  });
+
+
   
   jQuery("#btnApprove").click(function (e) {
         //e.preventDefault(); // prevent the default behavior of the anchor tag
@@ -471,8 +468,7 @@
             data: { id: id },
             dataType: "json",
             success: function (data) {
-              alert(data);
-        
+
               window.parent.location = window.parent.location.href;
             },
             error: function (xhr, textStatus, errorThrown) {
@@ -492,8 +488,6 @@
             data: { id: id },
             dataType: "json",
             success: function (data) {
-              alert(data);
-        
               window.parent.location = window.parent.location.href;
             },
             error: function (xhr, textStatus, errorThrown) {

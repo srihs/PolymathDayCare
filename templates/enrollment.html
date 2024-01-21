@@ -44,8 +44,8 @@
       {% endfor %} {% endif %}
       <!-- end row -->
     </div>
-    <div class="table-responsive">
-    <table id="enrollmentList" class="table table-striped table-hover dt-responsive display nowrap" cellspacing="0">
+    
+    <table id="enrollmentList" class="table table-striped table-hover" cellspacing="0">
       <thead>
         <tr>
           <th>Enrollment code</th>
@@ -62,7 +62,7 @@
         </tr>
       </thead>
     </table>
-  </div>
+  
   </div>
   <!-- end card-body -->
 </div>
@@ -283,6 +283,7 @@
     }, 2000);
 
     var table = $("#enrollmentList").DataTable({
+      responsive: true,
       ajax: {
         processing: true,
         url: "{% url 'core:get_enrollments_js' %}",
