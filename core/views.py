@@ -1102,9 +1102,9 @@ def saveEnrollments(request):
         try:
                 print(enrollment_code)
                 if enrollment_code is not None:
-                    objEnrollment = ChildEnrollment.objects.get(
+                    objEnrollment = ChildEnrollment.objects.filter(
                         enrollment_code=enrollment_code
-                    )
+                    ).first()
                     if objEnrollment is not None:
                         print('Here')
                         objEnrollment.enrollment_code = enrollment_code
@@ -1126,30 +1126,33 @@ def saveEnrollments(request):
                         print('--------------------------------------------------------------')
                         objEnrollment.save()
                         messages.success(request, "Enrollment details updated.")
+                else:  
+                    form = CreateEnrollmentForm(request.POST)
+                    if form.is_valid():
+                        objEnrollment = form.save(commit=False)
+                        objEnrollment.user_created = request.user.username
+                        objEnrollment.status = 'Pending Approval'
+                        objEnrollment.child = Child.objects.get(pk=child,is_active=True)
+                        objChild = child
+                        objChild.is_enrolled = True
+                        objChild.save()
 
-        except :
-            form = CreateEnrollmentForm(request.POST)
-            if form.is_valid():
-                objEnrollment = form.save(commit=False)
-                objEnrollment.user_created = request.user.username
-                objEnrollment.status = 'Pending Approval'
-                objEnrollment.child = Child.objects.get(pk=child,is_active=True)
-                objChild = child
-                objChild.is_enrolled = True
-                objChild.save()
+                        objEnrollment.branch = Branch.objects.get(pk=branch,is_active=True)
+                        print('Daycare '+ dayCare)
+                        objEnrollment.center =DayCare.objects.get(daycare_code=dayCare,is_active=True)
+                        objEnrollment.normal_package = Package.objects.get(pk=normal_package,is_active=True)
+                        objEnrollment.holiday_package = Package.objects.get(pk=holiday_package,is_active=True)
+                        if discount is not None and discount!= "":
+                            objEnrollment.discount = Discount.objects.get(pk = discount,is_active=True)
+                        print('Discount '+discount)
+                        objEnrollment.save()
+                        messages.success(request, "Enrollment details saved.")
+                    else:
+                        messages.error(request, form.errors)      
 
-                objEnrollment.branch = Branch.objects.get(pk=branch,is_active=True)
-                print('Daycare '+ dayCare)
-                objEnrollment.center =DayCare.objects.get(daycare_code=dayCare,is_active=True)
-                objEnrollment.normal_package = Package.objects.get(pk=normal_package,is_active=True)
-                objEnrollment.holiday_package = Package.objects.get(pk=holiday_package,is_active=True)
-                if discount is not None and discount!= "":
-                    objEnrollment.discount = Discount.objects.get(pk = discount,is_active=True)
-                print('Discount '+discount)
-                objEnrollment.save()
-                messages.success(request, "Enrollment details saved.")
-            else:
-                messages.error(request, form.errors)
+        except Exception as e:
+            messages.error(request, e)
+            
     
         return redirect("core:view_enrollments")
    
