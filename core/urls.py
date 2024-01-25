@@ -62,6 +62,7 @@ urlpatterns = [
                   path('enrollments/', views.getEnrollments, name='view_enrollments'),
                   path('enrollments_js/', views.getEnrollmentsJS, name='get_enrollments_js'),
                   path('enrollments_list_js/', views.getAllEnrollmentsJS, name='get_all_enrollments_js'),
+                  path('enrollments_list_for_approval/', views.getAllEnrollmentsForApproval, name='enrollments_list_for_approval'),
                   path('save_enrollments/', views.saveEnrollments, name='save_enrollments'),
                   path('delete_enrollments/<int:pk>/', views.deleteEnrollments, name='enrollments_delete'),
 

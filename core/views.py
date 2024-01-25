@@ -1045,6 +1045,33 @@ def getEnrollments(request):
 @login_required
 def getEnrollmentsJS(request):
      enrolmentList = list(
+        ChildEnrollment.objects.filter(child__enrollement_approved=False,is_active=True).annotate(
+        child_name=Concat(F('child__child_first_name'), Value(' '), F('child__child_last_name')),
+        normal_package_name=Concat(F('normal_package__package_code'), Value('-'), F('normal_package__package_name')),
+        holiday_package_name=Concat(F('holiday_package__package_code'), Value('-'), F('holiday_package__package_name')),
+        branch_name=Concat(F('branch__branch_code'), Value('-'), F('branch__branch_name')),
+        center_name=Concat(F('center__daycare_code'), Value('-'), F('center__daycare_name')),
+        discount_name=Concat(F('discount__discount_code'), Value('-'), F('discount__discount_name')),
+    ).values(
+            "id",
+            "enrollment_code",
+            "enrollment_date",
+            "child_name",
+            "normal_package_name",
+            "holiday_package_name",
+            "branch_name",
+            "center_name",
+            "discount_name",
+            "status",
+            "is_active",
+        )
+    )
+    
+     return JsonResponse(enrolmentList, safe=False)
+
+@login_required
+def getEnrollmentsForApprovalJS(request):
+     enrolmentList = list(
         ChildEnrollment.objects.filter(child__enrollement_approved=False).annotate(
         child_name=Concat(F('child__child_first_name'), Value(' '), F('child__child_last_name')),
         normal_package_name=Concat(F('normal_package__package_code'), Value('-'), F('normal_package__package_name')),
@@ -1181,5 +1208,8 @@ def deleteEnrollments(request,pk):
     return JsonResponse("Sucess", safe=False)
 
 
-
+@login_required
+def getAllEnrollmentsForApproval(request):
+    return render(request, "../templates/enrollmentlist.html")
+    
 
