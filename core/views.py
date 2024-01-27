@@ -1213,3 +1213,31 @@ def getAllEnrollmentsForApproval(request):
     return render(request, "../templates/enrollmentlist.html")
     
 
+
+@login_required
+def approveEnrollment(request):
+    print("in the approval")
+    if request.GET.get('id') is not None:
+        print(request.GET.get('id'))
+        objEnrollment = ChildEnrollment.objects.get(pk=request.GET.get('id'))
+        objEnrollment.status = 'Approved'
+        objEnrollment.user_updated = request.user.username
+        objEnrollment.date_updated = datetime.now()
+        objEnrollment.save()
+        print(request.GET.get('id'))
+        messages.success(request, "Enrollment approved.")
+    
+    return redirect("core:enrollments_list_for_approval")
+
+
+@login_required
+def rejectEnrollment(request):
+    if request.GET.get('id') is not None:
+        objEnrollment = ChildEnrollment.objects.get(pk=request.GET.get('id'))
+        objEnrollment.status = 'Rejected'
+        objEnrollment.user_updated = request.user.username
+        objEnrollment.date_updated = datetime.now()
+        objEnrollment.save()
+        messages.success(request, "Enrollment rejected.")
+    
+    return redirect("core:enrollments_list_for_approval")

@@ -65,6 +65,8 @@ urlpatterns = [
                   path('enrollments_list_for_approval/', views.getAllEnrollmentsForApproval, name='enrollments_list_for_approval'),
                   path('save_enrollments/', views.saveEnrollments, name='save_enrollments'),
                   path('delete_enrollments/<int:pk>/', views.deleteEnrollments, name='enrollments_delete'),
+                  path('approve_enrollments/', views.approveEnrollment, name='approve_enrollments'),
+                  path('reject_enrollments/', views.rejectEnrollment, name='reject_enrollments'),
 
 
 

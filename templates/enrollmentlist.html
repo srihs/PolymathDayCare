@@ -27,26 +27,18 @@
     <div class="alert alert-dismissible" role="alert">
       {% if messages %} {% for message in messages %}
       <!-- Danger Alert -->
-      <div
-        class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
-        role="alert"
-      >
+      <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show" role="alert">
         <strong>
           <center>{{ message }}</center>
         </strong>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="alert"
-          aria-label="Close"
-        ></button>
+        <button  type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
       </div>
       {% endfor %} {% endif %}
       <!-- end row -->
     </div>
 
-    <div class="table-responsive">  
-    <table id="enrollmentList" class="table table-striped table-hover dt-responsive display nowrap" cellspacing="0">
+   
+    <table id="enrollmentList" class="table table-striped table-hover" cellspacing="0">
       <thead>
         <tr>
           <th>Enrollment code</th>
@@ -60,10 +52,11 @@
           <th>Application status</th>
           <th>Is active</th>
           <th data-orderable="false"></th>
+          <th data-orderable="false"></th>
         </tr>
       </thead>
     </table>
-  </div>
+
   </div>
   <!-- end card-body -->
 </div>
@@ -372,16 +365,32 @@
         {
           data: null,
           render: function (data, type, row) {
-            var url = "{% url 'core:get_Branch_For_Update' 0 %}";
+            var url = "{% url 'core:approve_enrollments'  %}";
             id = row.id;
-            url = url.replace(0, id);
+            //url = url.replace(0, id);
             return (data =
               "<a href=" +
               url +
               ' class="link-success"  data-id=' +
               id +
               ' data-bs-target="#showUpdateModal"\
-                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="ri-edit-2-fill"></i></a>');
+                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="mdi mdi-check-circle"></i></a>');
+          },
+          
+        },
+        {
+          data: null,
+          render: function (data, type, row) {
+            var url = "{% url 'core:reject_enrollments' %}";
+            id = row.id;
+            //url = url.replace(0, id);
+            return (data =
+              "<a href=" +
+              url +
+              ' class="link-danger"  data-id=' +
+              id +
+              ' data-bs-target="#showUpdateModal"\
+                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="mdi mdi-close-box"></i></a>');
           },
         },
       ],
@@ -429,18 +438,17 @@
   jQuery(document).on("click", ".link-success", function (e) {
     e.preventDefault();
     url = jQuery(this).attr("href");
+    alert(url);
+    alert(id)
 
-    // Show the modal
-    jQuery("#showUpdateModal").modal("show");
-
-    // Load the form into the modal using AJAX
+   // Load the form into the modal using AJAX
     jQuery.ajax({
       type: "GET",
       url: url,
+      data: { id: id },
       dataType: "html",
       success: function (data) {
-        // Assuming you have a modal body with the id "updateModalBody"
-        jQuery("#modelForm").html(data);
+        window.parent.location = window.parent.location.href;
       },
       error: function (xhr, textStatus, errorThrown) {
         console.log("Error: " + xhr.status + ", " + xhr.statusText);
@@ -511,6 +519,29 @@
         },
       });
     } 
+  });
+
+
+  jQuery(document).on("click", ".link-success", function (e) {
+    e.preventDefault();
+    url = jQuery(this).attr("href");
+
+    // Show the modal
+    jQuery("#showUpdateModal").modal("show");
+
+    // Load the form into the modal using AJAX
+    jQuery.ajax({
+      type: "GET",
+      url: url,
+      dataType: "html",
+      success: function (data) {
+        // Assuming you have a modal body with the id "updateModalBody"
+        jQuery("#modelForm").html(data);
+      },
+      error: function (xhr, textStatus, errorThrown) {
+        console.log("Error: " + xhr.status + ", " + xhr.statusText);
+      },
+    });
   });
 </script>
 
