@@ -469,7 +469,7 @@ class CreateEnrollmentForm(forms.ModelForm):
     enrollment_date = forms.DateField(required=True, widget=MyDateInput(
         attrs={'class': 'form-control', 'required': 'true', 'id': 'effective_from', 'data-provider': 'flatpickr',
                'data-date-format': 'Y-m-d', 'placeholder': 'Enrolment Date'}))
-    child = forms.ModelChoiceField(required=True, queryset=Child.objects.filter(is_active=True).order_by('admission_number'),empty_label="-Select child-",
+    child = forms.ModelChoiceField(required=True, queryset=Child.objects.filter(is_active=True,is_enrolled=False).order_by('admission_number'),empty_label="-Select child-",
                                     widget=forms.Select(
                                         attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'child'}))
     

@@ -58,7 +58,7 @@
           <th>Discount</th>
           <th>Application status</th>
           <th>Is active</th>
-          <th data-orderable="false"></th>
+          
         </tr>
       </thead>
     </table>
@@ -300,17 +300,7 @@
         { data: "discount_name" },
         { data: "status" },
         { data: "is_active" },
-        {
-          data: null,
-          render: function (data, type, row) {
-            var url = "{% url 'core:enrollments_delete' 0 %}";
-            id = row.id;
-            url = url.replace(0, id);
-            return (data =
-              "<a href=" + url +' class="link-danger"  data-id=' + id + ' data-bs-target="#deleteModals"\
-                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="ri-delete-bin-line"></i></a>');
-          },
-        },
+        
       ],
 
       createdRow: function (row, data, dataIndex) {

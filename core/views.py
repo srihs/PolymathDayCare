@@ -1045,7 +1045,7 @@ def getEnrollments(request):
 @login_required
 def getEnrollmentsJS(request):
      enrolmentList = list(
-        ChildEnrollment.objects.filter(child__enrollement_approved=False,is_active=True).annotate(
+        ChildEnrollment.objects.filter(status='Pending Approval',is_active=True).annotate(
         child_name=Concat(F('child__child_first_name'), Value(' '), F('child__child_last_name')),
         normal_package_name=Concat(F('normal_package__package_code'), Value('-'), F('normal_package__package_name')),
         holiday_package_name=Concat(F('holiday_package__package_code'), Value('-'), F('holiday_package__package_name')),
@@ -1216,28 +1216,36 @@ def getAllEnrollmentsForApproval(request):
 
 @login_required
 def approveEnrollment(request):
-    print("in the approval")
     if request.GET.get('id') is not None:
-        print(request.GET.get('id'))
         objEnrollment = ChildEnrollment.objects.get(pk=request.GET.get('id'))
         objEnrollment.status = 'Approved'
         objEnrollment.user_updated = request.user.username
         objEnrollment.date_updated = datetime.now()
         objEnrollment.save()
-        print(request.GET.get('id'))
-        messages.success(request, "Enrollment approved.")
+
+        objChild = objEnrollment.child
+        objChild.enrollement_approved = True
+        objChild.is_enrolled = True
+        objChild.save()
+
     
-    return redirect("core:enrollments_list_for_approval")
+    return JsonResponse("Enrollment approved", safe=False)
 
 
 @login_required
+@transaction.atomic
 def rejectEnrollment(request):
     if request.GET.get('id') is not None:
         objEnrollment = ChildEnrollment.objects.get(pk=request.GET.get('id'))
         objEnrollment.status = 'Rejected'
         objEnrollment.user_updated = request.user.username
         objEnrollment.date_updated = datetime.now()
+
+        objChild = objEnrollment.child
+        objChild.is_enrolled = False
+        objChild.enrollement_approved = False
+        objChild.save()
+
         objEnrollment.save()
-        messages.success(request, "Enrollment rejected.")
     
-    return redirect("core:enrollments_list_for_approval")
+    return JsonResponse("Enrollment rejected", safe=False)
