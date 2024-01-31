@@ -21,12 +21,12 @@ from django.db.models import F, Value
 from django.db.models.functions import Concat
 from django.views.decorators.http import require_POST
 
-from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch,DayCare,ChildEnrollment,Discount
+from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch,DayCare,ChildEnrollment,Discount,AttendanceLog
 
 from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, \
                     UpdateRatesForm,CreateRateHistoryForm,UpdateExtraChargesForm,CreatePackagesForm, CreateBranchForm, \
                     CreateBranchForm, UpdateBranchForm, CreateDayCareForm, UpdateDayCareForm, CreateDiscountForm,\
-                    CreateEnrollmentForm
+                    CreateEnrollmentForm, CreateCheckInForm
 
 
 #   This method
@@ -93,6 +93,12 @@ def getChildJson(reuest):
 
     return JsonResponse(chilList, safe=False)
 
+
+@login_required
+def getAllChildrenJS(request):
+    childList =  list(Child.objects.filter(is_active=True).values())
+    return JsonResponse(childList, safe=False)
+    
 
 @login_required
 def getChild(request):
@@ -1215,6 +1221,7 @@ def getAllEnrollmentsForApproval(request):
 
 
 @login_required
+@transaction.atomic
 def approveEnrollment(request):
     if request.GET.get('id') is not None:
         objEnrollment = ChildEnrollment.objects.get(pk=request.GET.get('id'))
@@ -1249,3 +1256,61 @@ def rejectEnrollment(request):
         objEnrollment.save()
     
     return JsonResponse("Enrollment rejected", safe=False)
+
+
+@login_required
+def getCheckIns(request):
+    enrollment_form = CreateCheckInForm()
+
+    return render(
+        request,
+        "../templates/checkin.html",
+        {
+            "form": enrollment_form,
+            "UserName": request.user.username,
+        },
+    )
+
+
+@login_required
+def getAllAttendanceJS(request):
+    attendanceList = list(
+        AttendanceLog.objects.filter(is_active=True).annotate(
+        child_name=Concat(F('child__child_first_name'), Value(' '), F('child__child_last_name')),
+        
+        
+    ).values(
+            "id",
+            "child_name",
+            "date_logged",
+            "time_logged",
+            "is_active",
+        )
+    )
+    return JsonResponse(attendanceList, safe=False)
+
+
+@login_required
+def saveAttendance(request):
+   if request.method == "POST":
+    print(request.POST.get('child'))
+    if  request.POST.get('child') is not None:
+        objChild = Child.objects.get(admission_number= request.POST.get('child'),is_active=True)
+        print(objChild)
+        if objChild is not None:
+            try:
+                form = CreateCheckInForm(request.POST)
+                if form.is_valid():
+                    print("Form is valid")
+                    objAttendance = form.save(commit=False)
+                    objAttendance.user_created = request.user.username
+                    objAttendance.child = objChild
+                    objAttendance.save()
+                    messages.success(request, "Enrollment details saved.")
+                else:
+                      messages.error(request,form.errors)
+            except Exception as e:
+                messages.error(request, e)
+            
+    
+        return redirect("core:view_check_ins")

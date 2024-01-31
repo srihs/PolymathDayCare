@@ -3,7 +3,7 @@ from django.forms import ImageField
 from django.db import models
 from django.contrib.admin.widgets import AdminDateWidget
 from django.core.validators import MinValueValidator
-from .models import Child, Rates, ExtraCharges,RateHistory,Package, Branch,DayCare, ChildEnrollment, Discount
+from .models import Child, Rates, ExtraCharges,RateHistory,Package, Branch,DayCare, ChildEnrollment, Discount,AttendanceLog
 from decimal import *
 
 
@@ -499,3 +499,22 @@ class CreateEnrollmentForm(forms.ModelForm):
     class Meta:
         model = ChildEnrollment
         fields = ('enrollment_code','enrollment_date','child','branch','dayCare','normal_package','holiday_package','discount','recipt_number')  
+
+
+
+class CreateCheckInForm(forms.ModelForm):
+                                   
+    child = forms.CharField(max_length=250,required=True,widget=forms.TextInput(attrs={'class':'form-control','placeholder':'Child','list': 'children'}))
+
+    date_logged = forms.DateField(required=True, widget=MyDateInput(
+        attrs={'class': 'form-control', 'required': 'true', 'id': 'effective_from', 'data-provider': 'flatpickr',
+               'data-date-format': 'Y-m-d', 'placeholder': 'Date'}))
+    
+    
+    time_logged = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'autocomplete': 'off','id':'time_log','class': 'form-control','placeholder': 'Time',
+                                                                             'required': 'required'}))
+    
+    
+    class Meta:
+        model = AttendanceLog
+        fields = ('date_logged','time_logged') 

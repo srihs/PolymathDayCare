@@ -14,6 +14,7 @@ urlpatterns = [
                   path('logout/', views.UserLogOut, name='logout'),
 
                   path('child/', views.getChild, name='view_child'),
+                  path('get_all_child_JS/', views.getChild, name='get_all_child_JS'),
                   path('childview/', views.getChildJson, name='view_child_j'),
                   path('child/<int:pk>/', views.getChildbyID, name='view_child_with_id'),
                   path('savechild/', views.createChild, name='save_child'),
@@ -67,6 +68,11 @@ urlpatterns = [
                   path('delete_enrollments/<int:pk>/', views.deleteEnrollments, name='enrollments_delete'),
                   path('approve_enrollments/', views.approveEnrollment, name='approve_enrollments'),
                   path('reject_enrollments/', views.rejectEnrollment, name='reject_enrollments'),
+
+
+                  path('check_ins/', views.getCheckIns, name='view_check_ins'),
+                  path('getAllAttendance/', views.getAllAttendanceJS, name='get_all_attendance_JS'),
+                  path('save_Attendance/', views.saveAttendance, name='save_Attendance'),
 
 
 
