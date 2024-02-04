@@ -1306,7 +1306,7 @@ def saveAttendance(request):
                     objAttendance.user_created = request.user.username
                     objAttendance.child = objChild
                     objAttendance.save()
-                    messages.success(request, "Enrollment details saved.")
+                    messages.success(request, " Attendance record saved.")
                 else:
                       messages.error(request,form.errors)
             except Exception as e:
@@ -1314,3 +1314,78 @@ def saveAttendance(request):
             
     
         return redirect("core:view_check_ins")
+
+
+@login_required
+def autoAttendanceRecorder(request,admission_no):
+    if request.method == "POST":
+        if  admission_no is not None:
+                objChild = Child.objects.get(admission_number= admission_no,is_active=True)
+                if objChild is not None:
+                    try:
+                        objAttendance = AttendanceLog()
+                        objAttendance.date_logged = datetime.now().date
+                        objAttendance.time_logged = datetime.now().time
+                        objAttendance.date_created=  datetime.now()
+                        objAttendance.user_created = request.user.username
+                        objAttendance.child = objChild
+                        objAttendance.save()
+                        messages.success(request, "Attendance record saved.")       
+                    except Exception as e:
+                        messages.error(request, e)
+
+
+
+
+@login_required
+def getMissingAttendanceRecords(request):
+
+    return render(
+        request,
+        "../templates/reports/missingtime.html",
+        {
+            
+            "UserName": request.user.username,
+        },
+    )
+
+
+
+@login_required
+def processMissingAttendanceRecords(request,from_date,to_date):
+    if request.method =="GET":
+        if from_date is not None and to_date is not None:
+            attendenceList = AttendanceLog.objects.filter(date_logged__range=(from_date,to_date))
+
+            # Preparing to identify missing attendance logs
+            date_range = [from_date + timedelta(days=x) for x in range((to_date - from_date).days + 1)]
+            # Creating a list of all dates within the range
+            date_range = [from_date + timedelta(days=x) for x in range((to_date - from_date).days + 1)]
+
+            # Dictionary to hold dates with missing or incomplete attendance
+            dates_with_issues = {}
+
+            for single_date in date_range:
+                # Get attendance records for each day
+                daily_attendance_records = attendance_list.filter(date_logged=single_date).values('child').annotate(total_logs=Count('id'))
+                
+                # Checking each record to see if there are less than 2 logs for any child
+                for record in daily_attendance_records:
+                    if record['total_logs'] < 2:
+                        # If any child has less than 2 logs, mark this day as having issues
+                        if single_date not in dates_with_issues:
+                            dates_with_issues[single_date] = []
+                        dates_with_issues[single_date].append(record['child'])
+
+            # Now, 'dates_with_issues' contains dates with missing or incomplete attendance, along with the IDs of children affected.
+
+            # Displaying the results
+            for date, children_ids in dates_with_issues.items():
+                print(f"Date with issues: {date}, Children with less than 2 logs: {children_ids}")
+                for child_id in children_ids:
+                    # Optionally, fetch more details of the child or related records if needed
+                    print(f"Child ID with missing logs: {child_id}")
+    
+    return dates_with_issues
+
+    

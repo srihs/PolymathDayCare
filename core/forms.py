@@ -507,11 +507,11 @@ class CreateCheckInForm(forms.ModelForm):
     child = forms.CharField(max_length=250,required=True,widget=forms.TextInput(attrs={'class':'form-control','placeholder':'Child','list': 'children'}))
 
     date_logged = forms.DateField(required=True, widget=MyDateInput(
-        attrs={'class': 'form-control', 'required': 'true', 'id': 'effective_from', 'data-provider': 'flatpickr',
+        attrs={'class': 'form-control', 'required': 'true', 'id': 'date_logged', 'data-provider': 'flatpickr',
                'data-date-format': 'Y-m-d', 'placeholder': 'Date'}))
     
     
-    time_logged = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'autocomplete': 'off','id':'time_log','class': 'form-control','placeholder': 'Time',
+    time_logged = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'autocomplete': 'off','id':'time_logged','class': 'form-control','placeholder': 'Time',
                                                                              'required': 'required'}))
     
     
