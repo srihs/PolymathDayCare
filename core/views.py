@@ -1352,8 +1352,12 @@ def getMissingAttendanceRecords(request):
 
 
 @login_required
-def processMissingAttendanceRecords(request,from_date,to_date):
-    if request.method =="GET":
+def processMissingAttendanceRecords(request):
+    if request.method =="POST":
+        from_date = request.POST.get("from_date")
+        to_date = request.POST.get("to_date")
+        child_code = request.POST.get("childID")
+
         if from_date is not None and to_date is not None:
             attendenceList = AttendanceLog.objects.filter(date_logged__range=(from_date,to_date))
 
