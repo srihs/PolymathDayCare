@@ -234,7 +234,6 @@ class ChildEnrollment(BaseClass):
         return self.child 
     
 
-
 class AttendanceLog(BaseClass):
     child = models.ForeignKey("Child", on_delete=models.CASCADE)
     date_logged = models.DateField()
@@ -243,3 +242,4 @@ class AttendanceLog(BaseClass):
     class Meta:
         verbose_name = 'Attendance Log'
         verbose_name_plural = 'Attendance Logs'
+

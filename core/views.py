@@ -26,7 +26,7 @@ from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch,DayC
 from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, \
                     UpdateRatesForm,CreateRateHistoryForm,UpdateExtraChargesForm,CreatePackagesForm, CreateBranchForm, \
                     CreateBranchForm, UpdateBranchForm, CreateDayCareForm, UpdateDayCareForm, CreateDiscountForm,\
-                    CreateEnrollmentForm, CreateCheckInForm
+                    CreateEnrollmentForm, CreateCheckInForm,SearchForm
 
 
 #   This method
@@ -1338,13 +1338,17 @@ def autoAttendanceRecorder(request,admission_no):
 
 
 @login_required
-def getMissingAttendanceRecords(request):
-
+def getMissingAttendanceRecords(request,context=None):
+    list = None
+    searchForm = SearchForm()
+    if context is not None:
+        list = context
     return render(
         request,
         "../templates/reports/missingtime.html",
         {
-            
+            "list":list,
+            "form":searchForm,
             "UserName": request.user.username,
         },
     )
@@ -1353,43 +1357,64 @@ def getMissingAttendanceRecords(request):
 
 @login_required
 def processMissingAttendanceRecords(request):
+     # Initialize a dictionary to hold dates with missing or incomplete attendance
+    incomplete_attendance_dates = list()
+
+
+
     if request.method =="POST":
         from_date = request.POST.get("from_date")
         to_date = request.POST.get("to_date")
-        child_code = request.POST.get("childID")
+        
 
-        if from_date is not None and to_date is not None:
+        # Dictionary to hold dates with missing or incomplete attendance != ''
+        if from_date =="" and  from_date =="" :
+           
+            # if dates are not provided, assign dates for a period of 30 days
+            from_date = datetime.today()+ timedelta(days=-30)
+            to_date =  datetime.today() 
+            print(from_date)
+            print(to_date)
+
+           
+
+        else:
+           
             attendenceList = AttendanceLog.objects.filter(date_logged__range=(from_date,to_date))
 
-            # Preparing to identify missing attendance logs
-            date_range = [from_date + timedelta(days=x) for x in range((to_date - from_date).days + 1)]
-            # Creating a list of all dates within the range
-            date_range = [from_date + timedelta(days=x) for x in range((to_date - from_date).days + 1)]
+            from_date =datetime.strptime(from_date,"%Y-%m-%d")
+            to_date = datetime.strptime(to_date, "%Y-%m-%d")
+            
+        
+        childList = Child.objects.filter(is_active =True,enrollement_approved=True,is_enrolled=True)
 
-            # Dictionary to hold dates with missing or incomplete attendance
-            dates_with_issues = {}
+           # Create a list of all dates within the range
+        date_range = [from_date + timedelta(days=x) for x in range((to_date - from_date).days + 1)]
 
+       
+
+        # Iterate through each child  in the enrollments
+        for child in childList:
+            # Iterate through each date in the range
             for single_date in date_range:
-                # Get attendance records for each day
-                daily_attendance_records = attendance_list.filter(date_logged=single_date).values('child').annotate(total_logs=Count('id'))
-                
-                # Checking each record to see if there are less than 2 logs for any child
-                for record in daily_attendance_records:
-                    if record['total_logs'] < 2:
-                        # If any child has less than 2 logs, mark this day as having issues
-                        if single_date not in dates_with_issues:
-                            dates_with_issues[single_date] = []
-                        dates_with_issues[single_date].append(record['child'])
+                # Filter attendance records for each date
+                daily_attendance_records = AttendanceLog.objects.filter(date_logged=single_date,child=child.id)
+                # Check if the attendance records for the day are less than 2
+                if daily_attendance_records.count() < 2:
+                    # Add this date and records to the dictionary
+                    incomplete_attendance_dates.append(daily_attendance_records)
 
-            # Now, 'dates_with_issues' contains dates with missing or incomplete attendance, along with the IDs of children affected.
+        print(len(incomplete_attendance_dates))
+        # Displaying the results
+        for records in incomplete_attendance_dates:
+           
+            if records:
+                for record in records:
+                    print(f"Child ID: {Child.objects.filter(pk=record.child.id)}, Date Logged: {record.date_logged}, Time Logged: {record.time_logged}")
+            
 
-            # Displaying the results
-            for date, children_ids in dates_with_issues.items():
-                print(f"Date with issues: {date}, Children with less than 2 logs: {children_ids}")
-                for child_id in children_ids:
-                    # Optionally, fetch more details of the child or related records if needed
-                    print(f"Child ID with missing logs: {child_id}")
+    return getMissingAttendanceRecords(request,incomplete_attendance_dates)
     
-    return dates_with_issues
+
 
     

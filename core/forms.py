@@ -518,3 +518,15 @@ class CreateCheckInForm(forms.ModelForm):
     class Meta:
         model = AttendanceLog
         fields = ('date_logged','time_logged') 
+
+
+
+
+class SearchForm(forms.Form):
+    from_date = forms.DateField(required=True, widget=MyDateInput(
+        attrs={'class': 'form-control', 'id': 'from_date', 'data-provider': 'flatpickr',
+               'data-date-format': 'Y-m-d', 'placeholder': 'From date'}))
+    
+    to_date = forms.DateField(required=True, widget=MyDateInput(
+        attrs={'class': 'form-control','id': 'to_date', 'data-provider': 'flatpickr',
+               'data-date-format': 'Y-m-d', 'placeholder': 'To date'}))

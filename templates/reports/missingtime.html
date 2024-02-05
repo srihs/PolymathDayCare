@@ -1,4 +1,5 @@
-{% extends "base.html" %} {% load static %} {% block UserName %} {{ UserName}}
+{% extends "base.html" %} {% load static %} {% block PageTitle %}Missing attendance records
+{% endblock %} {% block UserName %} {{ UserName}}
 {% endblock %} {% block Title %} REPORTS {% endblock %} {% block functionTitle%}MISSING ATTENDANCE RECORDS{% endblock %} {% block content %}
 
 <div >
@@ -15,25 +16,21 @@
                     </div>
                 </div>
                 <div class="card-body border border-dashed border-end-0 border-start-0">
-                    <form   action="{% url 'core:missingAttendenceReport' %}"
-                    method="post">
+                    <form   action="{% url 'core:processmissingAttendence' %}"
+                    method="POST">
+                    {% csrf_token %}
                         <div class="row g-3">
-                            <div class="col-xxl-5 col-sm-6">
-                                <div>
-                                    <input type="text" id="childID" class="form-control" placeholder="Child name..." list="children">
-                                    <datalist id='children'></datalist>
-                                </div>
-                            </div>
+                           
                             <!--end col-->
                             <div class="col-xxl-2 col-sm-6">
                                 <div>
-                                    <input type="text" class="form-control" data-provider="flatpickr" data-date-format="d M, Y"  id="from_date" placeholder="From date">
+                                    {{form.from_date}}
                                 </div>
                             </div>
 
                             <div class="col-xxl-2 col-sm-6">
                                 <div>
-                                    <input type="text" class="form-control" data-provider="flatpickr" data-date-format="d M, Y"  id="to_date" placeholder="To date">
+                                  {{form.to_date}}
                                 </div>
                             </div>
 
@@ -41,7 +38,7 @@
                             
                             <div class="col-xxl-1 col-sm-4">
                                 <div>
-                                    <button type="button" class="btn btn-primary w-100" > 
+                                    <button type="submit" class="btn btn-primary w-100" > 
                                         Search
                                     </button>
                                 </div>
@@ -61,9 +58,19 @@
                                 <th>Child</th>
                                 <th>Date</th>
                                 <th>Time</th>
-                               
                               </tr>
                             </thead>
+                            {% for records in list %}
+                            {% if records%}
+                            {% for record in records %}
+                            <tr>
+                                <td>{{ record.child }}</td>
+                                <td>{{ record.date_logged }}</td>
+                                <td>{{ record.time_logged }}</td>
+                            </tr>
+                            {% endfor %}
+                            {% endif %}
+                        {% endfor %}
                           </table>
                         
                     </div>
@@ -109,30 +116,18 @@
 
   jQuery(document).ready(function () {
 
-    jQuery('#date_logged').flatpickr({
-                minDate: new Date().fp_incr(-30), 
+    jQuery('#from_date').flatpickr({
+                minDate: new Date().fp_incr(-60), 
                 maxDate:  "today",
                 
             });
-
-// Load the Child into the text box
-jQuery.ajax({
-      type: "GET",
-      url: "{% url 'core:view_child_j' %}",
-      beforeSend: function () {},
-      success: function (response) {
-        console.log(response);
-        for (var i in response) {
-            child = response[i];
-            jQuery("#children").append(`<option value="${child.admission_number}">${child.child_first_name + " - " + child.child_last_name}</option>`);
-          }
-      },
-      error: function (xhr, textStatus, errorThrown) {
-        alert("Error: " + xhr.status + ", " + xhr.statusText);
-      },
-    });
-
-
+    jQuery('#to_date').flatpickr({
+                minDate: new Date().fp_incr(-60), 
+                maxDate:  new Date().fp_incr(-1), 
+                
+       });
+    
+           
     window.setTimeout(function () {
       // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
       var alertDiv = jQuery(".alert");
@@ -168,153 +163,7 @@ jQuery.ajax({
     allowInput: true,
   });
 
-  jQuery("#showModal").on("hidden.bs.modal", function () {
-    jQuery(this).find("form").trigger("reset");
-  });
-
-  var url = "";
-
-  jQuery(document).on("click", ".link-success", function (e) {
-    e.preventDefault();
-    url = jQuery(this).attr("href");
-
-    // Show the modal
-    jQuery("#showUpdateModal").modal("show");
-
-    // Load the form into the modal using AJAX
-    jQuery.ajax({
-      type: "GET",
-      url: url,
-      dataType: "html",
-      success: function (data) {
-        // Assuming you have a modal body with the id "updateModalBody"
-        jQuery("#modelForm").html(data);
-      },
-      error: function (xhr, textStatus, errorThrown) {
-        alert("Error: " + xhr.status + ", " + xhr.statusText);
-      },
-    });
-  });
-
-  jQuery(document).on("click", "#addRates", function (e) {
-    e.preventDefault();
-    url = jQuery(this).attr("href");
-    id = jQuery(this).attr("data-id");
-
-    // Show the modal
-    jQuery("#rateModals").modal("show");
-
-    // Load the form into the modal using AJAX
-    jQuery.ajax({
-      type: "GET",
-      url: url,
-      data: { rate_id: id },
-      dataType: "html",
-      success: function (data) {
-        // Assuming you have a modal body with the id "updateModalBody"
-        jQuery("#modelRateForm").html(data);
-        jQuery("#effective_from").flatpickr();
-      },
-      error: function (xhr, textStatus, errorThrown) {
-        alert("Error: " + xhr.status + ", " + xhr.statusText);
-      },
-    });
-  });
-
-  jQuery("secondButton").click(function () {
-    window.parent.location = window.parent.location.href;
-  });
-
-  jQuery(document).on("click", "#additionalLink", function (e) {
-    dataTable.clear();
-    id = jQuery(this).attr("data-id");
-    jQuery.ajax({
-      url: "{% url 'core:view_additional_rates_js' %}",
-      type: "GET",
-      data: { base_rate_id: id },
-      beforeSend: function () {},
-      success: function (response) {
-        jQuery.each(response, function (i, item) {
-          
-          dataTable.row.add([
-            response[i].slot_number_hour,
-            response[i].extra_rate,
-            response[i].effective_from,
-            response[i].effective_to,
-          ]);
-        });
-
-        dataTable.draw();
-      },
-      error: function (response) {
-        console.log(response);
-      },
-    });
-  });
-
-  jQuery(document).on("click", "#historyLink", function (e) {
-    dataTable.clear();
-    id = jQuery(this).attr("data-id");
-    jQuery.ajax({
-      url: "{% url 'core:view_rates_rate_js' %}",
-      type: "GET",
-      data: { rate_id: id },
-      beforeSend: function () {},
-      success: function (response) {
-        jQuery.each(response, function (i, item) {
-          
-          dataTable.row.add([
-            response[i].standard_hourly_rate,
-            response[i].effective_from,
-            response[i].effective_to,
-            response[i].is_active,
-          ]);
-        });
-
-        dataTable.draw();
-      },
-      error: function (response) {
-        console.log(response);
-      },
-    });
-  });
   
-  jQuery("#showModalCreate").on("hidden.bs.modal", function () {
-        jQuery(this).find("form").trigger("reset");
-
-    });
-
-  
-
-
-    // Add an event listener to the "to_time" field
-        jQuery(document).on('change', '#to_time',function () {
-            
-            // Get the values of "from_time" and "to_time"
-            var fromTime = jQuery('#from_time').val();
-            var toTime = jQuery(this).val();
-           
-
-            // Make an Ajax request to calculate the duration
-            jQuery.ajax({
-                url: "{% url 'core:calculate_duration' %}",
-                method: 'GET',
-                data: {
-                    'from_time': fromTime,
-                    'to_time': toTime,
-                },
-                success: function (data) {
-                    // Combine hours and minutes with a dot separator
-                var durationFormatted = data.duration_hours + '.' + (data.duration_minutes < 10 ? '0' : '') + data.duration_minutes;
-
-                    // Update the "no_hours" field with the formatted duration
-                jQuery('#no_hours').val(durationFormatted);
-                },
-                error: function () {
-                    console.error('Error calculating duration.');
-                }
-            });
-        });
 
 </script>
 
