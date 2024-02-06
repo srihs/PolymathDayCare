@@ -1327,7 +1327,7 @@ def autoAttendanceRecorder(request,admission_no):
                         objAttendance.date_logged = datetime.now().date
                         objAttendance.time_logged = datetime.now().time
                         objAttendance.date_created=  datetime.now()
-                        objAttendance.user_created = request.user.username
+                        objAttendance.user_created = "Scanned by the USER"
                         objAttendance.child = objChild
                         objAttendance.save()
                         messages.success(request, "Attendance record saved.")       
