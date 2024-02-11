@@ -506,11 +506,11 @@
                     $("td", row).eq(8).html('<span class="badge bg-danger">Inactive</span>');
                 }
                 
-               
+                if (data.qr_code != null) {
                 
-                $("td", row).eq(9).html('<p style="text-align:center"><a  href="#"  width="100px;">Generate QR</a></p>');
+                    $("td", row).eq(9).html('<p style="text-align:center"><a  href="/media/qr/'+ data.qr_code +'"  width="100px;">Download</a></p>');
 
-                
+                }
                 
             
 

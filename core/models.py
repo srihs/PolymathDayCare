@@ -110,7 +110,7 @@ class Child(BaseClass):
     is_enrolled =models.BooleanField(default=False)
     admission_date = models.DateField()
     child_image = models.ImageField( upload_to='child_images/',default='')
-    qr_code = models.CharField(max_length=200)
+    qr_code = models.CharField(max_length=200,null=True)
     
     class Meta: 
         verbose_name = 'Child'

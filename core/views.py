@@ -21,6 +21,11 @@ from django.db.models import F, Value
 from django.db.models.functions import Concat
 from django.views.decorators.http import require_POST
 
+import qrcode
+import os
+from django.conf import settings
+
+
 from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch,DayCare,ChildEnrollment,Discount,AttendanceLog
 
 from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, \
@@ -72,6 +77,37 @@ def UserLogin(request):
         messages.error(request, e)
 
     return render(request, "../templates/login.html")
+
+
+
+def generateQR(admission_no):
+    qr_directory = os.path.join(settings.MEDIA_ROOT, 'qr')
+
+    # Create the 'qr' directory if it doesn't exist
+    try:
+        os.makedirs(qr_directory, exist_ok=True)
+    except Exception as e:
+        print(f"Error creating 'qr' directory: {e}")
+
+    # Generate the QR code
+    qr = qrcode.make(settings.PROD_URL + settings.QR_METHOD_NAME + admission_no)
+
+    # Save the QR code image to the 'qr' directory
+    file_name = admission_no + ".png"
+    file_path = os.path.join(qr_directory, file_name)
+
+    print(f"Saving QR code image to: {file_path}")
+
+    try:
+        qr.save(file_path)
+        print("QR code image saved successfully.")
+    except Exception as e:
+        print(f"Error saving QR code image: {e}")
+
+    return file_name
+
+
+
 
 
 @login_required
@@ -190,6 +226,7 @@ def createChild(request):
                 objChild.is_polymath_student = is_polymath_student
                 objChild.user_updated = request.user.username
                 objChild.is_active = is_active
+                objChild.qr_code = generateQR(admission_number)
                 objChild.save()
                 messages.success(request, "Child details updated.")
     except Exception as e:
@@ -211,6 +248,7 @@ def createChild(request):
             email_address=email_address,
             is_polymath_student=is_polymath_student,
             user_created=request.user.username,
+            qr_code = generateQR(admission_number),
             admission_date=datetime.strptime(
                 admission_date, "%Y-%m-%d"
             ).date(),
