@@ -116,6 +116,7 @@ def getChildJson(reuest):
         Child.objects.all().values(
             "id",
             "admission_number",
+            "child_image",
             "child_first_name",
             "child_last_name",
             "admission_date",

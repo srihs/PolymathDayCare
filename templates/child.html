@@ -53,12 +53,13 @@
             <thead>
             <tr>
                 <th>Admission No</th>
+                <th></th>
                 <th>First name</th>
                 <th>Last name</th>
                 <th>Admission date</th>
-                <th>Father's contact number</th>
-                <th>Mother's contact number</th>
-                <th>Residence phone numbers</th>
+                <th>Father's number</th>
+                <th>Mother's number</th>
+                <th>Residence numbers</th>
                 <th>Polymath Student?</th>
                 <th>Status</th>
                 <th>QR Code</th>
@@ -448,6 +449,7 @@
             },
             columns: [
                 {data: "admission_number"},
+                {data: "child_image"},
                 {data: "child_first_name"},
                 {data: "child_last_name"},
                 {data: "admission_date"},
@@ -485,31 +487,46 @@
             ],
 
             createdRow: function (row, data, dataIndex) {
+                if (data.child_image != null) {
+                
+                $("td", row).eq(1).html('<p style="text-align:center"><img  src="/media/qr/'+ data.qr_code +'"  width="100px;"/></p>');
+
+                }
+                else
+                {
+                    $("td", row).eq(1).html('<img  src="/media/child_images/user_icon.png"  width="50px;"/>');
+                }
+                
+
                 // Check the condition for the 'is_polymath_student' column
                 if (data.is_polymath_student) {
                     $("td", row)
-                        .eq(7)
+                        .eq(8)
                         .html(
                             '<span class="badge bg-secondary-subtle text-secondary">Yes</span>'
                         );
                 } else {
                     $("td", row)
-                        .eq(7)
+                        .eq(8)
                         .html(
                             '<span class="badge bg-danger-subtle text-danger">No</span>'
                         );
                 }
                 // Check the condition for the 'is_active' column
                 if (data.is_active) {
-                    $("td", row).eq(8).html('<span class="badge bg-success">Active</span>');
+                    $("td", row).eq(9).html('<span class="badge bg-success">Active</span>');
                 } else {
-                    $("td", row).eq(8).html('<span class="badge bg-danger">Inactive</span>');
+                    $("td", row).eq(9).html('<span class="badge bg-danger">Inactive</span>');
                 }
                 
                 if (data.qr_code != null) {
                 
-                    $("td", row).eq(9).html('<p style="text-align:center"><a  href="/media/qr/'+ data.qr_code +'"  width="100px;">Download</a></p>');
+                    $("td", row).eq(10).html('<p style="text-align:center"><a  href="/media/qr/'+ data.qr_code +'"  width="100px;">Download</a></p>');
 
+                }
+                else
+                {
+                    $("td", row).eq(10).html('<span class="badge bg-danger">No QR generated</span>');
                 }
                 
             
