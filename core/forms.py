@@ -64,13 +64,15 @@ class CreateChildForm(forms.ModelForm):
                                                                               'data-provider': 'flatpickr',
                                                                                       'data-date-format': 'Y-m-d'}))
     is_active = forms.BooleanField(required=False,widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'type': 'checkbox', 'checked': 'checked'}))
+    child_image = forms.ImageField(widget=forms.FileInput(attrs={'class': 'form-control', 'id': 'image','required': 'false'}))
+    qr_code =  forms.ImageField(widget=forms.FileInput(attrs={'class': 'form-control', 'id': 'qr_code','required': 'false'}))
 
     class Meta:
         model = Child
         fields = ('admission_number', 'child_first_name', 'admission_number', 'child_first_name', 'child_last_name',
                           'date_of_birth', 'fathers_name', 'fathers_contact_number', 'fathers_whatsapp_number', 'mothers_name',
                           'mothers_contact_number', 'mothers_whatsapp_number', 'resident_contact_number', 'address_line1',
-                          'address_line2', 'address_line3', 'email_address', 'is_polymath_student','is_active')
+                          'address_line2', 'address_line3', 'email_address', 'is_polymath_student','is_active','child_image','qr_code')
 
 
 class UpdateChildForm(forms.ModelForm):
@@ -125,6 +127,9 @@ class UpdateChildForm(forms.ModelForm):
                'data-date-format': '%Y-%m-%d', 'placeholder': 'Admission Date'}))
     is_active = forms.BooleanField(required=False, widget=forms.CheckboxInput(
         attrs={'class': 'form-check-input', 'type': 'checkbox'}))
+    
+    child_image = forms.ImageField(widget=forms.FileInput(attrs={'class': 'form-control', 'id': 'image','required': 'false'}))
+    qr_code =  forms.ImageField(widget=forms.FileInput(attrs={'class': 'form-control', 'id': 'qr_code','required': 'false'}))
 
     class Meta:
         model = Child
@@ -132,7 +137,7 @@ class UpdateChildForm(forms.ModelForm):
                   'date_of_birth', 'fathers_name', 'fathers_contact_number', 'fathers_whatsapp_number', 'mothers_name',
                   'mothers_contact_number', 'mothers_whatsapp_number', 'resident_contact_number', 'address_line1',
                   'address_line2', 'address_line3', 'email_address', 'is_polymath_student',
-                  'is_active')
+                  'is_active','child_image','qr_code')
 
 
 class CreateRatesForm(forms.ModelForm):

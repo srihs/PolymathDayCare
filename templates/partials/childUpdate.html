@@ -40,50 +40,62 @@
                   <div class="live-preview">
                     <div class="row gy-4">
                       <div class="col-xxl-3 col-md-6">
+                        <!-- Basic Input -->
+                        <label class="form-label">Admission number</label>
                         <div>{{ formU.admission_number }}</div>
                       </div>
                       <!--end col-->
                       <div class="col-xxl-3 col-md-6">
+                        <label class="form-label">Admission Date</label>
                         <div>{{ formU.admission_date }}</div>
                       </div>
                       <!--end col-->
                       <div class="col-xxl-3 col-md-6">
-                        <div>{{ formU.recipt_number }}</div>
-                      </div>
-                      <!--end col-->
-                      <div class="col-xxl-3 col-md-6">
-                        <div>
-                          <div class="form-check form-switch">
-                            {{ formU.is_polymath_student }}
-                            <label class="form-check-label"
-                              >Is Polymath student?</label
-                            >
-                          </div>
-                        </div>
-                      </div>
-
-                      <!--end col-->
-                      <div class="col-xxl-3 col-md-6">
+                        <label class="form-label">First name</label>
                         <div>{{ formU.child_first_name }}</div>
                       </div>
                       <!--end col-->
                       <div class="col-xxl-3 col-md-6">
+                        <label class="form-label">Last name</label>
                         <div>{{ formU.child_last_name }}</div>
-                      </div>
-                      <!--end col-->
-                      <div class="col-xxl-3 col-md-6">
-                        <div>{{ formU.date_of_birth }}</div>
                       </div>
 
                       <div class="col-xxl-3 col-md-6">
+                        <label class="form-label">Date of birth</label>
+                        <div>{{ formU.date_of_birth }}</div>
+                      </div>
+
+                      <div class="col-xxl-4 col-md-6">
+                        <label class="form-id_image">Child's Image</label>
+                        <div>{{ formU.child_image }}</div>
+                    </div>
+                      <!--end col-->
+                      <div class="col-xxl-2 col-md-6">
                         <div>
+                          <label class="form-check-label">Active</label>
                           <div class="form-check form-switch">
                             {{ formU.is_active }}
-                            <label class="form-check-label">Active</label>
+                            
                           </div>
                         </div>
                       </div>
 
+
+                      <div class="col-xxl-3 col-md-6">
+                        <div>
+                          <label class="form-check-label">Is Polymath student?</label>
+                          <div class="form-check form-switch">
+                            {{ formU.is_polymath_student }}
+                                                      
+                          </div>
+                        </div>
+                      </div>
+
+                      <!--end col-->
+                     
+                      <!--end col-->
+                     
+                   
                       <!--end col-->
 
                       <!--end col-->
@@ -103,26 +115,32 @@
                   <div class="live-preview">
                     <div class="row gy-4">
                       <div class="col-md-4">
+                        <label class="form-label">Father's name</label>
                         <div>{{ formU.fathers_name }}</div>
                       </div>
                       <!--end col-->
                       <div class="col-md-4">
+                        <label class="form-label">Father's contact number</label>
                         <div>{{ formU.fathers_contact_number }}</div>
                       </div>
                       <!--end col-->
                       <div class="col-md-4">
+                        <label class="form-label">Father's Whatsapp number</label>
                         <div>{{ formU.fathers_whatsapp_number }}</div>
                       </div>
                       <!--end col-->
                       <div class="col-md-4">
+                        <label class="form-label">Mother's name</label>
                         <div>{{ formU.mothers_name }}</div>
                       </div>
                       <!--end col-->
                       <div class="col-md-4">
+                        <label class="form-label">Mother's contact number</label>
                         <div>{{ formU.mothers_contact_number }}</div>
                       </div>
                       <!--end col-->
                       <div class="col-md-4">
+                        <label class="form-label">Mother's Whatsapp number</label>
                         <div>{{ formU.mothers_whatsapp_number }}</div>
                       </div>
                       <!--end col-->
@@ -142,22 +160,27 @@
                   <div class="live-preview">
                     <div class="row gy-4">
                       <div class="col-md-4">
+                        <label class="form-label">Resident contact number</label>
                         <div>{{ formU.resident_contact_number }}</div>
                       </div>
                       <!--end col-->
                       <div class="col-md-4">
+                        <label class="form-label">Address line 1</label>
                         <div>{{ formU.address_line1 }}</div>
                       </div>
                       <!--end col-->
                       <div class="col-md-4">
+                        <label class="form-label">Address line 2</label>
                         <div>{{ formU.address_line2 }}</div>
                       </div>
                       <!--end col-->
                       <div class="col-md-4">
+                        <label class="form-label">Address line 3</label>
                         <div>{{ formU.address_line3 }}</div>
                       </div>
                       <!--end col-->
                       <div class="col-md-4">
+                        <label class="form-label">Email address</label>
                         <div>{{ formU.email_address }}</div>
                       </div>
                       <!--end col-->

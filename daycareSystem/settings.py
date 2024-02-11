@@ -135,10 +135,11 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
 ]
 
-MEDIA_ROOT = (
- os.path.join(BASE_DIR, 'media')
-)
+
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
 MEDIA_URL = '/media/'
+
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -171,3 +172,6 @@ CORS_ALLOW_METHODS = [
 ]
 
 LOGIN_URL = 'core:login'
+
+PROD_URL = 'http://127.0.0.1:8000/' #this is the URL that will stored in the QR URL for scanning
+QR_METHOD_NAME = 'checkInView/' #this is the method that will stored in the QR URL for scanning

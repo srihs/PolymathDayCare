@@ -48,7 +48,7 @@
             <!-- end row -->
           </div>
       
-        <div class="table-responsive">
+        
         <table id="ChildList" class="table table-striped table-hover" cellspacing="0">
             <thead>
             <tr>
@@ -61,6 +61,7 @@
                 <th>Residence phone numbers</th>
                 <th>Polymath Student?</th>
                 <th>Status</th>
+                <th>QR Code</th>
                 <th data-orderable="false"></th>
                 <th data-orderable="false"></th>
             </tr>
@@ -117,7 +118,8 @@
                     action="{% url 'core:save_child' %}"
                     method="post"
                     class="tablelist-form"
-                    autocomplete="on">
+                    autocomplete="on" 
+                    enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="modal-body">
                     <div class="row">
@@ -159,6 +161,21 @@
                                             <div class="col-xxl-3 col-md-6">
                                                 <div>{{ form.admission_date }}</div>
                                             </div>
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>{{ form.child_first_name }}</div>
+                                            </div>
+                                            <!--end col-->
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>{{ form.child_last_name }}</div>
+                                            </div>
+                                            <div class="col-xxl-3 col-md-6">
+                                                <div>{{ form.date_of_birth }}</div>
+                                            </div>
+                                              <div class="col-xxl-4 col-md-6">
+                                                <label class="form-id_image">Child's Image</label>
+                                                <div>{{ form.child_image }}</div>
+                                            </div>
+
                                             <!--end col-->
                                             <div class="col-xxl-3 col-md-6">
                                                 <div> <div class="form-check form-switch">
@@ -176,26 +193,10 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            <!--end col-->
                                             
                                             <!--end col-->
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div>{{ form.child_first_name }}</div>
-                                            </div>
-                                            <!--end col-->
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div>{{ form.child_last_name }}</div>
-                                            </div>
-                                            <!--end col-->
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div>{{ form.date_of_birth }}</div>
-                                            </div>
-
+                                           
                                           
-
-                                            <!--end col-->
-
-                                            <!--end col-->
                                         </div>
                                         <!--end row-->
                                     </div>
@@ -270,6 +271,7 @@
                                                 <div>{{ form.email_address }}</div>
                                             </div>
                                             <!--end col-->
+                                           
                                         </div>
                                         <!--end row-->
                                     </div>
@@ -454,6 +456,7 @@
                 {data: "resident_contact_number"},
                 {data: "is_polymath_student"},
                 {data: "is_active"},
+                {data: "qr_code"},
                 {
                     data: null,
                     render: function (data, type, row) {
@@ -502,6 +505,15 @@
                 } else {
                     $("td", row).eq(8).html('<span class="badge bg-danger">Inactive</span>');
                 }
+                
+               
+                
+                $("td", row).eq(9).html('<p style="text-align:center"><a  href="#"  width="100px;">Generate QR</a></p>');
+
+                
+                
+            
+
             },
             dom: "Bfrtip",
             pageLength: 50,

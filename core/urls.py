@@ -73,7 +73,7 @@ urlpatterns = [
                   path('check_ins/', views.getCheckIns, name='view_check_ins'),
                   path('getAllAttendance/', views.getAllAttendanceJS, name='get_all_attendance_JS'),
                   path('save_Attendance/', views.saveAttendance, name='save_Attendance'),
-                  path('scan_Attendance/<studentID>/', views.autoAttendanceRecorder, name='scan_Attendance'),
+                  path('checkInView/<studentID>/', views.autoAttendanceRecorder, name='checkInView'),
                   path('missingAttendenceReport/', views.getMissingAttendanceRecords, name='missingAttendenceReport'),
                   path('processmissingAttendence/', views.processMissingAttendanceRecords, name='processmissingAttendence')
                   

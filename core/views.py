@@ -88,6 +88,7 @@ def getChildJson(reuest):
             "resident_contact_number",
             "is_polymath_student",
             "is_active",
+            "qr_code",
         )
     )
 
