@@ -132,6 +132,30 @@ def getChildJson(reuest):
     return JsonResponse(chilList, safe=False)
 
 
+
+@login_required
+def getChildWithEnrolementsJson(reuest):
+    chilList = list(
+        Child.objects.filter(is_enrolled=True,enrollement_approved=True).values(
+            "id",
+            "admission_number",
+            "child_image",
+            "child_first_name",
+            "child_last_name",
+            "admission_date",
+            "fathers_contact_number",
+            "mothers_contact_number",
+            "resident_contact_number",
+            "is_polymath_student",
+            "is_active",
+            "qr_code",
+        )
+    )
+
+    return JsonResponse(chilList, safe=False)
+
+
+
 @login_required
 def getAllChildrenJS(request):
     childList =  list(Child.objects.filter(is_active=True).values())
@@ -1418,15 +1442,8 @@ def processMissingAttendanceRecords(request):
             # if dates are not provided, assign dates for a period of 30 days
             from_date = datetime.today()+ timedelta(days=-30)
             to_date =  datetime.today() 
-            print(from_date)
-            print(to_date)
-
-           
-
         else:
-           
             attendenceList = AttendanceLog.objects.filter(date_logged__range=(from_date,to_date))
-
             from_date =datetime.strptime(from_date,"%Y-%m-%d")
             to_date = datetime.strptime(to_date, "%Y-%m-%d")
             

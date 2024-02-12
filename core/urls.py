@@ -19,6 +19,7 @@ urlpatterns = [
                   path('child/<int:pk>/', views.getChildbyID, name='view_child_with_id'),
                   path('savechild/', views.createChild, name='save_child'),
                   path('deletechild/<int:pk>/', views.deleteChild, name='child_delete'),
+                  path('getAllChildWithEnrolmment',views.getChildWithEnrolementsJson,name = 'getChildWithEnrolementsJson'),
                   
                   path('rates/', views.getRates, name='view_rates'),
                   path('ratesjs/', views.getRatesJs, name='view_rates_js'),
