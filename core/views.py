@@ -201,6 +201,7 @@ def createChild(request):
             is_polymath_student = request.POST.get("is_polymath_student")
             admission_date = request.POST.get("admission_date")
             is_active = request.POST.get("is_active")
+            child_image =  request.FILES['child_image']
             if is_polymath_student == "on":
                 is_polymath_student = True
             else:
@@ -227,7 +228,9 @@ def createChild(request):
                 objChild.is_polymath_student = is_polymath_student
                 objChild.user_updated = request.user.username
                 objChild.is_active = is_active
-                objChild.qr_code = generateQR(admission_number)
+                if objChild.qr_code==None:
+                    objChild.qr_code = generateQR(admission_number)
+                objChild.child_image = child_image
                 objChild.save()
                 messages.success(request, "Child details updated.")
     except Exception as e:
@@ -250,6 +253,7 @@ def createChild(request):
             is_polymath_student=is_polymath_student,
             user_created=request.user.username,
             qr_code = generateQR(admission_number),
+            child_image = child_image,
             admission_date=datetime.strptime(
                 admission_date, "%Y-%m-%d"
             ).date(),
@@ -274,6 +278,7 @@ def deleteChild(request, pk):
     except Exception as e:
         messages.error(request, e)
 
+    return JsonResponse("Success", safe=False)
 
 @login_required
 def getRatesJs(reuest):

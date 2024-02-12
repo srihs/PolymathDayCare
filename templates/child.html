@@ -489,7 +489,7 @@
             createdRow: function (row, data, dataIndex) {
                 if (data.child_image != null) {
                 
-                $("td", row).eq(1).html('<p style="text-align:center"><img  src="/media/qr/'+ data.qr_code +'"  width="100px;"/></p>');
+                $("td", row).eq(1).html('<p style="text-align:center"><img  src="/media/'+ data.child_image +'"  width="100px;"/></p>');
 
                 }
                 else
