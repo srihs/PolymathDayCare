@@ -64,7 +64,7 @@ class CreateChildForm(forms.ModelForm):
                                                                               'data-provider': 'flatpickr',
                                                                                       'data-date-format': 'Y-m-d'}))
     is_active = forms.BooleanField(required=False,widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'type': 'checkbox', 'checked': 'checked'}))
-    child_image = forms.ImageField(widget=forms.FileInput(attrs={'class': 'form-control', 'id': 'image','required': 'false'}))
+    child_image = forms.ImageField(required=False,widget=forms.FileInput(attrs={'class': 'form-control', 'id': 'image','required': 'false'}))
     qr_code =  forms.ImageField(widget=forms.FileInput(attrs={'class': 'form-control', 'id': 'qr_code','required': 'false'}))
 
     class Meta:
@@ -128,7 +128,7 @@ class UpdateChildForm(forms.ModelForm):
     is_active = forms.BooleanField(required=False, widget=forms.CheckboxInput(
         attrs={'class': 'form-check-input', 'type': 'checkbox'}))
     
-    child_image = forms.ImageField(widget=forms.FileInput(attrs={'class': 'form-control', 'id': 'image','required': 'false'}))
+    child_image = forms.ImageField(required=False, widget=forms.FileInput(attrs={'class': 'form-control', 'id': 'image','required': 'false'}))
     qr_code =  forms.ImageField(widget=forms.FileInput(attrs={'class': 'form-control', 'id': 'qr_code','required': 'false'}))
 
     class Meta:
