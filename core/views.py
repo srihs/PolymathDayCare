@@ -87,7 +87,7 @@ def generateQR(admission_no):
     try:
         os.makedirs(qr_directory, exist_ok=True)
     except Exception as e:
-        print(f"Error creating 'qr' directory: {e}")
+        messages.error(request,"Error creating 'qr' directory: {e}")
 
     # Generate the QR code
     qr = qrcode.make(settings.PROD_URL + settings.QR_METHOD_NAME + admission_no)
@@ -96,13 +96,10 @@ def generateQR(admission_no):
     file_name = admission_no + ".png"
     file_path = os.path.join(qr_directory, file_name)
 
-    print(f"Saving QR code image to: {file_path}")
-
     try:
         qr.save(file_path)
-        print("QR code image saved successfully.")
     except Exception as e:
-        print(f"Error saving QR code image: {e}")
+        messages.error(request,"Error saving QR code image")
 
     return file_name
 
@@ -1362,26 +1359,25 @@ def getAllAttendanceJS(request):
 @login_required
 def saveAttendance(request):
    if request.method == "POST":
-    print(request.POST.get('child'))
     if  request.POST.get('child') is not None:
         objChild = Child.objects.get(admission_number= request.POST.get('child'),is_active=True)
-        print(objChild)
+        
         if objChild is not None:
             try:
                 form = CreateCheckInForm(request.POST)
                 if form.is_valid():
-                    print("Form is valid")
                     objAttendance = form.save(commit=False)
-                    objAttendance.user_created = request.user.username
-                    objAttendance.child = objChild
-                    objAttendance.save()
-                    messages.success(request, " Attendance record saved.")
+                    if objChild.admission_date < objAttendance.date_logged:
+                        objAttendance.user_created = request.user.username
+                        objAttendance.child = objChild
+                        objAttendance.save()
+                        messages.success(request, " Attendance record saved.")
+                    else:
+                      messages.error(request," Attendence date is invalid. Child was not enrolled on that day.")
                 else:
                       messages.error(request,form.errors)
             except Exception as e:
                 messages.error(request, e)
-            
-    
         return redirect("core:view_check_ins")
 
 
@@ -1465,15 +1461,6 @@ def processMissingAttendanceRecords(request):
                 if daily_attendance_records.count() < 2:
                     # Add this date and records to the dictionary
                     incomplete_attendance_dates.append(daily_attendance_records)
-
-        print(len(incomplete_attendance_dates))
-        # Displaying the results
-        for records in incomplete_attendance_dates:
-           
-            if records:
-                for record in records:
-                    print(f"Child ID: {Child.objects.filter(pk=record.child.id)}, Date Logged: {record.date_logged}, Time Logged: {record.time_logged}")
-            
 
     return getMissingAttendanceRecords(request,incomplete_attendance_dates)
     
