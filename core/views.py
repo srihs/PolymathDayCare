@@ -1367,7 +1367,7 @@ def saveAttendance(request):
                 form = CreateCheckInForm(request.POST)
                 if form.is_valid():
                     objAttendance = form.save(commit=False)
-                    if objChild.admission_date < objAttendance.date_logged:
+                    if objChild.admission_date <= objAttendance.date_logged:
                         objAttendance.user_created = request.user.username
                         objAttendance.child = objChild
                         objAttendance.save()
@@ -1424,9 +1424,6 @@ def getMissingAttendanceRecords(request,context=None):
 def processMissingAttendanceRecords(request):
      # Initialize a dictionary to hold dates with missing or incomplete attendance
     incomplete_attendance_dates = list()
-
-
-
     if request.method =="POST":
         from_date = request.POST.get("from_date")
         to_date = request.POST.get("to_date")
@@ -1464,6 +1461,19 @@ def processMissingAttendanceRecords(request):
 
     return getMissingAttendanceRecords(request,incomplete_attendance_dates)
     
+@login_required
+def loadAttendanceReports(request):
+     return render(
+        request,
+        "../templates/reports/attendancereport.html"
+    )
 
+@login_required
+def attendanceReportsJS(request):
+    if request.method =="POST":
+        if  pk is not None:
+                objAttendanceList = AttendanceLog.objects.get(child= pk,is_active=True).values()
+                
+    return JsonResponse(objAttendanceList, safe=False)
 
     

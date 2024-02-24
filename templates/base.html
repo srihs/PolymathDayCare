@@ -60,12 +60,7 @@
                         </a>
 
                         <a href="index.html" class="logo logo-light">
-                        <span class="logo-sm">
-                            <img src="{% static 'assets/images/logo-sm.png' %}" alt="" height="22">
-                        </span>
-                            <span class="logo-lg">
-                            <img src="{% static 'assets/images/logo-light.png' %}" alt="" height="17">
-                        </span>
+                        
                         </a>
                     </div>
 
@@ -162,22 +157,7 @@
     </div><!-- /.modal -->
     <!-- ========== App Menu ========== -->
     <div class="app-menu navbar-menu">
-        <!-- LOGO -->
-        <div class="navbar-brand-box">
-            <!-- Light Logo-->
-            <a href="index.html" class="logo logo-light">
-                    <span class="logo-sm">
-                        <img src="assets/images/logo.png" alt="" height="22">
-                    </span>
-                <span class="logo-lg">
-                        <img src="assets/images/logo.png" alt="" height="17">
-                    </span>
-            </a>
-            <button type="button" class="btn btn-sm p-0 fs-20 header-item float-end btn-vertical-sm-hover"
-                    id="vertical-hover">
-                <i class="ri-record-circle-line"></i>
-            </button>
-        </div>
+        
 
         <div id="scrollbar">
             <div class="container-fluid">
@@ -329,6 +309,17 @@
                                     </a>
     
                                 </li>
+
+                                <li class="nav-item">
+                                    <a href="/attendenceReport" class="nav-link"
+                                       role="button" aria-expanded="false"
+                                       aria-controls="sidebaremailTemplates"> <i
+                                            class="ri-bar-chart-fill"></i><span
+                                            data-key="t-email-templates">Attendance Report</span>
+    
+                                    </a>
+    
+                                </li>
     
                             </ul>
                         </div>
@@ -441,7 +432,7 @@
                 </div>
                 <div class="col-sm-6">
                     <div class="text-sm-end d-none d-sm-block">
-                        Design & Develop by Polymath IT Division
+                        Develop by Polymath IT Division
                     </div>
                 </div>
             </div>
@@ -488,10 +479,12 @@
     <!-- Dashboard init -->
     <script src="{% static 'assets/js/pages/dashboard-crm.init.js' %}"></script>
 
-    <!-- App js -->
-    <script src="{% static 'assets/js/app.js' %}"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
 
 {% endblock %}
+<!-- App js -->
+<script src="{% static 'assets/js/app.js' %}"></script>
+
 </body>
 
 </html>

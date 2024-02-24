@@ -76,6 +76,7 @@ urlpatterns = [
                   path('save_Attendance/', views.saveAttendance, name='save_Attendance'),
                   path('checkInView/<studentID>/', views.autoAttendanceRecorder, name='checkInView'),
                   path('missingAttendenceReport/', views.getMissingAttendanceRecords, name='missingAttendenceReport'),
-                  path('processmissingAttendence/', views.processMissingAttendanceRecords, name='processmissingAttendence')
+                  path('processmissingAttendence/', views.processMissingAttendanceRecords, name='processmissingAttendence'),
+                  path('attendenceReport/', views.loadAttendanceReports, name='getAttendenceReport'),
                   
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
