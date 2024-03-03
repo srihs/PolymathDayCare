@@ -17,28 +17,39 @@
                                 <div class="card-body border border-dashed border-end-0 border-start-0">
                                     <form>
                                         <div class="row g-3">
-                                            <div class="col-xxl-5 col-sm-12">
+                                            <div class="col-xxl-3 col-sm-8">
                                                 <div class="search-box">
-                                                    <input type="text" id="childCode" class="form-control search bg-light border-light" placeholder="Search for child">
-                                                    <i class="ri-search-line search-icon"></i>
+                                                    <input type="text" id="childCode" class="form-control search bg-light border-light" placeholder="Child">
+                                                    
                                                 </div>
                                             </div>
                                             <!--end col-->
 
                                             <div class="col-xxl-2 col-sm-4">
-                                                <input type="text" class="form-control bg-light border-light" id="fromDate" data-provider="flatpickr" data-date-format='Y-m-d'  placeholder="From">
+                                                <input type="text" required class="form-control bg-light border-light" id="fromDate" data-provider="flatpickr" data-date-format='Y-m-d'  placeholder="From">
                                             </div>
                                             <!--end col-->
 
                                             <div class="col-xxl-2 col-sm-4">
-                                                <input type="text" class="form-control bg-light border-light" id="toDate" data-provider="flatpickr" data-date-format='Y-m-d' placeholder="To">
+                                                <input type="text" required class="form-control bg-light border-light" id="toDate" data-provider="flatpickr" data-date-format='Y-m-d' placeholder="To">
                                             </div>
                                             <!--end col-->
 
-                                            <div class="col-xxl-3 col-sm-4">
-                                                <input type="text" class="form-control bg-light border-light" id="toDate" data-provider="flatpickr" data-date-format='Y-m-d' placeholder="To">
+                                            <div class="col-xxl-2 col-sm-4">
+                                              <input type="text" id="childCode" class="form-control search bg-light border-light" placeholder="Branch">
                                             </div>
                                             <!--end col-->
+
+                                            <div class="col-xxl-2 col-sm-4">
+                                              <input type="text" id="childCode" class="form-control search bg-light border-light" placeholder="Daycare Center">
+                                            </div>
+
+                                            <!--end col-->
+                                            <div class="col-xxl-1 col-sm-4">
+                                              <button type="button" class="btn btn-primary w-100" > 
+                                                <i class="ri-search-line search-icon"></i> Search
+                                              </button>
+                                          </div>
                                             
                                             <!--end col-->
                                         </div>
@@ -107,7 +118,7 @@
   jQuery(document).ready(function () {
 
     jQuery('#fromDate').flatpickr({
-                minDate: new Date().fp_incr(-60), 
+                minDate: new Date().fp_incr(-765), 
                 maxDate:  "today",
                 
             });

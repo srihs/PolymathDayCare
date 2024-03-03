@@ -1470,6 +1470,7 @@ def loadAttendanceReports(request):
 
 @login_required
 def attendanceReportsJS(request):
+    # This method will be used to do the search and return the attendance records according to parameters
     if request.method =="POST":
         if  pk is not None:
                 objAttendanceList = AttendanceLog.objects.get(child= pk,is_active=True).values()
