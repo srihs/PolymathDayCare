@@ -1424,27 +1424,34 @@ def getMissingAttendanceRecords(request,context=None):
 def processMissingAttendanceRecords(request):
      # Initialize a dictionary to hold dates with missing or incomplete attendance
     incomplete_attendance_dates = list()
+    from_Date = None
     if request.method =="POST":
         from_date = request.POST.get("from_date")
         to_date = request.POST.get("to_date")
         
 
         # Dictionary to hold dates with missing or incomplete attendance != ''
-        if from_date =="" and  from_date =="" :
+        if from_date =="" :
            
             # if dates are not provided, assign dates for a period of 30 days
-            from_date = datetime.today()+ timedelta(days=-30)
-            to_date =  datetime.today() 
-        else:
-            attendenceList = AttendanceLog.objects.filter(date_logged__range=(from_date,to_date))
-            from_date =datetime.strptime(from_date,"%Y-%m-%d")
-            to_date = datetime.strptime(to_date, "%Y-%m-%d")
+            from_date =datetime.today()+ timedelta(days=-30)
+            from_Date = from_date.date()
             
+        if to_date =="" :
+            to_date =  datetime.today().date()
+            
+
+        print("_________________________")
+        print(type(from_Date))
+        print(type(to_date))
+
+        attendenceList = AttendanceLog.objects.filter(date_logged__range=(from_Date,to_date))
+        print(attendenceList.count)
         
         childList = Child.objects.filter(is_active =True,enrollement_approved=True,is_enrolled=True)
 
            # Create a list of all dates within the range
-        date_range = [from_date + timedelta(days=x) for x in range((to_date - from_date).days + 1)]
+        date_range = [from_date + timedelta(days=x) for x in range((to_date - from_Date).days + 1)]
 
        
 
