@@ -269,9 +269,9 @@ class CreatePackagesForm(forms.ModelForm):
                                     widget=forms.TextInput(
                                         attrs={'class': 'form-control','placeholder': 'Package Code' }))
     
-    package_type = forms.ChoiceField(required=True, choices = packageType,label="- Package Type -",
+    package_type = forms.ChoiceField(required=True,  choices = packageType,label="- Package Type -",
                                     widget=forms.Select(
-                                        attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'base_rate'}))
+                                        attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'base_rate','disabled':'true',}))
   
     from_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'autocomplete': 'off','id':'from_time','class': 'form-control','placeholder': 'From Time',
                                                                              'required': 'required'}))
