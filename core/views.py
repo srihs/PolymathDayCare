@@ -351,10 +351,11 @@ def getRateByID(request, pk):
 def getRateAmountByIdJs(request):
      if request.method == "GET":
         if not request.GET.get('base_rate_id') is None:
-            objRateHistory = RateHistory.objects.get(pk =request.GET.get('base_rate_id'),is_active=True)
+            print(request.GET.get('base_rate_id'))
+            objRateHistory = RateHistory.objects.get(rate_id =request.GET.get('base_rate_id'),is_active=True)
             if objRateHistory is not None:
                 if request.GET.get('no_hours') is not None and request.GET.get('no_days_months') is not None:
-                  
+                    print(objRateHistory.standard_hourly_rate)
                     total_package_amount = objRateHistory.standard_hourly_rate * Decimal(request.GET.get('no_hours')) * Decimal(request.GET.get('no_days_months'))
 
                     return JsonResponse("{:,.2f}".format(total_package_amount), safe=False)
@@ -680,6 +681,7 @@ def getPackagesJs(request):
             "no_days_months",
             "is_holiday_package",
             "base_rate",
+            "base_rate_id",
             ))
 
         for i,n in enumerate(packageList):

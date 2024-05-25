@@ -268,9 +268,11 @@
         }
 
          // Fetch rate amount asynchronously
+        
         $.ajax({
           url: "{% url 'core:get_Rate_amount_By_Id_Js' %}",
           type: "GET",
+          
           data: { base_rate_id: data.base_rate, no_hours: data.no_hours, no_days_months: data.no_days_months},
           success: function (response) {
             

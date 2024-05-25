@@ -246,15 +246,11 @@ class UpdateExtraChargesForm(forms.ModelForm):
 
 class CreatePackagesForm(forms.ModelForm):
     Daily = "Daily"
-    Weekly = "Weekly"
-    Monthly = "Monthly"
-    HOURLY = "Hourly"
+    
 
     packageType = [
         (Daily, "Daily"),
-        (Weekly, "Weekly"),
-        (Monthly, "Monthly"),
-        (HOURLY, "Hourly"),
+       
     ]
 
     base_rate = forms.ModelChoiceField(required=True, queryset=Rates.objects.filter(is_active=True).order_by('rate_name'),empty_label="-Select Base Rate-",
@@ -271,7 +267,7 @@ class CreatePackagesForm(forms.ModelForm):
     
     package_type = forms.ChoiceField(required=True,  choices = packageType,label="- Package Type -",
                                     widget=forms.Select(
-                                        attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'base_rate','disabled':'true',}))
+                                        attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'base_rate',}))
   
     from_time = forms.TimeField(required=True, widget=forms.TimeInput(attrs={'autocomplete': 'off','id':'from_time','class': 'form-control','placeholder': 'From Time',
                                                                              'required': 'required'}))
