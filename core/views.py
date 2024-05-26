@@ -1234,10 +1234,11 @@ def saveEnrollments(request):
    
 
 @login_required
-def getAllEnrollmentsJS(request):
+def getAllPendingEnrollmentsJS(request):
      enrolmentList = list(
         ChildEnrollment.objects.filter(
         is_active=True,  # Add this filter for is_active
+        status =1,
     ).annotate(
         child_name=Concat(F('child__child_first_name'), Value('-'), F('child__child_last_name')),
         normal_package_name=Concat(F('normal_package__package_code'), Value('-'), F('normal_package__package_name')),
@@ -1427,30 +1428,33 @@ def processMissingAttendanceRecords(request):
     if request.method =="POST":
         from_date = request.POST.get("from_date")
         to_date = request.POST.get("to_date")
+        print(from_date)
+        print(to_date)
         
 
         # Dictionary to hold dates with missing or incomplete attendance != ''
-        if from_date =="" :
-           
+        if from_date == "" :
+            print("HERE")
             # if dates are not provided, assign dates for a period of 30 days
             from_date =datetime.today()+ timedelta(days=-30)
             from_Date = from_date.date()
-            
+        else:
+            from_Date = datetime.strptime(from_date, '%Y-%m-%d').date()
+
         if to_date =="" :
             to_date =  datetime.today().date()
+        else:
+            to_date =  datetime.strptime(to_date, "%Y-%m-%d").date()
             
 
-        print("_________________________")
-        print(type(from_Date))
-        print(type(to_date))
-
+        
         attendenceList = AttendanceLog.objects.filter(date_logged__range=(from_Date,to_date))
         print(attendenceList.count)
         
         childList = Child.objects.filter(is_active =True,enrollement_approved=True,is_enrolled=True)
 
            # Create a list of all dates within the range
-        date_range = [from_date + timedelta(days=x) for x in range((to_date - from_Date).days + 1)]
+        date_range = [from_Date + timedelta(days=x) for x in range((to_date - from_Date).days + 1)]
 
        
 
