@@ -34,6 +34,7 @@ class Discount(BaseClass):
     class Meta:
         verbose_name = 'discount'
         verbose_name_plural = 'discounts'
+        db_table = "dc_discount"
     
     def __str__(self):
         return self.discount_code +" - " +self.discount_name 
@@ -47,6 +48,7 @@ class Rates(BaseClass):
 
     class Meta:
         verbose_name_plural = "Rates"
+        db_table = "dc_rate"
 
     def __str__(self):
         return self.rate_name
@@ -67,13 +69,14 @@ class RateHistory(BaseClass):
 
     class Meta:
         verbose_name_plural = "Rate History"
+        db_table = "dc_ratehistory"
 
     def __str__(self):
         return self.rate.rate_name 
 
 
 class ExtraCharges(BaseClass):
-    base_rate = models.ForeignKey(Rates, on_delete=models.CASCADE)
+    base_rate = models.ForeignKey(Rates, on_delete=models.CASCADE) 
     from_time = models.TimeField()
     to_time = models.TimeField()
     extra_rate = models.DecimalField(max_digits=8, decimal_places=2)
@@ -84,6 +87,7 @@ class ExtraCharges(BaseClass):
         unique_together = (("base_rate", "from_time","to_time"),)
         verbose_name = 'Extra Charge'
         verbose_name_plural = 'Extra Charges'
+        db_table = "dc_extracharges"
     
     def __str__(self):
         return self.base_rate.rate_name + "-" + str(self.from_time) + "-" +  str(self.to_time) +"-"+str(self.is_active)
@@ -115,6 +119,7 @@ class Child(BaseClass):
     class Meta: 
         verbose_name = 'Child'
         verbose_name_plural = 'Children'
+        db_table = "dc_child"
 
     def __str__(self):
         return self.admission_number +" - " +self.child_first_name + " " + self.child_last_name
@@ -138,6 +143,7 @@ class Package(BaseClass):
     class Meta:
         verbose_name = 'package'
         verbose_name_plural = 'packages'
+        db_table = "dc_package"
     
     
     def __str__(self):
@@ -153,6 +159,7 @@ class HolidayType(BaseClass):
     class Meta:
         verbose_name = 'holiday type'
         verbose_name_plural = 'holiday Types'
+        db_table = "dc_holidaytypes"
 
 
     def __str__(self):
@@ -168,6 +175,7 @@ class Holiday(BaseClass):
     class Meta:
         verbose_name = 'Holiday'
         verbose_name_plural = 'Holidays'
+        db_table = "dc_holiday"
 
     
 
@@ -185,6 +193,7 @@ class Branch(BaseClass):
     class Meta:
         verbose_name = 'branch'
         verbose_name_plural = 'branches'
+        db_table = "dc_branch"
 
     def __str__(self):
         return self.branch_code +" - "+ self.branch_name
@@ -200,8 +209,9 @@ class DayCare(BaseClass):
 
 
     class Meta:
-        verbose_name = 'branch'
-        verbose_name_plural = 'branches'
+        verbose_name = 'center'
+        verbose_name_plural = 'centers'
+        db_table = "dc_center"
     
     def __str__(self):
         return self.daycare_code +" - "+ self.daycare_name
@@ -231,6 +241,7 @@ class ChildEnrollment(BaseClass):
     class Meta:
         verbose_name = 'enrollment'
         verbose_name_plural = 'enrollments'
+        db_table = "dc_childenrollment"
     
     def __str__(self):
         return self.child 
@@ -244,4 +255,5 @@ class AttendanceLog(BaseClass):
     class Meta:
         verbose_name = 'Attendance Log'
         verbose_name_plural = 'Attendance Logs'
+        db_table = "dc_attendancelog"
 
