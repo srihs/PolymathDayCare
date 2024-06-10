@@ -309,8 +309,9 @@
     // Check if the inner div contains a success message
     var successMessageFound = alertDiv.find('.alert-success').length > 0;
 
+
     // If a success message is found, apply the fade-out effect
-    if (successMessageFound) {
+    if (successMessageFound ) {
         alertDiv.fadeTo(1000, 0).slideUp(1000, function() {
             jQuery(this).remove();
         });

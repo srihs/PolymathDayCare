@@ -1,37 +1,51 @@
-from django.shortcuts import render
-from .models import Child
-
-from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse, response
-from django.contrib.auth import authenticate, login, logout
-
-from django.http import *
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.views.decorators.csrf import csrf_protect
-from django.utils.http import url_has_allowed_host_and_scheme
-
 import datetime
+import os
 from datetime import datetime, timedelta
-
 from decimal import Decimal
-from django.db import transaction
-from django.core import serializers
-from django.db.models import F, Value
-from django.db.models.functions import Concat
-from django.views.decorators.http import require_POST
 
 import qrcode
-import os
 from django.conf import settings
+from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
+from django.db import transaction
+from django.db.models import F, Value
+from django.db.models.functions import Concat
+from django.http import *
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 
-
-from .models import Child, Package, Rates, ExtraCharges,RateHistory, Branch,DayCare,ChildEnrollment,Discount,AttendanceLog
-
-from .forms import CreateChildForm, UpdateChildForm, CreateRatesForm,CreateExtraChargesForm, \
-                    UpdateRatesForm,CreateRateHistoryForm,UpdateExtraChargesForm,CreatePackagesForm, CreateBranchForm, \
-                    CreateBranchForm, UpdateBranchForm, CreateDayCareForm, UpdateDayCareForm, CreateDiscountForm,\
-                    CreateEnrollmentForm, CreateCheckInForm,SearchForm
+from .forms import (
+    CreateBranchForm,
+    CreateCheckInForm,
+    CreateChildForm,
+    CreateDayCareForm,
+    CreateDiscountForm,
+    CreateEnrollmentForm,
+    CreateExtraChargesForm,
+    CreatePackagesForm,
+    CreateRateHistoryForm,
+    CreateRatesForm,
+    SearchForm,
+    UpdateBranchForm,
+    UpdateChildForm,
+    UpdateDayCareForm,
+    UpdateExtraChargesForm,
+    UpdateRatesForm,
+)
+from .models import (
+    AttendanceLog,
+    Branch,
+    Child,
+    ChildEnrollment,
+    DayCare,
+    Discount,
+    ExtraCharges,
+    Package,
+    RateHistory,
+    Rates,
+)
 
 
 #   This method
@@ -58,13 +72,13 @@ def UserLogin(request):
                     login(request, user)
 
                     next_url = request.POST.get("next", "")
-                    if url_has_allowed_host_and_scheme(next_url, allowed_hosts=request.get_host()):
+                    if url_has_allowed_host_and_scheme(
+                        next_url, allowed_hosts=request.get_host()
+                    ):
                         return HttpResponseRedirect(next_url)
                     else:
                         # Handle invalid or unsafe redirect URLs
                         return redirect("")  # Redirect to a default URL or homepage
-
-
 
             else:
                 messages.error(
@@ -72,22 +86,20 @@ def UserLogin(request):
                     "Invalid user credentials.Please check your username and password.",
                 )
 
-
     except Exception as e:
         messages.error(request, e)
 
     return render(request, "../templates/login.html")
 
 
-
 def generateQR(admission_no):
-    qr_directory = os.path.join(settings.MEDIA_ROOT, 'qr')
+    qr_directory = os.path.join(settings.MEDIA_ROOT, "qr")
 
     # Create the 'qr' directory if it doesn't exist
     try:
         os.makedirs(qr_directory, exist_ok=True)
-    except Exception as e:
-        messages.error(request,"Error creating 'qr' directory: {e}")
+    except Exception:
+        messages.error(request, "Error creating 'qr' directory: {e}")
 
     # Generate the QR code
     qr = qrcode.make(settings.PROD_URL + settings.QR_METHOD_NAME + admission_no)
@@ -98,13 +110,10 @@ def generateQR(admission_no):
 
     try:
         qr.save(file_path)
-    except Exception as e:
-        messages.error(request,"Error saving QR code image")
+    except Exception:
+        messages.error(request, "Error saving QR code image")
 
     return file_name
-
-
-
 
 
 @login_required
@@ -129,11 +138,10 @@ def getChildJson(reuest):
     return JsonResponse(chilList, safe=False)
 
 
-
 @login_required
 def getChildWithEnrolementsJson(reuest):
     chilList = list(
-        Child.objects.filter(is_enrolled=True,enrollement_approved=True).values(
+        Child.objects.filter(is_enrolled=True, enrollement_approved=True).values(
             "id",
             "admission_number",
             "child_image",
@@ -152,12 +160,11 @@ def getChildWithEnrolementsJson(reuest):
     return JsonResponse(chilList, safe=False)
 
 
-
 @login_required
 def getAllChildrenJS(request):
-    childList =  list(Child.objects.filter(is_active=True).values())
+    childList = list(Child.objects.filter(is_active=True).values())
     return JsonResponse(childList, safe=False)
-    
+
 
 @login_required
 def getChild(request):
@@ -222,7 +229,7 @@ def createChild(request):
             is_polymath_student = request.POST.get("is_polymath_student")
             admission_date = request.POST.get("admission_date")
             is_active = request.POST.get("is_active")
-            child_image =  request.FILES['child_image']
+            child_image = request.FILES["child_image"]
             if is_polymath_student == "on":
                 is_polymath_student = True
             else:
@@ -234,27 +241,33 @@ def createChild(request):
                 is_active = False
 
         if request.POST.get("admission_number") is not None:
-            objChild = Child.objects.get(
-                admission_number=request.POST.get("admission_number")
-            )
-            if objChild is not None:
-                objChild.fathers_contact_number = int(fathers_contact_number)
-                objChild.fathers_whatsapp_number = int(fathers_whatsapp_number)
-                objChild.mothers_contact_number = int(mothers_contact_number)
-                objChild.mothers_whatsapp_number = int(mothers_whatsapp_number)
-                objChild.address_line1 = address_line1
-                objChild.address_line2 = address_line2
-                objChild.address_line3 = address_line3
-                objChild.email_address = email_address
-                objChild.is_polymath_student = is_polymath_student
-                objChild.user_updated = request.user.username
-                objChild.is_active = is_active
-                if objChild.qr_code==None:
-                    objChild.qr_code = generateQR(admission_number)
-                objChild.child_image = child_image
-                objChild.save()
-                messages.success(request, "Child details updated.")
-    except Exception as e:
+            user = User.objects.get(username=request.user.username)
+            if user.groups.filter(name="Data Entry").exists():
+                messages.error(
+                    request, "You are not authorized to performe this operation."
+                )
+            else:
+                objChild = Child.objects.get(
+                    admission_number=request.POST.get("admission_number")
+                )
+                if objChild is not None:
+                    objChild.fathers_contact_number = int(fathers_contact_number)
+                    objChild.fathers_whatsapp_number = int(fathers_whatsapp_number)
+                    objChild.mothers_contact_number = int(mothers_contact_number)
+                    objChild.mothers_whatsapp_number = int(mothers_whatsapp_number)
+                    objChild.address_line1 = address_line1
+                    objChild.address_line2 = address_line2
+                    objChild.address_line3 = address_line3
+                    objChild.email_address = email_address
+                    objChild.is_polymath_student = is_polymath_student
+                    objChild.user_updated = request.user.username
+                    objChild.is_active = is_active
+                    if objChild.qr_code == None:
+                        objChild.qr_code = generateQR(admission_number)
+                    objChild.child_image = child_image
+                    objChild.save()
+                    messages.success(request, "Child details updated.")
+    except Exception:
         objChild = Child(
             admission_number=admission_number,
             child_first_name=child_first_name,
@@ -273,11 +286,9 @@ def createChild(request):
             email_address=email_address,
             is_polymath_student=is_polymath_student,
             user_created=request.user.username,
-            qr_code = generateQR(admission_number),
-            child_image = child_image,
-            admission_date=datetime.strptime(
-                admission_date, "%Y-%m-%d"
-            ).date(),
+            qr_code=generateQR(admission_number),
+            child_image=child_image,
+            admission_date=datetime.strptime(admission_date, "%Y-%m-%d").date(),
             is_active=is_active,
         )
         objChild.save()
@@ -289,17 +300,23 @@ def createChild(request):
 @login_required
 def deleteChild(request, pk):
     try:
-        objChild = get_object_or_404(Child, pk=pk)
-
-        if objChild is not None:
-            objChild.is_active = False
-            objChild.user_updated = request.user.username
-            objChild.save()
+        user = User.objects.get(username=request.user.username)
+        if user.groups.filter(name="Data Entry").exists():
+            messages.error(
+                request, "You are not authorized to performe this operation."
+            )
+        else:
+            objChild = get_object_or_404(Child, pk=pk)
+            if objChild is not None:
+                objChild.is_active = False
+                objChild.user_updated = request.user.username
+                objChild.save()
 
     except Exception as e:
         messages.error(request, e)
 
     return JsonResponse("Success", safe=False)
+
 
 @login_required
 def getRatesJs(reuest):
@@ -313,6 +330,7 @@ def getRatesJs(reuest):
     )
 
     return JsonResponse(rateList, safe=False)
+
 
 @login_required
 def getRates(request):
@@ -332,6 +350,7 @@ def getRates(request):
         },
     )
 
+
 @login_required
 def getRateByID(request, pk):
     try:
@@ -347,25 +366,38 @@ def getRateByID(request, pk):
         request, "../templates/partials/rateUpdate.html", {"formU": rate_form}
     )
 
+
 @login_required
 def getRateAmountByIdJs(request):
-     if request.method == "GET":
-        if not request.GET.get('base_rate_id') is None:
-            objRateHistory = RateHistory.objects.get(rate_id =request.GET.get('base_rate_id'),is_active=True)
+    if request.method == "GET":
+        if request.GET.get("base_rate_id") is not None:
+            objRateHistory = RateHistory.objects.get(
+                rate_id=request.GET.get("base_rate_id"), is_active=True
+            )
             if objRateHistory is not None:
-                if request.GET.get('no_hours') is not None and request.GET.get('no_days_months') is not None:
-                    total_package_amount = objRateHistory.standard_hourly_rate * Decimal(request.GET.get('no_hours')) * Decimal(request.GET.get('no_days_months'))
-                    return JsonResponse("{:,.2f}".format(total_package_amount), safe=False)
+                if (
+                    request.GET.get("no_hours") is not None
+                    and request.GET.get("no_days_months") is not None
+                ):
+                    total_package_amount = (
+                        objRateHistory.standard_hourly_rate
+                        * Decimal(request.GET.get("no_hours"))
+                        * Decimal(request.GET.get("no_days_months"))
+                    )
+                    return JsonResponse(
+                        "{:,.2f}".format(total_package_amount), safe=False
+                    )
             else:
-                return JsonResponse(None,safe=False)
-        return JsonResponse("000.00",safe=False)
+                return JsonResponse(None, safe=False)
+        return JsonResponse("000.00", safe=False)
+
 
 @login_required
 def saveRates(request):
     try:
         if request.method == "POST":
             form = UpdateRatesForm(request.POST)
-            objRates= form.save(commit=False)
+            objRates = form.save(commit=False)
             # capturing the variables with data
 
             rate_name = request.POST.get("rate_name")
@@ -377,26 +409,30 @@ def saveRates(request):
             else:
                 is_holiday_rate = False
 
-
             if request.POST.get("id") is not None:
-                objRate = Rates.objects.get(
-                    id=request.POST.get("id")
-                )
+                objRate = Rates.objects.get(id=request.POST.get("id"))
                 if objRate is not None:
-
-                    objRate.rate_name = rate_name
-                    objRate.is_holiday_rate = is_holiday_rate
-                    objRate.is_active = True
-                    objRate.user_updated =request.user.username
-                    objRate.date_updated = datetime.now()
-                    objRate.save()
-                    messages.success(request, "Rate details updated.")
+                    user = User.objects.get(username=request.user.username)
+                    if user.groups.filter(name="Data Entry").exists():
+                        messages.error(
+                            request,
+                            "You are not authorized to performe this operation.",
+                        )
+                    else:
+                        objRate.rate_name = rate_name
+                        objRate.is_holiday_rate = is_holiday_rate
+                        objRate.is_active = True
+                        objRate.user_updated = request.user.username
+                        objRate.date_updated = datetime.now()
+                        objRate.save()
+                        messages.success(request, "Rate details updated.")
             else:
                 objRate = Rates(
-                rate_name = rate_name,
-                is_holiday_rate = is_holiday_rate,
-                is_active = True,
-                user_created=request.user.username)
+                    rate_name=rate_name,
+                    is_holiday_rate=is_holiday_rate,
+                    is_active=True,
+                    user_created=request.user.username,
+                )
                 objRate.save()
                 messages.success(request, "Rate details saved.")
 
@@ -408,8 +444,10 @@ def saveRates(request):
 @login_required
 def getAdditionalRates(request):
     if request.method == "GET":
-        if not request.session.get('base_rate_id') is None:
-            form = CreateExtraChargesForm(initial={'base_rate': request.session.get('base_rate_id')})
+        if request.session.get("base_rate_id") is not None:
+            form = CreateExtraChargesForm(
+                initial={"base_rate": request.session.get("base_rate_id")}
+            )
         else:
             form = CreateExtraChargesForm()
     return render(
@@ -425,23 +463,23 @@ def getAdditionalRates(request):
 @login_required
 def getAdditionalRatesJs(request):
     additionalRatesList = None
-    if request.GET.get('base_rate_id') is not None:
-        id = request.GET.get('base_rate_id')
+    if request.GET.get("base_rate_id") is not None:
+        id = request.GET.get("base_rate_id")
         additionalRatesList = list(
             ExtraCharges.objects.filter(base_rate_id=id, is_active=True).values(
-            "id",
-            "base_rate",
-            "from_time",
-            "to_time",
-            "extra_rate",
-            "effective_from",
-            "effective_to",
-            "is_active",
+                "id",
+                "base_rate",
+                "from_time",
+                "to_time",
+                "extra_rate",
+                "effective_from",
+                "effective_to",
+                "is_active",
             )
-    )
-        for i,n in enumerate(additionalRatesList):
-            if n['effective_to']==None:
-                additionalRatesList[i]["effective_to"] ="-"
+        )
+        for i, n in enumerate(additionalRatesList):
+            if n["effective_to"] == None:
+                additionalRatesList[i]["effective_to"] = "-"
     return JsonResponse(additionalRatesList, safe=False)
 
 
@@ -449,9 +487,9 @@ def getAdditionalRatesJs(request):
 def getAdditionalRateById(request):
     try:
         rate_form = None
-        if request.GET.get('rate_id') is not None:
-            objRate = get_object_or_404(ExtraCharges, pk=request.GET.get('rate_id'))
-            request.session['id'] = objRate.id
+        if request.GET.get("rate_id") is not None:
+            objRate = get_object_or_404(ExtraCharges, pk=request.GET.get("rate_id"))
+            request.session["id"] = objRate.id
             request.session.modified = True
 
         if objRate is not None:
@@ -464,98 +502,111 @@ def getAdditionalRateById(request):
     )
 
 
-
 @login_required
 def saveAdditionalRates(request):
-    request.session['base_rate_id'] = None
+    request.session["base_rate_id"] = None
     request.session.modified = True
     if request.method == "POST":
         form = CreateExtraChargesForm(request.POST)
 
         if form.is_valid():
-
-            objAdditionalRates= form.save(commit=False)
-            objExtraChargestchek = ExtraCharges.objects.filter(base_rate=objAdditionalRates.base_rate.id,
-                                                               from_time=objAdditionalRates.from_time,
-                                                               to_time=objAdditionalRates.to_time).first()
+            objAdditionalRates = form.save(commit=False)
+            objExtraChargestchek = ExtraCharges.objects.filter(
+                base_rate=objAdditionalRates.base_rate.id,
+                from_time=objAdditionalRates.from_time,
+                to_time=objAdditionalRates.to_time,
+            ).first()
 
             if objExtraChargestchek is not None:
-                messages.error(request,"This time slot is already defined")
+                messages.error(request, "This time slot is already defined")
             else:
                 objAdditionalRates.user_created = request.user.username
-                request.session['base_rate_id'] = objAdditionalRates.base_rate.id
+                request.session["base_rate_id"] = objAdditionalRates.base_rate.id
                 request.session.modified = True
                 objAdditionalRates.save()
                 messages.success(request, "Additional rate details saved.")
         else:
-            messages.error(request,form.errors)
+            messages.error(request, form.errors)
 
     return redirect("core:view_additional_rates")
 
 
 @login_required
 def updateAdditionalRates(request):
-    base_rate_id =None
+    base_rate_id = None
     try:
         if request.method == "POST":
             form = UpdateExtraChargesForm(request.POST)
-            if request.session['id'] is not None:
-                objAdditionalRates = ExtraCharges.objects.get(pk=request.session['id'])
+            if request.session["id"] is not None:
+                objAdditionalRates = ExtraCharges.objects.get(pk=request.session["id"])
                 if objAdditionalRates is not None:
-                    with transaction.atomic():
-                        base_rate_id =objAdditionalRates.base_rate.id
-                        objAdditionalRates.is_active =False
-                        objAdditionalRates.user_updated =request.user.username
-                        objAdditionalRates.save()
-                        if form.is_valid():
-                            objNewAdditionalRates= form.save(commit=False)
-                            objNewAdditionalRates.base_rate = Rates.objects.get(pk=base_rate_id)
-                            objNewAdditionalRates.user_created = request.user.username
-                            objNewAdditionalRates.save()
-                            messages.success(request, "Additional rate details Updated.")
-                        else:
-                            messages.error(request,form.errors)
+                    user = User.objects.get(username=request.user.username)
+                    if user.groups.filter(name="Data Entry").exists():
+                        messages.error(
+                            request,
+                            "You are not authorized to performe this operation.",
+                        )
+                    else:
+                        with transaction.atomic():
+                            base_rate_id = objAdditionalRates.base_rate.id
+                            objAdditionalRates.is_active = False
+                            objAdditionalRates.user_updated = request.user.username
+                            objAdditionalRates.save()
+                            if form.is_valid():
+                                objNewAdditionalRates = form.save(commit=False)
+                                objNewAdditionalRates.base_rate = Rates.objects.get(
+                                    pk=base_rate_id
+                                )
+                                objNewAdditionalRates.user_created = (
+                                    request.user.username
+                                )
+                                objNewAdditionalRates.save()
+                                messages.success(
+                                    request, "Additional rate details Updated."
+                                )
+                            else:
+                                messages.error(request, form.errors)
 
                 else:
-                    messages.error(request,form.errors)
+                    messages.error(request, form.errors)
             else:
-                    messages.error(request,"No rate found")
+                messages.error(request, "No rate found")
     except Exception as e:
         messages.error(request, e)
 
     return redirect("core:view_additional_rates")
 
 
-
 def calculate_duration(request):
     # Get the values of "from_time" and "to_time" from the POST request
-    from_time_str = request.GET.get('from_time')
-    to_time_str = request.GET.get('to_time')
-  
+    from_time_str = request.GET.get("from_time")
+    to_time_str = request.GET.get("to_time")
 
     try:
         # Convert the time strings to datetime objects
-        from_time = datetime.strptime(from_time_str, '%H:%M')
-        to_time = datetime.strptime(to_time_str, '%H:%M')
+        from_time = datetime.strptime(from_time_str, "%H:%M")
+        to_time = datetime.strptime(to_time_str, "%H:%M")
 
-       # Calculate the duration
+        # Calculate the duration
         duration_seconds = (to_time - from_time).seconds
         duration_hours = duration_seconds // 3600
         duration_minutes = (duration_seconds % 3600) // 60
 
         # Return the result as JSON
-        return JsonResponse({'duration_hours': duration_hours, 'duration_minutes': duration_minutes})
+        return JsonResponse(
+            {"duration_hours": duration_hours, "duration_minutes": duration_minutes}
+        )
     except ValueError:
         # Handle invalid time format
-        return JsonResponse({'error': 'Invalid time format'}, status=400)
+        return JsonResponse({"error": "Invalid time format"}, status=400)
     except Exception as e:
         # Handle other exceptions
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 # This method will save the Rate history for a give base rate.
 # Operation :- get the base rate id. Check for the validity and retrive the previous rates and set the effective_to date to effective_date
-#if not previous rates are found, Create a new rate entry.
+# if not previous rates are found, Create a new rate entry.
 @login_required
 @transaction.atomic
 def saveBaseRate(request):
@@ -567,33 +618,53 @@ def saveBaseRate(request):
         if request.method == "POST":
             if request.POST.get("rate_id") is not None:
                 oldRate = RateHistory.objects.filter(
-                        rate_id=request.POST.get("rate_id"),is_active=True
-                    ).first()
+                    rate_id=request.POST.get("rate_id"), is_active=True
+                ).first()
                 with transaction.atomic():
                     if oldRate is not None:
-                        if oldRate.effective_to is None and oldRate.is_active == True:
-                            oldRate.effective_to =datetime.strptime(effective_from, "%Y-%m-%d").date()
-                            oldRate.is_active = False
-                            oldRate.user_updated = request.user.username
-                            oldRate.date_updated = datetime.now
-                            oldRate.save()
-                            objRateHistory = RateHistory(
-                            rate =  Rates.objects.get(pk=request.POST.get("rate_id")),
-                            standard_hourly_rate = standard_hourly_rate,
-                            effective_from =  datetime.strptime(effective_from, "%Y-%m-%d").date(),
-                            is_active = True,
-                            user_created = request.user.username)
-                            objRateHistory.save()
-                            messages.success(request, "Rate details updated.")
+                        user = User.objects.get(username=request.user.username)
+                        if user.groups.filter(name="Data Entry").exists():
+                            messages.error(
+                                request,
+                                "You are not authorized to performe this operation.",
+                            )
+                        else:
+                            if (
+                                oldRate.effective_to is None
+                                and oldRate.is_active == True
+                            ):
+                                oldRate.effective_to = datetime.strptime(
+                                    effective_from, "%Y-%m-%d"
+                                ).date()
+                                oldRate.is_active = False
+                                oldRate.user_updated = request.user.username
+                                oldRate.date_updated = datetime.now
+                                oldRate.save()
+                                objRateHistory = RateHistory(
+                                    rate=Rates.objects.get(
+                                        pk=request.POST.get("rate_id")
+                                    ),
+                                    standard_hourly_rate=standard_hourly_rate,
+                                    effective_from=datetime.strptime(
+                                        effective_from, "%Y-%m-%d"
+                                    ).date(),
+                                    is_active=True,
+                                    user_created=request.user.username,
+                                )
+                                objRateHistory.save()
+                                messages.success(request, "Rate details updated.")
                     else:
-                            objRateHistory = RateHistory(
-                            rate =  Rates.objects.get(pk=request.POST.get("rate_id")),
-                            standard_hourly_rate = standard_hourly_rate,
-                            effective_from =  datetime.strptime(effective_from, "%Y-%m-%d").date(),
-                            is_active = True,
-                            user_created = request.user.username)
-                            objRateHistory.save()
-                            messages.success(request, "Rate details saved.")
+                        objRateHistory = RateHistory(
+                            rate=Rates.objects.get(pk=request.POST.get("rate_id")),
+                            standard_hourly_rate=standard_hourly_rate,
+                            effective_from=datetime.strptime(
+                                effective_from, "%Y-%m-%d"
+                            ).date(),
+                            is_active=True,
+                            user_created=request.user.username,
+                        )
+                        objRateHistory.save()
+                        messages.success(request, "Rate details saved.")
             else:
                 messages.error(request, "Rate ")
     except Exception as e:
@@ -601,57 +672,60 @@ def saveBaseRate(request):
     return redirect("core:view_rates")
 
 
-
-
-
 @login_required
 def getRateHistoryById(request):
     baseRateName = None
-    if request.GET.get('rate_id') is not None:
-        id = request.GET.get('rate_id')
+    if request.GET.get("rate_id") is not None:
+        id = request.GET.get("rate_id")
         objBaseRate = Rates.objects.get(pk=id)
         if objBaseRate is not None:
             baseRateName = objBaseRate.rate_name
             id = objBaseRate.id
     history_form = CreateRateHistoryForm()
-    return render(request, "../templates/partials/addratesforbase.html", {"formU": history_form, "baseRateName":baseRateName,"id":id})
+    return render(
+        request,
+        "../templates/partials/addratesforbase.html",
+        {"formU": history_form, "baseRateName": baseRateName, "id": id},
+    )
 
 
 @login_required
 def getRatesforRatesJs(request):
-   if request.GET.get('rate_id') is not None:
-        id = request.GET.get('rate_id')
+    if request.GET.get("rate_id") is not None:
+        id = request.GET.get("rate_id")
         ratesList = list(
             RateHistory.objects.filter(rate_id=id).values(
-            "id",
-            "standard_hourly_rate",
-            "effective_from",
-            "effective_to",
-            "is_active",
-            ))
-        for i,n in enumerate(ratesList):
-            if n['effective_to']==None:
-                ratesList[i]["effective_to"] ="-"
-            if n['is_active'] == True:
-                ratesList[i]["is_active"] ="Active"
+                "id",
+                "standard_hourly_rate",
+                "effective_from",
+                "effective_to",
+                "is_active",
+            )
+        )
+        for i, n in enumerate(ratesList):
+            if n["effective_to"] == None:
+                ratesList[i]["effective_to"] = "-"
+            if n["is_active"] == True:
+                ratesList[i]["is_active"] = "Active"
             else:
-                 ratesList[i]["is_active"] ="Inactive"
+                ratesList[i]["is_active"] = "Inactive"
 
-
-   return JsonResponse(ratesList, safe=False)
+    return JsonResponse(ratesList, safe=False)
 
 
 @login_required
 def getPackages(request):
     if request.method == "GET":
         try:
-        # trying to retrive the next primaryKey
+            # trying to retrive the next primaryKey
             nextId = Package.objects.all().count()
             nextId += 1
         except:
             nextId = 1  # if the next ID is null define the record as the first
 
-        package_form = CreatePackagesForm(initial={'package_code': "PKG00" + str(nextId)})
+        package_form = CreatePackagesForm(
+            initial={"package_code": "PKG00" + str(nextId)}
+        )
     return render(
         request,
         "../templates/packages.html",
@@ -664,40 +738,40 @@ def getPackages(request):
 
 @login_required
 def getPackagesJs(request):
-   if request.method == "GET":
+    if request.method == "GET":
         packageList = list(
             Package.objects.all().values(
-            "id",
-            "package_type",
-            "package_code",
-            "package_name",
-            "from_time",
-            "to_time",
-            "no_hours",
-            "no_days_week",
-            "no_days_months",
-            "is_holiday_package",
-            "base_rate",
-            "base_rate_id",
-            ))
+                "id",
+                "package_type",
+                "package_code",
+                "package_name",
+                "from_time",
+                "to_time",
+                "no_hours",
+                "no_days_week",
+                "no_days_months",
+                "is_holiday_package",
+                "base_rate",
+                "base_rate_id",
+            )
+        )
 
-        for i,n in enumerate(packageList):
+        for i, n in enumerate(packageList):
             # query =Rates.objects.filter(pk=packageList[i]["base_rate"])
             # packageList[i]["base_rate"] = serializers.serialize('json',query)
 
-            if n['is_holiday_package']:
-                packageList[i]["is_holiday_package"] ="Yes"
+            if n["is_holiday_package"]:
+                packageList[i]["is_holiday_package"] = "Yes"
 
             else:
-                 packageList[i]["is_holiday_package"] ="No"
+                packageList[i]["is_holiday_package"] = "No"
 
+    return JsonResponse(packageList, safe=False)
 
-
-   return JsonResponse(packageList, safe=False)
 
 @login_required
 def checkIfHolidayPackage(id):
-    is_holiday =None
+    is_holiday = None
 
     objBaseRate = Rates.objects.get(pk=id)
     if objBaseRate.is_holiday_rate:
@@ -713,9 +787,9 @@ def savePackage(request):
     if request.method == "POST":
         form = CreatePackagesForm(request.POST)
         if form.is_valid():
-            objPackage= form.save(commit=False)
+            objPackage = form.save(commit=False)
 
-            objBaseRate = Rates.objects.get(pk = request.POST.get("base_rate"))
+            objBaseRate = Rates.objects.get(pk=request.POST.get("base_rate"))
 
             objPackage.base_rate = objBaseRate
             objPackage.user_created = request.user.username
@@ -726,10 +800,10 @@ def savePackage(request):
             objPackage.save()
             messages.success(request, "Package details saved.")
         else:
-            messages.error(request,form.errors)
+            messages.error(request, form.errors)
 
     else:
-        messages.error(request,"Something went wrong")
+        messages.error(request, "Something went wrong")
 
     return redirect("core:view_packages")
 
@@ -738,13 +812,13 @@ def savePackage(request):
 def getBranches(request):
     if request.method == "GET":
         try:
-        # trying to retrive the next primaryKey
+            # trying to retrive the next primaryKey
             nextId = Branch.objects.all().count()
             nextId += 1
         except:
             nextId = 1  # if the next ID is null define the record as the first
 
-        branch_form = CreateBranchForm(initial={'branch_code': "BRN00" + str(nextId)})
+        branch_form = CreateBranchForm(initial={"branch_code": "BRN00" + str(nextId)})
 
     return render(
         request,
@@ -756,27 +830,25 @@ def getBranches(request):
     )
 
 
-
 @login_required
 def getBranchesJs(request):
-   if request.method == "GET":
+    if request.method == "GET":
         branchList = list(
             Branch.objects.all().values(
-            "id",
-            "branch_code",
-            "branch_name",
-            "branch_contact_person",
-            "branch_contact_mobile_number",
-            "branch_contact_number",
-            "address_line1",
-            "address_line2",
-            "address_line3",
-            "is_active"
-            ))
+                "id",
+                "branch_code",
+                "branch_name",
+                "branch_contact_person",
+                "branch_contact_mobile_number",
+                "branch_contact_number",
+                "address_line1",
+                "address_line2",
+                "address_line3",
+                "is_active",
+            )
+        )
 
-
-   return JsonResponse(branchList, safe=False)
-
+    return JsonResponse(branchList, safe=False)
 
 
 @login_required
@@ -793,54 +865,51 @@ def saveBranch(request):
         address_line3 = request.POST.get("address_line3")
         is_active = request.POST.get("is_active")
 
-
         if branch_code is not None:
-                objBranch = Branch.objects.filter(
-                    branch_code=branch_code
-                ).first()
-                if objBranch is not None:
-                    objBranch.branch_code = branch_code
-                    objBranch.branch_name = branch_name
-                    objBranch.branch_contact_person = branch_contact_person
-                    objBranch.branch_contact_mobile_number = branch_contact_mobile_number
-                    objBranch.branch_contact_number = branch_contact_number
-                    objBranch.address_line1 = address_line1
-                    objBranch.address_line2 = address_line2
-                    objBranch.address_line3 = address_line3
+            objBranch = Branch.objects.filter(branch_code=branch_code).first()
+            if objBranch is not None:
+                objBranch.branch_code = branch_code
+                objBranch.branch_name = branch_name
+                objBranch.branch_contact_person = branch_contact_person
+                objBranch.branch_contact_mobile_number = branch_contact_mobile_number
+                objBranch.branch_contact_number = branch_contact_number
+                objBranch.address_line1 = address_line1
+                objBranch.address_line2 = address_line2
+                objBranch.address_line3 = address_line3
 
-                    if is_active == "on":
-                        is_active = True
-                    else:
-                        is_active = False
-
-                    objBranch.is_active = is_active
-
-                    objBranch.user_updated = request.user.username
-                    objBranch.date_updated = datetime.now()
-                    objBranch.save()
-
-                    messages.success(request, "Branch details updated.")
+                if is_active == "on":
+                    is_active = True
                 else:
-                    form = CreateBranchForm(request.POST)
-                    if form.is_valid():
-                        objBranch = form.save(commit=False)
-                        objBranch.user_created = request.user.username
-                        objBranch.save()
-                        messages.success(request, "Branch details saved.")
-                    else:
-                        messages.error(request, form.errors)
+                    is_active = False
+
+                objBranch.is_active = is_active
+
+                objBranch.user_updated = request.user.username
+                objBranch.date_updated = datetime.now()
+                objBranch.save()
+
+                messages.success(request, "Branch details updated.")
+            else:
+                form = CreateBranchForm(request.POST)
+                if form.is_valid():
+                    objBranch = form.save(commit=False)
+                    objBranch.user_created = request.user.username
+                    objBranch.save()
+                    messages.success(request, "Branch details saved.")
+                else:
+                    messages.error(request, form.errors)
 
     return redirect("core:view_branches")
 
+
 @login_required
-def getBranchForUpdateById(request,pk):
+def getBranchForUpdateById(request, pk):
     try:
         updateBranch_form = None
         objBranch = get_object_or_404(Branch, pk=pk)
 
         if objBranch is not None:
             updateBranch_form = UpdateBranchForm(instance=objBranch)
-
 
     except Exception as e:
         messages.error(request, e)
@@ -853,13 +922,13 @@ def getBranchForUpdateById(request,pk):
 def getDaycareCenters(request):
     if request.method == "GET":
         try:
-        # trying to retrive the next primaryKey
+            # trying to retrive the next primaryKey
             nextId = DayCare.objects.all().count()
             nextId += 1
         except:
             nextId = 1  # if the next ID is null define the record as the first
 
-        branch_form = CreateDayCareForm(initial={'daycare_code': "DC00" + str(nextId)})
+        branch_form = CreateDayCareForm(initial={"daycare_code": "DC00" + str(nextId)})
 
     return render(
         request,
@@ -873,40 +942,42 @@ def getDaycareCenters(request):
 
 @login_required
 def saveDayCareCenter(request):
-     if request.method == "POST":
+    if request.method == "POST":
         daycare_code = request.POST.get("daycare_code")
         daycare_name = request.POST.get("daycare_name")
         branch = request.POST.get("branch")
         daycare_incharge = request.POST.get("daycare_incharge")
-        daycare_contact_mobile_number = request.POST.get("daycare_contact_mobile_number")
+        daycare_contact_mobile_number = request.POST.get(
+            "daycare_contact_mobile_number"
+        )
         daycare_contact_number = request.POST.get("daycare_contact_number")
         is_active = request.POST.get("is_active")
         try:
-                if daycare_code is not None:
-                    objDayCare = DayCare.objects.get(
-                        daycare_code=daycare_code
+            if daycare_code is not None:
+                objDayCare = DayCare.objects.get(daycare_code=daycare_code)
+                if objDayCare is not None:
+                    objDayCare.daycare_code = daycare_code
+                    objDayCare.daycare_name = daycare_name
+                    objDayCare.branch = branch
+                    objDayCare.daycare_incharge = daycare_incharge
+                    objDayCare.daycare_contact_mobile_number = (
+                        daycare_contact_mobile_number
                     )
-                    if objDayCare is not None:
-                        objDayCare.daycare_code = daycare_code
-                        objDayCare.daycare_name = daycare_name
-                        objDayCare.branch = branch
-                        objDayCare.daycare_incharge = daycare_incharge
-                        objDayCare.daycare_contact_mobile_number = daycare_contact_mobile_number
-                        objDayCare.daycare_contact_number = daycare_contact_number
-                        
-                        if is_active == "on":
-                            is_active = True
-                        else:
-                            is_active = False
+                    objDayCare.daycare_contact_number = daycare_contact_number
 
-                        objDayCare.is_active = is_active
+                    if is_active == "on":
+                        is_active = True
+                    else:
+                        is_active = False
 
-                        objDayCare.user_updated = request.user.username
-                        objDayCare.date_updated = datetime.now()
-                        objDayCare.save()
-                        messages.success(request, "Center details updated.")
+                    objDayCare.is_active = is_active
 
-        except :
+                    objDayCare.user_updated = request.user.username
+                    objDayCare.date_updated = datetime.now()
+                    objDayCare.save()
+                    messages.success(request, "Center details updated.")
+
+        except:
             form = CreateDayCareForm(request.POST)
             if form.is_valid():
                 objDayCare = form.save(commit=False)
@@ -915,47 +986,47 @@ def saveDayCareCenter(request):
                 messages.success(request, "Center details saved.")
             else:
                 messages.error(request, form.errors)
-                    
-    
+
             return redirect("core:view_centers")
 
 
 @login_required
 def getDayCareCentersJs(request):
-   if request.method == "GET":
+    if request.method == "GET":
         daycareList = list(
             DayCare.objects.all().values(
-            "id",
-            "daycare_code",
-            "daycare_name",
-            "daycare_incharge",
-            "daycare_contact_number",
-            "daycare_contact_mobile_number",
-            "branch",
-            "is_active",
-            ))
+                "id",
+                "daycare_code",
+                "daycare_name",
+                "daycare_incharge",
+                "daycare_contact_number",
+                "daycare_contact_mobile_number",
+                "branch",
+                "is_active",
+            )
+        )
 
-        for i,n in enumerate(daycareList):
-            if n['is_active']:
-                daycareList[i]["is_active"] ="Yes"
+        for i, n in enumerate(daycareList):
+            if n["is_active"]:
+                daycareList[i]["is_active"] = "Yes"
             else:
-                 daycareList[i]["is_active"] ="No"
-            
-   return JsonResponse(daycareList, safe=False)
+                daycareList[i]["is_active"] = "No"
+
+    return JsonResponse(daycareList, safe=False)
 
 
 @login_required
 def getDayCareCenterNamebyIdJs(request):
-    if request.GET.get('id') is not None:
-        id = request.GET.get('id')
+    if request.GET.get("id") is not None:
+        id = request.GET.get("id")
         objBranch = Branch.objects.get(pk=id)
         if objBranch is not None:
             centerName = objBranch.branch_code + "-" + objBranch.branch_name
         return JsonResponse(centerName, safe=False)
-    
+
 
 @login_required
-def getDayCareCenterForUpdateById(request,pk):
+def getDayCareCenterForUpdateById(request, pk):
     try:
         updateBranch_form = None
         objDaycareCenter = get_object_or_404(DayCare, pk=pk)
@@ -972,25 +1043,27 @@ def getDayCareCenterForUpdateById(request,pk):
 
 @login_required
 def getDayCareCentersByBranchJs(request):
-    
-    if request.GET.get('id') is not None:
-        id = request.GET.get('id')
-        dayCareList =  list(DayCare.objects.filter(branch_id=id, is_active=True).values())
+    if request.GET.get("id") is not None:
+        id = request.GET.get("id")
+        dayCareList = list(
+            DayCare.objects.filter(branch_id=id, is_active=True).values()
+        )
         return JsonResponse(dayCareList, safe=False)
-
 
 
 @login_required
 def getDiscounts(request):
     if request.method == "GET":
         try:
-        # trying to retrive the next primaryKey
+            # trying to retrive the next primaryKey
             nextId = Discount.objects.all().count()
             nextId += 1
         except:
             nextId = 1  # if the next ID is null define the record as the first
 
-        discount_form = CreateDiscountForm(initial={'discount_code': "DS00" + str(nextId)})
+        discount_form = CreateDiscountForm(
+            initial={"discount_code": "DS00" + str(nextId)}
+        )
 
     return render(
         request,
@@ -1000,6 +1073,7 @@ def getDiscounts(request):
             "UserName": request.user.username,
         },
     )
+
 
 @login_required
 def getDiscountJson(request):
@@ -1020,51 +1094,48 @@ def getDiscountJson(request):
 @login_required
 def saveDiscount(request):
     if request.method == "POST":
-        
         discount_code = request.POST.get("discount_code")
         discount_name = request.POST.get("discount_name")
         discount_rate = request.POST.get("discount_rate")
         status = request.POST.get("status")
         is_active = request.POST.get("is_active")
         try:
-                if discount_code is not None:
-                    objDiscount = Discount.objects.get(
-                        discount_code=discount_code
-                    )
-                    if objDiscount is not None:
-                        objDiscount.discount_code = discount_code
-                        objDiscount.discount_name = discount_name
-                        objDiscount.discount_rate = discount_rate
-                        objDiscount.status = status
-                        if is_active == "on":
-                            is_active = True
-                        else:
-                            is_active = False
+            if discount_code is not None:
+                objDiscount = Discount.objects.get(discount_code=discount_code)
+                if objDiscount is not None:
+                    objDiscount.discount_code = discount_code
+                    objDiscount.discount_name = discount_name
+                    objDiscount.discount_rate = discount_rate
+                    objDiscount.status = status
+                    if is_active == "on":
+                        is_active = True
+                    else:
+                        is_active = False
 
-                        objDiscount.is_active = is_active
-                        objDiscount.user_updated = request.user.username
-                        objDiscount.date_updated = datetime.now()
-                        objDiscount.save()
-                        messages.success(request, "Discount details updated.")
+                    objDiscount.is_active = is_active
+                    objDiscount.user_updated = request.user.username
+                    objDiscount.date_updated = datetime.now()
+                    objDiscount.save()
+                    messages.success(request, "Discount details updated.")
 
-        except :
+        except:
             form = CreateDiscountForm(request.POST)
             if form.is_valid():
                 objDiscount = form.save(commit=False)
                 objDiscount.user_created = request.user.username
-                objDiscount.status = 'Pending Approval'
+                objDiscount.status = "Pending Approval"
                 objDiscount.save()
                 messages.success(request, "Discount details saved.")
             else:
                 messages.error(request, form.errors)
-    
+
             return redirect("core:view_discounts")
 
 
 @login_required
 def approveDiscount(request):
-    if request.GET.get('id') is not None:
-        id = request.GET.get('id')
+    if request.GET.get("id") is not None:
+        id = request.GET.get("id")
         objDiscount = Discount.objects.get(pk=id)
         if objDiscount is not None:
             objDiscount.status = "Approved"
@@ -1076,9 +1147,9 @@ def approveDiscount(request):
 
 @login_required
 def rejectDiscount(request):
-    prin(request.GET.get('id'))
-    if request.GET.get('id') is not None:
-        id = request.GET.get('id')
+    prin(request.GET.get("id"))
+    if request.GET.get("id") is not None:
+        id = request.GET.get("id")
         objDiscount = Discount.objects.get(pk=id)
         if objDiscount is not None:
             objDiscount.status = "Rejected"
@@ -1089,19 +1160,19 @@ def rejectDiscount(request):
     return JsonResponse("Rejected", safe=False)
 
 
-
-
 @login_required
 def getEnrollments(request):
-    if request.method=="GET":
+    if request.method == "GET":
         try:
-        # trying to retrive the next primaryKey
+            # trying to retrive the next primaryKey
             nextId = ChildEnrollment.objects.all().count()
             nextId += 1
         except:
             nextId = 1  # if the next ID is null define the record as the first
 
-        enrollment_form = CreateEnrollmentForm(initial={'enrollment_code': "E00" + str(nextId)})
+        enrollment_form = CreateEnrollmentForm(
+            initial={"enrollment_code": "E00" + str(nextId)}
+        )
 
     return render(
         request,
@@ -1115,15 +1186,33 @@ def getEnrollments(request):
 
 @login_required
 def getEnrollmentsJS(request):
-     enrolmentList = list(
-        ChildEnrollment.objects.filter(status='Pending Approval',is_active=True).annotate(
-        child_name=Concat(F('child__child_first_name'), Value(' '), F('child__child_last_name')),
-        normal_package_name=Concat(F('normal_package__package_code'), Value('-'), F('normal_package__package_name')),
-        holiday_package_name=Concat(F('holiday_package__package_code'), Value('-'), F('holiday_package__package_name')),
-        branch_name=Concat(F('branch__branch_code'), Value('-'), F('branch__branch_name')),
-        center_name=Concat(F('center__daycare_code'), Value('-'), F('center__daycare_name')),
-        discount_name=Concat(F('discount__discount_code'), Value('-'), F('discount__discount_name')),
-    ).values(
+    enrolmentList = list(
+        ChildEnrollment.objects.filter(status="Pending Approval", is_active=True)
+        .annotate(
+            child_name=Concat(
+                F("child__child_first_name"), Value(" "), F("child__child_last_name")
+            ),
+            normal_package_name=Concat(
+                F("normal_package__package_code"),
+                Value("-"),
+                F("normal_package__package_name"),
+            ),
+            holiday_package_name=Concat(
+                F("holiday_package__package_code"),
+                Value("-"),
+                F("holiday_package__package_name"),
+            ),
+            branch_name=Concat(
+                F("branch__branch_code"), Value("-"), F("branch__branch_name")
+            ),
+            center_name=Concat(
+                F("center__daycare_code"), Value("-"), F("center__daycare_name")
+            ),
+            discount_name=Concat(
+                F("discount__discount_code"), Value("-"), F("discount__discount_name")
+            ),
+        )
+        .values(
             "id",
             "enrollment_code",
             "enrollment_date",
@@ -1137,20 +1226,39 @@ def getEnrollmentsJS(request):
             "is_active",
         )
     )
-    
-     return JsonResponse(enrolmentList, safe=False)
+
+    return JsonResponse(enrolmentList, safe=False)
+
 
 @login_required
 def getEnrollmentsForApprovalJS(request):
-     enrolmentList = list(
-        ChildEnrollment.objects.filter(child__enrollement_approved=False).annotate(
-        child_name=Concat(F('child__child_first_name'), Value(' '), F('child__child_last_name')),
-        normal_package_name=Concat(F('normal_package__package_code'), Value('-'), F('normal_package__package_name')),
-        holiday_package_name=Concat(F('holiday_package__package_code'), Value('-'), F('holiday_package__package_name')),
-        branch_name=Concat(F('branch__branch_code'), Value('-'), F('branch__branch_name')),
-        center_name=Concat(F('center__daycare_code'), Value('-'), F('center__daycare_name')),
-        discount_name=Concat(F('discount__discount_code'), Value('-'), F('discount__discount_name')),
-    ).values(
+    enrolmentList = list(
+        ChildEnrollment.objects.filter(child__enrollement_approved=False)
+        .annotate(
+            child_name=Concat(
+                F("child__child_first_name"), Value(" "), F("child__child_last_name")
+            ),
+            normal_package_name=Concat(
+                F("normal_package__package_code"),
+                Value("-"),
+                F("normal_package__package_name"),
+            ),
+            holiday_package_name=Concat(
+                F("holiday_package__package_code"),
+                Value("-"),
+                F("holiday_package__package_name"),
+            ),
+            branch_name=Concat(
+                F("branch__branch_code"), Value("-"), F("branch__branch_name")
+            ),
+            center_name=Concat(
+                F("center__daycare_code"), Value("-"), F("center__daycare_name")
+            ),
+            discount_name=Concat(
+                F("discount__discount_code"), Value("-"), F("discount__discount_name")
+            ),
+        )
+        .values(
             "id",
             "enrollment_code",
             "enrollment_date",
@@ -1164,13 +1272,13 @@ def getEnrollmentsForApprovalJS(request):
             "is_active",
         )
     )
-    
-     return JsonResponse(enrolmentList, safe=False)
+
+    return JsonResponse(enrolmentList, safe=False)
 
 
 @login_required
 def saveEnrollments(request):
-   if request.method == "POST":
+    if request.method == "POST":
         enrollment_code = request.POST.get("enrollment_code")
         enrollment_date = request.POST.get("enrollment_date")
         child = request.POST.get("child")
@@ -1181,72 +1289,97 @@ def saveEnrollments(request):
         discount = request.POST.get("discount")
         recipt_number = request.POST.get("recipt_number")
         is_active = request.POST.get("is_active")
-        
+
         try:
-                if enrollment_code is not None:
-                    objEnrollment = ChildEnrollment.objects.filter(
-                        enrollment_code=enrollment_code
-                    ).first()
-                
-                if objEnrollment is not None:
-                        objEnrollment.enrollment_code = enrollment_code
-                        objEnrollment.enrollment_date = enrollment_date
-                        objEnrollment.child = child
-                        objEnrollment.branch = branch
-                        objEnrollment.center = dayCare
-                        objEnrollment.normal_package = normal_package
-                        objEnrollment.holiday_package = holiday_package
-                        objEnrollment.discount = discount
-                        if is_active == "on":
-                            is_active = True
-                        else:
-                            is_active = False
+            if enrollment_code is not None:
+                objEnrollment = ChildEnrollment.objects.filter(
+                    enrollment_code=enrollment_code
+                ).first()
 
-                        objEnrollment.is_active = is_active
-                        objEnrollment.user_updated = request.user.username
-                        objEnrollment.date_updated = datetime.now()
-                        objEnrollment.save()
-                        messages.success(request, "Enrollment details updated.")
-                else:  
-                    form = CreateEnrollmentForm(request.POST)
-                    if form.is_valid():
-                        objEnrollment = form.save(commit=False)
-                        objEnrollment.user_created = request.user.username
-                        objEnrollment.status = 'Pending Approval'
-                        objEnrollment.child = Child.objects.get(pk=child,is_active=True)
-                        objChild = objEnrollment.child
-                        objChild.is_enrolled = True
-                        objChild.save()
+            if objEnrollment is not None:
+                objEnrollment.enrollment_code = enrollment_code
+                objEnrollment.enrollment_date = enrollment_date
+                objEnrollment.child = child
+                objEnrollment.branch = branch
+                objEnrollment.center = dayCare
+                objEnrollment.normal_package = normal_package
+                objEnrollment.holiday_package = holiday_package
+                objEnrollment.discount = discount
+                if is_active == "on":
+                    is_active = True
+                else:
+                    is_active = False
 
-                        objEnrollment.branch = Branch.objects.get(pk=branch,is_active=True)
-                        objEnrollment.center =DayCare.objects.get(daycare_code=dayCare,is_active=True)
-                        objEnrollment.normal_package = Package.objects.get(pk=normal_package,is_active=True)
-                        objEnrollment.holiday_package = Package.objects.get(pk=holiday_package,is_active=True)
-                        if discount is not None and discount!= "":
-                            objEnrollment.discount = Discount.objects.get(pk = discount,is_active=True)
-                        objEnrollment.save()
-                        messages.success(request, "Enrollment details saved.")
+                objEnrollment.is_active = is_active
+                objEnrollment.user_updated = request.user.username
+                objEnrollment.date_updated = datetime.now()
+                objEnrollment.save()
+                messages.success(request, "Enrollment details updated.")
+            else:
+                form = CreateEnrollmentForm(request.POST)
+                if form.is_valid():
+                    objEnrollment = form.save(commit=False)
+                    objEnrollment.user_created = request.user.username
+                    objEnrollment.status = "Pending Approval"
+                    objEnrollment.child = Child.objects.get(pk=child, is_active=True)
+                    objChild = objEnrollment.child
+                    objChild.is_enrolled = True
+                    objChild.save()
+
+                    objEnrollment.branch = Branch.objects.get(pk=branch, is_active=True)
+                    objEnrollment.center = DayCare.objects.get(
+                        daycare_code=dayCare, is_active=True
+                    )
+                    objEnrollment.normal_package = Package.objects.get(
+                        pk=normal_package, is_active=True
+                    )
+                    objEnrollment.holiday_package = Package.objects.get(
+                        pk=holiday_package, is_active=True
+                    )
+                    if discount is not None and discount != "":
+                        objEnrollment.discount = Discount.objects.get(
+                            pk=discount, is_active=True
+                        )
+                    objEnrollment.save()
+                    messages.success(request, "Enrollment details saved.")
         except Exception as e:
             messages.error(request, e)
-            
-    
+
         return redirect("core:view_enrollments")
-   
+
 
 @login_required
 def getAllPendingEnrollmentsJS(request):
-     enrolmentList = list(
+    enrolmentList = list(
         ChildEnrollment.objects.filter(
-        is_active=True,  # Add this filter for is_active
-        status =1,
-    ).annotate(
-        child_name=Concat(F('child__child_first_name'), Value('-'), F('child__child_last_name')),
-        normal_package_name=Concat(F('normal_package__package_code'), Value('-'), F('normal_package__package_name')),
-        holiday_package_name=Concat(F('holiday_package__package_code'), Value('-'), F('holiday_package__package_name')),
-        branch_name=Concat(F('branch__branch_code'), Value('-'), F('branch__branch_name')),
-        center_name=Concat(F('center__daycare_code'), Value('-'), F('center__daycare_name')),
-        discount_name=Concat(F('discount__discount_code'), Value('-'), F('discount__discount_name')),
-    ).values(
+            is_active=True,  # Add this filter for is_active
+            status=1,
+        )
+        .annotate(
+            child_name=Concat(
+                F("child__child_first_name"), Value("-"), F("child__child_last_name")
+            ),
+            normal_package_name=Concat(
+                F("normal_package__package_code"),
+                Value("-"),
+                F("normal_package__package_name"),
+            ),
+            holiday_package_name=Concat(
+                F("holiday_package__package_code"),
+                Value("-"),
+                F("holiday_package__package_name"),
+            ),
+            branch_name=Concat(
+                F("branch__branch_code"), Value("-"), F("branch__branch_name")
+            ),
+            center_name=Concat(
+                F("center__daycare_code"), Value("-"), F("center__daycare_name")
+            ),
+            discount_name=Concat(
+                F("discount__discount_code"), Value("-"), F("discount__discount_name")
+            ),
+        )
+        .values(
             "id",
             "enrollment_code",
             "enrollment_date",
@@ -1260,12 +1393,12 @@ def getAllPendingEnrollmentsJS(request):
             "is_active",
         )
     )
-    
-     return JsonResponse(enrolmentList, safe=False)
 
-    
+    return JsonResponse(enrolmentList, safe=False)
+
+
 @login_required
-def deleteEnrollments(request,pk):
+def deleteEnrollments(request, pk):
     try:
         objEnrollment = get_object_or_404(ChildEnrollment, pk=pk)
 
@@ -1276,22 +1409,21 @@ def deleteEnrollments(request,pk):
 
     except Exception as e:
         messages.error(request, e)
-    
+
     return JsonResponse("Sucess", safe=False)
 
 
 @login_required
 def getAllEnrollmentsForApproval(request):
     return render(request, "../templates/enrollmentlist.html")
-    
 
 
 @login_required
 @transaction.atomic
 def approveEnrollment(request):
-    if request.GET.get('id') is not None:
-        objEnrollment = ChildEnrollment.objects.get(pk=request.GET.get('id'))
-        objEnrollment.status = 'Approved'
+    if request.GET.get("id") is not None:
+        objEnrollment = ChildEnrollment.objects.get(pk=request.GET.get("id"))
+        objEnrollment.status = "Approved"
         objEnrollment.user_updated = request.user.username
         objEnrollment.date_updated = datetime.now()
         objEnrollment.save()
@@ -1301,16 +1433,15 @@ def approveEnrollment(request):
         objChild.is_enrolled = True
         objChild.save()
 
-    
     return JsonResponse("Enrollment approved", safe=False)
 
 
 @login_required
 @transaction.atomic
 def rejectEnrollment(request):
-    if request.GET.get('id') is not None:
-        objEnrollment = ChildEnrollment.objects.get(pk=request.GET.get('id'))
-        objEnrollment.status = 'Rejected'
+    if request.GET.get("id") is not None:
+        objEnrollment = ChildEnrollment.objects.get(pk=request.GET.get("id"))
+        objEnrollment.status = "Rejected"
         objEnrollment.user_updated = request.user.username
         objEnrollment.date_updated = datetime.now()
 
@@ -1320,7 +1451,7 @@ def rejectEnrollment(request):
         objChild.save()
 
         objEnrollment.save()
-    
+
     return JsonResponse("Enrollment rejected", safe=False)
 
 
@@ -1341,11 +1472,13 @@ def getCheckIns(request):
 @login_required
 def getAllAttendanceJS(request):
     attendanceList = list(
-        AttendanceLog.objects.filter(is_active=True).annotate(
-        child_name=Concat(F('child__child_first_name'), Value(' '), F('child__child_last_name')),
-        
-        
-    ).values(
+        AttendanceLog.objects.filter(is_active=True)
+        .annotate(
+            child_name=Concat(
+                F("child__child_first_name"), Value(" "), F("child__child_last_name")
+            ),
+        )
+        .values(
             "id",
             "child_name",
             "date_logged",
@@ -1358,52 +1491,55 @@ def getAllAttendanceJS(request):
 
 @login_required
 def saveAttendance(request):
-   if request.method == "POST":
-    if  request.POST.get('child') is not None:
-        objChild = Child.objects.get(admission_number= request.POST.get('child'),is_active=True)
-        
-        if objChild is not None:
-            try:
-                form = CreateCheckInForm(request.POST)
-                if form.is_valid():
-                    objAttendance = form.save(commit=False)
-                    if objChild.admission_date <= objAttendance.date_logged:
-                        objAttendance.user_created = request.user.username
-                        objAttendance.child = objChild
-                        objAttendance.save()
-                        messages.success(request, " Attendance record saved.")
-                    else:
-                      messages.error(request," Attendence date is invalid. Child was not enrolled on that day.")
-                else:
-                      messages.error(request,form.errors)
-            except Exception as e:
-                messages.error(request, e)
-        return redirect("core:view_check_ins")
-
-
-@login_required
-def autoAttendanceRecorder(request,admission_no):
     if request.method == "POST":
-        if  admission_no is not None:
-                objChild = Child.objects.get(admission_number= admission_no,is_active=True)
-                if objChild is not None:
-                    try:
-                        objAttendance = AttendanceLog()
-                        objAttendance.date_logged = datetime.now().date
-                        objAttendance.time_logged = datetime.now().time
-                        objAttendance.date_created=  datetime.now()
-                        objAttendance.user_created = "Scanned by the USER"
-                        objAttendance.child = objChild
-                        objAttendance.save()
-                        messages.success(request, "Attendance record saved.")       
-                    except Exception as e:
-                        messages.error(request, e)
+        if request.POST.get("child") is not None:
+            objChild = Child.objects.get(
+                admission_number=request.POST.get("child"), is_active=True
+            )
 
-
+            if objChild is not None:
+                try:
+                    form = CreateCheckInForm(request.POST)
+                    if form.is_valid():
+                        objAttendance = form.save(commit=False)
+                        if objChild.admission_date <= objAttendance.date_logged:
+                            objAttendance.user_created = request.user.username
+                            objAttendance.child = objChild
+                            objAttendance.save()
+                            messages.success(request, " Attendance record saved.")
+                        else:
+                            messages.error(
+                                request,
+                                " Attendence date is invalid. Child was not enrolled on that day.",
+                            )
+                    else:
+                        messages.error(request, form.errors)
+                except Exception as e:
+                    messages.error(request, e)
+            return redirect("core:view_check_ins")
 
 
 @login_required
-def getMissingAttendanceRecords(request,context=None):
+def autoAttendanceRecorder(request, admission_no):
+    if request.method == "POST":
+        if admission_no is not None:
+            objChild = Child.objects.get(admission_number=admission_no, is_active=True)
+            if objChild is not None:
+                try:
+                    objAttendance = AttendanceLog()
+                    objAttendance.date_logged = datetime.now().date
+                    objAttendance.time_logged = datetime.now().time
+                    objAttendance.date_created = datetime.now()
+                    objAttendance.user_created = "Scanned by the USER"
+                    objAttendance.child = objChild
+                    objAttendance.save()
+                    messages.success(request, "Attendance record saved.")
+                except Exception as e:
+                    messages.error(request, e)
+
+
+@login_required
+def getMissingAttendanceRecords(request, context=None):
     list = None
     searchForm = SearchForm()
     if context is not None:
@@ -1412,79 +1548,80 @@ def getMissingAttendanceRecords(request,context=None):
         request,
         "../templates/reports/missingtime.html",
         {
-            "list":list,
-            "form":searchForm,
+            "list": list,
+            "form": searchForm,
             "UserName": request.user.username,
         },
     )
 
 
-
 @login_required
 def processMissingAttendanceRecords(request):
-     # Initialize a dictionary to hold dates with missing or incomplete attendance
+    # Initialize a dictionary to hold dates with missing or incomplete attendance
     incomplete_attendance_dates = list()
     from_Date = None
-    if request.method =="POST":
+    if request.method == "POST":
         from_date = request.POST.get("from_date")
         to_date = request.POST.get("to_date")
         print(from_date)
         print(to_date)
-        
 
         # Dictionary to hold dates with missing or incomplete attendance != ''
-        if from_date == "" :
+        if from_date == "":
             print("HERE")
             # if dates are not provided, assign dates for a period of 30 days
-            from_date =datetime.today()+ timedelta(days=-30)
+            from_date = datetime.today() + timedelta(days=-30)
             from_Date = from_date.date()
         else:
-            from_Date = datetime.strptime(from_date, '%Y-%m-%d').date()
+            from_Date = datetime.strptime(from_date, "%Y-%m-%d").date()
 
-        if to_date =="" :
-            to_date =  datetime.today().date()
+        if to_date == "":
+            to_date = datetime.today().date()
         else:
-            to_date =  datetime.strptime(to_date, "%Y-%m-%d").date()
-            
+            to_date = datetime.strptime(to_date, "%Y-%m-%d").date()
 
-        
-        attendenceList = AttendanceLog.objects.filter(date_logged__range=(from_Date,to_date))
+        attendenceList = AttendanceLog.objects.filter(
+            date_logged__range=(from_Date, to_date)
+        )
         print(attendenceList.count)
-        
-        childList = Child.objects.filter(is_active =True,enrollement_approved=True,is_enrolled=True)
 
-           # Create a list of all dates within the range
-        date_range = [from_Date + timedelta(days=x) for x in range((to_date - from_Date).days + 1)]
+        childList = Child.objects.filter(
+            is_active=True, enrollement_approved=True, is_enrolled=True
+        )
 
-       
+        # Create a list of all dates within the range
+        date_range = [
+            from_Date + timedelta(days=x) for x in range((to_date - from_Date).days + 1)
+        ]
 
         # Iterate through each child  in the enrollments
         for child in childList:
             # Iterate through each date in the range
             for single_date in date_range:
                 # Filter attendance records for each date
-                daily_attendance_records = AttendanceLog.objects.filter(date_logged=single_date,child=child.id)
+                daily_attendance_records = AttendanceLog.objects.filter(
+                    date_logged=single_date, child=child.id
+                )
                 # Check if the attendance records for the day are less than 2
                 if daily_attendance_records.count() < 2:
                     # Add this date and records to the dictionary
                     incomplete_attendance_dates.append(daily_attendance_records)
 
-    return getMissingAttendanceRecords(request,incomplete_attendance_dates)
-    
+    return getMissingAttendanceRecords(request, incomplete_attendance_dates)
+
+
 @login_required
 def loadAttendanceReports(request):
-     return render(
-        request,
-        "../templates/reports/attendancereport.html"
-    )
+    return render(request, "../templates/reports/attendancereport.html")
+
 
 @login_required
 def attendanceReportsJS(request):
     # This method will be used to do the search and return the attendance records according to parameters
-    if request.method =="POST":
-        if  pk is not None:
-                objAttendanceList = AttendanceLog.objects.get(child= pk,is_active=True).values()
-                
-    return JsonResponse(objAttendanceList, safe=False)
+    if request.method == "POST":
+        if pk is not None:
+            objAttendanceList = AttendanceLog.objects.get(
+                child=pk, is_active=True
+            ).values()
 
-    
+    return JsonResponse(objAttendanceList, safe=False)
