@@ -508,25 +508,32 @@ def saveAdditionalRates(request):
     request.session.modified = True
     if request.method == "POST":
         form = CreateExtraChargesForm(request.POST)
+        user = User.objects.get(username=request.user.username)
 
-        if form.is_valid():
-            objAdditionalRates = form.save(commit=False)
-            objExtraChargestchek = ExtraCharges.objects.filter(
-                base_rate=objAdditionalRates.base_rate.id,
-                from_time=objAdditionalRates.from_time,
-                to_time=objAdditionalRates.to_time,
-            ).first()
-
-            if objExtraChargestchek is not None:
-                messages.error(request, "This time slot is already defined")
-            else:
-                objAdditionalRates.user_created = request.user.username
-                request.session["base_rate_id"] = objAdditionalRates.base_rate.id
-                request.session.modified = True
-                objAdditionalRates.save()
-                messages.success(request, "Additional rate details saved.")
+        if user.groups.filter(name="Data Entry").exists():
+            messages.error(
+                request,
+                "You are not authorized to performe this operation.",
+            )
         else:
-            messages.error(request, form.errors)
+            if form.is_valid():
+                objAdditionalRates = form.save(commit=False)
+                objExtraChargestchek = ExtraCharges.objects.filter(
+                    base_rate=objAdditionalRates.base_rate.id,
+                    from_time=objAdditionalRates.from_time,
+                    to_time=objAdditionalRates.to_time,
+                ).first()
+
+                if objExtraChargestchek is not None:
+                    messages.error(request, "This time slot is already defined")
+                else:
+                    objAdditionalRates.user_created = request.user.username
+                    request.session["base_rate_id"] = objAdditionalRates.base_rate.id
+                    request.session.modified = True
+                    objAdditionalRates.save()
+                    messages.success(request, "Additional rate details saved.")
+            else:
+                messages.error(request, form.errors)
 
     return redirect("core:view_additional_rates")
 
