@@ -1,6 +1,7 @@
 {% extends "base.html" %} {% load static %} {% block UserName %} {{ UserName}}
 {% block PageTitle %}Packages{% endblock %}
-{% endblock %} {% block Title %} SETTINGS {% endblock %} {% block functionTitle%}PACKAGES{% endblock %} {% block content %}
+{% endblock %} {% block Title %} SETTINGS {% endblock %} {% block functionTitle%}PACKAGES{% endblock %}
+{% block content%}
 
 <!-- Data Table-->
 <div class="card">
@@ -9,11 +10,7 @@
       <h5 class="card-title mb-0 flex-grow-1">Packages</h5>
       <div class="flex-shrink-0">
         <div class="d-flex flex-wrap gap-2">
-          <button
-            class="btn btn-secondary add-btn"
-            data-bs-toggle="modal"
-            data-bs-target="#showModalCreate"
-          >
+          <button class="btn btn-secondary add-btn" data-bs-toggle="modal" data-bs-target="#showModalCreate">
             <i class="ri-add-line align-bottom me-1"></i> Add new package
           </button>
           <button class="btn btn-soft-secondary" id="remove-actions">
@@ -28,24 +25,16 @@
     <div class="alert alert-dismissible" role="alert">
       {% if messages %} {% for message in messages %}
       <!-- Danger Alert -->
-      <div
-        class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
-        role="alert"
-      >
+      <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show" role="alert">
         <strong>
           <center>{{ message }}</center>
         </strong>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="alert"
-          aria-label="Close"
-        ></button>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
       </div>
       {% endfor %} {% endif %}
       <!-- end row -->
     </div>
-   
+
     <table id="packageList" class="table table-striped table-hover" cellspacing="0">
       <thead>
         <tr>
@@ -59,69 +48,40 @@
           <th>No of days per month</th>
           <th>Holiday package?</th>
           <th>Package amount</th>
-          
+
         </tr>
       </thead>
     </table>
-  
-</div>
+
+  </div>
   <!-- end card-body -->
 </div>
 
 {% endblock %} {% block modals %}
 
-<div
-  class="modal fade zoomIn"
-  id="showModal"
-  tabindex="-1"
-  aria-labelledby="exampleModalLabel"
-  style="display: none"
-  aria-hidden="true"
->
+<div class="modal fade zoomIn" id="showModal" tabindex="-1" aria-labelledby="exampleModalLabel" style="display: none"
+  aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0">
       <div class="modal-header p-3 bg-secondary-subtle">
         <h5 class="modal-title" id="exampleModalLabels">Add Child</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-target="#showModalCreate"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-          id="close-modalAdd"
-        ></button>
+        <button type="button" class="btn-close" data-bs-target="#showModalCreate" data-bs-dismiss="modal"
+          aria-label="Close" id="close-modalAdd"></button>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Settings Form -->
-<div
-  class="modal fade zoomIn"
-  id="showModalCreate"
-  tabindex="-1"
-  aria-labelledby="exampleModalLabel"
-  style="display: none"
-  aria-hidden="true"
->
+<div class="modal fade zoomIn" id="showModalCreate" tabindex="-1" aria-labelledby="exampleModalLabel"
+  style="display: none" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0">
       <div class="modal-header">
         <h5 class="modal-title">Add Packages</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-          id="close-modal"
-        ></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="close-modal"></button>
       </div>
-      <form
-        action="{% url 'core:save_package' %}"
-        method="post"
-        class="tablelist-form"
-        autocomplete="on"
-      >
+      <form action="{% url 'core:save_package' %}" method="post" class="tablelist-form" autocomplete="on">
         {% csrf_token %}
         <div class="modal-body">
           <div class="row g-3">
@@ -136,18 +96,43 @@
             <div class="col-sm-4">{{form.no_days_months}}</div>
             <div class="col-sm-4">
               <div>
-                 <div class="form-check form-switch">
+                <div class="form-check form-switch">
                   {{form.is_holiday_package}}
                   <label class="form-check-label" for="formCheck8">
                     Is holiday package?
                   </label>
-              </div> 
-
-                
+                </div>
               </div>
             </div>
+            
           </div>
+          <div class="row"> <div></div></div>
+          <div class="row">
+            <div class="mt-4">
+              <table id="extraRates" name="extraRates" class="display" style="width:100%">
+              <thead>
+                <tr>
+                  <th scope="col" style="width: 10px;">
+                    <div class="form-check">
+                      <input class="form-check-input fs-15" type="checkbox" id="checkAll" value="option">
+                    </div>
+                  </th>
+                  <th>From time</th>
+                  <th>To time</th>
+                  <th>Rate</th>
+                  
+
+                </tr>
+              </thead>
+              <tbody>
+
+              </tbody>
+            </table>
+            </div><!--end col-->
+          </div><!--end row-->
+          
         </div>
+
         <div class="modal-footer" style="display: block">
           <div class="hstack gap-2 justify-content-end">
             <button type="button" class="btn btn-light" data-bs-dismiss="modal">
@@ -165,25 +150,13 @@
 
 
 <!--Update Form-->
-<div
-  class="modal fade zoomIn"
-  id="showUpdateModal"
-  tabindex="-1"
-  aria-labelledby="exampleModalLabel"
-  style="display: none"
-  aria-hidden="true"
->
+<div class="modal fade zoomIn" id="showUpdateModal" tabindex="-1" aria-labelledby="exampleModalLabel"
+  style="display: none" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0">
       <div class="modal-header p-3 bg-secondary-subtle">
         <h5 class="modal-title">Update base rate details</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-          id="close-upmodal"
-        ></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="close-upmodal"></button>
       </div>
       <div id="modelForm" bs-focus="false"></div>
     </div>
@@ -219,6 +192,7 @@
   var dataTable;
 
   jQuery(document).ready(function () {
+
     window.setTimeout(function () {
       // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
       var alertDiv = jQuery(".alert");
@@ -251,43 +225,41 @@
         { data: "no_days_week" },
         { data: "no_days_months" },
         { data: "is_holiday_package" },
-        {data:"base_rate", className: "text-right"},
-        
+        { data: "base_rate", className: "text-right" },
+
       ],
 
       createdRow: function (row, data, dataIndex) {
         // Check the condition for the 'is_holiday_rate' column
-        
-        if (data.is_holiday_package ==='Yes') 
-        {
+
+        if (data.is_holiday_package === 'Yes') {
           $("td", row).eq(8).html('<span class="badge bg-success">Yes</span>');
-        } else 
-        {
-          
+        } else {
+
           $("td", row).eq(8).html('<span class="badge bg-warning">No</span>');
         }
 
-         // Fetch rate amount asynchronously
-        
+        // Fetch rate amount asynchronously
+
         $.ajax({
           url: "{% url 'core:get_Rate_amount_By_Id_Js' %}",
           type: "GET",
-          
-          data: { base_rate_id: data.base_rate, no_hours: data.no_hours, no_days_months: data.no_days_months},
+
+          data: { base_rate_id: data.base_rate, no_hours: data.no_hours, no_days_months: data.no_days_months },
           success: function (response) {
-            
-              // Update the content in the ninth cell with the fetched rate amount
+
+            // Update the content in the ninth cell with the fetched rate amount
             $("td", row).eq(9).html(response).addClass("text-center");
           },
           error: function (error) {
-              console.error("Error fetching rate amount:", error);
+            console.error("Error fetching rate amount:", error);
           }
         });
 
 
       },
 
-      
+
 
       searching: false,
       paging: false,
@@ -375,10 +347,10 @@
       url: "{% url 'core:view_additional_rates_js' %}",
       type: "GET",
       data: { base_rate_id: id },
-      beforeSend: function () {},
+      beforeSend: function () { },
       success: function (response) {
         jQuery.each(response, function (i, item) {
-          
+
           dataTable.row.add([
             response[i].slot_number_hour,
             response[i].extra_rate,
@@ -402,10 +374,10 @@
       url: "{% url 'core:view_rates_rate_js' %}",
       type: "GET",
       data: { rate_id: id },
-      beforeSend: function () {},
+      beforeSend: function () { },
       success: function (response) {
         jQuery.each(response, function (i, item) {
-          
+
           dataTable.row.add([
             response[i].standard_hourly_rate,
             response[i].effective_from,
@@ -421,74 +393,93 @@
       },
     });
   });
-  
+
   jQuery("#showModalCreate").on("hidden.bs.modal", function () {
-        jQuery(this).find("form").trigger("reset");
+    jQuery(this).find("form").trigger("reset");
 
+  });
+
+  // Add an event listener to the "to_time" field
+  jQuery(document).on('change', '#to_time', function () {
+
+    // Get the values of "from_time" and "to_time"
+    var fromTime = jQuery('#from_time').val();
+    var toTime = jQuery(this).val();
+
+
+    // Make an Ajax request to calculate the duration
+    jQuery.ajax({
+      url: "{% url 'core:calculate_duration' %}",
+      method: 'GET',
+      data: {
+        'from_time': fromTime,
+        'to_time': toTime,
+      },
+      success: function (data) {
+        // Combine hours and minutes with a dot separator
+        var durationFormatted = data.duration_hours + '.' + (data.duration_minutes < 10 ? '0' : '') + data.duration_minutes;
+
+        // Update the "no_hours" field with the formatted duration
+        jQuery('#no_hours').val(durationFormatted);
+      },
+      error: function () {
+        console.error('Error calculating duration.');
+      }
     });
+  });
 
-    // Add an event listener to the "to_time" field
-        jQuery(document).on('change', '#to_time',function () {
-            
-            // Get the values of "from_time" and "to_time"
-            var fromTime = jQuery('#from_time').val();
-            var toTime = jQuery(this).val();
-           
+  // Add an event listener to the "from_time" field
+  jQuery(document).on('change', '#from_time', function () {
+    var toTime = jQuery('#to_time').val();
+    if (toTime) {
+      // Get the values of "from_time" and "to_time"
+      var fromTime = jQuery(this).val();
+      var toTime = jQuery('#to_time').val();
 
-            // Make an Ajax request to calculate the duration
-            jQuery.ajax({
-                url: "{% url 'core:calculate_duration' %}",
-                method: 'GET',
-                data: {
-                    'from_time': fromTime,
-                    'to_time': toTime,
-                },
-                success: function (data) {
-                    // Combine hours and minutes with a dot separator
-                var durationFormatted = data.duration_hours + '.' + (data.duration_minutes < 10 ? '0' : '') + data.duration_minutes;
 
-                    // Update the "no_hours" field with the formatted duration
-                jQuery('#no_hours').val(durationFormatted);
-                },
-                error: function () {
-                    console.error('Error calculating duration.');
-                }
-            });
-        });
+      // Make an Ajax request to calculate the duration
+      jQuery.ajax({
+        url: "{% url 'core:calculate_duration' %}",
+        method: 'GET',
+        data: {
+          'from_time': fromTime,
+          'to_time': toTime,
+        },
+        success: function (data) {
+          // Combine hours and minutes with a dot separator
+          var durationFormatted = data.duration_hours + '.' + (data.duration_minutes < 10 ? '0' : '') + data.duration_minutes;
 
-        // Add an event listener to the "from_time" field
-        jQuery(document).on('change', '#from_time',function () {
-          var toTime = jQuery('#to_time').val();
-          if (toTime){
-            // Get the values of "from_time" and "to_time"
-            var fromTime = jQuery(this).val();
-            var toTime = jQuery('#to_time').val();
-           
+          // Update the "no_hours" field with the formatted duration
+          jQuery('#no_hours').val(durationFormatted);
+        },
+        error: function () {
+          console.error('Error calculating duration.');
+        }
+      });
 
-            // Make an Ajax request to calculate the duration
-            jQuery.ajax({
-                url: "{% url 'core:calculate_duration' %}",
-                method: 'GET',
-                data: {
-                    'from_time': fromTime,
-                    'to_time': toTime,
-                },
-                success: function (data) {
-                    // Combine hours and minutes with a dot separator
-                var durationFormatted = data.duration_hours + '.' + (data.duration_minutes < 10 ? '0' : '') + data.duration_minutes;
+    }
 
-                    // Update the "no_hours" field with the formatted duration
-                jQuery('#no_hours').val(durationFormatted);
-                },
-                error: function () {
-                    console.error('Error calculating duration.');
-                }
-            });
+  });
 
-          }
-            
-        });
 
+
+
+  jQuery("#extraCharges").hide();
+  jQuery(document).on("click", "#cbExtraChrges", function (e) {
+    if (jQuery("#cbExtraChrges").is(":checked")) {
+      $("#extraCharges").show();
+    }
+    else {
+      jQuery("#extraCharges").hide();
+    }
+  });
+
+  new DataTable('#extraRates', {
+    info: false,
+    ordering: false,
+    paging: false,
+    searching: false
+});
 
 </script>
 
