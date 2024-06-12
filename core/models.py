@@ -153,8 +153,11 @@ class Package(BaseClass):
 
 
 class PackageExtraRates(BaseClass):
-    package = models.ForeignKey(Rates, on_delete=models.CASCADE)
+    package = models.ForeignKey(Package, on_delete=models.CASCADE)
+    base_rate = models.DecimalField(max_digits=8, decimal_places=2)
+    package_total = models.DecimalField(max_digits=8, decimal_places=2)
     extraCharges = models.ForeignKey(ExtraCharges, on_delete=models.CASCADE)
+    grand_total = models.DecimalField(max_digits=8, decimal_places=2)
 
     class Meta:
         verbose_name = "package extra"
