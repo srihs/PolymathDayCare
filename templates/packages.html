@@ -112,10 +112,8 @@
               <table id="extraRates" name="extraRates" class="display" style="width:100%">
               <thead>
                 <tr>
-                  <th scope="col" style="width: 10px;">
-                    <div class="form-check">
-                      <input class="form-check-input fs-15" type="checkbox" id="checkAll" value="option">
-                    </div>
+                  <th>
+                    
                   </th>
                   <th>From time</th>
                   <th>To time</th>
@@ -472,12 +470,53 @@
     }
   });
 
-  new DataTable('#extraRates', {
+  var dataTable;
+
+  dataTable= new DataTable('#extraRates', {
     info: false,
     ordering: false,
     paging: false,
     searching: false
 });
+
+
+jQuery('#base_rate').on('change', function (e) {
+  getRatesforTable();
+  dataTable.clear();
+});
+
+function getRatesforTable() {
+    var baseRateId = jQuery("#base_rate").val();
+    if (baseRateId) {
+      jQuery.ajax({
+        url: "{% url 'core:view_additional_rates_js' %}",
+        type: "GET",
+        data: { base_rate_id: baseRateId },
+        beforeSend: function () { },
+        success: function (response) {
+          jQuery.each(response, function (i, item) {
+            dataTable.row.add(
+              [
+                '<input type="checkbox"></input>',
+              response[i].from_time,
+              response[i].to_time,
+              response[i].extra_rate,
+              
+              ],)
+          });
+
+
+
+          dataTable.draw();
+        }, error: function (response) {
+          console.log(response);
+        }
+      });
+    }
+    else {
+      dataTable.clear().draw();
+    }
+  }
 
 </script>
 
