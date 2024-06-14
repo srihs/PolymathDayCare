@@ -771,6 +771,7 @@ class CreatePackagesForm(forms.ModelForm):
     no_hours = forms.DecimalField(
         decimal_places=2,
         max_digits=4,
+        disabled=True,
         validators=[MinValueValidator(Decimal("00.00"))],
         required=True,
         widget=forms.NumberInput(
@@ -803,6 +804,22 @@ class CreatePackagesForm(forms.ModelForm):
         ),
     )
 
+    package_total = forms.DecimalField(
+        decimal_places=2,
+        max_digits=4,
+        validators=[MinValueValidator(Decimal("00.00"))],
+        required=True,
+        disabled=True,
+        widget=forms.NumberInput(
+            attrs={
+                "autocomplete": "off",
+                "id": "package_total",
+                "class": "form-control",
+                "placeholder": "Package total",
+            }
+        ),
+    )
+
     class Meta:
         model = Package
         fields = (
@@ -815,6 +832,7 @@ class CreatePackagesForm(forms.ModelForm):
             "no_days_week",
             "no_days_months",
             "is_holiday_package",
+            "package_total",
         )
 
 

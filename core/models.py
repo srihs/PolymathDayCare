@@ -142,6 +142,7 @@ class Package(BaseClass):
     no_days_week = models.IntegerField()
     no_days_months = models.IntegerField()
     is_holiday_package = models.BooleanField()
+    package_total = models.DecimalField(max_digits=8, decimal_places=2)
 
     class Meta:
         verbose_name = "package"

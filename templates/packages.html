@@ -94,6 +94,7 @@
             <div class="col-sm-4">{{form.no_hours}}</div>
             <div class="col-sm-4">{{form.no_days_week}}</div>
             <div class="col-sm-4">{{form.no_days_months}}</div>
+            <div class="col-sm-4">{{form.package_total}}</div>
             <div class="col-sm-4">
               <div>
                 <div class="form-check form-switch">
@@ -104,29 +105,10 @@
                 </div>
               </div>
             </div>
-            
-          </div>
-          <div class="row"> <div></div></div>
-          <div class="row">
-            <div class="mt-4">
-              <table id="extraRates" name="extraRates" class="display" style="width:100%">
-              <thead>
-                <tr>
-                  <th>
-                    
-                  </th>
-                  <th>From time</th>
-                  <th>To time</th>
-                  <th>Rate</th>
-                </tr>
-              </thead>
-              <tbody>
 
-              </tbody>
-            </table>
-            </div><!--end col-->
-          </div><!--end row-->
-          
+          </div>
+
+
         </div>
 
         <div class="modal-footer" style="display: block">
@@ -472,36 +454,44 @@
 
   var dataTable;
 
-  dataTable= new DataTable('#extraRates', {
+  dataTable = new DataTable('#extraRates', {
     info: false,
     ordering: false,
     paging: false,
     searching: false
-});
+  });
 
 
-jQuery('#base_rate').on('change', function (e) {
-  getRatesforTable();
-  dataTable.clear();
-});
+  jQuery('#id_no_days_months').on('change', function (e) {
+    getRatesforTable();
+    dataTable.clear();
+  });
 
-function getRatesforTable() {
+
+  function getRatesforTable() {
+
     var baseRateId = jQuery("#base_rate").val();
+    var fromTime = jQuery("#from_time").val();
+    var toTime = jQuery("#to_time").val();
+    var no_days_week = jQuery("#no_days_week").val();
+    var no_days_months = jQuery("#no_days_months").val();
+
+
     if (baseRateId) {
       jQuery.ajax({
-        url: "{% url 'core:view_additional_rates_js' %}",
+        url: "{% url 'core:calculate_package_total_Js' %}",
         type: "GET",
-        data: { base_rate_id: baseRateId },
+        data: { base_rate_id: baseRateId, fromTime: fromTime, toTime: toTime, no_days_week: no_days_week, no_days_months: no_days_months },
         beforeSend: function () { },
         success: function (response) {
           jQuery.each(response, function (i, item) {
             dataTable.row.add(
               [
                 '<input type="checkbox"></input>',
-              response[i].from_time,
-              response[i].to_time,
-              response[i].extra_rate,
-              
+                response[i].from_time,
+                response[i].to_time,
+                response[i].extra_rate,
+
               ],)
           });
 

@@ -40,6 +40,7 @@ urlpatterns = [
 
                   path('packages/', views.getPackages, name='view_packages'),
                   path('get_packages_js/', views.getPackagesJs, name='view_packages_js'),
+                  path('calculate_package_total/', views.calculatePackageTotal, name='calculate_package_total_Js'),
                   path('save_package/', views.savePackage, name='save_package'),
 
                   path('branches/', views.getBranches, name='view_branches'),
