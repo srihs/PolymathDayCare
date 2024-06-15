@@ -1,3 +1,6 @@
+from datetime import datetime
+from decimal import Decimal
+
 from django.db import models
 
 
@@ -142,7 +145,7 @@ class Package(BaseClass):
     no_days_week = models.IntegerField()
     no_days_months = models.IntegerField()
     is_holiday_package = models.BooleanField()
-    package_total = models.DecimalField(max_digits=8, decimal_places=2)
+    package_total = models.DecimalField(max_digits=12, decimal_places=2)
 
     class Meta:
         verbose_name = "package"
@@ -152,18 +155,33 @@ class Package(BaseClass):
     def __str__(self):
         return self.package_code + " - " + self.package_name
 
+    def calculate_time_difference(self):
+        # Combine from_time and to_time with a dummy date to create datetime objects
+        from_time_dt = datetime.combine(datetime.min, self.from_time)
+        to_time_dt = datetime.combine(datetime.min, self.to_time)
 
-class PackageExtraRates(BaseClass):
+        # Calculate the difference in seconds
+        dt = abs(to_time_dt - from_time_dt)
+
+        # Convert the difference to hours (decimal)
+        difference_in_hours = dt.total_seconds() / 3600
+
+        return Decimal(difference_in_hours).quantize(Decimal("0.01"))
+
+    def save(self, *args, **kwargs):
+        # Calculate the time difference and set it to no_hours
+        self.no_hours = self.calculate_time_difference()
+        super().save(*args, **kwargs)
+
+
+class PackageExtraRatesMap(BaseClass):
     package = models.ForeignKey(Package, on_delete=models.CASCADE)
-    base_rate = models.DecimalField(max_digits=8, decimal_places=2)
-    package_total = models.DecimalField(max_digits=8, decimal_places=2)
     extraCharges = models.ForeignKey(ExtraCharges, on_delete=models.CASCADE)
-    grand_total = models.DecimalField(max_digits=8, decimal_places=2)
 
     class Meta:
-        verbose_name = "package extra"
-        verbose_name_plural = "package extras"
-        db_table = "dc_package_extras"
+        verbose_name = "package extra mapping"
+        verbose_name_plural = "package extras mapping"
+        db_table = "dc_package_extras_mapping"
 
 
 class HolidayType(BaseClass):

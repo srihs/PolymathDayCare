@@ -43,7 +43,6 @@
           <th>Package type</th>
           <th>From</th>
           <th>To</th>
-          <th>No of hours per day</th>
           <th>No of days per week</th>
           <th>No of days per month</th>
           <th>Holiday package?</th>
@@ -91,7 +90,6 @@
             <div class="col-sm-4">{{form.package_type}}</div>
             <div class="col-sm-4">{{form.from_time}}</div>
             <div class="col-sm-4">{{form.to_time}}</div>
-            <div class="col-sm-4">{{form.no_hours}}</div>
             <div class="col-sm-4">{{form.no_days_week}}</div>
             <div class="col-sm-4">{{form.no_days_months}}</div>
             <div class="col-sm-4">{{form.package_total}}</div>
@@ -107,7 +105,26 @@
             </div>
 
           </div>
+          <div class="row"> <div></div></div>
+          <div class="row">
+            <div class="mt-4">
+              <table id="extraRates" name="extraRates" class="display" style="width:100%">
+              <thead>
+                <tr>
+                  <th>
+                    
+                  </th>
+                  <th>From time</th>
+                  <th>To time</th>
+                  <th>Rate</th>
+                </tr>
+              </thead>
+              <tbody>
 
+              </tbody>
+            </table>
+            </div><!--end col-->
+          </div><!--end row-->
 
         </div>
 
@@ -199,11 +216,10 @@
         { data: "package_type" },
         { data: "from_time" },
         { data: "to_time" },
-        { data: "no_hours" },
         { data: "no_days_week" },
         { data: "no_days_months" },
         { data: "is_holiday_package" },
-        { data: "base_rate", className: "text-right" },
+        { data: "package_total", className: "text-right" },
 
       ],
 
@@ -211,29 +227,11 @@
         // Check the condition for the 'is_holiday_rate' column
 
         if (data.is_holiday_package === 'Yes') {
-          $("td", row).eq(8).html('<span class="badge bg-success">Yes</span>');
+          $("td", row).eq(7).html('<span class="badge bg-success">Yes</span>');
         } else {
 
-          $("td", row).eq(8).html('<span class="badge bg-warning">No</span>');
+          $("td", row).eq(7).html('<span class="badge bg-warning">No</span>');
         }
-
-        // Fetch rate amount asynchronously
-
-        $.ajax({
-          url: "{% url 'core:get_Rate_amount_By_Id_Js' %}",
-          type: "GET",
-
-          data: { base_rate_id: data.base_rate, no_hours: data.no_hours, no_days_months: data.no_days_months },
-          success: function (response) {
-
-            // Update the content in the ninth cell with the fetched rate amount
-            $("td", row).eq(9).html(response).addClass("text-center");
-          },
-          error: function (error) {
-            console.error("Error fetching rate amount:", error);
-          }
-        });
-
 
       },
 
@@ -454,53 +452,54 @@
 
   var dataTable;
 
-  dataTable = new DataTable('#extraRates', {
-    info: false,
-    ordering: false,
-    paging: false,
-    searching: false
-  });
+dataTable= new DataTable('#extraRates', {
+  info: false,
+  ordering: false,
+  paging: false,
+  searching: false
+});
 
 
-  // jQuery("#no_days_months").on('change', function (e) {
+jQuery('#base_rate').on('change', function (e) {
+getRatesforTable();
+dataTable.clear();
+});
 
-  //   getRatesforTable();
-
-  //   dataTable.clear();
-  // });
-
-
-  // function getRatesforTable() {
-  //   var baseRateId = jQuery("#base_rate").val();
-  //   var fromTime = jQuery("#from_time").val();
-  //   var toTime = jQuery("#to_time").val();
-  //   var no_hours = jQuery("#no_hours").val();
-  //   var no_days_months = jQuery("#no_days_months").val();
-
-
-
-  //   if (baseRateId) {
-
-  //     jQuery.ajax({
-  //       url: "{% url 'core:calculate_package_total' %}",
-  //       type: "GET",
-  //       data: { base_rate_id: baseRateId, fromTime: fromTime, toTime: toTime, no_hours: no_hours, no_days_months: no_days_months },
-  //       beforeSend: function () { },
-  //       success: function (response) {
+function getRatesforTable() {
+  var baseRateId = jQuery("#base_rate").val();
+  if (baseRateId) {
+    jQuery.ajax({
+      url: "{% url 'core:view_additional_rates_js' %}",
+      type: "GET",
+      data: { base_rate_id: baseRateId },
+      beforeSend: function () { },
+      success: function (response) {
+        jQuery.each(response, function (i, item) {
+          dataTable.row.add(
+            [
+              '<input type="checkbox"></input>',
+            response[i].from_time,
+            response[i].to_time,
+            response[i].extra_rate,
+            
+            ],)
+        });
 
 
-  //         let total= parseFloat(response).toFixed(2)
-  //         jQuery('#package_total').val(total);
-  //       }, error: function (response) {
-  //         console.log(response);
-  //       }
-  //     });
-  //   }
-  //   else {
-  //     dataTable.clear().draw();
-  //   }
-  // }
 
+        dataTable.draw();
+      }, error: function (response) {
+        console.log(response);
+      }
+    });
+  }
+  else {
+    dataTable.clear().draw();
+  }
+}
+
+
+  
 </script>
 
 <!-- App js -->

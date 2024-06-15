@@ -759,7 +759,7 @@ def getPackagesJs(request):
                 "no_days_months",
                 "is_holiday_package",
                 "base_rate",
-                "base_rate_id",
+                "package_total",
             )
         )
 
@@ -1570,12 +1570,9 @@ def processMissingAttendanceRecords(request):
     if request.method == "POST":
         from_date = request.POST.get("from_date")
         to_date = request.POST.get("to_date")
-        print(from_date)
-        print(to_date)
 
         # Dictionary to hold dates with missing or incomplete attendance != ''
         if from_date == "":
-            print("HERE")
             # if dates are not provided, assign dates for a period of 30 days
             from_date = datetime.today() + timedelta(days=-30)
             from_Date = from_date.date()
@@ -1590,7 +1587,6 @@ def processMissingAttendanceRecords(request):
         attendenceList = AttendanceLog.objects.filter(
             date_logged__range=(from_Date, to_date)
         )
-        print(attendenceList.count)
 
         childList = Child.objects.filter(
             is_active=True, enrollement_approved=True, is_enrolled=True

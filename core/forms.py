@@ -768,21 +768,6 @@ class CreatePackagesForm(forms.ModelForm):
         ),
     )
 
-    no_hours = forms.DecimalField(
-        decimal_places=2,
-        max_digits=4,
-        disabled=True,
-        validators=[MinValueValidator(Decimal("00.00"))],
-        required=True,
-        widget=forms.NumberInput(
-            attrs={
-                "autocomplete": "off",
-                "id": "no_hours",
-                "class": "form-control",
-                "placeholder": "No of hours",
-            }
-        ),
-    )
     no_days_week = forms.IntegerField(
         validators=[MinValueValidator(int("0"))],
         required=True,
@@ -810,7 +795,7 @@ class CreatePackagesForm(forms.ModelForm):
 
     package_total = forms.DecimalField(
         decimal_places=2,
-        max_digits=4,
+        max_digits=12,
         validators=[MinValueValidator(Decimal("00.00"))],
         required=True,
         widget=forms.NumberInput(
@@ -831,7 +816,6 @@ class CreatePackagesForm(forms.ModelForm):
             "package_type",
             "from_time",
             "to_time",
-            "no_hours",
             "no_days_week",
             "no_days_months",
             "is_holiday_package",
