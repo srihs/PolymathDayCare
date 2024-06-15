@@ -138,7 +138,7 @@ class Package(BaseClass):
     base_rate = models.ForeignKey(Rates, on_delete=models.CASCADE)
     from_time = models.TimeField()
     to_time = models.TimeField()
-    no_hours = models.DecimalField(max_digits=8, decimal_places=2)
+    no_hours = models.DecimalField(max_digits=10, decimal_places=2)
     no_days_week = models.IntegerField()
     no_days_months = models.IntegerField()
     is_holiday_package = models.BooleanField()

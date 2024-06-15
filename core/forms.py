@@ -794,7 +794,11 @@ class CreatePackagesForm(forms.ModelForm):
         validators=[MinValueValidator(int("0"))],
         required=True,
         widget=forms.NumberInput(
-            attrs={"class": "form-control", "placeholder": "No of days for a month"}
+            attrs={
+                "class": "form-control",
+                "placeholder": "No of days for a month",
+                "id": "no_days_months",
+            }
         ),
     )
     is_holiday_package = forms.BooleanField(
@@ -809,7 +813,6 @@ class CreatePackagesForm(forms.ModelForm):
         max_digits=4,
         validators=[MinValueValidator(Decimal("00.00"))],
         required=True,
-        disabled=True,
         widget=forms.NumberInput(
             attrs={
                 "autocomplete": "off",

@@ -462,51 +462,44 @@
   });
 
 
-  jQuery('#id_no_days_months').on('change', function (e) {
-    getRatesforTable();
-    dataTable.clear();
-  });
+  // jQuery("#no_days_months").on('change', function (e) {
+
+  //   getRatesforTable();
+
+  //   dataTable.clear();
+  // });
 
 
-  function getRatesforTable() {
-
-    var baseRateId = jQuery("#base_rate").val();
-    var fromTime = jQuery("#from_time").val();
-    var toTime = jQuery("#to_time").val();
-    var no_days_week = jQuery("#no_days_week").val();
-    var no_days_months = jQuery("#no_days_months").val();
-
-
-    if (baseRateId) {
-      jQuery.ajax({
-        url: "{% url 'core:calculate_package_total_Js' %}",
-        type: "GET",
-        data: { base_rate_id: baseRateId, fromTime: fromTime, toTime: toTime, no_days_week: no_days_week, no_days_months: no_days_months },
-        beforeSend: function () { },
-        success: function (response) {
-          jQuery.each(response, function (i, item) {
-            dataTable.row.add(
-              [
-                '<input type="checkbox"></input>',
-                response[i].from_time,
-                response[i].to_time,
-                response[i].extra_rate,
-
-              ],)
-          });
+  // function getRatesforTable() {
+  //   var baseRateId = jQuery("#base_rate").val();
+  //   var fromTime = jQuery("#from_time").val();
+  //   var toTime = jQuery("#to_time").val();
+  //   var no_hours = jQuery("#no_hours").val();
+  //   var no_days_months = jQuery("#no_days_months").val();
 
 
 
-          dataTable.draw();
-        }, error: function (response) {
-          console.log(response);
-        }
-      });
-    }
-    else {
-      dataTable.clear().draw();
-    }
-  }
+  //   if (baseRateId) {
+
+  //     jQuery.ajax({
+  //       url: "{% url 'core:calculate_package_total' %}",
+  //       type: "GET",
+  //       data: { base_rate_id: baseRateId, fromTime: fromTime, toTime: toTime, no_hours: no_hours, no_days_months: no_days_months },
+  //       beforeSend: function () { },
+  //       success: function (response) {
+
+
+  //         let total= parseFloat(response).toFixed(2)
+  //         jQuery('#package_total').val(total);
+  //       }, error: function (response) {
+  //         console.log(response);
+  //       }
+  //     });
+  //   }
+  //   else {
+  //     dataTable.clear().draw();
+  //   }
+  // }
 
 </script>
 

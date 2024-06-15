@@ -816,15 +816,6 @@ def savePackage(request):
 
 
 @login_required
-def calculatePackageTotal(request):
-    pass
-
-
-
-
-
-
-@login_required
 def getBranches(request):
     if request.method == "GET":
         try:

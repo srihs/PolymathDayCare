@@ -6,6 +6,7 @@
             "source.fixAll": "explicit",
             "source.organizeImports": "explicit",
         },
+        
         "editor.wordBasedSuggestions": "off",
         "editor.defaultFormatter": "charliermarsh.ruff"
     },
