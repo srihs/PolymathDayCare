@@ -462,24 +462,21 @@ def getAdditionalRates(request):
 
 @login_required
 def getAdditionalRatesJs(request):
+    print("in the method")
     additionalRatesList = None
-    if request.GET.get("base_rate_id") is not None:
-        id = request.GET.get("base_rate_id")
-        additionalRatesList = list(
-            ExtraCharges.objects.filter(base_rate_id=id, is_active=True).values(
-                "id",
-                "base_rate",
+    additionalRatesList = list(
+            ExtraCharges.objects.filter(is_active=True).values(
+                
                 "from_time",
                 "to_time",
                 "extra_rate",
-                "effective_from",
-                "effective_to",
-                "is_active",
+                
             )
         )
-        for i, n in enumerate(additionalRatesList):
+    for i, n in enumerate(additionalRatesList):
             if n["effective_to"] == None:
                 additionalRatesList[i]["effective_to"] = "-"
+    print(additionalRatesList)
     return JsonResponse(additionalRatesList, safe=False)
 
 
@@ -758,7 +755,7 @@ def getPackagesJs(request):
                 "no_days_week",
                 "no_days_months",
                 "is_holiday_package",
-                "base_rate",
+                
                 "package_total",
             )
         )

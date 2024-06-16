@@ -72,9 +72,9 @@
 </div>
 
 <!-- Settings Form -->
-<div class="modal fade zoomIn" id="showModalCreate" tabindex="-1" aria-labelledby="exampleModalLabel"
+<div class="modal fade exampleModalFullscreen" id="showModalCreate" tabindex="-1" aria-labelledby="exampleModalLabel"
   style="display: none" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
+  <div class="modal-dialog modal-fullscreen">
     <div class="modal-content border-0">
       <div class="modal-header">
         <h5 class="modal-title">Add Packages</h5>
@@ -84,7 +84,6 @@
         {% csrf_token %}
         <div class="modal-body">
           <div class="row g-3">
-            <div class="col-sm-4">{{form.base_rate}}</div>
             <div class="col-sm-4">{{form.package_code}}</div>
             <div class="col-sm-4">{{form.package_name}}</div>
             <div class="col-sm-4">{{form.package_type}}</div>
@@ -104,27 +103,89 @@
               </div>
             </div>
 
-          </div>
-          <div class="row"> <div></div></div>
-          <div class="row">
-            <div class="mt-4">
-              <table id="extraRates" name="extraRates" class="display" style="width:100%">
-              <thead>
-                <tr>
-                  <th>
-                    
-                  </th>
-                  <th>From time</th>
-                  <th>To time</th>
-                  <th>Rate</th>
-                </tr>
-              </thead>
-              <tbody>
 
-              </tbody>
-            </table>
+
+          </div>
+          </br>
+          <div class="row">
+            <div class="col-lg-12">
+              <div class="card">
+                <div class="card-header d-flex align-items-center">
+                  <h5 class="card-title mb-0 flex-grow-1">Additional Charges up to 5.30 p.m</h5>
+
+                </div>
+                <div class="card-body">
+
+                  <div id="add-rows_wrapper" class="dataTables_wrapper dt-bootstrap5 no-footer">
+
+                    <div class="row">
+                      <div class="col-sm-12">
+                        <table id="extraRatesbefore5" name="extraRates" class="display" style="width:100%">
+                          <thead>
+                            <tr>
+                              <th>
+
+                              </th>
+                              <th>From time</th>
+                              <th>To time</th>
+                              <th>Rate</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div class="row">
+
+
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div><!--end col-->
-          </div><!--end row-->
+          </div>
+          <div class="row">
+            <div class="col-lg-12">
+              <div class="card">
+                <div class="card-header d-flex align-items-center">
+                  <h5 class="card-title mb-0 flex-grow-1">Additional Charges after 5.30 p.m</h5>
+
+                </div>
+                <div class="card-body">
+
+                  <div id="add-rows_wrapper" class="dataTables_wrapper dt-bootstrap5 no-footer">
+
+                    <div class="row">
+                      <div class="col-sm-12">
+                        <table id="extraRates" name="extraRates" class="display" style="width:100%">
+                          <thead>
+                            <tr>
+                              <th>
+
+                              </th>
+                              <th>From time</th>
+                              <th>To time</th>
+                              <th>Rate</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div class="row">
+
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div><!--end col-->
+          </div>
+
 
         </div>
 
@@ -234,12 +295,33 @@
         }
 
       },
-
-
-
       searching: false,
       paging: false,
       order: [[0, "asc"]], // Set default sorting by admission_date in descending order
+    });
+
+
+    var tables = $("#extraRates").DataTable({
+      responsive: true,
+      ajax: {
+        processing: true,
+        url: "{% url 'core:view_additional_rates_js' %}",
+        dataSrc: "",
+      },
+      columns: [
+        { data: "" },
+        { data: "from_time" },
+        { data: "to_time" },
+        { data: "extra_rate" },
+      ],
+
+      createdRow: function (row, data, dataIndex) {
+        $("td", row).eq(0).html('<input type="checkbox"></input>');
+      },
+      info: false,
+      ordering: false,
+      paging: false,
+      searching: false
     });
   });
 
@@ -450,56 +532,56 @@
     }
   });
 
-  var dataTable;
-
-dataTable= new DataTable('#extraRates', {
-  info: false,
-  ordering: false,
-  paging: false,
-  searching: false
-});
-
-
-jQuery('#base_rate').on('change', function (e) {
-getRatesforTable();
-dataTable.clear();
-});
-
-function getRatesforTable() {
-  var baseRateId = jQuery("#base_rate").val();
-  if (baseRateId) {
-    jQuery.ajax({
-      url: "{% url 'core:view_additional_rates_js' %}",
-      type: "GET",
-      data: { base_rate_id: baseRateId },
-      beforeSend: function () { },
-      success: function (response) {
-        jQuery.each(response, function (i, item) {
-          dataTable.row.add(
-            [
-              '<input type="checkbox"></input>',
-            response[i].from_time,
-            response[i].to_time,
-            response[i].extra_rate,
-            
-            ],)
-        });
+  var tablebefore5;
+  dataTable = new DataTable('#extraRatesbefore5', {
+    info: false,
+    ordering: false,
+    paging: false,
+    searching: false
+  });
 
 
 
-        dataTable.draw();
-      }, error: function (response) {
-        console.log(response);
-      }
-    });
-  }
-  else {
-    dataTable.clear().draw();
-  }
-}
 
 
-  
+  // jQuery('#base_rate').on('change', function (e) {
+  //   getRatesforTable();
+  //   dataTable.clear();
+  // });
+
+  // function getRatesforTable() {
+  //   var baseRateId = jQuery("#base_rate").val();
+  //   if (baseRateId) {
+  //     jQuery.ajax({
+  //       url: "{% url 'core:view_additional_rates_js' %}",
+  //       type: "GET",
+  //       data: { base_rate_id: baseRateId },
+  //       beforeSend: function () { },
+  //       success: function (response) {
+  //         jQuery.each(response, function (i, item) {
+  //           dataTable.row.add(
+  //             [
+  //               '<input type="checkbox"></input>',
+  //               response[i].from_time,
+  //               response[i].to_time,
+  //               response[i].extra_rate,
+
+  //             ],)
+  //         });
+
+  //         dataTable.draw();
+  //       }, error: function (response) {
+  //         console.log(response);
+  //       }
+  //     });
+  //   }
+  //   else {
+  //     dataTable.clear().draw();
+  //   }
+  // }
+
+
+
 </script>
 
 <!-- App js -->

@@ -138,7 +138,7 @@ class Package(BaseClass):
     package_type = models.CharField(max_length=10)
     package_code = models.CharField(max_length=10)
     package_name = models.CharField(max_length=200)
-    base_rate = models.ForeignKey(Rates, on_delete=models.CASCADE)
+    # base_rate = models.ForeignKey(Rates, on_delete=models.CASCADE)
     from_time = models.TimeField()
     to_time = models.TimeField()
     no_hours = models.DecimalField(max_digits=10, decimal_places=2)
