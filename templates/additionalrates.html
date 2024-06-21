@@ -12,7 +12,7 @@
 <div class="card">
     <div class="card-header border-0">
         <div class="d-flex align-items-center">
-            <h5 class="card-title mb-0 flex-grow-1">Additional hours rates</h5>
+            <h5 class="card-title mb-0 flex-grow-1">Additional hours rates after 5.30 p.m</h5>
             
         </div>
     </div>
@@ -45,9 +45,9 @@
         
                 
                     <div class="row ">
-                        <div class="col-sm-4">
+                        <!-- <div class="col-sm-4">
                             {{form.base_rate}}
-                        </div>
+                        </div> -->
                         
                         <!--end col-->
                         <div class="col-sm">
@@ -389,6 +389,7 @@
         e.preventDefault();
         url = jQuery(this).attr("href");
         id = jQuery(this).attr("data-value");
+        
         // Show the modal
         jQuery("#firstmodal").modal("show");
     });
@@ -435,6 +436,7 @@
     });
     var dataTable;
     jQuery(document).ready(function () {
+        
         dataTable = $('#RateList').DataTable({
             responsive: true,
             dom: "Bfrtip",
@@ -443,7 +445,8 @@
             buttons: ["excel", "print"],
             order: [[0, "asc"]],
             retrieve: true,
-    });
+    },
+    getRatesforTable());
 
     jQuery('#effective_from').flatpickr({
                 minDate: "today",
@@ -472,8 +475,7 @@
     }
 }, 2000);
 
-    getRatesforTable();
-
+  
     jQuery('#from_time').flatpickr({
         enableTime: true,
         noCalendar:true,
@@ -494,7 +496,7 @@
     jQuery('#base_rate').change(function () {
         var baseRateId = jQuery(this).val();
         dataTable.clear();
-        getRatesforTable();
+        
      
     });
     
@@ -505,18 +507,16 @@
 
 
     function getRatesforTable(){
-        var baseRateId = jQuery("#base_rate").val();
-        if (baseRateId) 
-        {
+    
             jQuery.ajax({
                 url: "{% url 'core:view_additional_rates_js' %}",
                 type: "GET",
-                data: { base_rate_id: baseRateId },
+                data: "",
                 beforeSend: function () { },
                 success: function (response) {       
                     
                 jQuery.each(response, function(i, item) {
-                var url = "{% url 'core:view_child_with_id' 0 %}".replace(0, response[i].id);
+                var url = "{% url 'core:view_additional_rates_byId' %}".replace(0, response[i].id);
 
                 
                 dataTable.row.add(                 
@@ -536,10 +536,8 @@
                     console.log(response);
             }
         });
-        }
-        else{
-            dataTable.clear().draw();
-        }
+        
+       
     }
 </script>
 

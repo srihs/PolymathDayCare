@@ -462,21 +462,15 @@ def getAdditionalRates(request):
 
 @login_required
 def getAdditionalRatesJs(request):
-    print("in the method")
     additionalRatesList = None
     additionalRatesList = list(
-            ExtraCharges.objects.filter(is_active=True).values(
-                
-                "from_time",
-                "to_time",
-                "extra_rate",
-                
-            )
+        ExtraCharges.objects.filter(is_active=True).values(
+            "id", "from_time", "to_time", "extra_rate", "effective_from", "effective_to"
         )
+    )
     for i, n in enumerate(additionalRatesList):
-            if n["effective_to"] == None:
-                additionalRatesList[i]["effective_to"] = "-"
-    print(additionalRatesList)
+        if n["effective_to"] == None:
+            additionalRatesList[i]["effective_to"] = "-"
     return JsonResponse(additionalRatesList, safe=False)
 
 
@@ -501,7 +495,6 @@ def getAdditionalRateById(request):
 
 @login_required
 def saveAdditionalRates(request):
-    request.session["base_rate_id"] = None
     request.session.modified = True
     if request.method == "POST":
         form = CreateExtraChargesForm(request.POST)
@@ -516,7 +509,6 @@ def saveAdditionalRates(request):
             if form.is_valid():
                 objAdditionalRates = form.save(commit=False)
                 objExtraChargestchek = ExtraCharges.objects.filter(
-                    base_rate=objAdditionalRates.base_rate.id,
                     from_time=objAdditionalRates.from_time,
                     to_time=objAdditionalRates.to_time,
                 ).first()
@@ -525,7 +517,6 @@ def saveAdditionalRates(request):
                     messages.error(request, "This time slot is already defined")
                 else:
                     objAdditionalRates.user_created = request.user.username
-                    request.session["base_rate_id"] = objAdditionalRates.base_rate.id
                     request.session.modified = True
                     objAdditionalRates.save()
                     messages.success(request, "Additional rate details saved.")
@@ -537,44 +528,55 @@ def saveAdditionalRates(request):
 
 @login_required
 def updateAdditionalRates(request):
-    base_rate_id = None
     try:
+        print("In the method")
+
         if request.method == "POST":
-            form = UpdateExtraChargesForm(request.POST)
-            if request.session["id"] is not None:
-                objAdditionalRates = ExtraCharges.objects.get(pk=request.session["id"])
-                if objAdditionalRates is not None:
-                    user = User.objects.get(username=request.user.username)
+            print("Its a Post")
+            id = request.POST.get("id")
+            from_time = request.POST.get("from_time")
+            to_time = request.POST.get("to_time")
+            extra_rate = request.POST.get("extra_rate")
+            print(id)
+            print(from_time)
+            print(to_time)
+            print(extra_rate)
+
+            if id is not None:
+                print("ID is not null")
+                user = User.objects.get(username=request.user.username)
+                objNewAdditionalRates = get_object_or_404(ExtraCharges, pk=id)
+
+                if objNewAdditionalRates is not None:
+                    print("objNewAdditionalRates is not null")
                     if user.groups.filter(name="Data Entry").exists():
+                        print("UserFound")
                         messages.error(
                             request,
                             "You are not authorized to performe this operation.",
                         )
                     else:
-                        with transaction.atomic():
-                            base_rate_id = objAdditionalRates.base_rate.id
-                            objAdditionalRates.is_active = False
-                            objAdditionalRates.user_updated = request.user.username
-                            objAdditionalRates.save()
-                            if form.is_valid():
-                                objNewAdditionalRates = form.save(commit=False)
-                                objNewAdditionalRates.base_rate = Rates.objects.get(
-                                    pk=base_rate_id
-                                )
-                                objNewAdditionalRates.user_created = (
-                                    request.user.username
-                                )
-                                objNewAdditionalRates.save()
-                                messages.success(
-                                    request, "Additional rate details Updated."
-                                )
-                            else:
-                                messages.error(request, form.errors)
-
+                        print("In Update")
+                        objNewAdditionalRates.extra_rate = extra_rate
+                        objNewAdditionalRates.from_time = from_time
+                        objNewAdditionalRates.to_time = to_time
+                        objNewAdditionalRates.user_updated = request.user.username
+                        objNewAdditionalRates.save()
+                        messages.success(request, "Additional rate details Updated.")
                 else:
-                    messages.error(request, form.errors)
+                    print("No rate found.")
+                    messages.error(
+                        request,
+                        "No rate found.",
+                    )
+
             else:
-                messages.error(request, "No rate found")
+                print("No ID")
+                messages.error(
+                    request,
+                    "No ID found.",
+                )
+
     except Exception as e:
         messages.error(request, e)
 
@@ -755,7 +757,6 @@ def getPackagesJs(request):
                 "no_days_week",
                 "no_days_months",
                 "is_holiday_package",
-                
                 "package_total",
             )
         )

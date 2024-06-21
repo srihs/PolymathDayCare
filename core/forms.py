@@ -540,18 +540,18 @@ class UpdateRatesForm(forms.ModelForm):
 
 
 class CreateExtraChargesForm(forms.ModelForm):
-    base_rate = forms.ModelChoiceField(
-        required=True,
-        queryset=Rates.objects.filter(is_active=True).order_by("rate_name"),
-        empty_label="-Select Base Rate-",
-        widget=forms.Select(
-            attrs={
-                "class": "form-control",
-                "placeholder": "Base Rate",
-                "id": "base_rate",
-            }
-        ),
-    )
+    # base_rate = forms.ModelChoiceField(
+    #     required=True,
+    #     queryset=Rates.objects.filter(is_active=True).order_by("rate_name"),
+    #     empty_label="-Select Base Rate-",
+    #     widget=forms.Select(
+    #         attrs={
+    #             "class": "form-control",
+    #             "placeholder": "Base Rate",
+    #             "id": "base_rate",
+    #         }
+    #     ),
+    # )
     from_time = forms.TimeField(
         required=True,
         widget=forms.TimeInput(
@@ -614,7 +614,7 @@ class CreateExtraChargesForm(forms.ModelForm):
     class Meta:
         model = ExtraCharges
         fields = (
-            "base_rate",
+            # "base_rate",
             "from_time",
             "extra_rate",
             "to_time",
@@ -657,28 +657,13 @@ class UpdateExtraChargesForm(forms.ModelForm):
             attrs={"class": "form-control", "placeholder": "Rate"}
         ),
     )
-    effective_from = forms.DateField(
-        required=True,
-        widget=MyDateInput(
-            attrs={
-                "class": "form-control",
-                "required": "true",
-                "id": "effective_from",
-                "data-provider": "flatpickr",
-                "data-date-format": "Y-m-d",
-                "placeholder": "Effective from",
-            }
-        ),
-    )
-    effective_to = forms.DateField(
+
+    id = forms.CharField(
+        max_length=250,
         required=False,
-        widget=MyDateInput(
+        widget=forms.TextInput(
             attrs={
                 "class": "form-control",
-                "id": "effective_to",
-                "data-provider": "flatpickr",
-                "data-date-format": "Y-m-d",
-                "placeholder": "Effective to",
             }
         ),
     )
@@ -686,22 +671,20 @@ class UpdateExtraChargesForm(forms.ModelForm):
     class Meta:
         model = ExtraCharges
         fields = (
+            "id",
             "from_time",
             "extra_rate",
             "to_time",
-            "effective_from",
-            "effective_to",
         )
 
 
 class CreatePackagesForm(forms.ModelForm):
     Daily = "Daily"
-    Hourly= "Hourly"
+    Hourly = "Hourly"
 
     packageType = [
         (Daily, "Daily"),
         (Hourly, "Hourly"),
-
     ]
 
     # base_rate = forms.ModelChoiceField(

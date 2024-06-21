@@ -71,7 +71,7 @@ class RateHistory(BaseClass):
 
 
 class ExtraCharges(BaseClass):
-    base_rate = models.ForeignKey(Rates, on_delete=models.CASCADE)
+    # base_rate = models.ForeignKey(Rates, on_delete=models.CASCADE)
     from_time = models.TimeField()
     to_time = models.TimeField()
     extra_rate = models.DecimalField(max_digits=8, decimal_places=2)
@@ -79,7 +79,7 @@ class ExtraCharges(BaseClass):
     effective_to = models.DateField(null=True)
 
     class Meta:
-        unique_together = (("base_rate", "from_time", "to_time"),)
+        unique_together = (("from_time", "to_time"),)
         verbose_name = "Extra Charge"
         verbose_name_plural = "Extra Charges"
         db_table = "dc_extracharges"
