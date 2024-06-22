@@ -1,6 +1,6 @@
 {% load static %}
 <form
-  action="{% url 'core:update_additional_rates'  %}"
+  action="{% url 'core:save_package_types'  %}"
   method="POST"
   class="tablelist-form"
   autocomplete="on"
@@ -11,19 +11,9 @@
       <div class="col-lg-12">
         <div class="live-preview">
           <div class="mb-3">
-            <label for="employeeName" class="form-label">From time</label>
-            {{ formU.from_time }} {{ formU.id.as_hidden }}
+            <label for="employeeName" class="form-label">Package type name</label>
+            {{ formU.package_type_name }} {{ formU.id.as_hidden }}
           </div>
-          <div class="mb-3">
-            <label for="employeeUrl" class="form-label">To time</label>
-            {{ formU.to_time }}
-          </div>
-          <div class="mb-3">
-            <label for="StartleaveDate" class="form-label">Extra rate</label>
-            <div>{{ formU.extra_rate }}</div>
-          </div>
-          
-          
         </div>
       </div>
     </div>

@@ -57,9 +57,7 @@
                 <th>Package Type</th>
                 <th>Is a holiday package?</th>
                 <th data-orderable="false"></th>
-                <th data-orderable="false"></th>
-                <th data-orderable="false"></th>
-                <th data-orderable="false"></th>
+                
                 
             </tr>
             </thead>
@@ -168,66 +166,6 @@
     </div>
 </div>
 
-<!--Additional Rates Form-->
-<div id="flipModal" class="modal fade flip" tabindex="-1" aria-labelledby="flipModalLabel" style="display: none;" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="flipModalLabel">Extra hour rates</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div>
-                    <table id="AdditionalPackageTypesList" class="display" style="width: 100%">
-                        <thead>
-                        <tr>
-                        <th>From time</th>
-                        <th>To time</th>
-                        <th>Rate</th>
-                        <th>Effective from</th>
-                        <th>Effective to</th>
-                            
-                        </tr>
-                        </thead>
-                    </table>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
-            </div>
-
-        </div><!-- /.modal-content -->
-    </div><!-- /.modal-dialog -->
-</div>
-
-<!--Rate History pop-up-->
-<div id="historyModal" class="modal fade flip" tabindex="-1" aria-labelledby="flipModalLabel" style="display: none;" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="flipModalLabel">Rate History</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div>
-                    <table id="RateHistoryList" class="display" style="width: 100%">
-                        <thead>
-                        <tr>
-                        <th>Package Type</th>
-                        <th>Is holiday package?</th>
-                        <th>Status</th>
-                        </tr>
-                        </thead>
-                    </table>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
-            </div>
-
-        </div><!-- /.modal-content -->
-    </div><!-- /.modal-dialog -->
-</div>
 
 <!--Update Form-->
 <div class="modal fade zoomIn" id="showUpdateModal" tabindex="-1" aria-labelledby="exampleModalLabel"
@@ -297,6 +235,7 @@
     var $ = jQuery;
     var id;
     var dataTable;
+    var url = "";
 
     
 
@@ -327,23 +266,20 @@
                 processing: true,
                 url: "{% url 'core:get_package_types_js' %}",
                 dataSrc: "",
+               
             },
             columns: [
                 {data: "package_type_name"},
                 {data: "is_holiday_package"},
-                {data: "is_active"},
-                
-
                 {
                     data: null,
                     render: function (data, type, row) {
                     
-                       var url = "wwww";
+                       url = "{% url 'core:getPackageTypeId' %}"
                         id= row.id;
                         return data =
-                            '<a href=' + url + ' id="additionalLink" class="btn btn-soft-secondary  waves-effect waves-light btn-sm" data-id='+ id +'  data-bs-target="#flipModal"\
-                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"\
-                >View extra hour rates</a>';
+                            '<a href=' + url + ' class="link-success"  data-value='+ id +' data-bs-target="#showUpdateModal"\
+                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="ri-edit-2-fill"></i></a>';
                     },
                 },              
                 
@@ -352,10 +288,10 @@
 
             createdRow: function (row, data, dataIndex) {
                 // Check the condition for the 'is_holiday_rate' column
-                if (data.is_holiday_rate) {
-                    $("td", row).eq(2).html('<span class="badge bg-success">Yes</span>');
+                if (data.is_holiday_package) {
+                    $("td", row).eq(1).html('<span class="badge bg-success">Yes</span>');
                 } else {
-                    $("td", row).eq(2).html('<span class="badge bg-warning">No</span>');
+                    $("td", row).eq(1).html('<span class="badge bg-warning">No</span>');
                 }
             },
             
@@ -372,11 +308,13 @@
 
     });
 
-    var url = "";
+    
 
     jQuery(document).on("click", ".link-success", function (e) {
         e.preventDefault();
         url = jQuery(this).attr("href");
+        id = jQuery(this).attr("data-value");
+
        
         // Show the modal
         jQuery("#showUpdateModal").modal("show");
@@ -385,6 +323,7 @@
         jQuery.ajax({
             type: "GET",
             url: url,
+            data: { packageType_id: id },
             dataType: "html",
             success: function (data) {
                 // Assuming you have a modal body with the id "updateModalBody"

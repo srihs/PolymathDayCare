@@ -22,6 +22,11 @@ urlpatterns = [
         name="getChildWithEnrolementsJson",
     ),
     # path("hourextrarates/", views.getRates, name="view_rates"),
+    path(
+        "getPackageTypeIdJs",
+        views.getPackageTypeIdJs,
+        name="getPackageTypeIdJs",
+    ),
     path("packag_types/", views.getPacakgeTypes, name="view_package_types"),
     path("save_package_types/", views.savePackageTypes, name="save_package_types"),
     path("get_package_types_js/", views.getPackageTypeJs, name="get_package_types_js"),
@@ -33,14 +38,19 @@ urlpatterns = [
         name="view_additional_rates_js",
     ),
     path(
+        "view_additional_rates_byId/",
+        views.getAdditionalRateById,
+        name="view_additional_rates_byId",
+    ),
+    path(
         "save_additional_rates/",
         views.saveAdditionalRates,
         name="save_additional_rates",
     ),
     path(
-        "view_additional_rates_byId",
-        views.getAdditionalRateById,
-        name="view_additional_rates_byId",
+        "getPackageTypeId",
+        views.getPackageTypeId,
+        name="getPackageTypeId",
     ),
     path(
         "update_additional_rates/",

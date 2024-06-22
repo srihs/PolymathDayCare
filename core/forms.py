@@ -14,7 +14,6 @@ from .models import (
     Package,
     PackageType,
     RateHistory,
-    Rates,
 )
 
 
@@ -507,14 +506,12 @@ class CreateRateHistoryForm(forms.ModelForm):
         fields = ("standard_hourly_rate", "effective_from")
 
 
-class UpdateRatesForm(forms.ModelForm):
-    rate_name = forms.CharField(
+class UpdatePackageTypeForm(forms.ModelForm):
+    package_type_name = forms.CharField(
         max_length=250,
         required=False,
         widget=forms.TextInput(
-            attrs={
-                "class": "form-control",
-            }
+            attrs={"class": "form-control", "placeholder": "Rate name"}
         ),
     )
 
@@ -528,16 +525,9 @@ class UpdateRatesForm(forms.ModelForm):
         ),
     )
 
-    is_holiday_rate = forms.BooleanField(
-        required=False,
-        widget=forms.CheckboxInput(
-            attrs={"class": "form-check-input", "type": "checkbox"}
-        ),
-    )
-
     class Meta:
-        model = Rates
-        fields = ("rate_name", "id", "is_holiday_rate")
+        model = PackageType
+        fields = ("package_type_name", "id")
 
 
 class CreateExtraChargesForm(forms.ModelForm):

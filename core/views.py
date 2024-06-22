@@ -1,7 +1,6 @@
 import datetime
 import os
 from datetime import datetime, timedelta
-from decimal import Decimal
 
 import qrcode
 from django.conf import settings
@@ -32,7 +31,7 @@ from .forms import (
     UpdateChildForm,
     UpdateDayCareForm,
     UpdateExtraChargesForm,
-    UpdateRatesForm,
+    UpdatePackageTypeForm,
 )
 from .models import (
     AttendanceLog,
@@ -369,50 +368,69 @@ def getRateByID(request, pk):
 
 
 @login_required
-def getRateAmountByIdJs(request):
-    if request.method == "GET":
-        if request.GET.get("base_rate_id") is not None:
-            objRateHistory = RateHistory.objects.get(
-                rate_id=request.GET.get("base_rate_id"), is_active=True
+def getPackageTypeIdJs(request):
+    if request.GET.get("packageType_id") is not None:
+        print("Id is not null")
+        id = request.GET.get("packageType_id")
+        packageTypeList = list(
+            PackageType.objects.filter(id=id).values(
+                "id",
+                "package_type_name",
+                "is_holiday_package",
+                "is_active",
             )
-            if objRateHistory is not None:
-                if (
-                    request.GET.get("no_hours") is not None
-                    and request.GET.get("no_days_months") is not None
-                ):
-                    total_package_amount = (
-                        objRateHistory.standard_hourly_rate
-                        * Decimal(request.GET.get("no_hours"))
-                        * Decimal(request.GET.get("no_days_months"))
-                    )
-                    return JsonResponse(
-                        "{:,.2f}".format(total_package_amount), safe=False
-                    )
+        )
+        for i, n in enumerate(packageTypeList):
+            if n["is_active"] == True:
+                packageTypeList[i]["is_active"] = "Active"
             else:
-                return JsonResponse(None, safe=False)
-        return JsonResponse("000.00", safe=False)
+                packageTypeList[i]["is_active"] = "Inactive"
+
+    return JsonResponse(packageTypeList, safe=False)
+
+
+@login_required
+def getPackageTypeId(request):
+    try:
+        package_type_form = None
+        if request.GET.get("packageType_id") is not None:
+            objPackageType = get_object_or_404(
+                PackageType, pk=request.GET.get("packageType_id")
+            )
+            request.session["id"] = objPackageType.id
+            request.session.modified = True
+
+        if objPackageType is not None:
+            package_type_form = UpdatePackageTypeForm(instance=objPackageType)
+
+    except Exception as e:
+        messages.error(request, e)
+    return render(
+        request,
+        "../templates/partials/packagetypeUpdate.html",
+        {"formU": package_type_form},
+    )
 
 
 @login_required
 def savePackageTypes(request):
     try:
         if request.method == "POST":
-            form = UpdateRatesForm(request.POST)
-            objRates = form.save(commit=False)
+            form = UpdatePackageTypeForm(request.POST)
+            objPackageType = form.save(commit=False)
+
             # capturing the variables with data
+            package_type_name = request.POST.get("package_type_name")
+            is_holiday_package = request.POST.get("is_holiday_package")
 
-            rate_name = request.POST.get("rate_name")
-            is_holiday_rate = request.POST.get("is_holiday_rate")
-            is_active = request.POST.get("is_active")
-
-            if is_holiday_rate == "on":
-                is_holiday_rate = True
+            if is_holiday_package == "on":
+                is_holiday_package = True
             else:
-                is_holiday_rate = False
+                is_holiday_package = False
 
             if request.POST.get("id") is not None:
-                objRate = Rates.objects.get(id=request.POST.get("id"))
-                if objRate is not None:
+                objPackageType = PackageType.objects.get(id=request.POST.get("id"))
+                if objPackageType is not None:
                     user = User.objects.get(username=request.user.username)
                     if user.groups.filter(name="Data Entry").exists():
                         messages.error(
@@ -420,22 +438,22 @@ def savePackageTypes(request):
                             "You are not authorized to performe this operation.",
                         )
                     else:
-                        objRate.rate_name = rate_name
-                        objRate.is_holiday_rate = is_holiday_rate
-                        objRate.is_active = True
-                        objRate.user_updated = request.user.username
-                        objRate.date_updated = datetime.now()
-                        objRate.save()
-                        messages.success(request, "Rate details updated.")
+                        objPackageType.package_type_name = package_type_name
+                        objPackageType.is_holiday_package = is_holiday_package
+                        objPackageType.is_active = True
+                        objPackageType.user_updated = request.user.username
+                        objPackageType.date_updated = datetime.now()
+                        objPackageType.save()
+                        messages.success(request, "Package type details updated.")
             else:
-                objRate = Rates(
-                    rate_name=rate_name,
-                    is_holiday_rate=is_holiday_rate,
+                objPackageType = PackageType(
+                    package_type_name=package_type_name,
+                    is_holiday_package=is_holiday_package,
                     is_active=True,
                     user_created=request.user.username,
                 )
-                objRate.save()
-                messages.success(request, "Rate details saved.")
+                objPackageType.save()
+                messages.success(request, "Pakage type saved.")
 
     except Exception as e:
         messages.error(request, e)
