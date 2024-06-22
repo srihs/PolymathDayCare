@@ -21,20 +21,10 @@ urlpatterns = [
         views.getChildWithEnrolementsJson,
         name="getChildWithEnrolementsJson",
     ),
-    path("rates/", views.getRates, name="view_rates"),
-    path("ratesjs/", views.getRatesJs, name="view_rates_js"),
-    path("view_rate_byId/<int:pk>/", views.getRateByID, name="view_rates_byId"),
-    path("save_rates/", views.saveRates, name="save_rates"),
-    path("rates_rate_js/", views.getRatesforRatesJs, name="view_rates_rate_js"),
-    path("base_rate_js/", views.getRateHistoryById, name="view_baserate_update_byId"),
-    path(
-        "save_rates_for_base_rate/", views.saveBaseRate, name="save_rates_forBaseRate"
-    ),
-    path(
-        "get_Rate_Amount_By_Id_Js/",
-        views.getRateAmountByIdJs,
-        name="get_Rate_amount_By_Id_Js",
-    ),
+    # path("hourextrarates/", views.getRates, name="view_rates"),
+    path("packag_types/", views.getPacakgeTypes, name="view_package_types"),
+    path("save_package_types/", views.savePackageTypes, name="save_package_types"),
+    path("get_package_types_js/", views.getPackageTypeJs, name="get_package_types_js"),
     path("calculate_duration/", views.calculate_duration, name="calculate_duration"),
     path("additional_rates/", views.getAdditionalRates, name="view_additional_rates"),
     path(

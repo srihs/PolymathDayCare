@@ -25,8 +25,8 @@ from .forms import (
     CreateEnrollmentForm,
     CreateExtraChargesForm,
     CreatePackagesForm,
+    CreatePackageTypeForm,
     CreateRateHistoryForm,
-    CreateRatesForm,
     SearchForm,
     UpdateBranchForm,
     UpdateChildForm,
@@ -43,6 +43,7 @@ from .models import (
     Discount,
     ExtraCharges,
     Package,
+    PackageType,
     RateHistory,
     Rates,
 )
@@ -319,31 +320,31 @@ def deleteChild(request, pk):
 
 
 @login_required
-def getRatesJs(reuest):
-    rateList = list(
-        Rates.objects.filter(is_active=1).values(
+def getPackageTypeJs(reuest):
+    packageTypeList = list(
+        PackageType.objects.filter(is_active=True).values(
             "id",
-            "rate_name",
-            "is_holiday_rate",
+            "package_type_name",
+            "is_holiday_package",
             "is_active",
         )
     )
 
-    return JsonResponse(rateList, safe=False)
+    return JsonResponse(packageTypeList, safe=False)
 
 
 @login_required
-def getRates(request):
+def getPacakgeTypes(request):
     if request.method == "GET":
-        settings_form = CreateRatesForm()
+        settings_form = CreatePackageTypeForm()
 
     else:
-        objSettings = Rates.objects.all().first()
-        settings_form = CreateRatesForm(instance=objSettings)
+        objSettings = PackageType.objects.all().first()
+        settings_form = CreatePackageTypeForm(instance=objSettings)
 
     return render(
         request,
-        "../templates/ratesettings.html",
+        "../templates/packagetypes.html",
         {
             "form": settings_form,
             "UserName": request.user.username,
@@ -393,7 +394,7 @@ def getRateAmountByIdJs(request):
 
 
 @login_required
-def saveRates(request):
+def savePackageTypes(request):
     try:
         if request.method == "POST":
             form = UpdateRatesForm(request.POST)
@@ -438,7 +439,7 @@ def saveRates(request):
 
     except Exception as e:
         messages.error(request, e)
-    return redirect("core:view_rates")
+    return redirect("core:view_package_types")
 
 
 @login_required
@@ -529,34 +530,23 @@ def saveAdditionalRates(request):
 @login_required
 def updateAdditionalRates(request):
     try:
-        print("In the method")
-
         if request.method == "POST":
-            print("Its a Post")
             id = request.POST.get("id")
             from_time = request.POST.get("from_time")
             to_time = request.POST.get("to_time")
             extra_rate = request.POST.get("extra_rate")
-            print(id)
-            print(from_time)
-            print(to_time)
-            print(extra_rate)
 
             if id is not None:
-                print("ID is not null")
                 user = User.objects.get(username=request.user.username)
                 objNewAdditionalRates = get_object_or_404(ExtraCharges, pk=id)
 
                 if objNewAdditionalRates is not None:
-                    print("objNewAdditionalRates is not null")
                     if user.groups.filter(name="Data Entry").exists():
-                        print("UserFound")
                         messages.error(
                             request,
                             "You are not authorized to performe this operation.",
                         )
                     else:
-                        print("In Update")
                         objNewAdditionalRates.extra_rate = extra_rate
                         objNewAdditionalRates.from_time = from_time
                         objNewAdditionalRates.to_time = to_time
@@ -564,14 +554,12 @@ def updateAdditionalRates(request):
                         objNewAdditionalRates.save()
                         messages.success(request, "Additional rate details Updated.")
                 else:
-                    print("No rate found.")
                     messages.error(
                         request,
                         "No rate found.",
                     )
 
             else:
-                print("No ID")
                 messages.error(
                     request,
                     "No ID found.",

@@ -12,6 +12,7 @@ from .models import (
     Discount,
     ExtraCharges,
     Package,
+    PackageType,
     RateHistory,
     Rates,
 )
@@ -456,15 +457,15 @@ class UpdateChildForm(forms.ModelForm):
         )
 
 
-class CreateRatesForm(forms.ModelForm):
-    rate_name = forms.CharField(
+class CreatePackageTypeForm(forms.ModelForm):
+    package_type_name = forms.CharField(
         max_length=250,
         required=False,
         widget=forms.TextInput(
             attrs={"class": "form-control", "placeholder": "Rate name"}
         ),
     )
-    is_holiday_rate = forms.BooleanField(
+    is_holiday_package = forms.BooleanField(
         required=False,
         widget=forms.CheckboxInput(
             attrs={"class": "form-check-input", "type": "checkbox"}
@@ -472,8 +473,8 @@ class CreateRatesForm(forms.ModelForm):
     )
 
     class Meta:
-        model = Rates
-        fields = ("rate_name", "is_holiday_rate")
+        model = PackageType
+        fields = ("package_type_name", "is_holiday_package")
 
 
 class CreateRateHistoryForm(forms.ModelForm):

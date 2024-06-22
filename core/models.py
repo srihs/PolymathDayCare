@@ -16,6 +16,15 @@ class BaseClass(models.Model):
         abstract = True
 
 
+class PackageType(BaseClass):
+    package_type_name = models.CharField(max_length=550)
+    is_holiday_package = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name_plural = "Package Types"
+        db_table = "dc_package_type"
+
+
 class Discount(BaseClass):
     STATUS_CHOICES = (
         ("PENDING_APPROVAL", "Pending Approval"),
@@ -71,7 +80,7 @@ class RateHistory(BaseClass):
 
 
 class ExtraCharges(BaseClass):
-    # base_rate = models.ForeignKey(Rates, on_delete=models.CASCADE)
+    PackageType = models.ForeignKey(Rates, on_delete=models.CASCADE)
     from_time = models.TimeField()
     to_time = models.TimeField()
     extra_rate = models.DecimalField(max_digits=8, decimal_places=2)
@@ -138,7 +147,7 @@ class Package(BaseClass):
     package_type = models.CharField(max_length=10)
     package_code = models.CharField(max_length=10)
     package_name = models.CharField(max_length=200)
-    # base_rate = models.ForeignKey(Rates, on_delete=models.CASCADE)
+    package_type = models.ForeignKey(PackageType, on_delete=models.CASCADE)
     from_time = models.TimeField()
     to_time = models.TimeField()
     no_hours = models.DecimalField(max_digits=10, decimal_places=2)
