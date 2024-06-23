@@ -385,66 +385,7 @@
     });
 
 
-    jQuery(document).on("click", "#additionalLink", function (e) {
-        dataTable =  $("#AdditionalPackageTypesList").DataTable();
-        dataTable.clear();
-        id = jQuery(this).attr("data-id");
-        jQuery.ajax({
-            url: "{% url 'core:get_package_types_js' %}",
-                type: "GET",
-                data: { base_rate_id: id },
-                beforeSend: function () { },
-                success: function (response) {       
-                jQuery.each(response, function(i, item) {
-                dataTable.row.add(                 
-                [response[i].from_time,
-                response[i].to_time,
-                response[i].extra_rate,
-                response[i].effective_from,
-                response[i].effective_to
-                ],)
-                });
-
-             
-
-            dataTable.draw();
-                },error: function(response){
-                    console.log(response);
-            }
-        });
-    });
- 
-
-    jQuery(document).on("click", "#historyLink", function (e) {
-        
-        dataTable =  $("#RateHistoryList").DataTable();
-        dataTable.clear();
-        id = jQuery(this).attr("data-id");
-        jQuery.ajax({
-                url: "{% url 'core:view_packages_js' %}",
-                type: "GET",
-                data: { rate_id: id },
-                beforeSend: function () { },
-                success: function (response) {       
-                jQuery.each(response, function(i, item) {
-                    
-                
-                dataTable.row.add(                 
-                [response[i].standard_hourly_rate,
-                response[i].effective_from,
-                response[i].effective_to,
-                response[i].is_active
-                ],)
-                });
-
-             
-
-            dataTable.draw();
-                },error: function(response){
-                    console.log(response);
-            }
-        });
-    });
+  
     
 </script>
 

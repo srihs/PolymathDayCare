@@ -398,60 +398,7 @@
     window.parent.location = window.parent.location.href;
   });
 
-  jQuery(document).on("click", "#additionalLink", function (e) {
-    dataTable.clear();
-    id = jQuery(this).attr("data-id");
-    jQuery.ajax({
-      url: "{% url 'core:view_additional_rates_js' %}",
-      type: "GET",
-      data: { base_rate_id: id },
-      beforeSend: function () { },
-      success: function (response) {
-        jQuery.each(response, function (i, item) {
-
-          dataTable.row.add([
-            response[i].slot_number_hour,
-            response[i].extra_rate,
-            response[i].effective_from,
-            response[i].effective_to,
-          ]);
-        });
-
-        dataTable.draw();
-      },
-      error: function (response) {
-        console.log(response);
-      },
-    });
-  });
-
-  jQuery(document).on("click", "#historyLink", function (e) {
-    dataTable.clear();
-    id = jQuery(this).attr("data-id");
-    jQuery.ajax({
-      url: "{% url 'core:view_rates_rate_js' %}",
-      type: "GET",
-      data: { rate_id: id },
-      beforeSend: function () { },
-      success: function (response) {
-        jQuery.each(response, function (i, item) {
-
-          dataTable.row.add([
-            response[i].standard_hourly_rate,
-            response[i].effective_from,
-            response[i].effective_to,
-            response[i].is_active,
-          ]);
-        });
-
-        dataTable.draw();
-      },
-      error: function (response) {
-        console.log(response);
-      },
-    });
-  });
-
+  
   jQuery("#showModalCreate").on("hidden.bs.modal", function () {
     jQuery(this).find("form").trigger("reset");
 

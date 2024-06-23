@@ -42,12 +42,10 @@
             <form id="additionalRatesForm"  action="{% url 'core:save_additional_rates' %}"
             method="POST">
             {% csrf_token %}
-        
-                
                     <div class="row ">
-                        <!-- <div class="col-sm-4">
-                            {{form.base_rate}}
-                        </div> -->
+                        <div class="col-sm-2">
+                            {{form.package_type}}
+                        </div>
                         
                         <!--end col-->
                         <div class="col-sm">
@@ -389,7 +387,6 @@
         e.preventDefault();
         url = jQuery(this).attr("href");
         id = jQuery(this).attr("data-value");
-        
         // Show the modal
         jQuery("#firstmodal").modal("show");
     });
@@ -436,7 +433,6 @@
     });
     var dataTable;
     jQuery(document).ready(function () {
-        
         dataTable = $('#RateList').DataTable({
             responsive: true,
             dom: "Bfrtip",
@@ -445,8 +441,7 @@
             buttons: ["excel", "print"],
             order: [[0, "asc"]],
             retrieve: true,
-    },
-    getRatesforTable());
+    });
 
     jQuery('#effective_from').flatpickr({
                 minDate: "today",
@@ -475,7 +470,8 @@
     }
 }, 2000);
 
-  
+    getRatesforTable();
+
     jQuery('#from_time').flatpickr({
         enableTime: true,
         noCalendar:true,
@@ -493,10 +489,10 @@
    
     });
 
-    jQuery('#base_rate').change(function () {
+    jQuery('#package_type').change(function () {
         var baseRateId = jQuery(this).val();
         dataTable.clear();
-        
+        getRatesforTable();
      
     });
     
@@ -507,16 +503,18 @@
 
 
     function getRatesforTable(){
-    
+        var package_type_Id = jQuery("#package_type").val();
+        if (package_type_Id) 
+        {
             jQuery.ajax({
-                url: "{% url 'core:view_additional_rates_js' %}",
+                url: "{% url 'core:get_AdditionalRates_By_Id_Js' %}",
                 type: "GET",
-                data: "",
+                data: { package_type_Id: package_type_Id },
                 beforeSend: function () { },
                 success: function (response) {       
                     
                 jQuery.each(response, function(i, item) {
-                var url = "{% url 'core:view_additional_rates_byId' %}".replace(0, response[i].id);
+                var url = "{% url 'core:view_child_with_id' 0 %}".replace(0, response[i].id);
 
                 
                 dataTable.row.add(                 
@@ -536,8 +534,10 @@
                     console.log(response);
             }
         });
-        
-       
+        }
+        else{
+            dataTable.clear().draw();
+        }
     }
 </script>
 

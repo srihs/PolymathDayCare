@@ -463,9 +463,10 @@ def savePackageTypes(request):
 @login_required
 def getAdditionalRates(request):
     if request.method == "GET":
-        if request.session.get("base_rate_id") is not None:
+        print(request.session.get("package_type_id"))
+        if request.session.get("package_type_id") is not None:
             form = CreateExtraChargesForm(
-                initial={"base_rate": request.session.get("base_rate_id")}
+                initial={"package_type": request.session.get("package_type_id")}
             )
         else:
             form = CreateExtraChargesForm()
@@ -494,6 +495,28 @@ def getAdditionalRatesJs(request):
 
 
 @login_required
+def getAdditionalRatesByIdJs(request):
+    if request.GET.get("package_type_Id") is not None:
+        additionalRatesList = None
+        additionalRatesList = list(
+            ExtraCharges.objects.filter(
+                is_active=True, package_type=request.GET.get("package_type_Id")
+            ).values(
+                "id",
+                "from_time",
+                "to_time",
+                "extra_rate",
+                "effective_from",
+                "effective_to",
+            )
+        )
+        for i, n in enumerate(additionalRatesList):
+            if n["effective_to"] == None:
+                additionalRatesList[i]["effective_to"] = "-"
+    return JsonResponse(additionalRatesList, safe=False)
+
+
+@login_required
 def getAdditionalRateById(request):
     try:
         rate_form = None
@@ -514,7 +537,7 @@ def getAdditionalRateById(request):
 
 @login_required
 def saveAdditionalRates(request):
-    request.session.modified = True
+    request.session["package_type_id"] = None
     if request.method == "POST":
         form = CreateExtraChargesForm(request.POST)
         user = User.objects.get(username=request.user.username)
@@ -535,7 +558,11 @@ def saveAdditionalRates(request):
                 if objExtraChargestchek is not None:
                     messages.error(request, "This time slot is already defined")
                 else:
+                    print(objAdditionalRates.package_type)
                     objAdditionalRates.user_created = request.user.username
+                    request.session["package_type_id"] = (
+                        objAdditionalRates.package_type.id
+                    )
                     request.session.modified = True
                     objAdditionalRates.save()
                     messages.success(request, "Additional rate details saved.")

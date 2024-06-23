@@ -43,6 +43,11 @@ urlpatterns = [
         name="view_additional_rates_byId",
     ),
     path(
+        "get_AdditionalRates_By_Id_Js/",
+        views.getAdditionalRatesByIdJs,
+        name="get_AdditionalRates_By_Id_Js",
+    ),
+    path(
         "save_additional_rates/",
         views.saveAdditionalRates,
         name="save_additional_rates",

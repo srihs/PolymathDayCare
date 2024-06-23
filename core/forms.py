@@ -531,18 +531,20 @@ class UpdatePackageTypeForm(forms.ModelForm):
 
 
 class CreateExtraChargesForm(forms.ModelForm):
-    # base_rate = forms.ModelChoiceField(
-    #     required=True,
-    #     queryset=Rates.objects.filter(is_active=True).order_by("rate_name"),
-    #     empty_label="-Select Base Rate-",
-    #     widget=forms.Select(
-    #         attrs={
-    #             "class": "form-control",
-    #             "placeholder": "Base Rate",
-    #             "id": "base_rate",
-    #         }
-    #     ),
-    # )
+    package_type = forms.ModelChoiceField(
+        required=True,
+        queryset=PackageType.objects.filter(is_active=True).order_by(
+            "package_type_name"
+        ),
+        empty_label="-Select Package Type -",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Package Type",
+                "id": "package_type",
+            }
+        ),
+    )
     from_time = forms.TimeField(
         required=True,
         widget=forms.TimeInput(
@@ -605,7 +607,7 @@ class CreateExtraChargesForm(forms.ModelForm):
     class Meta:
         model = ExtraCharges
         fields = (
-            # "base_rate",
+            "package_type",
             "from_time",
             "extra_rate",
             "to_time",

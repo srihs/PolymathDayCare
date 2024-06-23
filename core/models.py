@@ -24,6 +24,9 @@ class PackageType(BaseClass):
         verbose_name_plural = "Package Types"
         db_table = "dc_package_type"
 
+    def __str__(self):
+        return self.package_type_name
+
 
 class Discount(BaseClass):
     STATUS_CHOICES = (
@@ -80,7 +83,7 @@ class RateHistory(BaseClass):
 
 
 class ExtraCharges(BaseClass):
-    PackageType = models.ForeignKey(Rates, on_delete=models.CASCADE)
+    package_type = models.ForeignKey(PackageType, on_delete=models.CASCADE)
     from_time = models.TimeField()
     to_time = models.TimeField()
     extra_rate = models.DecimalField(max_digits=8, decimal_places=2)
@@ -88,7 +91,7 @@ class ExtraCharges(BaseClass):
     effective_to = models.DateField(null=True)
 
     class Meta:
-        unique_together = (("from_time", "to_time"),)
+        unique_together = (("from_time", "to_time", "package_type"),)
         verbose_name = "Extra Charge"
         verbose_name_plural = "Extra Charges"
         db_table = "dc_extracharges"
