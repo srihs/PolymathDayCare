@@ -463,6 +463,11 @@ def savePackageTypes(request):
 @login_required
 def getAdditionalRates(request):
     if request.method == "GET":
+        packageTypeCount = PackageType.objects.all().count()
+
+        if packageTypeCount == 0:
+            messages.error(request, "Package Types are not defined.")
+
         print(request.session.get("package_type_id"))
         if request.session.get("package_type_id") is not None:
             form = CreateExtraChargesForm(
@@ -759,6 +764,13 @@ def getPackages(request):
             # trying to retrive the next primaryKey
             nextId = Package.objects.all().count()
             nextId += 1
+            packageTypeCount = PackageType.objects.all().count()
+            extraChargesCount = ExtraCharges.objects.all().count()
+            if packageTypeCount == 0:
+                messages.error(request, "Package Types are not defined.")
+            if extraChargesCount == 0:
+                messages.error(request, "Extra charges are not defined.")
+
         except:
             nextId = 1  # if the next ID is null define the record as the first
 
