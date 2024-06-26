@@ -98,7 +98,7 @@ class ExtraCharges(BaseClass):
 
     def __str__(self):
         return (
-            self.base_rate.rate_name
+            self.package_type.package_type_name
             + "-"
             + str(self.from_time)
             + "-"
@@ -106,6 +106,20 @@ class ExtraCharges(BaseClass):
             + "-"
             + str(self.is_active)
         )
+
+
+class ExtraChargesHistory(BaseClass):
+    extra_charges = models.ForeignKey(ExtraCharges, on_delete=models.CASCADE)
+    from_time = models.TimeField()
+    to_time = models.TimeField()
+    extra_rate = models.DecimalField(max_digits=8, decimal_places=2)
+    effective_from = models.DateField()
+    effective_to = models.DateField(null=True)
+
+    class Meta:
+        verbose_name = "Extra Charge History"
+        verbose_name_plural = "Extra Charge History"
+        db_table = "dc_extrachargeshistory"
 
 
 class Child(BaseClass):

@@ -41,6 +41,7 @@ from .models import (
     DayCare,
     Discount,
     ExtraCharges,
+    ExtraChargesHistory,
     Package,
     PackageType,
     RateHistory,
@@ -558,6 +559,7 @@ def saveAdditionalRates(request):
                 objExtraChargestchek = ExtraCharges.objects.filter(
                     from_time=objAdditionalRates.from_time,
                     to_time=objAdditionalRates.to_time,
+                    package_type=request.session["package_type_id"],
                 ).first()
 
                 if objExtraChargestchek is not None:
@@ -570,6 +572,17 @@ def saveAdditionalRates(request):
                     )
                     request.session.modified = True
                     objAdditionalRates.save()
+                    objExtrachargeHistory = ExtraChargesHistory(
+                        extra_charges=objAdditionalRates,
+                        from_time=objAdditionalRates.from_time,
+                        to_time=objAdditionalRates.to_time,
+                        extra_rate=objAdditionalRates.extra_rate,
+                        effective_from=objAdditionalRates.effective_from,
+                        effective_to=objAdditionalRates.effective_to,
+                        user_created=objAdditionalRates.user_created,
+                        date_created=objAdditionalRates.date_created,
+                    )
+                    objExtrachargeHistory.save()
                     messages.success(request, "Additional rate details saved.")
             else:
                 messages.error(request, form.errors)

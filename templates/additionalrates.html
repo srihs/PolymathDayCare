@@ -398,6 +398,8 @@
         // Show the modal
         jQuery("#showUpdateModal").modal("show");
         jQuery("#firstmodal").modal("hide");
+        
+
 
         // Load the form into the modal using AJAX
         jQuery.ajax({
@@ -408,8 +410,6 @@
             success: function (data) {
                 // Assuming you have a modal body with the id "updateModalBody"
                 jQuery("#modelForm").html(data);
-
-                
 
             jQuery('#to_time').flatpickr({
                 enableTime: true,
@@ -514,7 +514,7 @@
                 success: function (response) {       
                     
                 jQuery.each(response, function(i, item) {
-                var url = "{% url 'core:view_child_with_id' 0 %}".replace(0, response[i].id);
+                var url = "{% url 'core:view_additional_rates_byId'  %}";
 
                 
                 dataTable.row.add(                 
