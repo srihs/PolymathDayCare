@@ -13,7 +13,6 @@ from .models import (
     ExtraCharges,
     Package,
     PackageType,
-    RateHistory,
 )
 
 
@@ -476,34 +475,34 @@ class CreatePackageTypeForm(forms.ModelForm):
         fields = ("package_type_name", "is_holiday_package")
 
 
-class CreateRateHistoryForm(forms.ModelForm):
-    standard_hourly_rate = forms.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        validators=[MinValueValidator(Decimal("0.01"))],
-        required=True,
-        widget=forms.NumberInput(
-            attrs={"class": "form-control", "placeholder": "Rate"}
-        ),
-    )
+# class CreateRateHistoryForm(forms.ModelForm):
+#     standard_hourly_rate = forms.DecimalField(
+#         max_digits=15,
+#         decimal_places=2,
+#         validators=[MinValueValidator(Decimal("0.01"))],
+#         required=True,
+#         widget=forms.NumberInput(
+#             attrs={"class": "form-control", "placeholder": "Rate"}
+#         ),
+#     )
 
-    effective_from = forms.DateField(
-        required=True,
-        widget=MyDateInput(
-            attrs={
-                "class": "form-control",
-                "id": "effective_from",
-                "placeholder": "Effective From",
-                "required": "required",
-                "data-provider": "flatpickr",
-                "data-date-format": "Y-m-d",
-            }
-        ),
-    )
+#     effective_from = forms.DateField(
+#         required=True,
+#         widget=MyDateInput(
+#             attrs={
+#                 "class": "form-control",
+#                 "id": "effective_from",
+#                 "placeholder": "Effective From",
+#                 "required": "required",
+#                 "data-provider": "flatpickr",
+#                 "data-date-format": "Y-m-d",
+#             }
+#         ),
+#     )
 
-    class Meta:
-        model = RateHistory
-        fields = ("standard_hourly_rate", "effective_from")
+#     class Meta:
+#         model = RateHistory
+#         fields = ("standard_hourly_rate", "effective_from")
 
 
 class UpdatePackageTypeForm(forms.ModelForm):
@@ -672,14 +671,6 @@ class UpdateExtraChargesForm(forms.ModelForm):
 
 
 class CreatePackagesForm(forms.ModelForm):
-    Daily = "Daily"
-    Hourly = "Hourly"
-
-    packageType = [
-        (Daily, "Daily"),
-        (Hourly, "Hourly"),
-    ]
-
     # base_rate = forms.ModelChoiceField(
     #     required=True,
     #     queryset=Rates.objects.filter(is_active=True).order_by("rate_name"),
@@ -692,6 +683,21 @@ class CreatePackagesForm(forms.ModelForm):
     #         }
     #     ),
     # )
+    package_type = forms.ModelChoiceField(
+        required=True,
+        empty_label="-Select package type -",
+        queryset=PackageType.objects.filter(is_active=True).order_by(
+            "package_type_name"
+        ),
+        label="- Package Type -",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Base Rate",
+                "id": "package_type",
+            }
+        ),
+    )
 
     package_name = forms.CharField(
         max_length=250,
@@ -706,19 +712,6 @@ class CreatePackagesForm(forms.ModelForm):
         required=True,
         widget=forms.TextInput(
             attrs={"class": "form-control", "placeholder": "Package Code"}
-        ),
-    )
-
-    package_type = forms.ChoiceField(
-        required=True,
-        choices=packageType,
-        label="- Package Type -",
-        widget=forms.Select(
-            attrs={
-                "class": "form-control",
-                "placeholder": "Base Rate",
-                "id": "base_rate",
-            }
         ),
     )
 
@@ -765,12 +758,6 @@ class CreatePackagesForm(forms.ModelForm):
             }
         ),
     )
-    is_holiday_package = forms.BooleanField(
-        required=False,
-        widget=forms.CheckboxInput(
-            attrs={"class": "form-check-input", "type": "checkbox"}
-        ),
-    )
 
     package_total = forms.DecimalField(
         decimal_places=2,
@@ -797,7 +784,6 @@ class CreatePackagesForm(forms.ModelForm):
             "to_time",
             "no_days_week",
             "no_days_months",
-            "is_holiday_package",
             "package_total",
         )
 
@@ -1213,7 +1199,7 @@ class CreateEnrollmentForm(forms.ModelForm):
     normal_package = forms.ModelChoiceField(
         required=True,
         queryset=Package.objects.filter(
-            is_active=True, is_holiday_package=False
+            is_active=True, package_type__is_holiday_package=False
         ).order_by("package_code"),
         empty_label="-Select normal package-",
         widget=forms.Select(
@@ -1228,7 +1214,7 @@ class CreateEnrollmentForm(forms.ModelForm):
     holiday_package = forms.ModelChoiceField(
         required=True,
         queryset=Package.objects.filter(
-            is_active=True, is_holiday_package=True
+            is_active=True, package_type__is_holiday_package=True
         ).order_by("package_code"),
         empty_label="-Select holiday package-",
         widget=forms.Select(
@@ -1340,3 +1326,127 @@ class SearchForm(forms.Form):
             }
         ),
     )
+
+    # class CreateExtraChargesTill530form(forms.ModelForm)
+    enrollment_code = forms.CharField(
+        max_length=250,
+        required=True,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Center Code",
+                "readonly": "readonly",
+            }
+        ),
+    )
+
+    enrollment_date = forms.DateField(
+        required=True,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "required": "true",
+                "id": "effective_from",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+                "placeholder": "Enrolment Date",
+            }
+        ),
+    )
+    child = forms.ModelChoiceField(
+        required=True,
+        queryset=Child.objects.filter(is_active=True, is_enrolled=False).order_by(
+            "admission_number"
+        ),
+        empty_label="-Select child-",
+        widget=forms.Select(
+            attrs={"class": "form-control", "placeholder": "Base Rate", "id": "child"}
+        ),
+    )
+
+    branch = forms.ModelChoiceField(
+        required=True,
+        queryset=Branch.objects.filter(is_active=True).order_by("branch_code"),
+        empty_label="-Select branch-",
+        widget=forms.Select(
+            attrs={"class": "form-control", "placeholder": "Base Rate", "id": "branch"}
+        ),
+    )
+
+    # dayCare = forms.ModelChoiceField(required=True, queryset=DayCare.objects.filter(is_active=True,branch=0).order_by('daycare_code'),empty_label="-Select daycare-",
+    #                                 widget=forms.Select(
+    #                                     attrs={'class': 'form-control', 'placeholder': 'Base Rate','id': 'dayCare'}))
+
+    dayCare = forms.CharField(
+        max_length=250,
+        required=True,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Daycare center",
+                "list": "branches",
+            }
+        ),
+    )
+
+    normal_package = forms.ModelChoiceField(
+        required=True,
+        queryset=Package.objects.filter(
+            is_active=True, package_type__is_holiday_package=False
+        ).order_by("package_code"),
+        empty_label="-Select normal package-",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Base Rate",
+                "id": "normal_package",
+            }
+        ),
+    )
+
+    holiday_package = forms.ModelChoiceField(
+        required=True,
+        queryset=Package.objects.filter(
+            is_active=True, package_type__is_holiday_package=True
+        ).order_by("package_code"),
+        empty_label="-Select holiday package-",
+        widget=forms.Select(
+            attrs={"class": "form-control", "placeholder": "Base Rate", "id": "package"}
+        ),
+    )
+
+    discount = forms.ModelChoiceField(
+        required=False,
+        queryset=Discount.objects.filter(is_active=True, status="Approved").order_by(
+            "discount_code"
+        ),
+        empty_label="-Select discounts-",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Base Rate",
+                "id": "discount",
+            }
+        ),
+    )
+    recipt_number = forms.CharField(
+        required=False,
+        max_length=250,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Receipt Number"}
+        ),
+    )
+
+    class Meta:
+        model = ChildEnrollment
+        fields = (
+            "enrollment_code",
+            "enrollment_date",
+            "child",
+            "branch",
+            "dayCare",
+            "normal_package",
+            "holiday_package",
+            "discount",
+            "recipt_number",
+        )

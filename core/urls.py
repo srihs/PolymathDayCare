@@ -21,7 +21,11 @@ urlpatterns = [
         views.getChildWithEnrolementsJson,
         name="getChildWithEnrolementsJson",
     ),
-    # path("hourextrarates/", views.getRates, name="view_rates"),
+    path(
+        "hourextrarates/",
+        views.getAdditionalRatesforExtraHours,
+        name="get_Additional_Ratesfor_Extra_Hours",
+    ),
     path(
         "getPackageTypeIdJs",
         views.getPackageTypeIdJs,

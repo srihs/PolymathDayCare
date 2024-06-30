@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.db import models
 
 
+# This model will hold the most common properties of the each model.
 class BaseClass(models.Model):
     id = models.AutoField(primary_key=True)
     date_created = models.DateTimeField(auto_now_add=True)
@@ -16,6 +17,7 @@ class BaseClass(models.Model):
         abstract = True
 
 
+# This model will hold the package types.Normal or Holiday packages.
 class PackageType(BaseClass):
     package_type_name = models.CharField(max_length=550)
     is_holiday_package = models.BooleanField(default=False)
@@ -28,6 +30,7 @@ class PackageType(BaseClass):
         return self.package_type_name
 
 
+# This model will hold the discounts .
 class Discount(BaseClass):
     STATUS_CHOICES = (
         ("PENDING_APPROVAL", "Pending Approval"),
@@ -50,36 +53,39 @@ class Discount(BaseClass):
         return self.discount_code + " - " + self.discount_name
 
 
-class Rates(BaseClass):
-    rate_name = models.CharField(max_length=550)
-    is_holiday_rate = models.BooleanField(default=False)
+# These models were used to hold the rate base system.
+# This was changed after they decided to move to package base system.
 
-    class Meta:
-        verbose_name_plural = "Rates"
-        db_table = "dc_rate"
+# class Rates(BaseClass):
+#     rate_name = models.CharField(max_length=550)
+#     is_holiday_rate = models.BooleanField(default=False)
 
-    def __str__(self):
-        return self.rate_name
+#     class Meta:
+#         verbose_name_plural = "Rates"
+#         db_table = "dc_rate"
 
-    def checkIfHolidayPackage(self):
-        if self.is_holiday_rate:
-            return True
-        else:
-            return False
+#     def __str__(self):
+#         return self.rate_name
+
+#     def checkIfHolidayPackage(self):
+#         if self.is_holiday_rate:
+#             return True
+#         else:
+#             return False
 
 
-class RateHistory(BaseClass):
-    rate = models.ForeignKey(Rates, on_delete=models.CASCADE)
-    standard_hourly_rate = models.DecimalField(max_digits=8, decimal_places=2)
-    effective_from = models.DateField()
-    effective_to = models.DateField(null=True)
+# class RateHistory(BaseClass):
+#     rate = models.ForeignKey(Rates, on_delete=models.CASCADE)
+#     standard_hourly_rate = models.DecimalField(max_digits=8, decimal_places=2)
+#     effective_from = models.DateField()
+#     effective_to = models.DateField(null=True)
 
-    class Meta:
-        verbose_name_plural = "Rate History"
-        db_table = "dc_ratehistory"
+#     class Meta:
+#         verbose_name_plural = "Rate History"
+#         db_table = "dc_ratehistory"
 
-    def __str__(self):
-        return self.rate.rate_name
+#     def __str__(self):
+#         return self.rate.rate_name
 
 
 class ExtraCharges(BaseClass):
@@ -94,7 +100,7 @@ class ExtraCharges(BaseClass):
         unique_together = (("from_time", "to_time", "package_type"),)
         verbose_name = "Extra Charge"
         verbose_name_plural = "Extra Charges"
-        db_table = "dc_extracharges"
+        db_table = "dc_extrachargeafter530"
 
     def __str__(self):
         return (
@@ -161,7 +167,6 @@ class Child(BaseClass):
 
 
 class Package(BaseClass):
-    package_type = models.CharField(max_length=10)
     package_code = models.CharField(max_length=10)
     package_name = models.CharField(max_length=200)
     package_type = models.ForeignKey(PackageType, on_delete=models.CASCADE)
@@ -170,7 +175,6 @@ class Package(BaseClass):
     no_hours = models.DecimalField(max_digits=10, decimal_places=2)
     no_days_week = models.IntegerField()
     no_days_months = models.IntegerField()
-    is_holiday_package = models.BooleanField()
     package_total = models.DecimalField(max_digits=12, decimal_places=2)
 
     class Meta:
@@ -200,14 +204,16 @@ class Package(BaseClass):
         super().save(*args, **kwargs)
 
 
-class PackageExtraRatesMap(BaseClass):
+class PackageExtraHoursUpTo530(BaseClass):
     package = models.ForeignKey(Package, on_delete=models.CASCADE)
-    extraCharges = models.ForeignKey(ExtraCharges, on_delete=models.CASCADE)
+    from_time = models.TimeField()
+    to_time = models.TimeField()
+    rate = models.DecimalField(max_digits=12, decimal_places=2)
 
     class Meta:
-        verbose_name = "package extra mapping"
-        verbose_name_plural = "package extras mapping"
-        db_table = "dc_package_extras_mapping"
+        verbose_name = "extra charges till 5.30"
+        verbose_name_plural = "extra charges till 5.30"
+        db_table = "dc_extrachargestill530"
 
 
 class HolidayType(BaseClass):

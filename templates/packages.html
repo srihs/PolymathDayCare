@@ -45,7 +45,6 @@
           <th>To</th>
           <th>No of days per week</th>
           <th>No of days per month</th>
-          <th>Holiday package?</th>
           <th>Package amount</th>
 
         </tr>
@@ -84,23 +83,24 @@
         {% csrf_token %}
         <div class="modal-body">
           <div class="row g-3">
+            <div class="col-sm-4">{{form.package_type}}</div>
             <div class="col-sm-4">{{form.package_code}}</div>
             <div class="col-sm-4">{{form.package_name}}</div>
-            <div class="col-sm-4">{{form.package_type}}</div>
+            
             <div class="col-sm-4">{{form.from_time}}</div>
             <div class="col-sm-4">{{form.to_time}}</div>
             <div class="col-sm-4">{{form.no_days_week}}</div>
             <div class="col-sm-4">{{form.no_days_months}}</div>
             <div class="col-sm-4">{{form.package_total}}</div>
             <div class="col-sm-4">
-              <div>
+              <!-- <div>
                 <div class="form-check form-switch">
                   {{form.is_holiday_package}}
                   <label class="form-check-label" for="formCheck8">
                     Is holiday package?
                   </label>
                 </div>
-              </div>
+              </div> -->
             </div>
 
 
@@ -120,7 +120,7 @@
 
                     <div class="row">
                       <div class="col-sm-12">
-                        <table id="extraRatesbefore5" name="extraRates" class="display" style="width:100%">
+                        <table id="extraRatesbefore5" name="extraRatesbefore5" class="display" style="width:100%">
                           <thead>
                             <tr>
                               <th>
@@ -185,18 +185,18 @@
               </div>
             </div><!--end col-->
           </div>
-
-
-        </div>
-
-        <div class="modal-footer" style="display: block">
-          <div class="hstack gap-2 justify-content-end">
-            <button type="button" class="btn btn-light" data-bs-dismiss="modal">
-              Close
-            </button>
-            <button class="btn btn-secondary" type="submit">Save</button>
+          <div class="modal-footer" style="display: block">
+            <div class="hstack gap-2 justify-content-end">
+              <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                Close
+              </button>
+              <button class="btn btn-secondary" type="submit">Save</button>
+            </div>
           </div>
+
         </div>
+
+       
       </form>
     </div>
   </div>
@@ -279,50 +279,49 @@
         { data: "to_time" },
         { data: "no_days_week" },
         { data: "no_days_months" },
-        { data: "is_holiday_package" },
         { data: "package_total", className: "text-right" },
 
       ],
 
-      createdRow: function (row, data, dataIndex) {
-        // Check the condition for the 'is_holiday_rate' column
+      // createdRow: function (row, data, dataIndex) {
+      //   // Check the condition for the 'is_holiday_rate' column
 
-        if (data.is_holiday_package === 'Yes') {
-          $("td", row).eq(7).html('<span class="badge bg-success">Yes</span>');
-        } else {
+      //   // if (data.is_holiday_package === 'Yes') {
+      //   //   $("td", row).eq(7).html('<span class="badge bg-success">Yes</span>');
+      //   // } else {
 
-          $("td", row).eq(7).html('<span class="badge bg-warning">No</span>');
-        }
+      //   //   $("td", row).eq(7).html('<span class="badge bg-warning">No</span>');
+      //   // }
 
-      },
+      // },
       searching: false,
       paging: false,
       order: [[0, "asc"]], // Set default sorting by admission_date in descending order
     });
 
 
-    var tables = $("#extraRates").DataTable({
-      responsive: true,
-      ajax: {
-        processing: true,
-        url: "{% url 'core:view_additional_rates_js' %}",
-        dataSrc: "",
-      },
-      columns: [
-        { data: "" },
-        { data: "from_time" },
-        { data: "to_time" },
-        { data: "extra_rate" },
-      ],
+    // var tables = $("#extraRates").DataTable({
+    //   responsive: true,
+    //   ajax: {
+    //     processing: true,
+    //     url: "{% url 'core:view_additional_rates_js' %}",
+    //     dataSrc: "",
+    //   },
+    //   columns: [
+    //     { data: "" },
+    //     { data: "from_time" },
+    //     { data: "to_time" },
+    //     { data: "extra_rate" },
+    //   ],
 
-      createdRow: function (row, data, dataIndex) {
-        $("td", row).eq(0).html('<input type="checkbox"></input>');
-      },
-      info: false,
-      ordering: false,
-      paging: false,
-      searching: false
-    });
+    //   createdRow: function (row, data, dataIndex) {
+    //     $("td", row).eq(0).html('<input type="checkbox"></input>');
+    //   },
+    //   info: false,
+    //   ordering: false,
+    //   paging: false,
+    //   searching: false
+    // });
   });
 
   jQuery("#from_time").flatpickr({
@@ -480,7 +479,17 @@
   });
 
   var tablebefore5;
-  dataTable = new DataTable('#extraRatesbefore5', {
+  tablebefore5 = new DataTable('#extraRatesbefore5', {
+    info: false,
+    ordering: false,
+    paging: false,
+    searching: false
+  });
+
+
+  var tablebeafter5;
+
+  tablebeafter5 = new DataTable('#extraRates', {
     info: false,
     ordering: false,
     paging: false,
@@ -491,41 +500,41 @@
 
 
 
-  // jQuery('#base_rate').on('change', function (e) {
-  //   getRatesforTable();
-  //   dataTable.clear();
-  // });
+  jQuery('#package_type').on('change', function (e) {
+    getRatesforTable();
+    tablebeafter5.clear();
+  });
 
-  // function getRatesforTable() {
-  //   var baseRateId = jQuery("#base_rate").val();
-  //   if (baseRateId) {
-  //     jQuery.ajax({
-  //       url: "{% url 'core:view_additional_rates_js' %}",
-  //       type: "GET",
-  //       data: { base_rate_id: baseRateId },
-  //       beforeSend: function () { },
-  //       success: function (response) {
-  //         jQuery.each(response, function (i, item) {
-  //           dataTable.row.add(
-  //             [
-  //               '<input type="checkbox"></input>',
-  //               response[i].from_time,
-  //               response[i].to_time,
-  //               response[i].extra_rate,
+  function getRatesforTable() {
+    var package_type_id = jQuery("#package_type").val();
+    if (package_type_id) {
+      jQuery.ajax({
+        url: "{% url 'core:view_additional_rates_js' %}",
+        type: "GET",
+        data: { package_type_id: package_type_id },
+        beforeSend: function () { },
+        success: function (response) {
+          jQuery.each(response, function (i, item) {
+            tablebeafter5.row.add(
+              [
+                '<input type="checkbox"></input>',
+                response[i].from_time,
+                response[i].to_time,
+                response[i].extra_rate,
 
-  //             ],)
-  //         });
+              ],)
+          });
 
-  //         dataTable.draw();
-  //       }, error: function (response) {
-  //         console.log(response);
-  //       }
-  //     });
-  //   }
-  //   else {
-  //     dataTable.clear().draw();
-  //   }
-  // }
+          tablebeafter5.draw();
+        }, error: function (response) {
+          console.log(response);
+        }
+      });
+    }
+    else {
+      tablebeafter5.clear().draw();
+    }
+  }
 
 
 
