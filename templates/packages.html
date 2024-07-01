@@ -46,6 +46,8 @@
           <th>No of days per week</th>
           <th>No of days per month</th>
           <th>Package amount</th>
+          <th data-orderable="false"></th>
+          <th data-orderable="false"></th>
 
         </tr>
       </thead>
@@ -71,8 +73,8 @@
 </div>
 
 <!-- Settings Form -->
-<div class="modal fade" id="showModalCreate" tabindex="-1" aria-labelledby="exampleModalLabel"
-  style="display: none" aria-hidden="true">
+<div class="modal fade" id="showModalCreate" tabindex="-1" aria-labelledby="exampleModalLabel" style="display: none"
+  aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content border-0">
       <div class="modal-header">
@@ -86,7 +88,7 @@
             <div class="col-sm-4">{{form.package_type}}</div>
             <div class="col-sm-4">{{form.package_code}}</div>
             <div class="col-sm-4">{{form.package_name}}</div>
-            
+
             <div class="col-sm-4">{{form.from_time}}</div>
             <div class="col-sm-4">{{form.to_time}}</div>
             <div class="col-sm-4">{{form.no_days_week}}</div>
@@ -107,46 +109,6 @@
 
           </div>
           </br>
-          
-          <div class="row">
-            <div class="col-lg-12">
-              <div class="card">
-                <div class="card-header d-flex align-items-center">
-                  <h5 class="card-title mb-0 flex-grow-1">Additional Charges after 5.30 p.m</h5>
-
-                </div>
-                <div class="card-body">
-
-                  <div id="add-rows_wrapper" class="dataTables_wrapper dt-bootstrap5 no-footer">
-
-                    <div class="row">
-                      <div class="col-sm-12">
-                        <table id="extraRates" name="extraRates" class="display" style="width:100%">
-                          <thead>
-                            <tr>
-                              <th>
-
-                              </th>
-                              <th>From time</th>
-                              <th>To time</th>
-                              <th>Rate</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                    <div class="row">
-
-
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div><!--end col-->
-          </div>
           <div class="modal-footer" style="display: block">
             <div class="hstack gap-2 justify-content-end">
               <button type="button" class="btn btn-light" data-bs-dismiss="modal">
@@ -158,7 +120,7 @@
 
         </div>
 
-       
+
       </form>
     </div>
   </div>
@@ -241,19 +203,64 @@
         { data: "to_time" },
         { data: "no_days_week" },
         { data: "no_days_months" },
-        { data: "package_total", className: "text-right" },
+        {
+            data: "package_total",
+            className: "dt-right",
+            render: $.fn.dataTable.render.number(',', '.', 2) // Add thousand separators
+        },
+        {
+          data: null,
+          className: "dt-right",
+          render: function (data, type, row) {
+            url = "{% url 'core:approve_discount' %}";
+            id = row.id;
+
+            // Convert to_time to a Date object
+            var to_time_parts = row.to_time.split(':');
+            var to_time = new Date();
+            to_time.setHours(parseInt(to_time_parts[0], 10));
+            to_time.setMinutes(parseInt(to_time_parts[1], 10));
+            to_time.setSeconds(parseInt(to_time_parts[2], 10));
+
+            // Set the cutoff time to 17:30:00
+            var cutoff_time = new Date();
+            cutoff_time.setHours(17, 30, 00);
+
+            if (to_time > cutoff_time) {
+             
+              return 'Charges till 5.30p.m';
+            } 
+            else {
+              return '<a href="' + url + '" class="link-secondary" data-id="' + id + '" data-bs-target="#firstmodal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button">Charges till 5.30p.m</a>';
+            }
+
+
+          },
+        },
+
+        {
+          data: null,
+          className: "dt-right",
+          render: function (data, type, row) {
+            var url = "{% url 'core:reject_discount' %}";
+            id = row.id;
+            return data =
+              '<a href=' + url + ' class="link-danger"  data-id=' + id + ' data-bs-target="#secondmodal"\
+                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button">Charges after 5.30p.m</a>';
+          },
+        },
 
       ],
 
       // createdRow: function (row, data, dataIndex) {
-      //   // Check the condition for the 'is_holiday_rate' column
+      //   Check the condition for the 'is_holiday_rate' column
 
-      //   // if (data.is_holiday_package === 'Yes') {
-      //   //   $("td", row).eq(7).html('<span class="badge bg-success">Yes</span>');
-      //   // } else {
+      //   if (data.is_holiday_package === 'Yes') {
+      //     $("td", row).eq(7).html('<span class="badge bg-success">Yes</span>');
+      //   } else {
 
-      //   //   $("td", row).eq(7).html('<span class="badge bg-warning">No</span>');
-      //   // }
+      //     $("td", row).eq(7).html('<span class="badge bg-warning">No</span>');
+      //   }
 
       // },
       searching: false,
@@ -359,7 +366,7 @@
     window.parent.location = window.parent.location.href;
   });
 
-  
+
   jQuery("#showModalCreate").on("hidden.bs.modal", function () {
     jQuery(this).find("form").trigger("reset");
 

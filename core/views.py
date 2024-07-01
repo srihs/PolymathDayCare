@@ -39,8 +39,8 @@ from .models import (
     ChildEnrollment,
     DayCare,
     Discount,
-    ExtraCharges,
     ExtraChargesHistory,
+    ExtraHoursAfter530,
     Package,
     PackageType,
 )
@@ -493,7 +493,7 @@ def getAdditionalRatesJs(request):
     additionalRatesList = None
     if request.GET.get("package_type_id") is not None:
         additionalRatesList = list(
-            ExtraCharges.objects.filter(
+            ExtraHoursAfter530.objects.filter(
                 is_active=True, package_type=request.GET.get("package_type_id")
             ).values(
                 "id",
@@ -515,7 +515,7 @@ def getAdditionalRatesByIdJs(request):
     if request.GET.get("package_type_Id") is not None:
         additionalRatesList = None
         additionalRatesList = list(
-            ExtraCharges.objects.filter(
+            ExtraHoursAfter530.objects.filter(
                 is_active=True, package_type=request.GET.get("package_type_Id")
             ).values(
                 "id",
@@ -537,7 +537,9 @@ def getAdditionalRateById(request):
     try:
         rate_form = None
         if request.GET.get("rate_id") is not None:
-            objRate = get_object_or_404(ExtraCharges, pk=request.GET.get("rate_id"))
+            objRate = get_object_or_404(
+                ExtraHoursAfter530, pk=request.GET.get("rate_id")
+            )
             request.session["id"] = objRate.id
             request.session.modified = True
 
@@ -569,7 +571,7 @@ def saveAdditionalRates(request):
                 objAdditionalRates = form.save(commit=False)
 
                 # ----------Check if the entered timeslot already defined -----------------
-                objExtraChargestchek = ExtraCharges.objects.filter(
+                objExtraChargestchek = ExtraHoursAfter530.objects.filter(
                     from_time=objAdditionalRates.from_time,
                     to_time=objAdditionalRates.to_time,
                     package_type=request.session["package_type_id"],
@@ -618,7 +620,7 @@ def updateAdditionalRates(request):
 
             if id is not None:
                 user = User.objects.get(username=request.user.username)
-                objNewAdditionalRates = get_object_or_404(ExtraCharges, pk=id)
+                objNewAdditionalRates = get_object_or_404(ExtraHoursAfter530, pk=id)
 
                 if objNewAdditionalRates is not None:
                     if user.groups.filter(name="Data Entry").exists():
@@ -795,7 +797,7 @@ def getPackages(request):
             nextId = Package.objects.all().count()
             nextId += 1
             packageTypeCount = PackageType.objects.all().count()
-            extraChargesCount = ExtraCharges.objects.all().count()
+            extraChargesCount = ExtraHoursAfter530.objects.all().count()
             if packageTypeCount == 0:
                 messages.error(request, "Package Types are not defined.")
             if extraChargesCount == 0:
@@ -835,6 +837,13 @@ def getPackagesJs(request):
             )
         )
 
+        for i, n in enumerate(packageList):
+            if n["package_type"]:
+                package_type = PackageType.objects.filter(
+                    pk=packageList[i]["package_type"]
+                ).first()
+                packageList[i]["package_type"] = package_type.package_type_name
+
     return JsonResponse(packageList, safe=False)
 
 
@@ -858,14 +867,12 @@ def savePackage(request):
         if form.is_valid():
             objPackage = form.save(commit=False)
 
-            objBaseRate = Rates.objects.get(pk=request.POST.get("base_rate"))
-
-            objPackage.base_rate = objBaseRate
+            objPackageType = PackageType.objects.get(
+                pk=request.POST.get("package_type")
+            )
+            objPackage.package_type = objPackageType
             objPackage.user_created = request.user.username
 
-            # is_holiday_package = objBaseRate.checkIfHolidayPackage()
-
-            # objPackage.is_holiday_package = is_holiday_package
             objPackage.save()
             messages.success(request, "Package details saved.")
         else:

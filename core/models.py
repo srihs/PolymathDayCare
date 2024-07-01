@@ -88,7 +88,7 @@ class Discount(BaseClass):
 #         return self.rate.rate_name
 
 
-class ExtraCharges(BaseClass):
+class ExtraHoursAfter530(BaseClass):
     package_type = models.ForeignKey(PackageType, on_delete=models.CASCADE)
     from_time = models.TimeField()
     to_time = models.TimeField()
@@ -115,7 +115,7 @@ class ExtraCharges(BaseClass):
 
 
 class ExtraChargesHistory(BaseClass):
-    extra_charges = models.ForeignKey(ExtraCharges, on_delete=models.CASCADE)
+    extra_charges = models.ForeignKey(ExtraHoursAfter530, on_delete=models.CASCADE)
     from_time = models.TimeField()
     to_time = models.TimeField()
     extra_rate = models.DecimalField(max_digits=8, decimal_places=2)
@@ -204,7 +204,7 @@ class Package(BaseClass):
         super().save(*args, **kwargs)
 
 
-class PackageExtraHoursUpTo530(BaseClass):
+class ExtraHoursUpTo530(BaseClass):
     package = models.ForeignKey(Package, on_delete=models.CASCADE)
     from_time = models.TimeField()
     to_time = models.TimeField()
@@ -214,6 +214,16 @@ class PackageExtraHoursUpTo530(BaseClass):
         verbose_name = "extra charges till 5.30"
         verbose_name_plural = "extra charges till 5.30"
         db_table = "dc_extrachargestill530"
+
+
+class PackageExtraHoursAfter530(BaseClass):
+    package = models.ForeignKey(Package, on_delete=models.CASCADE)
+    extra_charges = models.ForeignKey(ExtraHoursAfter530, on_delete=models.CASCADE)
+
+    class Meta:
+        verbose_name = "package mapping extra charges till 5.30"
+        verbose_name_plural = "extra charges till 5.30"
+        db_table = "dc_packageextrachargestill530"
 
 
 class HolidayType(BaseClass):

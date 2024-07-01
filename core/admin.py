@@ -4,7 +4,7 @@ from .models import (
     Branch,
     Child,
     ChildEnrollment,
-    ExtraCharges,
+    ExtraHoursAfter530,
     Holiday,
     HolidayType,
     Package,
@@ -14,7 +14,7 @@ from .models import (
 admin.site.register(Child)
 # admin.site.register(Rates)
 # admin.site.register(RateHistory)
-admin.site.register(ExtraCharges)
+admin.site.register(ExtraHoursAfter530)
 admin.site.register(Package)
 admin.site.register(HolidayType)
 admin.site.register(Holiday)

@@ -10,7 +10,7 @@ from .models import (
     ChildEnrollment,
     DayCare,
     Discount,
-    ExtraCharges,
+    ExtraHoursAfter530,
     Package,
     PackageType,
 )
@@ -604,7 +604,7 @@ class CreateExtraChargesForm(forms.ModelForm):
     )
 
     class Meta:
-        model = ExtraCharges
+        model = ExtraHoursAfter530
         fields = (
             "package_type",
             "from_time",
@@ -661,7 +661,7 @@ class UpdateExtraChargesForm(forms.ModelForm):
     )
 
     class Meta:
-        model = ExtraCharges
+        model = ExtraHoursAfter530
         fields = (
             "id",
             "from_time",
