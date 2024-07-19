@@ -11,6 +11,7 @@ from .models import (
     DayCare,
     Discount,
     ExtraHoursAfter530,
+    ExtraHoursUpTo530,
     Package,
     PackageType,
 )
@@ -1449,4 +1450,59 @@ class SearchForm(forms.Form):
             "holiday_package",
             "discount",
             "recipt_number",
+        )
+
+
+class CreateExtraHoursUpTo530Form(forms.ModelForm):
+    from_time = forms.TimeField(
+        required=True,
+        widget=forms.TimeInput(
+            attrs={
+                "id": "to_time",
+                "class": "form-control",
+                "placeholder": "To Time",
+                "required": "true",
+            }
+        ),
+    )
+
+    to_time = forms.TimeField(
+        required=True,
+        widget=forms.TimeInput(
+            attrs={
+                "id": "to_time",
+                "class": "form-control",
+                "placeholder": "To Time",
+                "required": "true",
+            }
+        ),
+    )
+
+    extra_rate = forms.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+        required=True,
+        widget=forms.NumberInput(
+            attrs={"class": "form-control", "placeholder": "Rate"}
+        ),
+    )
+
+    id = forms.CharField(
+        max_length=250,
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+            }
+        ),
+    )
+
+    class Meta:
+        model = ExtraHoursUpTo530
+        fields = (
+            "id",
+            "from_time",
+            "to_time",
+            "extra_rate",
         )

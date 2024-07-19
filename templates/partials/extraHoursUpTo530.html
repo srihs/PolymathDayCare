@@ -1,0 +1,26 @@
+{% load static %}
+<div class="modal-body" bs-focus="false">
+    <!-- {% url 'core:save_rates_forBaseRate'  %} -->
+    <form action=""
+    method="POST"
+    class="tablelist-form"
+    autocomplete="on"
+  >
+    {% csrf_token %}
+        <div class="mb-3">
+            {{formU.from_time}}
+        </div>
+        <div class="mb-3">
+            {{formU.to_time}}
+        </div>
+        <div class="mb-3">
+            {{formU.extra_rate}}
+        </div>
+       
+        <input type="hidden" id="rate_id" name="rate_id" value={{id}}>
+        
+        <div class="text-end">
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </div>
+    </form>
+</div>

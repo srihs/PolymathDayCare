@@ -66,6 +66,11 @@ urlpatterns = [
         views.updateAdditionalRates,
         name="update_additional_rates",
     ),
+    path(
+        "get_ExtraHoursUpto530/",
+        views.getExtraHoursUpto530,
+        name="get_ExtraHoursUpto530",
+    ),
     path("packages/", views.getPackages, name="view_packages"),
     path("get_packages_js/", views.getPackagesJs, name="view_packages_js"),
     path("save_package/", views.savePackage, name="save_package"),

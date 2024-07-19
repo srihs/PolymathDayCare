@@ -126,7 +126,27 @@
   </div>
 </div>
 
+<div class="modal fade" id="divbefore530" tabindex="-1" aria-labelledby="exampleModalFullscreenLgLabel" style="display: none;" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen-lg-down">
+      <div class="modal-content">
+          <div class="modal-header">
+              <h4 class="modal-title" id="exampleModalFullscreenLgLabel">Charges before 5.30p.m</h4>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+              <h4 class="fs-15"> Please define the extra charges upto 5.30p.m</h6> </h4><br>
+              <div id="modelForm">
 
+              </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+              Close
+          </button>
+              <button type="button" class="btn btn-primary ">Save changes</button>
+          </div>
+      </div>
+  </div>
+</div>
 
 
 <!--Update Form-->
@@ -212,7 +232,7 @@
           data: null,
           className: "dt-right",
           render: function (data, type, row) {
-            url = "{% url 'core:approve_discount' %}";
+            // url = "{% url 'core:approve_discount' %}";
             id = row.id;
 
             // Convert to_time to a Date object
@@ -226,12 +246,13 @@
             var cutoff_time = new Date();
             cutoff_time.setHours(17, 30, 00);
 
-            if (to_time > cutoff_time) {
+            if (to_time >= cutoff_time) {
              
               return 'Charges till 5.30p.m';
             } 
             else {
-              return '<a href="' + url + '" class="link-secondary" data-id="' + id + '" data-bs-target="#firstmodal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button">Charges till 5.30p.m</a>';
+              url = "{% url 'core:get_ExtraHoursUpto530' %}";
+              return '<a href="'+ url+ '" class="link-secondary" data-id="' + id + '"  data-bs-toggle="modal"  role="button">Charges till 5.30p.m</a>';
             }
 
 
@@ -315,12 +336,13 @@
 
   var url = "";
 
-  jQuery(document).on("click", ".link-success", function (e) {
+  jQuery(document).on("click", ".link-secondary", function (e) {
     e.preventDefault();
     url = jQuery(this).attr("href");
+    alert(url);
 
     // Show the modal
-    jQuery("#showUpdateModal").modal("show");
+    jQuery("#divbefore530").modal("show");
 
     // Load the form into the modal using AJAX
     jQuery.ajax({

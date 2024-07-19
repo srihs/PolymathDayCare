@@ -23,6 +23,7 @@ from .forms import (
     CreateDiscountForm,
     CreateEnrollmentForm,
     CreateExtraChargesForm,
+    CreateExtraHoursUpTo530Form,
     CreatePackagesForm,
     CreatePackageTypeForm,
     SearchForm,
@@ -41,6 +42,7 @@ from .models import (
     Discount,
     ExtraChargesHistory,
     ExtraHoursAfter530,
+    ExtraHoursUpTo530,
     Package,
     PackageType,
 )
@@ -678,6 +680,28 @@ def calculate_duration(request):
     except Exception as e:
         # Handle other exceptions
         return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getExtraHoursUpto530(request):
+    try:
+        objxtraHoursUpto530 = None
+        rate_form = None
+        if request.GET.get("rate_id") is not None:
+            objxtraHoursUpto530 = get_object_or_404(
+                ExtraHoursUpTo530, pk=request.GET.get("rate_id")
+            )
+            request.session["id"] = objxtraHoursUpto530.id
+            request.session.modified = True
+
+        if objxtraHoursUpto530 is not None:
+            rate_form = CreateExtraHoursUpTo530Form(instance=objxtraHoursUpto530)
+
+    except Exception as e:
+        messages.error(request, e)
+    return render(
+        request, "../templates/partials/extraHoursUpTo530.html", {"formU": rate_form}
+    )
 
 
 # This method will save the Rate history for a give base rate.
