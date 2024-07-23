@@ -1,7 +1,7 @@
 {% load static %}
 <div class="modal-body" bs-focus="false">
-    <!-- {% url 'core:save_rates_forBaseRate'  %} -->
-    <form action=""
+   
+    <form action="#"
     method="POST"
     class="tablelist-form"
     autocomplete="on"
@@ -18,9 +18,7 @@
         </div>
        
         <input type="hidden" id="rate_id" name="rate_id" value={{id}}>
+            <button type="button" class="btn btn-primary ">Save changes</button></br>
         
-        <div class="text-end">
-            <button type="submit" class="btn btn-primary">Submit</button>
-        </div>
     </form>
 </div>

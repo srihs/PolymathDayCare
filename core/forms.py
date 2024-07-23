@@ -1460,7 +1460,7 @@ class CreateExtraHoursUpTo530Form(forms.ModelForm):
             attrs={
                 "id": "to_time",
                 "class": "form-control",
-                "placeholder": "To Time",
+                "placeholder": "From Time",
                 "required": "true",
             }
         ),

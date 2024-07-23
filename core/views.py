@@ -696,6 +696,8 @@ def getExtraHoursUpto530(request):
 
         if objxtraHoursUpto530 is not None:
             rate_form = CreateExtraHoursUpTo530Form(instance=objxtraHoursUpto530)
+        else:
+            rate_form = CreateExtraHoursUpTo530Form()
 
     except Exception as e:
         messages.error(request, e)
