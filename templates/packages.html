@@ -47,7 +47,6 @@
           <th>No of days per month</th>
           <th>Package amount</th>
           <th data-orderable="false"></th>
-          <th data-orderable="false"></th>
 
         </tr>
       </thead>
@@ -255,17 +254,7 @@
           },
         },
 
-        {
-          data: null,
-          className: "dt-right",
-          render: function (data, type, row) {
-            var url = "{% url 'core:reject_discount' %}";
-            id = row.id;
-            return data =
-              '<a href=' + url + ' class="link-danger"  data-id=' + id + ' data-bs-target="#secondmodal"\
-                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button">Charges after 5.30p.m</a>';
-          },
-        },
+       
 
       ],
 
