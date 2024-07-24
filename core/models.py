@@ -114,20 +114,6 @@ class ExtraHoursAfter530(BaseClass):
         )
 
 
-class ExtraChargesHistory(BaseClass):
-    extra_charges = models.ForeignKey(ExtraHoursAfter530, on_delete=models.CASCADE)
-    from_time = models.TimeField()
-    to_time = models.TimeField()
-    extra_rate = models.DecimalField(max_digits=8, decimal_places=2)
-    effective_from = models.DateField()
-    effective_to = models.DateField(null=True)
-
-    class Meta:
-        verbose_name = "Extra Charge History"
-        verbose_name_plural = "Extra Charge History"
-        db_table = "dc_extrachargeshistory"
-
-
 class Child(BaseClass):
     admission_number = models.CharField(max_length=10)
     child_first_name = models.CharField(max_length=150)
@@ -205,25 +191,44 @@ class Package(BaseClass):
 
 
 class ExtraHoursUpTo530(BaseClass):
-    package = models.ForeignKey(Package, on_delete=models.CASCADE)
+    package_type = models.ForeignKey(PackageType, on_delete=models.CASCADE)
+
     from_time = models.TimeField()
     to_time = models.TimeField()
     rate = models.DecimalField(max_digits=12, decimal_places=2)
+    effective_from = models.DateField()
+    effective_to = models.DateField(null=True)
 
     class Meta:
         verbose_name = "extra charges till 5.30"
         verbose_name_plural = "extra charges till 5.30"
         db_table = "dc_extrachargestill530"
 
+    def __str__(self):
+        return (
+            self.package_type.package_type_name
+            + "-"
+            + str(self.from_time)
+            + "-"
+            + str(self.to_time)
+            + "-"
+            + str(self.is_active)
+        )
 
-class PackageExtraHoursAfter530(BaseClass):
+
+class PackageExtraHoursMapping(BaseClass):
     package = models.ForeignKey(Package, on_delete=models.CASCADE)
-    extra_charges = models.ForeignKey(ExtraHoursAfter530, on_delete=models.CASCADE)
+    extra_hours_upto_530 = models.ForeignKey(
+        ExtraHoursUpTo530, on_delete=models.CASCADE
+    )
+    extra_hours_after_530 = models.ForeignKey(
+        ExtraHoursAfter530, on_delete=models.CASCADE
+    )
 
     class Meta:
-        verbose_name = "package mapping extra charges till 5.30"
-        verbose_name_plural = "extra charges till 5.30"
-        db_table = "dc_packageextrachargestill530"
+        verbose_name = "package mapping extra charges upto 5.30"
+        verbose_name_plural = "extra charges upto 5.30"
+        db_table = "dc_packageextrachargesmapping"
 
 
 class HolidayType(BaseClass):
@@ -330,3 +335,22 @@ class AttendanceLog(BaseClass):
         verbose_name = "Attendance Log"
         verbose_name_plural = "Attendance Logs"
         db_table = "dc_attendancelog"
+
+
+class ExtraChargesHistory(BaseClass):
+    extra_charges_after530 = models.ForeignKey(
+        ExtraHoursAfter530, on_delete=models.CASCADE, null=True, blank=True
+    )
+    extra_charges_before530 = models.ForeignKey(
+        ExtraHoursUpTo530, on_delete=models.CASCADE, null=True, blank=True
+    )
+    from_time = models.TimeField()
+    to_time = models.TimeField()
+    extra_rate = models.DecimalField(max_digits=8, decimal_places=2)
+    effective_from = models.DateField()
+    effective_to = models.DateField(null=True)
+
+    class Meta:
+        verbose_name = "Extra Charge History"
+        verbose_name_plural = "Extra Charge History"
+        db_table = "dc_extrachargeshistory"

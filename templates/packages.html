@@ -46,7 +46,8 @@
           <th>No of days per week</th>
           <th>No of days per month</th>
           <th>Package amount</th>
-          <th data-orderable="false"></th>
+          <th data-orderable="false"> Extra Charges</th>
+          <th data-orderable="false">Extra Charges</th>
 
         </tr>
       </thead>
@@ -243,60 +244,35 @@
 
             if (to_time >= cutoff_time) {
              
-              return 'Charges till 5.30p.m';
+              return 'upto 5.30p.m';
             } 
             else {
               url = "{% url 'core:get_ExtraHoursUpto530' %}";
-              return '<a href="'+ url+ '" class="link-secondary" data-id="' + id + '"  data-bs-toggle="modal"  role="button">Charges till 5.30p.m</a>';
+              return '<a href="'+ url+ '" class="link-secondary" data-id="' + id + '"  data-bs-toggle="modal"  role="button">upto 5.30p.m</a>';
             }
 
 
+          },
+        },
+        {
+          data: null,
+          className: "dt-right",
+          render: function (data, type, row) {
+           return '<a href="'+ url+ '" class="link-secondary" data-id="' + id + '"  data-bs-toggle="modal"  role="button">after 5.30p.m</a>';
           },
         },
 
        
 
       ],
-
-      // createdRow: function (row, data, dataIndex) {
-      //   Check the condition for the 'is_holiday_rate' column
-
-      //   if (data.is_holiday_package === 'Yes') {
-      //     $("td", row).eq(7).html('<span class="badge bg-success">Yes</span>');
-      //   } else {
-
-      //     $("td", row).eq(7).html('<span class="badge bg-warning">No</span>');
-      //   }
-
-      // },
+     
       searching: false,
       paging: false,
       order: [[0, "asc"]], // Set default sorting by admission_date in descending order
     });
 
 
-    // var tables = $("#extraRates").DataTable({
-    //   responsive: true,
-    //   ajax: {
-    //     processing: true,
-    //     url: "{% url 'core:view_additional_rates_js' %}",
-    //     dataSrc: "",
-    //   },
-    //   columns: [
-    //     { data: "" },
-    //     { data: "from_time" },
-    //     { data: "to_time" },
-    //     { data: "extra_rate" },
-    //   ],
 
-    //   createdRow: function (row, data, dataIndex) {
-    //     $("td", row).eq(0).html('<input type="checkbox"></input>');
-    //   },
-    //   info: false,
-    //   ordering: false,
-    //   paging: false,
-    //   searching: false
-    // });
   });
 
   jQuery("#from_time").flatpickr({
