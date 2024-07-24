@@ -11,7 +11,6 @@ from .models import (
     DayCare,
     Discount,
     ExtraHoursAfter530,
-    ExtraHoursUpTo530,
     Package,
     PackageType,
 )
@@ -1454,18 +1453,32 @@ class SearchForm(forms.Form):
 
 
 class CreateExtraHoursUpTo530Form(forms.ModelForm):
+    package_type = forms.ModelChoiceField(
+        required=True,
+        queryset=PackageType.objects.filter(is_active=True).order_by(
+            "package_type_name"
+        ),
+        empty_label="-Select Package Type -",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Package Type",
+                "id": "package_type",
+            }
+        ),
+    )
     from_time = forms.TimeField(
         required=True,
         widget=forms.TimeInput(
             attrs={
-                "id": "to_time",
+                "id": "from_time",
                 "class": "form-control",
                 "placeholder": "From Time",
+                "data-provider": "flatpickr",
                 "required": "true",
             }
         ),
     )
-
     to_time = forms.TimeField(
         required=True,
         widget=forms.TimeInput(
@@ -1487,22 +1500,39 @@ class CreateExtraHoursUpTo530Form(forms.ModelForm):
             attrs={"class": "form-control", "placeholder": "Rate"}
         ),
     )
-
-    id = forms.CharField(
-        max_length=250,
-        required=False,
-        widget=forms.TextInput(
+    effective_from = forms.DateField(
+        required=True,
+        widget=MyDateInput(
             attrs={
                 "class": "form-control",
+                "required": "true",
+                "id": "effective_from",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+                "placeholder": "Effective from",
+            }
+        ),
+    )
+    effective_to = forms.DateField(
+        required=False,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "effective_to",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+                "placeholder": "Effective to",
             }
         ),
     )
 
     class Meta:
-        model = ExtraHoursUpTo530
+        model = ExtraHoursAfter530
         fields = (
-            "id",
+            "package_type",
             "from_time",
-            "to_time",
             "extra_rate",
+            "to_time",
+            "effective_from",
+            "effective_to",
         )
