@@ -11,6 +11,7 @@ from .models import (
     DayCare,
     Discount,
     ExtraHoursAfter530,
+    ExtraHoursUpTo530,
     Package,
     PackageType,
 )
@@ -1527,7 +1528,7 @@ class CreateExtraHoursUpTo530Form(forms.ModelForm):
     )
 
     class Meta:
-        model = ExtraHoursAfter530
+        model = ExtraHoursUpTo530
         fields = (
             "package_type",
             "from_time",

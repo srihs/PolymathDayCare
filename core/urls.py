@@ -22,11 +22,6 @@ urlpatterns = [
         name="getChildWithEnrolementsJson",
     ),
     path(
-        "hourextrarates/",
-        views.getAdditionalRatesforExtraHours,
-        name="get_Additional_Ratesfor_Extra_Hours",
-    ),
-    path(
         "getPackageTypeIdJs",
         views.getPackageTypeIdJs,
         name="getPackageTypeIdJs",
@@ -36,6 +31,21 @@ urlpatterns = [
     path("get_package_types_js/", views.getPackageTypeJs, name="get_package_types_js"),
     path("calculate_duration/", views.calculate_duration, name="calculate_duration"),
     path("additional_rates/", views.getAdditionalRates, name="view_additional_rates"),
+    path(
+        "additional_rates_upto530/",
+        views.getExtraHoursUpto530,
+        name="additional_rates_upto530",
+    ),
+    path(
+        "save_AdditionalRates_Upto530/",
+        views.saveAdditionalRatesUpTo530,
+        name="save_AdditionalRates_Upto530",
+    ),
+    path(
+        "get_AdditionalRates_Upto530_By_Id_Js/",
+        views.getAdditionalRatesUpto530ByIdJs,
+        name="get_AdditionalRates_Upto530_By_Id_Js",
+    ),
     path(
         "additional_rates_js/",
         views.getAdditionalRatesJs,
@@ -66,11 +76,11 @@ urlpatterns = [
         views.updateAdditionalRates,
         name="update_additional_rates",
     ),
-    path(
-        "get_ExtraHoursUpto530/",
-        views.getExtraHoursUpto530,
-        name="get_ExtraHoursUpto530",
-    ),
+    # path(
+    #     "get_ExtraHoursUpto530/",
+    #     views.getExtraHoursUpto530,
+    #     name="get_ExtraHoursUpto530",
+    # ),
     path("packages/", views.getPackages, name="view_packages"),
     path("get_packages_js/", views.getPackagesJs, name="view_packages_js"),
     path("save_package/", views.savePackage, name="save_package"),

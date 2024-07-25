@@ -10,7 +10,7 @@
 <div class="card">
     <div class="card-header border-0">
         <div class="d-flex align-items-center">
-            <h5 class="card-title mb-0 flex-grow-1">Additional hours rates after 5.30 p.m</h5>
+            <h5 class="card-title mb-0 flex-grow-1">Additional hours rates upto 5.30 p.m</h5>
             
         </div>
     </div>
@@ -37,7 +37,7 @@
                 {% endfor %} {% endif %}
                 <!-- end row -->
             </div>
-            <form id="additionalRatesForm"  action="{% url 'core:save_additional_rates' %}"
+            <form id="additionalRatesForm"  action="{% url 'core:save_AdditionalRates_Upto530' %}"
             method="POST">
             {% csrf_token %}
                     <div class="row ">
@@ -143,7 +143,7 @@
                         id="close-modal"></button>
             </div>
             <form
-                    action="{% url 'core:save_additional_rates' %}"
+                    action="{% url 'core:save_AdditionalRates_Upto530' %}"
                     method="POST"
                     class="tablelist-form"
                     autocomplete="on">
@@ -506,7 +506,7 @@
         if (package_type_Id) 
         {
             jQuery.ajax({
-                url: "{% url 'core:get_AdditionalRates_By_Id_Js' %}",
+                url: "{% url 'core:get_AdditionalRates_Upto530_By_Id_Js' %}",
                 type: "GET",
                 data: { package_type_Id: package_type_Id },
                 beforeSend: function () { },

@@ -461,8 +461,109 @@ def savePackageTypes(request):
 
 
 @login_required
-def getAdditionalRatesforExtraHours(request):
-    pass
+def getAdditionalRatesUpto530(request):
+    if request.method == "GET":
+        packageTypeCount = PackageType.objects.all().count()
+
+        if packageTypeCount == 0:
+            messages.error(request, "Package Types are not defined.")
+
+        print(request.session.get("package_type_id"))
+        if request.session.get("package_type_id") is not None:
+            form = CreateExtraHoursUpTo530Form(
+                initial={"package_type": request.session.get("package_type_id")}
+            )
+        else:
+            form = CreateExtraHoursUpTo530Form()
+    return render(
+        request,
+        "../templates/additionalrates.html",
+        {
+            "form": form,
+            "UserName": request.user.username,
+        },
+    )
+
+
+@login_required
+def saveAdditionalRatesUpTo530(request):
+    request.session["package_type_id"] = None
+    print("in the method")
+    if request.method == "POST":
+        form = CreateExtraHoursUpTo530Form(request.POST)
+        user = User.objects.get(username=request.user.username)
+
+        # ---------- Check for the permission ----
+        if user.groups.filter(name="Data Entry").exists():
+            messages.error(
+                request,
+                "You are not authorized to performe this operation.",
+            )
+        else:
+            if form.is_valid():
+                print("form is valid")
+                objAdditionalRates = form.save(commit=False)
+                print(objAdditionalRates)
+
+                # ----------Check if the entered timeslot already defined -----------------
+                objExtraChargestchek = ExtraHoursUpTo530.objects.filter(
+                    from_time=objAdditionalRates.from_time,
+                    to_time=objAdditionalRates.to_time,
+                    package_type=request.session["package_type_id"],
+                ).first()
+
+                if objExtraChargestchek is not None:
+                    messages.error(request, "This time slot is already defined")
+                else:
+                    # ------- New timeslot and this is not defined before -------
+                    objAdditionalRates.user_created = request.user.username
+                    request.session["package_type_id"] = (
+                        objAdditionalRates.package_type.id
+                    )
+                    request.session.modified = True
+                    objAdditionalRates.save()
+
+                    # ---------------- This section will save a log in to the extra charge history table------------
+                    with transaction.atomic():  # <-- if the extra charge history fails, addtional rates will be failed.
+                        objExtrachargeHistory = ExtraChargesHistory(
+                            extra_charges_before530=objAdditionalRates,
+                            from_time=objAdditionalRates.from_time,
+                            to_time=objAdditionalRates.to_time,
+                            extra_rate=objAdditionalRates.extra_rate,
+                            effective_from=objAdditionalRates.effective_from,
+                            effective_to=objAdditionalRates.effective_to,
+                            user_created=objAdditionalRates.user_created,
+                            date_created=objAdditionalRates.date_created,
+                        )
+                        objExtrachargeHistory.save()
+                        messages.success(request, "Additional rate details saved.")
+                    # ------------------------------------------------------------------------------------------------
+            else:
+                messages.error(request, form.errors)
+
+    return redirect("core:additional_rates_upto530")
+
+
+@login_required
+def getAdditionalRatesUpto530ByIdJs(request):
+    if request.GET.get("package_type_Id") is not None:
+        additionalRatesList = None
+        additionalRatesList = list(
+            ExtraHoursUpTo530.objects.filter(
+                is_active=True, package_type=request.GET.get("package_type_Id")
+            ).values(
+                "id",
+                "from_time",
+                "to_time",
+                "extra_rate",
+                "effective_from",
+                "effective_to",
+            )
+        )
+        for i, n in enumerate(additionalRatesList):
+            if n["effective_to"] == None:
+                additionalRatesList[i]["effective_to"] = "-"
+    return JsonResponse(additionalRatesList, safe=False)
 
 
 @login_required
@@ -593,7 +694,7 @@ def saveAdditionalRates(request):
                     # ---------------- This section will save a log in to the extra charge history table------------
                     with transaction.atomic():  # <-- if the extra charge history fails, addtional rates will be failed.
                         objExtrachargeHistory = ExtraChargesHistory(
-                            extra_charges=objAdditionalRates,
+                            extra_charges_after530=objAdditionalRates,
                             from_time=objAdditionalRates.from_time,
                             to_time=objAdditionalRates.to_time,
                             extra_rate=objAdditionalRates.extra_rate,
@@ -636,6 +737,19 @@ def updateAdditionalRates(request):
                         objNewAdditionalRates.to_time = to_time
                         objNewAdditionalRates.user_updated = request.user.username
                         objNewAdditionalRates.save()
+                        # ---------------- This section will save a log in to the extra charge history table------------
+                        with transaction.atomic():  # <-- if the extra charge history fails, addtional rates will be failed.
+                            objExtrachargeHistory = ExtraChargesHistory(
+                                extra_charges_after530=objNewAdditionalRates,
+                                from_time=objNewAdditionalRates.from_time,
+                                to_time=objNewAdditionalRates.to_time,
+                                extra_rate=objNewAdditionalRates.extra_rate,
+                                effective_from=objNewAdditionalRates.effective_from,
+                                effective_to=objNewAdditionalRates.effective_to,
+                                user_created=objNewAdditionalRates.user_created,
+                                date_created=objNewAdditionalRates.date_created,
+                            )
+                            objExtrachargeHistory.save()
                         messages.success(request, "Additional rate details Updated.")
                 else:
                     messages.error(
@@ -701,118 +815,7 @@ def getExtraHoursUpto530(request):
 
     except Exception as e:
         messages.error(request, e)
-    return render(
-        request, "../templates/partials/extraHoursUpTo530.html", {"formU": rate_form}
-    )
-
-
-# This method will save the Rate history for a give base rate.
-# Operation :- get the base rate id. Check for the validity and retrive the previous rates and set the effective_to date to effective_date
-# if not previous rates are found, Create a new rate entry.
-# @login_required
-# @transaction.atomic
-# def saveBaseRate(request):
-#     try:
-#         objRateHistory = None
-#         standard_hourly_rate = request.POST.get("standard_hourly_rate")
-#         effective_from = request.POST.get("effective_from")
-
-#         if request.method == "POST":
-#             if request.POST.get("rate_id") is not None:
-#                 oldRate = RateHistory.objects.filter(
-#                     rate_id=request.POST.get("rate_id"), is_active=True
-#                 ).first()
-#                 with transaction.atomic():
-#                     if oldRate is not None:
-#                         user = User.objects.get(username=request.user.username)
-#                         if user.groups.filter(name="Data Entry").exists():
-#                             messages.error(
-#                                 request,
-#                                 "You are not authorized to performe this operation.",
-#                             )
-#                         else:
-#                             if (
-#                                 oldRate.effective_to is None
-#                                 and oldRate.is_active == True
-#                             ):
-#                                 oldRate.effective_to = datetime.strptime(
-#                                     effective_from, "%Y-%m-%d"
-#                                 ).date()
-#                                 oldRate.is_active = False
-#                                 oldRate.user_updated = request.user.username
-#                                 oldRate.date_updated = datetime.now
-#                                 oldRate.save()
-#                                 objRateHistory = RateHistory(
-#                                     rate=Rates.objects.get(
-#                                         pk=request.POST.get("rate_id")
-#                                     ),
-#                                     standard_hourly_rate=standard_hourly_rate,
-#                                     effective_from=datetime.strptime(
-#                                         effective_from, "%Y-%m-%d"
-#                                     ).date(),
-#                                     is_active=True,
-#                                     user_created=request.user.username,
-#                                 )
-#                                 objRateHistory.save()
-#                                 messages.success(request, "Rate details updated.")
-#                     else:
-#                         objRateHistory = RateHistory(
-#                             rate=Rates.objects.get(pk=request.POST.get("rate_id")),
-#                             standard_hourly_rate=standard_hourly_rate,
-#                             effective_from=datetime.strptime(
-#                                 effective_from, "%Y-%m-%d"
-#                             ).date(),
-#                             is_active=True,
-#                             user_created=request.user.username,
-#                         )
-#                         objRateHistory.save()
-#                         messages.success(request, "Rate details saved.")
-#             else:
-#                 messages.error(request, "Rate ")
-#     except Exception as e:
-#         messages.error(request, e)
-#     return redirect("core:view_rates")
-
-
-# @login_required
-# def getRateHistoryById(request):
-#     baseRateName = None
-#     if request.GET.get("rate_id") is not None:
-#         id = request.GET.get("rate_id")
-#         objBaseRate = Rates.objects.get(pk=id)
-#         if objBaseRate is not None:
-#             baseRateName = objBaseRate.rate_name
-#             id = objBaseRate.id
-#     history_form = CreateRateHistoryForm()
-#     return render(
-#         request,
-#         "../templates/partials/addratesforbase.html",
-#         {"formU": history_form, "baseRateName": baseRateName, "id": id},
-#     )
-
-
-# @login_required
-# def getRatesforRatesJs(request):
-#     if request.GET.get("rate_id") is not None:
-#         id = request.GET.get("rate_id")
-#         ratesList = list(
-#             RateHistory.objects.filter(rate_id=id).values(
-#                 "id",
-#                 "standard_hourly_rate",
-#                 "effective_from",
-#                 "effective_to",
-#                 "is_active",
-#             )
-#         )
-#         for i, n in enumerate(ratesList):
-#             if n["effective_to"] == None:
-#                 ratesList[i]["effective_to"] = "-"
-#             if n["is_active"] == True:
-#                 ratesList[i]["is_active"] = "Active"
-#             else:
-#                 ratesList[i]["is_active"] = "Inactive"
-
-#     return JsonResponse(ratesList, safe=False)
+    return render(request, "../templates/extrahourseupto530.html", {"form": rate_form})
 
 
 @login_required

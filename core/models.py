@@ -192,10 +192,9 @@ class Package(BaseClass):
 
 class ExtraHoursUpTo530(BaseClass):
     package_type = models.ForeignKey(PackageType, on_delete=models.CASCADE)
-
     from_time = models.TimeField()
     to_time = models.TimeField()
-    rate = models.DecimalField(max_digits=12, decimal_places=2)
+    extra_rate = models.DecimalField(max_digits=12, decimal_places=2)
     effective_from = models.DateField()
     effective_to = models.DateField(null=True)
 
