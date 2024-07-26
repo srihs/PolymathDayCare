@@ -1,6 +1,9 @@
-{% extends "base.html" %} {% load static %} {% block UserName %} {{ UserName}}
+{% extends "base.html" %} 
+{% load static %} 
+{% block UserName %} {{ UserName}}
 {% block PageTitle %}Packages{% endblock %}
-{% endblock %} {% block Title %} SETTINGS {% endblock %} {% block functionTitle%}PACKAGES{% endblock %}
+{% endblock %} {% block Title %} SETTINGS {% endblock %} 
+{% block functionTitle%}PACKAGES{% endblock %}
 {% block content%}
 
 <!-- Data Table-->
@@ -126,271 +129,248 @@
   </div>
 </div>
 
-<div class="modal fade" id="divbefore530" tabindex="-1" aria-labelledby="exampleModalFullscreenLgLabel" style="display: none;" aria-hidden="true">
+<div class="modal fade" id="divbefore530" tabindex="-1" aria-labelledby="exampleModalFullscreenLgLabel"
+  style="display: none;" aria-hidden="true">
   <div class="modal-dialog modal-fullscreen-lg-down">
-      <div class="modal-content">
-          <div class="modal-header">
-              <h4 class="modal-title" id="exampleModalFullscreenLgLabel">Charges before 5.30p.m</h4>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-              <h4 class="fs-15"> Please define the extra charges upto 5.30p.m</h6> </h4><br>
-              <div id="modelForm">
-
-              </div>
-          
-           
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title" id="exampleModalFullscreenLgLabel">Charges before 5.30p.m</h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-  </div>
-</div>
+      <div class="modal-body">
+        <h4 class="fs-15"> Please select the extra charges upto 5.30p.m</h6>
+        </h4><br>
+        <div id="contenupto530">
+         
+
+        </div>
 
 
-<!--Update Form-->
-<div class="modal fade zoomIn" id="showUpdateModal" tabindex="-1" aria-labelledby="exampleModalLabel"
-  style="display: none" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content border-0">
-      <div class="modal-header p-3 bg-secondary-subtle">
-        <h5 class="modal-title">Update base rate details</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="close-upmodal"></button>
       </div>
-      <div id="modelForm" bs-focus="false"></div>
     </div>
   </div>
-</div>
 
 
-{% endblock %} {% block scripts %}
-<!-- jQuery -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-<!--datatable js-->
-<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
-<script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+  <!--Update Form-->
+  <div class="modal fade zoomIn" id="showUpdateModal" tabindex="-1" aria-labelledby="exampleModalLabel"
+    style="display: none" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0">
+        <div class="modal-header p-3 bg-secondary-subtle">
+          <h5 class="modal-title">Update base rate details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
+            id="close-upmodal"></button>
+        </div>
+        <div id="modelForm" bs-focus="false"></div>
+      </div>
+    </div>
+  </div>
 
-<script src="{% static 'assets/js/pages/datatables.init.js' %}"></script>
-<script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
-<script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
-<!-- flatpickr -->
-<script src="{% static 'assets/libs/flatpickr/flatpickr.min.js' %}"></script>
-<script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
-<script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
 
-<script>
-  var $ = jQuery;
-  var id;
-  var dataTable;
+  {% endblock %}
+  {% block scripts %}
+  <!-- jQuery -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <!--datatable js-->
+  <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+  <script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
 
-  jQuery(document).ready(function () {
+  <script src="{% static 'assets/js/pages/datatables.init.js' %}"></script>
+  <script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
+  <script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
+  <!-- flatpickr -->
+  <script src="{% static 'assets/libs/flatpickr/flatpickr.min.js' %}"></script>
+  <script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+  <script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
 
-    window.setTimeout(function () {
-      // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
-      var alertDiv = jQuery(".alert");
+  <script>
+    var $ = jQuery;
+    var id;
+    var dataTable;
 
-      // Check if the inner div contains a success message
-      var successMessageFound = alertDiv.find(".alert-success").length > 0;
+    jQuery(document).ready(function () {
 
-      // If a success message is found, apply the fade-out effect
-      if (successMessageFound) {
-        alertDiv.fadeTo(1000, 0).slideUp(1000, function () {
-          jQuery(this).remove();
-        });
-      }
-    }, 2000);
+      window.setTimeout(function () {
+        // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
+        var alertDiv = jQuery(".alert");
 
-    var table = $("#packageList").DataTable({
-      responsive: true,
-      ajax: {
-        processing: true,
-        url: "{% url 'core:view_packages_js' %}",
-        dataSrc: "",
-      },
-      columns: [
-        { data: "package_code" },
-        { data: "package_name" },
-        { data: "package_type" },
-        { data: "from_time" },
-        { data: "to_time" },
-        { data: "no_days_week" },
-        { data: "no_days_months" },
-        {
+        // Check if the inner div contains a success message
+        var successMessageFound = alertDiv.find(".alert-success").length > 0;
+
+        // If a success message is found, apply the fade-out effect
+        if (successMessageFound) {
+          alertDiv.fadeTo(1000, 0).slideUp(1000, function () {
+            jQuery(this).remove();
+          });
+        }
+      }, 2000);
+
+      var table = $("#packageList").DataTable({
+        responsive: true,
+        ajax: {
+          processing: true,
+          url: "{% url 'core:view_packages_js' %}",
+          dataSrc: "",
+        },
+        columns: [
+          { data: "package_code" },
+          { data: "package_name" },
+          { data: "package_type" },
+          { data: "from_time" },
+          { data: "to_time" },
+          { data: "no_days_week" },
+          { data: "no_days_months" },
+          {
             data: "package_total",
             className: "dt-right",
             render: $.fn.dataTable.render.number(',', '.', 2) // Add thousand separators
-        },
-        {
-          data: null,
-          className: "dt-right",
-          render: function (data, type, row) {
-            // url = "{% url 'core:approve_discount' %}";
-            id = row.id;
-
-            // Convert to_time to a Date object
-            var to_time_parts = row.to_time.split(':');
-            var to_time = new Date();
-            to_time.setHours(parseInt(to_time_parts[0], 10));
-            to_time.setMinutes(parseInt(to_time_parts[1], 10));
-            to_time.setSeconds(parseInt(to_time_parts[2], 10));
-
-            // Set the cutoff time to 17:30:00
-            var cutoff_time = new Date();
-            cutoff_time.setHours(17, 30, 00);
-
-            if (to_time >= cutoff_time) {
-             
-              return 'upto 5.30p.m';
-            } 
-            else {
-              // ADD URL HERE
-              return '<a href="'+ url+ '" class="link-secondary" data-id="' + id + '"  data-bs-toggle="modal"  role="button">upto 5.30p.m</a>';
-            }
-
-
           },
-        },
-        {
-          data: null,
-          className: "dt-right",
-          render: function (data, type, row) {
-           return '<a href="'+ url+ '" class="link-secondary" data-id="' + id + '"  data-bs-toggle="modal"  role="button">after 5.30p.m</a>';
+          {
+            data: null,
+            className: "dt-right",
+            render: function (data, type, row) {
+              // url = "{% url 'core:approve_discount' %}";
+              id = row.id;
+
+              // Convert to_time to a Date object
+              var to_time_parts = row.to_time.split(':');
+              var to_time = new Date();
+              to_time.setHours(parseInt(to_time_parts[0], 10));
+              to_time.setMinutes(parseInt(to_time_parts[1], 10));
+              to_time.setSeconds(parseInt(to_time_parts[2], 10));
+
+              // Set the cutoff time to 17:30:00
+              var cutoff_time = new Date();
+              cutoff_time.setHours(17, 30, 00);
+
+              if (to_time >= cutoff_time) {
+
+                return 'upto 5.30p.m';
+              }
+              else {
+                // ADD URL HERE
+                return '<a href="#" class="link-secondary" data-id="' + id + '"   data-bs-toggle="modal"   role="button">upto 5.30p.m</a>';
+              }
+
+
+            },
           },
+          {
+            data: null,
+            className: "dt-right",
+            render: function (data, type, row) {
+              return '<a href="' + url + '" class="link-success" data-id="' + id + '" data-bs-target="#showUpdateModal"  data-bs-toggle="modal"  role="button">after 5.30p.m</a>';
+            },
+          },
+
+
+
+        ],
+
+        searching: false,
+        paging: false,
+        order: [[0, "asc"]], // Set default sorting by admission_date in descending order
+      });
+
+
+
+    });
+
+    jQuery("#from_time").flatpickr({
+      enableTime: true,
+      noCalendar: true,
+      enableSeconds: false,
+      dateFormat: "H:i",
+      allowInput: true,
+    });
+
+    jQuery("#to_time").flatpickr({
+      enableTime: true,
+      noCalendar: true,
+      enableSeconds: false,
+      dateFormat: "H:i",
+      allowInput: true,
+    });
+
+    jQuery("#showModal").on("hidden.bs.modal", function () {
+      jQuery(this).find("form").trigger("reset");
+    });
+
+    var url = "";
+
+    jQuery(document).on("click", ".link-secondary", function (e) {
+      e.preventDefault();
+
+      // Show the modal
+      jQuery("#divbefore530").modal("show");
+
+      // Load the form into the modal using AJAX
+      jQuery.ajax({
+        type: "GET",
+        url: url,
+        data: { rate_id: id },
+        dataType: "html",
+        success: function (data) {
+          // Assuming you have a modal body with the id "updateModalBody"
+          jQuery("#modelRateForm").html(data);
+          jQuery("#effective_from").flatpickr();
         },
+        error: function (xhr, textStatus, errorThrown) {
+          alert("Error: " + xhr.status + ", " + xhr.statusText);
+        },
+      });
 
-       
 
-      ],
-     
-      searching: false,
-      paging: false,
-      order: [[0, "asc"]], // Set default sorting by admission_date in descending order
+    });
+
+    jQuery(document).on("click", "#addRates", function (e) {
+      e.preventDefault();
+      url = jQuery(this).attr("href");
+      id = jQuery(this).attr("data-id");
+
+      // Show the modal
+      jQuery("#rateModals").modal("show");
+
+      // Load the form into the modal using AJAX
+      jQuery.ajax({
+        type: "GET",
+        url: url,
+        data: { rate_id: id },
+        dataType: "html",
+        success: function (data) {
+          // Assuming you have a modal body with the id "updateModalBody"
+          jQuery("#modelRateForm").html(data);
+          jQuery("#effective_from").flatpickr();
+        },
+        error: function (xhr, textStatus, errorThrown) {
+          alert("Error: " + xhr.status + ", " + xhr.statusText);
+        },
+      });
+    });
+
+    jQuery("secondButton").click(function () {
+      window.parent.location = window.parent.location.href;
     });
 
 
+    jQuery("#showModalCreate").on("hidden.bs.modal", function () {
+      jQuery(this).find("form").trigger("reset");
 
-  });
-
-  jQuery("#from_time").flatpickr({
-    enableTime: true,
-    noCalendar: true,
-    enableSeconds: false,
-    dateFormat: "H:i",
-    allowInput: true,
-  });
-
-  jQuery("#to_time").flatpickr({
-    enableTime: true,
-    noCalendar: true,
-    enableSeconds: false,
-    dateFormat: "H:i",
-    allowInput: true,
-  });
-
-  jQuery("#showModal").on("hidden.bs.modal", function () {
-    jQuery(this).find("form").trigger("reset");
-  });
-
-  var url = "";
-
-  jQuery(document).on("click", ".link-secondary", function (e) {
-    e.preventDefault();
-    url = jQuery(this).attr("href");
-    
-
-    // Show the modal
-    jQuery("#divbefore530").modal("show");
-
-    // Load the form into the modal using AJAX
-    jQuery.ajax({
-      type: "GET",
-      url: url,
-      dataType: "html",
-      success: function (data) {
-        // Assuming you have a modal body with the id "updateModalBody"
-        jQuery("#modelForm").html(data);
-      },
-      error: function (xhr, textStatus, errorThrown) {
-        alert("Error: " + xhr.status + ", " + xhr.statusText);
-      },
     });
-  });
 
-  jQuery(document).on("click", "#addRates", function (e) {
-    e.preventDefault();
-    url = jQuery(this).attr("href");
-    id = jQuery(this).attr("data-id");
+    // Add an event listener to the "to_time" field
+    jQuery(document).on('change', '#to_time', function () {
 
-    // Show the modal
-    jQuery("#rateModals").modal("show");
-
-    // Load the form into the modal using AJAX
-    jQuery.ajax({
-      type: "GET",
-      url: url,
-      data: { rate_id: id },
-      dataType: "html",
-      success: function (data) {
-        // Assuming you have a modal body with the id "updateModalBody"
-        jQuery("#modelRateForm").html(data);
-        jQuery("#effective_from").flatpickr();
-      },
-      error: function (xhr, textStatus, errorThrown) {
-        alert("Error: " + xhr.status + ", " + xhr.statusText);
-      },
-    });
-  });
-
-  jQuery("secondButton").click(function () {
-    window.parent.location = window.parent.location.href;
-  });
-
-
-  jQuery("#showModalCreate").on("hidden.bs.modal", function () {
-    jQuery(this).find("form").trigger("reset");
-
-  });
-
-  // Add an event listener to the "to_time" field
-  jQuery(document).on('change', '#to_time', function () {
-
-    // Get the values of "from_time" and "to_time"
-    var fromTime = jQuery('#from_time').val();
-    var toTime = jQuery(this).val();
-
-
-    // Make an Ajax request to calculate the duration
-    jQuery.ajax({
-      url: "{% url 'core:calculate_duration' %}",
-      method: 'GET',
-      data: {
-        'from_time': fromTime,
-        'to_time': toTime,
-      },
-      success: function (data) {
-        // Combine hours and minutes with a dot separator
-        var durationFormatted = data.duration_hours + '.' + (data.duration_minutes < 10 ? '0' : '') + data.duration_minutes;
-
-        // Update the "no_hours" field with the formatted duration
-        jQuery('#no_hours').val(durationFormatted);
-      },
-      error: function () {
-        console.error('Error calculating duration.');
-      }
-    });
-  });
-
-  // Add an event listener to the "from_time" field
-  jQuery(document).on('change', '#from_time', function () {
-    var toTime = jQuery('#to_time').val();
-    if (toTime) {
       // Get the values of "from_time" and "to_time"
-      var fromTime = jQuery(this).val();
-      var toTime = jQuery('#to_time').val();
+      var fromTime = jQuery('#from_time').val();
+      var toTime = jQuery(this).val();
 
 
       // Make an Ajax request to calculate the duration
@@ -412,87 +392,117 @@
           console.error('Error calculating duration.');
         }
       });
+    });
 
+    // Add an event listener to the "from_time" field
+    jQuery(document).on('change', '#from_time', function () {
+      var toTime = jQuery('#to_time').val();
+      if (toTime) {
+        // Get the values of "from_time" and "to_time"
+        var fromTime = jQuery(this).val();
+        var toTime = jQuery('#to_time').val();
+
+
+        // Make an Ajax request to calculate the duration
+        jQuery.ajax({
+          url: "{% url 'core:calculate_duration' %}",
+          method: 'GET',
+          data: {
+            'from_time': fromTime,
+            'to_time': toTime,
+          },
+          success: function (data) {
+            // Combine hours and minutes with a dot separator
+            var durationFormatted = data.duration_hours + '.' + (data.duration_minutes < 10 ? '0' : '') + data.duration_minutes;
+
+            // Update the "no_hours" field with the formatted duration
+            jQuery('#no_hours').val(durationFormatted);
+          },
+          error: function () {
+            console.error('Error calculating duration.');
+          }
+        });
+
+      }
+
+    });
+
+
+
+
+    jQuery("#extraCharges").hide();
+    jQuery(document).on("click", "#cbExtraChrges", function (e) {
+      if (jQuery("#cbExtraChrges").is(":checked")) {
+        $("#extraCharges").show();
+      }
+      else {
+        jQuery("#extraCharges").hide();
+      }
+    });
+
+    var tablebefore5;
+    tablebefore5 = new DataTable('#extraRatesbefore5', {
+      info: false,
+      ordering: false,
+      paging: false,
+      searching: false
+    });
+
+
+    var tablebeafter5;
+
+    tablebeafter5 = new DataTable('#extraRates', {
+      info: false,
+      ordering: false,
+      paging: false,
+      searching: false
+    });
+
+
+
+
+
+    jQuery('#package_type').on('change', function (e) {
+      getRatesforTable();
+      tablebeafter5.clear();
+    });
+
+    function getRatesforTable() {
+      var package_type_id = jQuery("#package_type").val();
+      if (package_type_id) {
+        jQuery.ajax({
+          url: "{% url 'core:view_additional_rates_js' %}",
+          type: "GET",
+          data: { package_type_id: package_type_id },
+          beforeSend: function () { },
+          success: function (response) {
+            jQuery.each(response, function (i, item) {
+              tablebeafter5.row.add(
+                [
+                  '<input type="checkbox"></input>',
+                  response[i].from_time,
+                  response[i].to_time,
+                  response[i].extra_rate,
+
+                ],)
+            });
+
+            tablebeafter5.draw();
+          }, error: function (response) {
+            console.log(response);
+          }
+        });
+      }
+      else {
+        tablebeafter5.clear().draw();
+      }
     }
 
-  });
 
 
+  </script>
 
+  <!-- App js -->
+  <script src="{% static 'assets/js/app.js' %}"></script>
 
-  jQuery("#extraCharges").hide();
-  jQuery(document).on("click", "#cbExtraChrges", function (e) {
-    if (jQuery("#cbExtraChrges").is(":checked")) {
-      $("#extraCharges").show();
-    }
-    else {
-      jQuery("#extraCharges").hide();
-    }
-  });
-
-  var tablebefore5;
-  tablebefore5 = new DataTable('#extraRatesbefore5', {
-    info: false,
-    ordering: false,
-    paging: false,
-    searching: false
-  });
-
-
-  var tablebeafter5;
-
-  tablebeafter5 = new DataTable('#extraRates', {
-    info: false,
-    ordering: false,
-    paging: false,
-    searching: false
-  });
-
-
-
-
-
-  jQuery('#package_type').on('change', function (e) {
-    getRatesforTable();
-    tablebeafter5.clear();
-  });
-
-  function getRatesforTable() {
-    var package_type_id = jQuery("#package_type").val();
-    if (package_type_id) {
-      jQuery.ajax({
-        url: "{% url 'core:view_additional_rates_js' %}",
-        type: "GET",
-        data: { package_type_id: package_type_id },
-        beforeSend: function () { },
-        success: function (response) {
-          jQuery.each(response, function (i, item) {
-            tablebeafter5.row.add(
-              [
-                '<input type="checkbox"></input>',
-                response[i].from_time,
-                response[i].to_time,
-                response[i].extra_rate,
-
-              ],)
-          });
-
-          tablebeafter5.draw();
-        }, error: function (response) {
-          console.log(response);
-        }
-      });
-    }
-    else {
-      tablebeafter5.clear().draw();
-    }
-  }
-
-
-
-</script>
-
-<!-- App js -->
-<script src="{% static 'assets/js/app.js' %}"></script>
-
-{% endblock %}
+  {% endblock %}

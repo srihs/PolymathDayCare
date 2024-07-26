@@ -468,16 +468,20 @@ def getAdditionalRatesUpto530(request):
         if packageTypeCount == 0:
             messages.error(request, "Package Types are not defined.")
 
-        print(request.session.get("package_type_id"))
-        if request.session.get("package_type_id") is not None:
+        print("int he method")
+
+        print(additionalChargesUpto530.count)
+
+        if request.session.get("package_type_id_upto530") is not None:
             form = CreateExtraHoursUpTo530Form(
-                initial={"package_type": request.session.get("package_type_id")}
+                initial={"package_type": request.session.get("package_type_id_upto530")}
             )
         else:
+            print("package_type_id is null")
             form = CreateExtraHoursUpTo530Form()
     return render(
         request,
-        "../templates/additionalrates.html",
+        "../templates/extrahourseupto530.html",
         {
             "form": form,
             "UserName": request.user.username,
@@ -487,8 +491,7 @@ def getAdditionalRatesUpto530(request):
 
 @login_required
 def saveAdditionalRatesUpTo530(request):
-    request.session["package_type_id"] = None
-    print("in the method")
+    request.session["package_type_id_upto530"] = None
     if request.method == "POST":
         form = CreateExtraHoursUpTo530Form(request.POST)
         user = User.objects.get(username=request.user.username)
@@ -501,15 +504,13 @@ def saveAdditionalRatesUpTo530(request):
             )
         else:
             if form.is_valid():
-                print("form is valid")
                 objAdditionalRates = form.save(commit=False)
-                print(objAdditionalRates)
 
                 # ----------Check if the entered timeslot already defined -----------------
                 objExtraChargestchek = ExtraHoursUpTo530.objects.filter(
                     from_time=objAdditionalRates.from_time,
                     to_time=objAdditionalRates.to_time,
-                    package_type=request.session["package_type_id"],
+                    package_type=request.session["package_type_id_upto530"],
                 ).first()
 
                 if objExtraChargestchek is not None:
@@ -517,10 +518,11 @@ def saveAdditionalRatesUpTo530(request):
                 else:
                     # ------- New timeslot and this is not defined before -------
                     objAdditionalRates.user_created = request.user.username
-                    request.session["package_type_id"] = (
+                    request.session["package_type_id_upto530"] = (
                         objAdditionalRates.package_type.id
                     )
                     request.session.modified = True
+                    print(request.session["package_type_id_upto530"])
                     objAdditionalRates.save()
 
                     # ---------------- This section will save a log in to the extra charge history table------------
@@ -827,6 +829,11 @@ def getPackages(request):
             nextId += 1
             packageTypeCount = PackageType.objects.all().count()
             extraChargesCount = ExtraHoursAfter530.objects.all().count()
+            additionalChargesUpto530 = ExtraHoursUpTo530.objects.filter(is_active=True)
+            additionalChargesAfter530 = ExtraHoursAfter530.objects.filter(
+                is_active=True
+            )
+
             if packageTypeCount == 0:
                 messages.error(request, "Package Types are not defined.")
             if extraChargesCount == 0:
@@ -843,6 +850,8 @@ def getPackages(request):
         "../templates/packages.html",
         {
             "form": package_form,
+            "additionalChargesUpto530": additionalChargesUpto530,
+            "additionalChargesAfter530": additionalChargesAfter530,
             "UserName": request.user.username,
         },
     )

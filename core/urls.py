@@ -33,7 +33,7 @@ urlpatterns = [
     path("additional_rates/", views.getAdditionalRates, name="view_additional_rates"),
     path(
         "additional_rates_upto530/",
-        views.getExtraHoursUpto530,
+        views.getAdditionalRatesUpto530,
         name="additional_rates_upto530",
     ),
     path(
