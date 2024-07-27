@@ -1454,75 +1454,206 @@ class SearchForm(forms.Form):
 
 
 class CreateExtraHoursUpTo530Form(forms.ModelForm):
-    package_type = forms.ModelChoiceField(
-        required=True,
-        queryset=PackageType.objects.filter(is_active=True).order_by(
-            "package_type_name"
-        ),
-        empty_label="-Select Package Type -",
-        widget=forms.Select(
-            attrs={
-                "class": "form-control",
-                "placeholder": "Package Type",
-                "id": "package_type",
-            }
+    hour_number_1 = forms.IntegerField(required=False, label="First Hour")
+    extra_rate_1 = forms.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Extra Rate"}
         ),
     )
-    from_time = forms.TimeField(
+    effective_from_1 = forms.TimeField(
         required=True,
         widget=forms.TimeInput(
             attrs={
-                "id": "from_time",
+                "autocomplete": "off",
+                "id": "effective_from_1",
                 "class": "form-control",
-                "placeholder": "From Time",
-                "data-provider": "flatpickr",
-                "required": "true",
+                "placeholder": "Effective From",
+                "required": "required",
             }
         ),
     )
-    to_time = forms.TimeField(
+    effective_to_1 = forms.TimeField(
         required=True,
         widget=forms.TimeInput(
             attrs={
-                "id": "to_time",
+                "autocomplete": "off",
+                "id": "effective_to",
                 "class": "form-control",
-                "placeholder": "To Time",
-                "required": "true",
+                "placeholder": "Effective To",
+                "required": "required",
             }
         ),
     )
 
-    extra_rate = forms.DecimalField(
-        max_digits=15,
+    hour_number_2 = forms.IntegerField(required=False, label="Second Hour")
+    extra_rate_2 = forms.DecimalField(
+        max_digits=12,
         decimal_places=2,
-        validators=[MinValueValidator(Decimal("0.01"))],
-        required=True,
-        widget=forms.NumberInput(
-            attrs={"class": "form-control", "placeholder": "Rate"}
+        required=False,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Extra Rate"}
         ),
     )
-    effective_from = forms.DateField(
+    effective_from_2 = forms.TimeField(
         required=True,
-        widget=MyDateInput(
+        widget=forms.TimeInput(
             attrs={
+                "autocomplete": "off",
+                "id": "effective_from_1",
                 "class": "form-control",
-                "required": "true",
-                "id": "effective_from",
-                "data-provider": "flatpickr",
-                "data-date-format": "Y-m-d",
-                "placeholder": "Effective from",
+                "placeholder": "Effective From",
+                "required": "required",
             }
         ),
     )
-    effective_to = forms.DateField(
-        required=False,
-        widget=MyDateInput(
+    effective_to_2 = forms.TimeField(
+        required=True,
+        widget=forms.TimeInput(
             attrs={
+                "autocomplete": "off",
+                "id": "effective_from_1",
                 "class": "form-control",
-                "id": "effective_to",
-                "data-provider": "flatpickr",
-                "data-date-format": "Y-m-d",
-                "placeholder": "Effective to",
+                "placeholder": "Effective To",
+                "required": "required",
+            }
+        ),
+    )
+
+    hour_number_3 = forms.IntegerField(required=False, label="Third Hour")
+    extra_rate_3 = forms.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Extra Rate"}
+        ),
+    )
+    effective_from_3 = forms.TimeField(
+        required=True,
+        widget=forms.TimeInput(
+            attrs={
+                "autocomplete": "off",
+                "id": "effective_from_1",
+                "class": "form-control",
+                "placeholder": "Effective From",
+                "required": "required",
+            }
+        ),
+    )
+    effective_to_3 = forms.TimeField(
+        required=True,
+        widget=forms.TimeInput(
+            attrs={
+                "autocomplete": "off",
+                "id": "effective_from_1",
+                "class": "form-control",
+                "placeholder": "Effective To",
+                "required": "required",
+            }
+        ),
+    )
+
+    hour_number_4 = forms.IntegerField(required=False, label="Fourth Hour")
+    extra_rate_4 = forms.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Extra Rate"}
+        ),
+    )
+    effective_from_4 = forms.TimeField(
+        required=True,
+        widget=forms.TimeInput(
+            attrs={
+                "autocomplete": "off",
+                "id": "effective_from_1",
+                "class": "form-control",
+                "placeholder": "Effective From",
+                "required": "required",
+            }
+        ),
+    )
+    effective_to_4 = forms.TimeField(
+        required=True,
+        widget=forms.TimeInput(
+            attrs={
+                "autocomplete": "off",
+                "id": "effective_from_1",
+                "class": "form-control",
+                "placeholder": "Effective To",
+                "required": "required",
+            }
+        ),
+    )
+
+    hour_number_5 = forms.IntegerField(required=False, label="Fifth Hour")
+    extra_rate_5 = forms.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Extra Rate"}
+        ),
+    )
+    effective_from_5 = forms.TimeField(
+        required=True,
+        widget=forms.TimeInput(
+            attrs={
+                "autocomplete": "off",
+                "id": "effective_from_1",
+                "class": "form-control",
+                "placeholder": "Effective From",
+                "required": "required",
+            }
+        ),
+    )
+    effective_to_5 = forms.TimeField(
+        required=True,
+        widget=forms.TimeInput(
+            attrs={
+                "autocomplete": "off",
+                "id": "effective_from_1",
+                "class": "form-control",
+                "placeholder": "Effective To",
+                "required": "required",
+            }
+        ),
+    )
+
+    hour_number_6 = forms.IntegerField(required=False, label="Sixth Hour")
+    extra_rate_6 = forms.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Extra Rate"}
+        ),
+    )
+    effective_from_6 = forms.TimeField(
+        required=True,
+        widget=forms.TimeInput(
+            attrs={
+                "autocomplete": "off",
+                "id": "effective_from_1",
+                "class": "form-control",
+                "placeholder": "Effective From",
+                "required": "required",
+            }
+        ),
+    )
+    effective_to_6 = forms.TimeField(
+        required=True,
+        widget=forms.TimeInput(
+            attrs={
+                "autocomplete": "off",
+                "id": "effective_from_1",
+                "class": "form-control",
+                "placeholder": "Effective To",
+                "required": "required",
             }
         ),
     )
@@ -1530,10 +1661,23 @@ class CreateExtraHoursUpTo530Form(forms.ModelForm):
     class Meta:
         model = ExtraHoursUpTo530
         fields = (
-            "package_type",
-            "from_time",
+            "hour_number",
             "extra_rate",
-            "to_time",
             "effective_from",
             "effective_to",
         )
+
+    def __init__(self, *args, **kwargs):
+        initial_data = kwargs.pop("initial_data", {})
+        super().__init__(*args, **kwargs)
+        for i in range(1, 7):
+            self.fields[f"hour_number_{i}"].initial = initial_data.get(
+                f"hour_number_{i}"
+            )
+            self.fields[f"extra_rate_{i}"].initial = initial_data.get(f"extra_rate_{i}")
+            self.fields[f"effective_from_{i}"].initial = initial_data.get(
+                f"effective_from_{i}"
+            )
+            self.fields[f"effective_to_{i}"].initial = initial_data.get(
+                f"effective_to_{i}"
+            )

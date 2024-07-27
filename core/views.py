@@ -470,8 +470,6 @@ def getAdditionalRatesUpto530(request):
 
         print("int he method")
 
-        print(additionalChargesUpto530.count)
-
         if request.session.get("package_type_id_upto530") is not None:
             form = CreateExtraHoursUpTo530Form(
                 initial={"package_type": request.session.get("package_type_id_upto530")}

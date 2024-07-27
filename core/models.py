@@ -191,12 +191,10 @@ class Package(BaseClass):
 
 
 class ExtraHoursUpTo530(BaseClass):
-    package_type = models.ForeignKey(PackageType, on_delete=models.CASCADE)
-    from_time = models.TimeField()
-    to_time = models.TimeField()
+    hour_number = models.IntegerField(null=True, blank=True)
     extra_rate = models.DecimalField(max_digits=12, decimal_places=2)
     effective_from = models.DateField()
-    effective_to = models.DateField(null=True)
+    effective_to = models.DateField(null=True, blank=True)
 
     class Meta:
         verbose_name = "extra charges till 5.30"
@@ -204,15 +202,7 @@ class ExtraHoursUpTo530(BaseClass):
         db_table = "dc_extrachargestill530"
 
     def __str__(self):
-        return (
-            self.package_type.package_type_name
-            + "-"
-            + str(self.from_time)
-            + "-"
-            + str(self.to_time)
-            + "-"
-            + str(self.is_active)
-        )
+        return f"{self.hour_number} - {self.extra_rate} - {self.effective_from} - {self.effective_to}"
 
 
 class PackageExtraHoursMapping(BaseClass):

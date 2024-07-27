@@ -1,80 +1,129 @@
-{% extends "base.html" %} {% load static %} 
+{% extends "base.html" %} {% load static %}
 {% block PageTitle %}Additional rates upto 5.30p.m{% endblock %}
-{% block UserName %} {{ UserName }}{% endblock %} 
-{% block Title %} SETTINGS {% endblock %} 
-{% block functionTitle %}ADDITIONAL RATES UPTO 5.30P.M{% endblock %} 
+{% block UserName %} {{ UserName }}{% endblock %}
+{% block Title %} SETTINGS {% endblock %}
+{% block functionTitle %}ADDITIONAL RATES UPTO 5.30P.M{% endblock %}
 {% block content %}
 
 
 <div class="row">
-<div class="card">
-    <div class="card-header border-0">
-        <div class="d-flex align-items-center">
-            <h5 class="card-title mb-0 flex-grow-1">Additional hours rates upto 5.30 p.m</h5>
-            
-        </div>
-    </div>
+    <div class="card">
+        <div class="card-header border-0">
+            <div class="d-flex align-items-center">
+                <h5 class="card-title mb-0 flex-grow-1">Additional hours rates upto 5.30 p.m</h5>
 
-    <div class="row ">
-        <div class="card-body">
-            <div class="alert alert-dismissible" role="alert">
-                {% if messages %} {% for message in messages %}
-                <!-- Danger Alert -->
-                <div
-                        class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
-                        role="alert"
-                >
-                    <strong>
-                        <center>{{ message }}</center>
-                    </strong>
-                    <button
-                            type="button"
-                            class="btn-close"
-                            data-bs-dismiss="alert"
-                            aria-label="Close"
-                    ></button>
-                </div>
-                {% endfor %} {% endif %}
-                <!-- end row -->
             </div>
-            <form id="additionalRatesForm"  action="{% url 'core:save_AdditionalRates_Upto530' %}"
-            method="POST">
-            {% csrf_token %}
-                    <div class="row ">
-                        <div class="col-sm-2">
-                            {{form.package_type}}
+        </div>
+
+        <div class="row ">
+            <div class="card-body">
+                <div class="alert alert-dismissible" role="alert">
+                    {% if messages %} {% for message in messages %}
+                    <!-- Danger Alert -->
+                    <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
+                        role="alert">
+                        <strong>
+                            <center>{{ message }}</center>
+                        </strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %} {% endif %}
+                    <!-- end row -->
+                </div>
+                <form id="additionalRatesForm" action="{% url 'core:save_AdditionalRates_Upto530' %}" method="POST">
+                    {% csrf_token %}
+                    <div class="card-body">
+                        <div class="live-preview">
+                            <div class="row gy-4">
+                                <div class="col-xxl-2 col-md-3">
+                                    <label for="basiInput" class="form-label"> {{ form.hour_number_1.label_tag}}</label>
+                                    <div>
+                                        {{form.extra_rate_1}}</br>
+                                        {{form.effective_from_1}}</br>
+                                        {{form.effective_to_1}}</br>
+                                    </div>
+                                </div>
+                                <div class="col-xxl-2 col-md-3">
+                                    <div>
+                                        <label for="basiInput" class="form-label"> {{ form.hour_number_2.label_tag }}</label>
+                                        <div>
+                                            {{form.extra_rate_2}}</br>
+                                            {{form.effective_from_2}}</br>
+                                            {{form.effective_to_2}}</br>
+
+                                        </div>
+                                    </div>
+
+                                </div>
+                                <!--end col-->
+
+                                <div class="col-xxl-2 col-md-3">
+                                    <div>
+                                        <label for="basiInput" class="form-label"> {{ form.hour_number_3.label_tag }}</label>
+                                        
+                                            {{form.extra_rate_3}}</br>
+                                            {{form.effective_from_3}}</br>
+                                            {{form.effective_to_3}}</br>
+
+                                        
+                                    </div>
+
+                                </div>
+                                <!--end col-->
+                                <div class="col-xxl-2 col-md-3">
+                                    <div>
+                                        <label for="basiInput" class="form-label"> {{ form.hour_number_4.label_tag                                            }}</label>
+                                        <div>
+                                            {{form.extra_rate_4}}</br>
+                                            {{form.effective_from_4}}</br>
+                                            {{form.effective_to_4}}</br>
+
+                                        </div>
+                                    </div>
+
+                                </div>
+                                <!--end col-->
+                                <div class="col-xxl-2 col-md-3">
+                                    <div>
+                                        <label for="basiInput" class="form-label"> {{ form.hour_number_5.label_tag                                            }}</label>
+                                        <div>
+                                            {{form.extra_rate_5}}</br>
+                                            {{form.effective_from_5}}</br>
+                                            {{form.effective_to_5}}</br>
+
+                                        </div>
+                                    </div>
+
+                                </div>
+                                <!--end col-->
+                                <div class="col-xxl-2 col-md-3">
+                                        <label for="basiInput" class="form-label"> {{ form.hour_number_6.label_tag}}</label>
+                                        
+                                            {{form.extra_rate_6}}</br>
+                                            {{form.effective_from_6}}</br>
+                                            {{form.effective_to_6}}</br>
+                                </div>
+                                <!--end col-->
+
+                            </div>
+                            <!--end col-->
+
                         </div>
-                        
-                        <!--end col-->
-                        <div class="col-sm">
-                            {{form.from_time}}
+                        <!--end row-->
+                        <div class="col-lg-12">
+                            <div class="text-end">
+                            <button class="btn btn-secondary add-btn">
+                                <i class="ri-add-line align-bottom me-1"></i> Save rate
+                            </button>
                         </div>
-                        <div class="col-sm">
-                            {{form.to_time}}
                         </div>
-                        <div class="col-sm">
-                            {{form.extra_rate}}
-                        </div>
-                        <div class="col-sm">
-                            {{form.effective_from}}
-                        </div>
-                        <div class="col-sm">
-                            {{form.effective_to}}
-                        </div>
-                        <div class="col-sm-2">
-                            <button
-                            class="btn btn-secondary add-btn">
-                        <i class="ri-add-line align-bottom me-1"></i> Save rate
-                    </button>
-                        </div>
-        
-                   
-                    </div> </br>
+                    </div>
+
                     <div class="row">
                         <div class="row gy-4">
-                            
-                                <table id="RateList" class="table table-striped table-hover" cellspacing="0">
-                                    <thead>
+
+                            <table id="RateList" class="table table-striped table-hover" cellspacing="0">
+                                <thead>
                                     <tr>
                                         <th>From Time</th>
                                         <th>To Time</th>
@@ -83,44 +132,33 @@
                                         <th>Effective to</th>
                                         <th data-orderable="false"></th>
                                     </tr>
-                                    </thead>
-                                </table>
-                           
+                                </thead>
+                            </table>
+
                         </div>
-                        </div>
-                    
+                    </div>
+
                 </form>
-                </div>
-    </div>
-    
+            </div>
+        </div>
+
         <!-- end card-body -->
 
-        
 
-   
+
+
+    </div>
 </div>
-</div>
-{% endblock %} {% block modals %}
-<div
-        class="modal fade zoomIn"
-        id="showModal"
-        tabindex="-1"
-        aria-labelledby="exampleModalLabel"
-        style="display: none"
-        aria-hidden="true"
->
+{% endblock %}
+{% block modals %}
+<div class="modal fade zoomIn" id="showModal" tabindex="-1" aria-labelledby="exampleModalLabel" style="display: none"
+    aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0">
             <div class="modal-header p-3 bg-secondary-subtle">
                 <h5 class="modal-title" id="exampleModalLabels">Add Child</h5>
-                <button
-                        type="button"
-                        class="btn-close"
-                        data-bs-target="#showModalCreate"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                        id="close-modalAdd"
-                ></button>
+                <button type="button" class="btn-close" data-bs-target="#showModalCreate" data-bs-dismiss="modal"
+                    aria-label="Close" id="close-modalAdd"></button>
             </div>
 
         </div>
@@ -130,113 +168,100 @@
 
 <!-- Settings Form -->
 <div class="modal fade zoomIn" id="showModalCreate" tabindex="-1" aria-labelledby="exampleModalLabel"
-     style="display: none" aria-hidden="true">
+    style="display: none" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0">
             <div class="modal-header p-3 bg-secondary-subtle">
                 <h5 class="modal-title">Add Rates</h5>
-                <button
-                        type="button"
-                        class="btn-close"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                        id="close-modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
+                    id="close-modal"></button>
             </div>
-            <form
-                    action="{% url 'core:save_AdditionalRates_Upto530' %}"
-                    method="POST"
-                    class="tablelist-form"
-                    autocomplete="on">
+            <form action="{% url 'core:save_AdditionalRates_Upto530' %}" method="POST" class="tablelist-form"
+                autocomplete="on">
                 {% csrf_token %}
 
                 <div class="modal-body">
-                    
+
                     <div class="row">
-                        
-                            <div class="card">
-                                <div class="card-header align-items-center d-flex">
-                                    <h4 class="card-title mb-0 flex-grow-1">Additional Rate Details</h4>
-                                    <div class="flex-shrink-0">
-                                        <div id="message" class="alert alert-dismissible" role="alert">
-                                            {% if messages %} {% for message in messages %}
-                                            <!-- Danger Alert -->
-                                            <div
-                                                    class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
-                                                    role="alert"
-                                            >
-                                                <strong>
-                                                    <center>{{ message }}</center>
-                                                </strong>
-                                                <button
-                                                        type="button"
-                                                        class="btn-close"
-                                                        data-bs-dismiss="alert"
-                                                        aria-label="Close"
-                                                ></button>
-                                            </div>
-                                            {% endfor %} {% endif %}
-                                            <!-- end row -->
+
+                        <div class="card">
+                            <div class="card-header align-items-center d-flex">
+                                <h4 class="card-title mb-0 flex-grow-1">Additional Rate Details</h4>
+                                <div class="flex-shrink-0">
+                                    <div id="message" class="alert alert-dismissible" role="alert">
+                                        {% if messages %} {% for message in messages %}
+                                        <!-- Danger Alert -->
+                                        <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
+                                            role="alert">
+                                            <strong>
+                                                <center>{{ message }}</center>
+                                            </strong>
+                                            <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                                aria-label="Close"></button>
                                         </div>
-                                    </div>
-                                </div>
-                                <!-- end card header -->
-                                
-                                <div class="card-body">
-                                    <div class="live-preview">
-                                        <div class="row gy-4">
-<div class="col-12">
-                                                {{ form.base_rate }}
-                                            </div>
-
-                                            <!--end col-->
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div>{{ form.slot_number }}</div>
-                                            </div>
-                                            <!--end col-->
-
-                                            <div class="col-xxl-3 col-md-6">
-                                                <div>
-                                                        {{ form.extra_hour_rate }}
-                                                </div>
-                                            </div>
-                                            
-                                             <div class="col-xxl-3 col-md-6">
-                                                <div>
-                                                        {{ form.effective_from }}
-
-                                                    </div>
-                                            </div>
-                                             <div class="col-xxl-3 col-md-6">
-                                                <div>
-                                                        {{ form.effective_to }}
-
-                                                    </div>
-
-                                            </div>
-
-
-                                            <!--end col-->
-                                            <div class="hstack gap-2 justify-content-end">
-                                                <button type="button" class="btn btn-light" data-bs-dismiss="modal">
-                                                    Close
-                                                </button>
-                                                <button class="btn btn-secondary" type="submit">Save</button>
-                                                
-                                            </div>
-
-                                            
-
-                                        </div>
-                                        <!--end row-->
+                                        {% endfor %} {% endif %}
+                                        <!-- end row -->
                                     </div>
                                 </div>
                             </div>
-                     
+                            <!-- end card header -->
+
+                            <div class="card-body">
+                                <div class="live-preview">
+                                    <div class="row gy-4">
+                                        <div class="col-12">
+                                            {{ form.base_rate }}
+                                        </div>
+
+                                        <!--end col-->
+                                        <div class="col-xxl-3 col-md-6">
+                                            <div>{{ form.slot_number }}</div>
+                                        </div>
+                                        <!--end col-->
+
+                                        <div class="col-xxl-3 col-md-6">
+                                            <div>
+                                                {{ form.extra_hour_rate }}
+                                            </div>
+                                        </div>
+
+                                        <div class="col-xxl-3 col-md-6">
+                                            <div>
+                                                {{ form.effective_from }}
+
+                                            </div>
+                                        </div>
+                                        <div class="col-xxl-3 col-md-6">
+                                            <div>
+                                                {{ form.effective_to }}
+
+                                            </div>
+
+                                        </div>
+
+
+                                        <!--end col-->
+                                        <div class="hstack gap-2 justify-content-end">
+                                            <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                                                Close
+                                            </button>
+                                            <button class="btn btn-secondary" type="submit">Save</button>
+
+                                        </div>
+
+
+
+                                    </div>
+                                    <!--end row-->
+                                </div>
+                            </div>
                         </div>
-                    
+
+                    </div>
+
                 </div>
                 <div class="modal-footer" style="display: block">
-                   
+
                 </div>
             </form>
         </div>
@@ -245,18 +270,13 @@
 
 <!--Update Form-->
 <div class="modal fade bs-example-modal-sm show" id="showUpdateModal" tabindex="-1" aria-labelledby="exampleModalLabel"
-     style="display: none" aria-hidden="true">
+    style="display: none" aria-hidden="true">
     <div class="modal-dialog modal-sm">
         <div class="modal-content border-0">
             <div class="modal-header p-3 bg-secondary-subtle">
                 <h5 class="modal-title">Update extra rate details</h5>
-                <button
-                        type="button"
-                        class="btn-close"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                        id="close-upmodal"
-                ></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
+                    id="close-upmodal"></button>
             </div>
             <div id="modelForm">
 
@@ -266,43 +286,25 @@
 </div>
 
 <!-- First modal dialog -->
-<div
-        class="modal fade"
-        id="firstmodal"
-        aria-hidden="true"
-        aria-labelledby="..."
-        tabindex="-1"
->
+<div class="modal fade" id="firstmodal" aria-hidden="true" aria-labelledby="..." tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-body text-center p-5">
-                <img
-                        src="{% static 'assets/images/stop.gif' %}"
-                        alt="alert"
-                        width="100px"
-                        height="100px"
-                />
+                <img src="{% static 'assets/images/stop.gif' %}" alt="alert" width="100px" height="100px" />
                 <div class="mt-4 pt-4">
                     <h4>You are about change the extra charges!</h4>
                     <p class="text-muted">
-                        Please note that this operation will cancell the existing extra rates and add new rates to the system. <br><br>All the calcluation will be based on the new rates from the effective date you select.
+                        Please note that this operation will cancell the existing extra rates and add new rates to the
+                        system. <br><br>All the calcluation will be based on the new rates from the effective date you
+                        select.
                     </p>
                     <!-- Toogle to second dialog -->
-                    <button
-                            class="btn btn-secondary"
-                            data-bs-target="#firstmodal"
-                            data-bs-toggle="modal"
-                            data-bs-dismiss="modal"
-                    >
-                    No
+                    <button class="btn btn-secondary" data-bs-target="#firstmodal" data-bs-toggle="modal"
+                        data-bs-dismiss="modal">
+                        No
                     </button>
-                    <button
-                            name="btnModelDelete"
-                            id="btnModelDelete"
-                            class="btn btn-danger"
-                            
-                    >
-                    Yes
+                    <button name="btnModelDelete" id="btnModelDelete" class="btn btn-danger">
+                        Yes
                     </button>
                 </div>
             </div>
@@ -310,34 +312,18 @@
     </div>
 </div>
 <!-- Second modal dialog -->
-<div
-        class="modal fade"
-        id="secondmodal"
-        aria-hidden="true"
-        aria-labelledby="..."
-        tabindex="-1"
->
+<div class="modal fade" id="secondmodal" aria-hidden="true" aria-labelledby="..." tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-body text-center p-5">
-                <img
-                        src="{% static 'assets/images/done.gif' %}"
-                        alt="alert"
-                        width="75px"
-                        height="75px"
-                />
+                <img src="{% static 'assets/images/done.gif' %}" alt="alert" width="75px" height="75px" />
                 <div class="mt-4 pt-3">
                     <h4 class="mb-3">Operation completed</h4>
                     <div class="hstack gap-2 justify-content-center">
                         <!-- Toogle to first dialog, `data-bs-dismiss` attribute can be omitted - clicking on link will close dialog anyway -->
 
-                        <button
-                                type="button"
-                                id="secondButton"
-                                class="btn btn-secondary"
-                                onclick="location=URL"
-                                data-bs-dismiss="modal"
-                        >
+                        <button type="button" id="secondButton" class="btn btn-secondary" onclick="location=URL"
+                            data-bs-dismiss="modal">
                             Close
                         </button>
                     </div>
@@ -391,12 +377,12 @@
 
     jQuery(document).on("click", "#btnModelDelete", function (e) {
         e.preventDefault();
-        
-      
+
+
         // Show the modal
         jQuery("#showUpdateModal").modal("show");
         jQuery("#firstmodal").modal("hide");
-        
+
 
 
         // Load the form into the modal using AJAX
@@ -409,19 +395,19 @@
                 // Assuming you have a modal body with the id "updateModalBody"
                 jQuery("#modelForm").html(data);
 
-            jQuery('#to_time').flatpickr({
-                enableTime: true,
-                noCalendar:true,
-                        enableSeconds: false,
-                        dateFormat: "H:i",
-            });
+                jQuery('#to_time').flatpickr({
+                    enableTime: true,
+                    noCalendar: true,
+                    enableSeconds: false,
+                    dateFormat: "H:i",
+                });
 
-            jQuery('#effective_from').flatpickr({
-              
-                
-            });
-            
-                
+                jQuery('#effective_from').flatpickr({
+
+
+                });
+
+
             },
             error: function (xhr, textStatus, errorThrown) {
                 alert("Error: " + xhr.status + ", " + xhr.statusText);
@@ -439,102 +425,101 @@
             buttons: ["excel", "print"],
             order: [[0, "asc"]],
             retrieve: true,
-    });
-
-    jQuery('#effective_from').flatpickr({
-                minDate: "today",
-                maxDate: new Date().fp_incr(15), 
-                
-            });
-    
-    jQuery('#effective_to').flatpickr({
-            minDate: new Date().fp_incr(365), 
-            
-                
-    });
-
-    window.setTimeout(function() {
-    // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
-    var alertDiv = jQuery(".alert");
-
-    // Check if the inner div contains a success message
-    var successMessageFound = alertDiv.find('.alert-success').length > 0;
-
-    // If a success message is found, apply the fade-out effect
-    if (successMessageFound) {
-        alertDiv.fadeTo(1000, 0).slideUp(1000, function() {
-            jQuery(this).remove();
         });
-    }
-}, 2000);
 
-    getRatesforTable();
+        jQuery('#effective_from').flatpickr({
+            minDate: "today",
+            maxDate: new Date().fp_incr(15),
 
-    jQuery('#from_time').flatpickr({
-        enableTime: true,
-        noCalendar:true,
-                enableSeconds: false,
-                dateFormat: "H:i",
-    });
+        });
+
+        jQuery('#effective_to').flatpickr({
+            minDate: new Date().fp_incr(365),
 
 
-    jQuery('#to_time').flatpickr({
-        enableTime: true,
-        noCalendar:true,
-                enableSeconds: false,
-                dateFormat: "H:i",
-    });
-   
+        });
+
+        window.setTimeout(function () {
+            // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
+            var alertDiv = jQuery(".alert");
+
+            // Check if the inner div contains a success message
+            var successMessageFound = alertDiv.find('.alert-success').length > 0;
+
+            // If a success message is found, apply the fade-out effect
+            if (successMessageFound) {
+                alertDiv.fadeTo(1000, 0).slideUp(1000, function () {
+                    jQuery(this).remove();
+                });
+            }
+        }, 2000);
+
+        getRatesforTable();
+
+        jQuery('#from_time').flatpickr({
+            enableTime: true,
+            noCalendar: true,
+            enableSeconds: false,
+            dateFormat: "H:i",
+        });
+
+
+        jQuery('#to_time').flatpickr({
+            enableTime: true,
+            noCalendar: true,
+            enableSeconds: false,
+            dateFormat: "H:i",
+        });
+
     });
 
     jQuery('#package_type').change(function () {
         var baseRateId = jQuery(this).val();
-        
+
         dataTable.clear();
         getRatesforTable();
-     
+
     });
-    
-   
+
+
     jQuery("secondButton").click(function () {
         window.parent.location = window.parent.location.href;
     });
 
 
-    function getRatesforTable(){
+    function getRatesforTable() {
         var package_type_Id = jQuery("#package_type").val();
-        if (package_type_Id) 
-        {
+        if (package_type_Id) {
             jQuery.ajax({
                 url: "{% url 'core:get_AdditionalRates_Upto530_By_Id_Js' %}",
                 type: "GET",
                 data: { package_type_Id: package_type_Id },
                 beforeSend: function () { },
-                success: function (response) {       
-                    
-                jQuery.each(response, function(i, item) {
-                var url = "{% url 'core:view_additional_rates_byId'  %}";
+                success: function (response) {
 
-                
-                dataTable.row.add(                 
-                [response[i].from_time,
-                response[i].to_time,
-                response[i].extra_rate,
-                response[i].effective_from,
-                response[i].effective_to,
-                '<a href="' + url + '" class="link-success" data-bs-target="#firstmodal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button" data-value="' + response[i].id + '"><i class="ri-edit-2-fill"></i></a>',
-                ],)
-                });
+                    jQuery.each(response, function (i, item) {
+                        var url = "{% url 'core:view_additional_rates_byId'  %}";
 
-             
 
-            dataTable.draw();
-                },error: function(response){
+                        dataTable.row.add(
+                            [response[i].from_time,
+                            response[i].to_time,
+                            response[i].extra_rate,
+                            response[i].effective_from,
+                            response[i].effective_to,
+                            '<a href="' + url + '" class="link-success" data-bs-target="#firstmodal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button" data-value="' + response[i].id + '"><i class="ri-edit-2-fill"></i></a>',
+                            ],)
+                    });
+
+
+
+                    dataTable.draw();
+                }, error: function (response) {
                     console.log(response);
-            }
-        });
+                }
+            });
         }
-        else{
+        else {
             dataTable.clear().draw();
         }
     }
