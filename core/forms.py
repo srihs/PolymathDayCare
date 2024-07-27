@@ -1505,7 +1505,7 @@ class CreateExtraHoursUpTo530Form(forms.ModelForm):
             attrs={
                 "class": "form-control",
                 "id": "effective_from_2",
-                "placeholder": "Effective To",
+                "placeholder": "Effective From",
                 "required": "required",
                 "data-provider": "flatpickr",
                 "data-date-format": "Y-m-d",
@@ -1541,7 +1541,7 @@ class CreateExtraHoursUpTo530Form(forms.ModelForm):
             attrs={
                 "class": "form-control",
                 "id": "effective_from_3",
-                "placeholder": "Effective To",
+                "placeholder": "Effective From",
                 "required": "required",
                 "data-provider": "flatpickr",
                 "data-date-format": "Y-m-d",
@@ -1553,7 +1553,7 @@ class CreateExtraHoursUpTo530Form(forms.ModelForm):
         widget=MyDateInput(
             attrs={
                 "class": "form-control",
-                "id": "effective_from_3",
+                "id": "effective_to_3",
                 "placeholder": "Effective To",
                 "required": "required",
                 "data-provider": "flatpickr",
@@ -1577,7 +1577,7 @@ class CreateExtraHoursUpTo530Form(forms.ModelForm):
             attrs={
                 "class": "form-control",
                 "id": "effective_from_4",
-                "placeholder": "Effective To",
+                "placeholder": "Effective From",
                 "required": "required",
                 "data-provider": "flatpickr",
                 "data-date-format": "Y-m-d",
@@ -1589,7 +1589,7 @@ class CreateExtraHoursUpTo530Form(forms.ModelForm):
         widget=MyDateInput(
             attrs={
                 "class": "form-control",
-                "id": "effective_from_4",
+                "id": "effective_to_4",
                 "placeholder": "Effective To",
                 "required": "required",
                 "data-provider": "flatpickr",
@@ -1613,7 +1613,7 @@ class CreateExtraHoursUpTo530Form(forms.ModelForm):
             attrs={
                 "class": "form-control",
                 "id": "effective_from_5",
-                "placeholder": "Effective To",
+                "placeholder": "Effective From",
                 "required": "required",
                 "data-provider": "flatpickr",
                 "data-date-format": "Y-m-d",
@@ -1625,7 +1625,7 @@ class CreateExtraHoursUpTo530Form(forms.ModelForm):
         widget=MyDateInput(
             attrs={
                 "class": "form-control",
-                "id": "effective_from_5",
+                "id": "effective_to_5",
                 "placeholder": "Effective To",
                 "required": "required",
                 "data-provider": "flatpickr",
@@ -1643,27 +1643,29 @@ class CreateExtraHoursUpTo530Form(forms.ModelForm):
             attrs={"class": "form-control", "placeholder": "Extra Rate"}
         ),
     )
-    effective_from_6 = forms.TimeField(
+    effective_from_6 = forms.DateField(
         required=True,
-        widget=forms.TimeInput(
+        widget=MyDateInput(
             attrs={
-                "autocomplete": "off",
-                "id": "effective_from_1",
                 "class": "form-control",
-                "placeholder": "Effective From",
+                "id": "effective_from_6",
+                "placeholder": "Effective from",
                 "required": "required",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
             }
         ),
     )
-    effective_to_6 = forms.TimeField(
+    effective_to_6 = forms.DateField(
         required=True,
-        widget=forms.TimeInput(
+        widget=MyDateInput(
             attrs={
-                "autocomplete": "off",
-                "id": "effective_from_1",
                 "class": "form-control",
+                "id": "effective_to_6",
                 "placeholder": "Effective To",
                 "required": "required",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
             }
         ),
     )

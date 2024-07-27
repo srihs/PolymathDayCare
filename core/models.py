@@ -192,8 +192,10 @@ class Package(BaseClass):
 
 class ExtraHoursUpTo530(BaseClass):
     hour_number = models.IntegerField(null=True, blank=True)
-    extra_rate = models.DecimalField(max_digits=12, decimal_places=2)
-    effective_from = models.DateField()
+    extra_rate = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    effective_from = models.DateField(null=True, blank=True)
     effective_to = models.DateField(null=True, blank=True)
 
     class Meta:
