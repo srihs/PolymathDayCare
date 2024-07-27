@@ -370,7 +370,6 @@ def getPacakgeTypes(request):
 @login_required
 def getPackageTypeIdJs(request):
     if request.GET.get("packageType_id") is not None:
-        print("Id is not null")
         id = request.GET.get("packageType_id")
         packageTypeList = list(
             PackageType.objects.filter(id=id).values(
@@ -468,14 +467,11 @@ def getAdditionalRatesUpto530(request):
         if packageTypeCount == 0:
             messages.error(request, "Package Types are not defined.")
 
-        print("int he method")
-
         if request.session.get("package_type_id_upto530") is not None:
             form = CreateExtraHoursUpTo530Form(
                 initial={"package_type": request.session.get("package_type_id_upto530")}
             )
         else:
-            print("package_type_id is null")
             form = CreateExtraHoursUpTo530Form()
     return render(
         request,
@@ -520,7 +516,6 @@ def saveAdditionalRatesUpTo530(request):
                         objAdditionalRates.package_type.id
                     )
                     request.session.modified = True
-                    print(request.session["package_type_id_upto530"])
                     objAdditionalRates.save()
 
                     # ---------------- This section will save a log in to the extra charge history table------------
@@ -574,7 +569,6 @@ def getAdditionalRates(request):
         if packageTypeCount == 0:
             messages.error(request, "Package Types are not defined.")
 
-        print(request.session.get("package_type_id"))
         if request.session.get("package_type_id") is not None:
             form = CreateExtraChargesForm(
                 initial={"package_type": request.session.get("package_type_id")}
