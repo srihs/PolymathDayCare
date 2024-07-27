@@ -427,13 +427,13 @@
             retrieve: true,
         });
 
-        jQuery('#effective_from').flatpickr({
+        jQuery('#effective_from_1').flatpickr({
             minDate: "today",
             maxDate: new Date().fp_incr(15),
 
         });
 
-        jQuery('#effective_to').flatpickr({
+        jQuery('#effective_to_1').flatpickr({
             minDate: new Date().fp_incr(365),
 
 
@@ -456,20 +456,20 @@
 
         getRatesforTable();
 
-        jQuery('#from_time').flatpickr({
-            enableTime: true,
-            noCalendar: true,
-            enableSeconds: false,
-            dateFormat: "H:i",
-        });
+        // jQuery('#effective_from_1').flatpickr({
+        //     enableTime: true,
+        //     noCalendar: true,
+        //     enableSeconds: false,
+        //     dateFormat: "H:i",
+        // });
 
 
-        jQuery('#to_time').flatpickr({
-            enableTime: true,
-            noCalendar: true,
-            enableSeconds: false,
-            dateFormat: "H:i",
-        });
+        // jQuery('#effective_to_1').flatpickr({
+        //     enableTime: true,
+        //     noCalendar: true,
+        //     enableSeconds: false,
+        //     dateFormat: "H:i",
+        // });
 
     });
 
