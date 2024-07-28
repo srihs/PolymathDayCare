@@ -125,8 +125,7 @@
                             <table id="RateList" class="table table-striped table-hover" cellspacing="0">
                                 <thead>
                                     <tr>
-                                        <th>From Time</th>
-                                        <th>To Time</th>
+                                        <th>Hour</th>
                                         <th>Rate</th>
                                         <th>Effective from</th>
                                         <th>Effective to</th>
@@ -417,16 +416,6 @@
     });
     var dataTable;
     jQuery(document).ready(function () {
-        dataTable = $('#RateList').DataTable({
-            responsive: true,
-            dom: "Bfrtip",
-            pageLength: 10,
-
-            buttons: ["excel", "print"],
-            order: [[0, "asc"]],
-            retrieve: true,
-        });
-
         jQuery('#effective_from_1').flatpickr({
             minDate: "today",
         });
@@ -492,32 +481,44 @@
             }
         }, 2000);
 
-        getRatesforTable();
+        var table = $("#RateList").DataTable({
+        responsive: true,
+        ajax: {
+          processing: true,
+          url: "{% url 'core:get_AdditionalRates_Upto530_By_Id_Js' %}",
+          dataSrc: "",
+        },
+        columns: [
+          { data: "hour_number" },
+          { data: "extra_rate" },
+          { data: "effective_from" },
+          { data: "effective_to" },
+          {
+            data: null,
+            className: "dt-right",
+            render: function (data, type, row) {
+                var url = "{% url 'core:get_Branch_For_Update' 0 %}";
+                        id= row.id;
+                        url = url.replace(0, id);
+                return '<a href=' + url + ' class="link-success"  data-id='+ id +' data-bs-target="#showUpdateModal"\
+                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="ri-edit-2-fill"></i></a>';
+            },
+          },
 
-        // jQuery('#effective_from_1').flatpickr({
-        //     enableTime: true,
-        //     noCalendar: true,
-        //     enableSeconds: false,
-        //     dateFormat: "H:i",
-        // });
 
 
-        // jQuery('#effective_to_1').flatpickr({
-        //     enableTime: true,
-        //     noCalendar: true,
-        //     enableSeconds: false,
-        //     dateFormat: "H:i",
-        // });
+        ],
+
+        searching: false,
+        paging: false,
+        order: [[0, "asc"]], // Set default sorting by admission_date in descending order
+      });
+
+        
 
     });
 
-    jQuery('#package_type').change(function () {
-        var baseRateId = jQuery(this).val();
-
-        dataTable.clear();
-        getRatesforTable();
-
-    });
+   
 
 
     jQuery("secondButton").click(function () {
@@ -525,42 +526,8 @@
     });
 
 
-    function getRatesforTable() {
-        var package_type_Id = jQuery("#package_type").val();
-        if (package_type_Id) {
-            jQuery.ajax({
-                url: "{% url 'core:get_AdditionalRates_Upto530_By_Id_Js' %}",
-                type: "GET",
-                data: { package_type_Id: package_type_Id },
-                beforeSend: function () { },
-                success: function (response) {
-
-                    jQuery.each(response, function (i, item) {
-                        var url = "{% url 'core:view_additional_rates_byId'  %}";
-
-
-                        dataTable.row.add(
-                            [response[i].from_time,
-                            response[i].to_time,
-                            response[i].extra_rate,
-                            response[i].effective_from,
-                            response[i].effective_to,
-                            '<a href="' + url + '" class="link-success" data-bs-target="#firstmodal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button" data-value="' + response[i].id + '"><i class="ri-edit-2-fill"></i></a>',
-                            ],)
-                    });
-
-
-
-                    dataTable.draw();
-                }, error: function (response) {
-                    console.log(response);
-                }
-            });
-        }
-        else {
-            dataTable.clear().draw();
-        }
-    }
+   
+        
 </script>
 
 <!-- App js -->

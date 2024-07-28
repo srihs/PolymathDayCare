@@ -1608,26 +1608,26 @@ class CreateExtraHoursUpTo530Form(forms.ModelForm):
         ),
     )
     effective_from_5 = forms.DateField(
-        required=True,
+        required=False,
         widget=MyDateInput(
             attrs={
                 "class": "form-control",
                 "id": "effective_from_5",
+                "required": "False",
                 "placeholder": "Effective From",
-                "required": "required",
                 "data-provider": "flatpickr",
                 "data-date-format": "Y-m-d",
             }
         ),
     )
     effective_to_5 = forms.DateField(
-        required=True,
+        required=False,
         widget=MyDateInput(
             attrs={
                 "class": "form-control",
                 "id": "effective_to_5",
+                "required": "False",
                 "placeholder": "Effective To",
-                "required": "required",
                 "data-provider": "flatpickr",
                 "data-date-format": "Y-m-d",
             }
@@ -1644,26 +1644,26 @@ class CreateExtraHoursUpTo530Form(forms.ModelForm):
         ),
     )
     effective_from_6 = forms.DateField(
-        required=True,
+        required=False,
         widget=MyDateInput(
             attrs={
                 "class": "form-control",
+                "required": "False",
                 "id": "effective_from_6",
                 "placeholder": "Effective from",
-                "required": "required",
                 "data-provider": "flatpickr",
                 "data-date-format": "Y-m-d",
             }
         ),
     )
     effective_to_6 = forms.DateField(
-        required=True,
+        required=False,
         widget=MyDateInput(
             attrs={
                 "class": "form-control",
                 "id": "effective_to_6",
+                "required": "False",
                 "placeholder": "Effective To",
-                "required": "required",
                 "data-provider": "flatpickr",
                 "data-date-format": "Y-m-d",
             }
@@ -1678,18 +1678,3 @@ class CreateExtraHoursUpTo530Form(forms.ModelForm):
             "effective_from",
             "effective_to",
         )
-
-    def __init__(self, *args, **kwargs):
-        initial_data = kwargs.pop("initial_data", {})
-        super().__init__(*args, **kwargs)
-        for i in range(1, 7):
-            self.fields[f"hour_number_{i}"].initial = initial_data.get(
-                f"hour_number_{i}"
-            )
-            self.fields[f"extra_rate_{i}"].initial = initial_data.get(f"extra_rate_{i}")
-            self.fields[f"effective_from_{i}"].initial = initial_data.get(
-                f"effective_from_{i}"
-            )
-            self.fields[f"effective_to_{i}"].initial = initial_data.get(
-                f"effective_to_{i}"
-            )

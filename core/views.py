@@ -498,41 +498,20 @@ def saveAdditionalRatesUpTo530(request):
             )
         else:
             if form.is_valid():
-                objAdditionalRates = form.save(commit=False)
-
-                # ----------Check if the entered timeslot already defined -----------------
-                objExtraChargestchek = ExtraHoursUpTo530.objects.filter(
-                    from_time=objAdditionalRates.from_time,
-                    to_time=objAdditionalRates.to_time,
-                    package_type=request.session["package_type_id_upto530"],
-                ).first()
-
-                if objExtraChargestchek is not None:
-                    messages.error(request, "This time slot is already defined")
-                else:
-                    # ------- New timeslot and this is not defined before -------
-                    objAdditionalRates.user_created = request.user.username
-                    request.session["package_type_id_upto530"] = (
-                        objAdditionalRates.package_type.id
-                    )
-                    request.session.modified = True
-                    objAdditionalRates.save()
-
-                    # ---------------- This section will save a log in to the extra charge history table------------
-                    with transaction.atomic():  # <-- if the extra charge history fails, addtional rates will be failed.
-                        objExtrachargeHistory = ExtraChargesHistory(
-                            extra_charges_before530=objAdditionalRates,
-                            from_time=objAdditionalRates.from_time,
-                            to_time=objAdditionalRates.to_time,
-                            extra_rate=objAdditionalRates.extra_rate,
-                            effective_from=objAdditionalRates.effective_from,
-                            effective_to=objAdditionalRates.effective_to,
-                            user_created=objAdditionalRates.user_created,
-                            date_created=objAdditionalRates.date_created,
+                print(form)
+                for i in range(1, 7):
+                    hour_number = i
+                    extra_rate = form.cleaned_data.get(f"extra_rate_{i}")
+                    effective_from = form.cleaned_data.get(f"effective_from_{i}")
+                    effective_to = form.cleaned_data.get(f"effective_to_{i}")
+                    if hour_number is not None:
+                        ExtraHoursUpTo530.objects.create(
+                            hour_number=hour_number,
+                            extra_rate=extra_rate,
+                            effective_from=effective_from,
+                            effective_to=effective_to,
                         )
-                        objExtrachargeHistory.save()
-                        messages.success(request, "Additional rate details saved.")
-                    # ------------------------------------------------------------------------------------------------
+                messages.success(request, "Additional rate details saved.")
             else:
                 messages.error(request, form.errors)
 
@@ -541,23 +520,16 @@ def saveAdditionalRatesUpTo530(request):
 
 @login_required
 def getAdditionalRatesUpto530ByIdJs(request):
-    if request.GET.get("package_type_Id") is not None:
+    if request.method == "GET":
         additionalRatesList = None
         additionalRatesList = list(
             ExtraHoursUpTo530.objects.filter(
-                is_active=True, package_type=request.GET.get("package_type_Id")
+                is_active=True, extra_rate__isnull=False
             ).values(
-                "id",
-                "from_time",
-                "to_time",
-                "extra_rate",
-                "effective_from",
-                "effective_to",
+                "id", "hour_number", "extra_rate", "effective_from", "effective_to"
             )
         )
-        for i, n in enumerate(additionalRatesList):
-            if n["effective_to"] == None:
-                additionalRatesList[i]["effective_to"] = "-"
+
     return JsonResponse(additionalRatesList, safe=False)
 
 
