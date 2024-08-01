@@ -75,7 +75,7 @@
   </div>
 </div>
 
-<!-- Settings Form -->
+<!-- Modal Form for extra charges up to 5.30p.m  -->
 <div class="modal fade" id="showModalCreate" tabindex="-1" aria-labelledby="exampleModalLabel" style="display: none"
   aria-hidden="true">
   <div class="modal-dialog modal-lg">
@@ -129,7 +129,7 @@
   </div>
 </div>
 
-<div class="modal fade" id="divbefore530" tabindex="-1" aria-labelledby="exampleModalFullscreenLgLabel"
+<div class="modal fade" id="divbefore530" tabindex="-1" 
   style="display: none;" aria-hidden="true">
   <div class="modal-dialog modal-fullscreen-lg-down">
     <div class="modal-content">
@@ -141,27 +141,28 @@
         <h4 class="fs-15"> Please select the extra charges upto 5.30p.m</h6>
         </h4><br>
         <div id="contenupto530">
-         
-
         </div>
-
-
       </div>
     </div>
   </div>
+</div>
 
 
-  <!--Update Form-->
-  <div class="modal fade zoomIn" id="showUpdateModal" tabindex="-1" aria-labelledby="exampleModalLabel"
-    style="display: none" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content border-0">
-        <div class="modal-header p-3 bg-secondary-subtle">
-          <h5 class="modal-title">Update base rate details</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
-            id="close-upmodal"></button>
+
+<!-- Modal Form for extra charges after 5.30p.m  -->
+<div class="modal fade" id="divafter530" tabindex="-1" 
+  style="display: none;" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen-lg-down">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title" id="exampleModalFullscreenLgLabel">Charges after 5.30p.m</h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <h4 class="fs-15"> Please select the extra charges after 5.30p.m</h6>
+        </h4><br>
+        <div id="contentafter530">
         </div>
-        <div id="modelForm" bs-focus="false"></div>
       </div>
     </div>
   </div>
@@ -266,7 +267,7 @@
             data: null,
             className: "dt-right",
             render: function (data, type, row) {
-              return '<a href="' + url + '" class="link-success" data-id="' + id + '" data-bs-target="#showUpdateModal"  data-bs-toggle="modal"  role="button">after 5.30p.m</a>';
+              return '<a href="#" class="link-success" data-id="' + id + '"   data-bs-toggle="modal"  role="button">after 5.30p.m</a>';
             },
           },
 
@@ -307,10 +308,8 @@
 
     jQuery(document).on("click", ".link-secondary", function (e) {
       e.preventDefault();
-
       // Show the modal
       jQuery("#divbefore530").modal("show");
-
       // Load the form into the modal using AJAX
       jQuery.ajax({
         type: "GET",
@@ -326,9 +325,28 @@
           alert("Error: " + xhr.status + ", " + xhr.statusText);
         },
       });
-
-
     });
+
+    jQuery(document).on("click", ".link-success", function (e) {
+      e.preventDefault();
+      // Show the modal
+      jQuery("#divafter530").modal("show");
+      // Load the form into the modal using AJAX
+      jQuery.ajax({
+        type: "GET",
+        url: url,
+        data: { rate_id: id },
+        dataType: "html",
+        success: function (data) {
+          jQuery("#contentafter530").html(data);
+          jQuery("#effective_from").flatpickr();
+        },
+        error: function (xhr, textStatus, errorThrown) {
+          alert("Error: " + xhr.status + ", " + xhr.statusText);
+        },
+      });
+    });
+
 
     jQuery(document).on("click", "#addRates", function (e) {
       e.preventDefault();

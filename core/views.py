@@ -31,6 +31,7 @@ from .forms import (
     UpdateChildForm,
     UpdateDayCareForm,
     UpdateExtraChargesForm,
+    UpdateExtraHoursUpTo530Form,
     UpdatePackageTypeForm,
 )
 from .models import (
@@ -519,7 +520,7 @@ def saveAdditionalRatesUpTo530(request):
 
 
 @login_required
-def getAdditionalRatesUpto530ByIdJs(request):
+def getAdditionalRatesUpto530ByJs(request):
     if request.method == "GET":
         additionalRatesList = None
         additionalRatesList = list(
@@ -531,6 +532,32 @@ def getAdditionalRatesUpto530ByIdJs(request):
         )
 
     return JsonResponse(additionalRatesList, safe=False)
+
+
+@login_required
+def getAdditionalRatesUpto530toUpdatebyId(request):
+    update_form = None
+    try:
+        print(request.GET.get("id"))
+        if request.GET.get("id") is not None:
+            objAdditionalRatesUpto530 = get_object_or_404(
+                ExtraHoursUpTo530, pk=request.GET.get("id")
+            )
+            print("NotNull")
+            print(objAdditionalRatesUpto530)
+
+            if objAdditionalRatesUpto530 is not None:
+                update_form = UpdateExtraHoursUpTo530Form(
+                    instance=objAdditionalRatesUpto530
+                )
+
+    except Exception as e:
+        messages.error(request, e)
+    return render(
+        request,
+        "../templates/partials/extraHoursUpTo530Update.html",
+        {"form": update_form},
+    )
 
 
 @login_required

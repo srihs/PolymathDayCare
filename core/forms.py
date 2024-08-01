@@ -1678,3 +1678,48 @@ class CreateExtraHoursUpTo530Form(forms.ModelForm):
             "effective_from",
             "effective_to",
         )
+
+
+class UpdateExtraHoursUpTo530Form(forms.ModelForm):
+    extra_rate = forms.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Extra Rate"}
+        ),
+    )
+    effective_from = forms.DateField(
+        required=True,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "effective_from_1",
+                "placeholder": "Effective From",
+                "required": "required",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+            }
+        ),
+    )
+    effective_to = forms.DateField(
+        required=True,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "effective_to_1",
+                "placeholder": "Effective To",
+                "required": "required",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+            }
+        ),
+    )
+
+    class Meta:
+        model = ExtraHoursUpTo530
+        fields = (
+            "extra_rate",
+            "effective_from",
+            "effective_to",
+        )
