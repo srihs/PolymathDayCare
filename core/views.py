@@ -485,12 +485,12 @@ def getAdditionalRatesUpto530(request):
 
 
 @login_required
+@transaction.atomic
 def saveAdditionalRatesUpTo530(request):
     request.session["package_type_id_upto530"] = None
     if request.method == "POST":
         form = CreateExtraHoursUpTo530Form(request.POST)
         user = User.objects.get(username=request.user.username)
-
         # ---------- Check for the permission ----
         if user.groups.filter(name="Data Entry").exists():
             messages.error(
@@ -499,19 +499,25 @@ def saveAdditionalRatesUpTo530(request):
             )
         else:
             if form.is_valid():
-                print(form)
                 for i in range(1, 7):
                     hour_number = i
                     extra_rate = form.cleaned_data.get(f"extra_rate_{i}")
                     effective_from = form.cleaned_data.get(f"effective_from_{i}")
                     effective_to = form.cleaned_data.get(f"effective_to_{i}")
-                    if hour_number is not None:
-                        ExtraHoursUpTo530.objects.create(
-                            hour_number=hour_number,
-                            extra_rate=extra_rate,
-                            effective_from=effective_from,
-                            effective_to=effective_to,
-                        )
+                    if extra_rate is not None and effective_from is not None:
+                        with transaction.atomic():
+                            objExtraHoursUpTo530 = ExtraHoursUpTo530.objects.create(
+                                hour_number=hour_number,
+                                extra_rate=extra_rate,
+                                effective_from=effective_from,
+                                effective_to=effective_to,
+                            )
+                            ExtraChargesHistory.objects.create(
+                                extra_charges_before530=objExtraHoursUpTo530,
+                                extra_rate=objExtraHoursUpTo530.extra_rate,
+                                effective_from=objExtraHoursUpTo530.effective_from,
+                                effective_to=objExtraHoursUpTo530.effective_to,
+                            )
                 messages.success(request, "Additional rate details saved.")
             else:
                 messages.error(request, form.errors)
@@ -530,21 +536,34 @@ def getAdditionalRatesUpto530ByJs(request):
                 "id", "hour_number", "extra_rate", "effective_from", "effective_to"
             )
         )
-
     return JsonResponse(additionalRatesList, safe=False)
+
+
+@login_required
+def getAdditionalRatesUpto530HistoryByIdJS(request):
+    if request.GET.get("id") is not None:
+        print("Methods")
+        additionalRatesHistoryList = list(
+            ExtraChargesHistory.objects.filter(id=request.GET.get("id")).values(
+                "id",
+                "extra_rate",
+                "effective_from",
+                "effective_to",
+                "is_active",
+            )
+        )
+        print(additionalRatesHistoryList.count)
+    return JsonResponse(additionalRatesHistoryList, safe=False)
 
 
 @login_required
 def getAdditionalRatesUpto530toUpdatebyId(request):
     update_form = None
     try:
-        print(request.GET.get("id"))
         if request.GET.get("id") is not None:
             objAdditionalRatesUpto530 = get_object_or_404(
                 ExtraHoursUpTo530, pk=request.GET.get("id")
             )
-            print("NotNull")
-            print(objAdditionalRatesUpto530)
 
             if objAdditionalRatesUpto530 is not None:
                 update_form = UpdateExtraHoursUpTo530Form(

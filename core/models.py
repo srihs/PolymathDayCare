@@ -335,8 +335,8 @@ class ExtraChargesHistory(BaseClass):
     extra_charges_before530 = models.ForeignKey(
         ExtraHoursUpTo530, on_delete=models.CASCADE, null=True, blank=True
     )
-    from_time = models.TimeField()
-    to_time = models.TimeField()
+    from_time = models.TimeField(null=True, blank=True)
+    to_time = models.TimeField(null=True, blank=True)
     extra_rate = models.DecimalField(max_digits=8, decimal_places=2)
     effective_from = models.DateField()
     effective_to = models.DateField(null=True)

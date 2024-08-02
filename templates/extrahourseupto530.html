@@ -45,7 +45,8 @@
                                 </div>
                                 <div class="col-xxl-2 col-md-3">
                                     <div>
-                                        <label for="basiInput" class="form-label"> {{ form.hour_number_2.label_tag }}</label>
+                                        <label for="basiInput" class="form-label"> {{ form.hour_number_2.label_tag}}</label>
+                                            
                                         <div>
                                             {{form.extra_rate_2}}</br>
                                             {{form.effective_from_2}}</br>
@@ -59,20 +60,22 @@
 
                                 <div class="col-xxl-2 col-md-3">
                                     <div>
-                                        <label for="basiInput" class="form-label"> {{ form.hour_number_3.label_tag }}</label>
-                                        
-                                            {{form.extra_rate_3}}</br>
-                                            {{form.effective_from_3}}</br>
-                                            {{form.effective_to_3}}</br>
+                                        <label for="basiInput" class="form-label"> {{ form.hour_number_3.label_tag}}</label>
+                                            
 
-                                        
+                                        {{form.extra_rate_3}}</br>
+                                        {{form.effective_from_3}}</br>
+                                        {{form.effective_to_3}}</br>
+
+
                                     </div>
 
                                 </div>
                                 <!--end col-->
                                 <div class="col-xxl-2 col-md-3">
                                     <div>
-                                        <label for="basiInput" class="form-label"> {{ form.hour_number_4.label_tag                                            }}</label>
+                                        <label for="basiInput" class="form-label"> {{ form.hour_number_4.label_tag}}</label>
+                                            
                                         <div>
                                             {{form.extra_rate_4}}</br>
                                             {{form.effective_from_4}}</br>
@@ -85,7 +88,8 @@
                                 <!--end col-->
                                 <div class="col-xxl-2 col-md-3">
                                     <div>
-                                        <label for="basiInput" class="form-label"> {{ form.hour_number_5.label_tag                                            }}</label>
+                                        <label for="basiInput" class="form-label"> {{ form.hour_number_5.label_tag}}</label>
+                                            
                                         <div>
                                             {{form.extra_rate_5}}</br>
                                             {{form.effective_from_5}}</br>
@@ -97,11 +101,11 @@
                                 </div>
                                 <!--end col-->
                                 <div class="col-xxl-2 col-md-3">
-                                        <label for="basiInput" class="form-label"> {{ form.hour_number_6.label_tag}}</label>
-                                        
-                                            {{form.extra_rate_6}}</br>
-                                            {{form.effective_from_6}}</br>
-                                            {{form.effective_to_6}}</br>
+                                    <label for="basiInput" class="form-label"> {{ form.hour_number_6.label_tag}}</label>
+
+                                    {{form.extra_rate_6}}</br>
+                                    {{form.effective_from_6}}</br>
+                                    {{form.effective_to_6}}</br>
                                 </div>
                                 <!--end col-->
 
@@ -112,10 +116,10 @@
                         <!--end row-->
                         <div class="col-lg-12">
                             <div class="text-end">
-                            <button class="btn btn-secondary add-btn">
-                                <i class="ri-add-line align-bottom me-1"></i> Save rate
-                            </button>
-                        </div>
+                                <button class="btn btn-secondary add-btn">
+                                    <i class="ri-add-line align-bottom me-1"></i> Save rate
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -129,6 +133,7 @@
                                         <th>Rate</th>
                                         <th>Effective from</th>
                                         <th>Effective to</th>
+                                        <th data-orderable="false"></th>
                                         <th data-orderable="false"></th>
                                     </tr>
                                 </thead>
@@ -207,7 +212,7 @@
 
                             <div class="card-body">
                                 <div class="live-preview">
-                                    
+
                                     <div class="row gy-4">
                                         <div class="col-12">
                                             {{ form.base_rate }}
@@ -283,6 +288,38 @@
     </div>
 </div>
 
+<div id="historyDiv" class="modal fade bs-example-modal-lg show" tabindex="-1" aria-labelledby="myLargeModalLabel"
+    style="display: none;" aria-modal="true" role="dialog">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="myLargeModalLabel">Rate History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                </button>
+            </div>
+            <div class="modal-body">
+                <div>
+                    <table id="RateHistoryList" class="display" style="width: 100%">
+                        <thead>
+                            <tr>
+                                <th>Hr</th>
+                                <th>Rate (hr)</th>
+                                <th>Effective from</th>
+                                <th>Effective to</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div>
+
 
 {% endblock %} {% block scripts %}
 <!-- jQuery -->
@@ -338,7 +375,8 @@
             success: function (data) {
                 // Assuming you have a modal body with the id "modelForm"
                 jQuery("#modelForm").html(data);
-                
+
+
             },
             error: function (xhr, textStatus, errorThrown) {
                 alert("Error: " + xhr.status + ", " + xhr.statusText);
@@ -346,8 +384,56 @@
         });
     });
 
+
+    jQuery(document).on("click", ".link-secondary", function (e) {
+        dataTable = $("#RateHistoryList").DataTable();
+        dataTable.clear();
+        // Show the modal
+        jQuery("#historyDiv").modal("show");
+
+        e.preventDefault();
+        id = jQuery(this).attr("data-id");
+        url = jQuery(this).attr("href");
+        jQuery.ajax({
+            url: url,
+            type: "GET",
+            data: { id: id },
+            beforeSend: function () { },
+            success: function (response) {
+                
+                jQuery.each(response, function (i, item) {
+                    dataTable.row.add(
+                        [response[i].id,
+                        response[i].extra_rate,
+                        response[i].effective_from,
+                        response[i].effective_to,
+                        response[i].is_active
+                        ],)
+                });
+                dataTable.draw();
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                alert("Error: " + xhr.status + ", " + xhr.statusText);
+            }
+        });
+    });
+
+
     var dataTable;
     jQuery(document).ready(function () {
+        dataTable = $('#RateHistoryList').DataTable({
+            responsive: true,
+            paging: false,
+            searching: false,
+            ordering:  false,
+            order: [[0, "asc"]],
+            retrieve: true,
+    });
+
+
+
+
+
         jQuery('#effective_from_1').flatpickr({
             minDate: "today",
         });
@@ -414,35 +500,46 @@
         }, 2000);
 
         var table = $("#RateList").DataTable({
-        responsive: true,
-        ajax: {
-          processing: true,
-          url: "{% url 'core:get_AdditionalRates_Upto530_By_Js' %}",
-          dataSrc: "",
-        },
-        columns: [
-          { data: "hour_number" },
-          { data: "extra_rate" },
-          { data: "effective_from" },
-          { data: "effective_to" },
-          {
-            data: null,
-            className: "dt-right",
-            render: function (data, type, row) {
-                var url = "{% url 'core:get_AdditionalRates_Upto530_Update'  %}";
-                        id= row.id;
-                       
-                return '<a href=' + url + ' class="link-success"  data-id='+ id +' data-bs-target="#showUpdateModal"\
-                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="ri-edit-2-fill"></i></a>';
+            responsive: true,
+            ajax: {
+                processing: true,
+                url: "{% url 'core:get_AdditionalRates_Upto530_By_Js' %}",
+                dataSrc: "",
             },
-          },
-        ],
-        searching: false,
-        paging: false,
-        order: [[0, "asc"]], // Set default sorting by admission_date in descending order
-      });
+            columns: [
+                { data: "hour_number" },
+                { data: "extra_rate" },
+                { data: "effective_from" },
+                { data: "effective_to" },
+                {
+                    data: null,
+                    className: "dt-right",
+                    render: function (data, type, row) {
+                        var url = "{% url 'core:get_AdditionalRates_Upto530_Update'  %}";
+                        id = row.id;
+                        return '<a href=' + url + ' class="link-success"  data-id=' + id + ' data-bs-target="#showUpdateModal"\
+                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="ri-edit-2-fill"></i></a>';
+                    },
+                },
+                {
+                    data: null,
+                    className: "dt-right",
+                    render: function (data, type, row) {
+                        var url = "{% url 'core:get_Additional_Rates_Upto530_History_By_Js'  %}";
+                        id = row.id;
+
+                        return '<a href=' + url + ' class="link-secondary"  data-id=' + id + ' data-bs-target="#divHistory"\
+                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button">History</a>';
+                    },
+                },
+            ],
+            searching: false,
+            paging: false,
+            order: [[0, "asc"]], // Set default sorting by admission_date in descending order
+        });
     });
-   
+
+
 
 
     jQuery("secondButton").click(function () {
@@ -450,8 +547,8 @@
     });
 
 
-   
-        
+
+
 </script>
 
 <!-- App js -->
