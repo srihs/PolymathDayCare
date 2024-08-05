@@ -84,6 +84,7 @@
                                         <th>Effective from</th>
                                         <th>Effective to</th>
                                         <th data-orderable="false"></th>
+                                        <th data-orderable="false"></th>
                                     </tr>
                                     </thead>
                                 </table>
@@ -525,6 +526,7 @@
                 response[i].effective_from,
                 response[i].effective_to,
                 '<a href="' + url + '" class="link-success" data-bs-target="#firstmodal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button" data-value="' + response[i].id + '"><i class="ri-edit-2-fill"></i></a>',
+                '<a href="' + url + '" class="link-secondary" data-bs-target="#firstmodal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button" data-value="' + response[i].id + '">History</a>',
                 ],)
                 });
 

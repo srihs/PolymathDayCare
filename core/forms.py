@@ -1716,10 +1716,21 @@ class UpdateExtraHoursUpTo530Form(forms.ModelForm):
         ),
     )
 
+    id = forms.CharField(
+        max_length=250,
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+            }
+        ),
+    )
+
     class Meta:
         model = ExtraHoursUpTo530
         fields = (
             "extra_rate",
             "effective_from",
             "effective_to",
+            "id",
         )

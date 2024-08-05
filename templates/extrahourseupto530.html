@@ -306,7 +306,7 @@
                                 <th>Rate (hr)</th>
                                 <th>Effective from</th>
                                 <th>Effective to</th>
-                                <th>Status</th>
+                                
                             </tr>
                         </thead>
                     </table>
@@ -403,11 +403,11 @@
                 
                 jQuery.each(response, function (i, item) {
                     dataTable.row.add(
-                        [response[i].id,
+                        [response[i].extra_charges_before530,
                         response[i].extra_rate,
                         response[i].effective_from,
-                        response[i].effective_to,
-                        response[i].is_active
+                        response[i].effective_to
+                        
                         ],)
                 });
                 dataTable.draw();

@@ -462,18 +462,9 @@ def savePackageTypes(request):
 
 @login_required
 def getAdditionalRatesUpto530(request):
+    form = None
     if request.method == "GET":
-        packageTypeCount = PackageType.objects.all().count()
-
-        if packageTypeCount == 0:
-            messages.error(request, "Package Types are not defined.")
-
-        if request.session.get("package_type_id_upto530") is not None:
-            form = CreateExtraHoursUpTo530Form(
-                initial={"package_type": request.session.get("package_type_id_upto530")}
-            )
-        else:
-            form = CreateExtraHoursUpTo530Form()
+        form = CreateExtraHoursUpTo530Form()
     return render(
         request,
         "../templates/extrahourseupto530.html",
@@ -526,6 +517,56 @@ def saveAdditionalRatesUpTo530(request):
 
 
 @login_required
+@transaction.atomic
+def updateAdditionalRatesUpto530(request):
+    try:
+        if request.method == "POST":
+            id = request.POST.get("id")
+            extra_rate = request.POST.get("extra_rate")
+            effective_from = request.POST.get("effective_from")
+            effective_to = request.POST.get("effective_to")
+            if id is not None:
+                user = User.objects.get(username=request.user.username)
+                objNewAdditionalRates = get_object_or_404(ExtraHoursUpTo530, pk=id)
+                if objNewAdditionalRates is not None:
+                    if user.groups.filter(name="Data Entry").exists():
+                        messages.error(
+                            request,
+                            "You are not authorized to performe this operation.",
+                        )
+                    else:
+                        objNewAdditionalRates.extra_rate = extra_rate
+                        objNewAdditionalRates.effective_from = effective_from
+                        objNewAdditionalRates.effective_to = effective_to
+                        objNewAdditionalRates.user_updated = request.user.username
+                        objNewAdditionalRates.save()
+
+                        # ---------------- This section will save a log in to the extra charge history table------------
+                        ExtraChargesHistory.objects.create(
+                            extra_charges_before530=objNewAdditionalRates,
+                            extra_rate=objNewAdditionalRates.extra_rate,
+                            effective_from=objNewAdditionalRates.effective_from,
+                            effective_to=objNewAdditionalRates.effective_to,
+                        )
+                        messages.success(request, "Additional rate details Updated.")
+                else:
+                    messages.error(
+                        request,
+                        "No rate found.",
+                    )
+            else:
+                messages.error(
+                    request,
+                    "No ID found.",
+                )
+
+    except Exception as e:
+        messages.error(request, e)
+
+    return redirect("core:additional_rates_upto530")
+
+
+@login_required
 def getAdditionalRatesUpto530ByJs(request):
     if request.method == "GET":
         additionalRatesList = None
@@ -542,17 +583,18 @@ def getAdditionalRatesUpto530ByJs(request):
 @login_required
 def getAdditionalRatesUpto530HistoryByIdJS(request):
     if request.GET.get("id") is not None:
-        print("Methods")
         additionalRatesHistoryList = list(
-            ExtraChargesHistory.objects.filter(id=request.GET.get("id")).values(
+            ExtraChargesHistory.objects.filter(
+                extra_charges_before530=request.GET.get("id")
+            ).values(
                 "id",
                 "extra_rate",
                 "effective_from",
                 "effective_to",
+                "extra_charges_before530",
                 "is_active",
             )
         )
-        print(additionalRatesHistoryList.count)
     return JsonResponse(additionalRatesHistoryList, safe=False)
 
 

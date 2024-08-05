@@ -42,6 +42,11 @@ urlpatterns = [
         name="save_AdditionalRates_Upto530",
     ),
     path(
+        "update_AdditionalRates_Upto530/",
+        views.updateAdditionalRatesUpto530,
+        name="update_AdditionalRates_Upto530",
+    ),
+    path(
         "get_AdditionalRates_Upto530_By_Js/",
         views.getAdditionalRatesUpto530ByJs,
         name="get_AdditionalRates_Upto530_By_Js",

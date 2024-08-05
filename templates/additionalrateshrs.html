@@ -86,6 +86,7 @@
                                         <th>Effective from</th>
                                         <th>Effective to</th>
                                         <th data-orderable="false"></th>
+                                        <th data-orderable="false"></th>
                                     </tr>
                                     </thead>
                                 </table>
@@ -507,6 +508,7 @@
 
 
     function getRatesforTable(){
+        alert("load")
     
             jQuery.ajax({
                 url: "{% url 'core:view_additional_rates_js' %}",
