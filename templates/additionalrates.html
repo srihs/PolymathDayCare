@@ -349,6 +349,42 @@
         </div>
     </div>
 </div>
+
+<div id="historyDiv" class="modal fade bs-example-modal-lg show" tabindex="-1" aria-labelledby="myLargeModalLabel"
+    style="display: none;" aria-modal="true" role="dialog">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="myLargeModalLabel">Rate History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                </button>
+            </div>
+            <div class="modal-body">
+                <div>
+                    <table id="RateHistoryList" class="display" style="width: 100%">
+                        <thead>
+                            <tr>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Rate (hr)</th>
+                                <th>Effective from</th>
+                                <th>Effective to</th>
+                                <th>Changed on</th>
+                                <th>Changed by</th>
+                                
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div>
+
 {% endblock %} {% block scripts %}
 <!-- jQuery -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
@@ -386,7 +422,7 @@
 
     jQuery(document).on("click", ".link-success", function (e) {
         e.preventDefault();
-        url = jQuery(this).attr("href");
+       
         id = jQuery(this).attr("data-value");
         // Show the modal
         jQuery("#firstmodal").modal("show");
@@ -394,14 +430,9 @@
 
     jQuery(document).on("click", "#btnModelDelete", function (e) {
         e.preventDefault();
-        
-      
         // Show the modal
         jQuery("#showUpdateModal").modal("show");
         jQuery("#firstmodal").modal("hide");
-        
-
-
         // Load the form into the modal using AJAX
         jQuery.ajax({
             type: "GET",
@@ -434,6 +465,14 @@
     });
     var dataTable;
     jQuery(document).ready(function () {
+        dataTable = $('#RateHistoryList').DataTable({
+            responsive: true,
+            paging: false,
+            searching: false,
+            ordering:  false,
+            order: [[0, "asc"]],
+            retrieve: true, });
+
         dataTable = $('#RateList').DataTable({
             responsive: true,
             dom: "Bfrtip",
@@ -503,6 +542,40 @@
         window.parent.location = window.parent.location.href;
     });
 
+    jQuery(document).on("click", ".link-secondary", function (e) {
+        dataTable = $("#RateHistoryList").DataTable();
+        dataTable.clear();
+        // Show the modal
+        jQuery("#historyDiv").modal("show");
+
+        e.preventDefault();
+        id = jQuery(this).attr("data-id");
+        var url = "{% url 'core:get_Additional_Rates_after530_History_By_Js'  %}";
+        jQuery.ajax({
+            url: url,
+            type: "GET",
+            data: { id: id },
+            beforeSend: function () { },
+            success: function (response) {
+                
+                jQuery.each(response, function (i, item) {
+                    dataTable.row.add(
+                        [response[i].from_time,
+                        response[i].to_time,
+                        response[i].extra_rate,
+                        response[i].effective_from,
+                        response[i].effective_to,
+                        response[i].date_created,
+                        response[i].user_created                        
+                        ],)
+                });
+                dataTable.draw();
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                alert("Error: " + xhr.status + ", " + xhr.statusText);
+            }
+        });
+    });
 
     function getRatesforTable(){
         var package_type_Id = jQuery("#package_type").val();
@@ -516,17 +589,16 @@
                 success: function (response) {       
                     
                 jQuery.each(response, function(i, item) {
-                var url = "{% url 'core:view_additional_rates_byId'  %}";
-
-                
+                var url_history= "{% url 'core:get_Additional_Rates_after530_History_By_Js'  %}";
                 dataTable.row.add(                 
                 [response[i].from_time,
                 response[i].to_time,
                 response[i].extra_rate,
                 response[i].effective_from,
                 response[i].effective_to,
-                '<a href="' + url + '" class="link-success" data-bs-target="#firstmodal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button" data-value="' + response[i].id + '"><i class="ri-edit-2-fill"></i></a>',
-                '<a href="' + url + '" class="link-secondary" data-bs-target="#firstmodal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button" data-value="' + response[i].id + '">History</a>',
+                '<a href="#" class="link-success" data-bs-target="#firstmodal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button" data-value="' + response[i].id + '"><i class="ri-edit-2-fill"></i></a>',
+                 
+                '<a href=' + url_history + ' class="link-secondary" data-bs-target="#historyDiv" data-bs-toggle="modal" data-bs-dismiss="modal" role="button" data-id="' + response[i].id + '">History</a>',
                 ],)
                 });
 
@@ -542,6 +614,8 @@
             dataTable.clear().draw();
         }
     }
+
+    
 </script>
 
 <!-- App js -->

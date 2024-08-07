@@ -72,6 +72,11 @@ urlpatterns = [
         name="view_additional_rates_byId",
     ),
     path(
+        "get_Additional_Rates_after530_History_By_Js/",
+        views.getAdditionalRatesafter530HistoryByIdJS,
+        name="get_Additional_Rates_after530_History_By_Js",
+    ),
+    path(
         "get_AdditionalRates_By_Id_Js/",
         views.getAdditionalRatesByIdJs,
         name="get_AdditionalRates_By_Id_Js",

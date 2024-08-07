@@ -547,6 +547,7 @@ def updateAdditionalRatesUpto530(request):
                             extra_rate=objNewAdditionalRates.extra_rate,
                             effective_from=objNewAdditionalRates.effective_from,
                             effective_to=objNewAdditionalRates.effective_to,
+                            user_created=request.user.username,
                         )
                         messages.success(request, "Additional rate details Updated.")
                 else:
@@ -592,9 +593,12 @@ def getAdditionalRatesUpto530HistoryByIdJS(request):
                 "effective_from",
                 "effective_to",
                 "extra_charges_before530",
+                "date_created",
+                "user_created",
                 "is_active",
             )
         )
+        print(additionalRatesHistoryList)
     return JsonResponse(additionalRatesHistoryList, safe=False)
 
 
@@ -643,6 +647,31 @@ def getAdditionalRates(request):
             "UserName": request.user.username,
         },
     )
+
+
+@login_required
+def getAdditionalRatesafter530HistoryByIdJS(request):
+    if request.GET.get("id") is not None:
+        print("in the method")
+        print(request.GET.get("id"))
+        additionalRatesHistoryList = list(
+            ExtraChargesHistory.objects.filter(
+                extra_charges_after530=request.GET.get("id")
+            ).values(
+                "id",
+                "extra_rate",
+                "from_time",
+                "to_time",
+                "extra_charges_after530",
+                "date_created",
+                "user_created",
+                "is_active",
+                "effective_from",
+                "effective_to",
+            )
+        )
+        print(additionalRatesHistoryList)
+    return JsonResponse(additionalRatesHistoryList, safe=False)
 
 
 @login_required

@@ -306,6 +306,8 @@
                                 <th>Rate (hr)</th>
                                 <th>Effective from</th>
                                 <th>Effective to</th>
+                                <th>Changed on</th>
+                                <th>Changed by</th>
                                 
                             </tr>
                         </thead>
@@ -406,8 +408,9 @@
                         [response[i].extra_charges_before530,
                         response[i].extra_rate,
                         response[i].effective_from,
-                        response[i].effective_to
-                        
+                        response[i].effective_to,
+                        response[i].date_created ,
+                        response[i].user_created                        
                         ],)
                 });
                 dataTable.draw();
