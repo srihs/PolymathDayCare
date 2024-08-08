@@ -1,6 +1,6 @@
 import datetime
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 import qrcode
 from django.conf import settings
@@ -45,6 +45,7 @@ from .models import (
     ExtraHoursAfter530,
     ExtraHoursUpTo530,
     Package,
+    PackageExtraHoursMapping,
     PackageType,
 )
 
@@ -598,7 +599,6 @@ def getAdditionalRatesUpto530HistoryByIdJS(request):
                 "is_active",
             )
         )
-        print(additionalRatesHistoryList)
     return JsonResponse(additionalRatesHistoryList, safe=False)
 
 
@@ -652,8 +652,6 @@ def getAdditionalRates(request):
 @login_required
 def getAdditionalRatesafter530HistoryByIdJS(request):
     if request.GET.get("id") is not None:
-        print("in the method")
-        print(request.GET.get("id"))
         additionalRatesHistoryList = list(
             ExtraChargesHistory.objects.filter(
                 extra_charges_after530=request.GET.get("id")
@@ -670,7 +668,6 @@ def getAdditionalRatesafter530HistoryByIdJS(request):
                 "effective_to",
             )
         )
-        print(additionalRatesHistoryList)
     return JsonResponse(additionalRatesHistoryList, safe=False)
 
 
@@ -980,7 +977,10 @@ def getPackagesJs(request):
 
 
 @login_required
+@transaction.atomic
 def savePackage(request):
+    extrChargesUpTo530 = None
+    extrChargesUpTo530 = None
     if request.method == "POST":
         form = CreatePackagesForm(request.POST)
         if form.is_valid():
@@ -993,6 +993,31 @@ def savePackage(request):
             objPackage.user_created = request.user.username
 
             objPackage.save()
+
+            extrChargesAfter530 = ExtraHoursAfter530.objects.filter(
+                package_type=objPackageType
+            )
+            if not objPackageType.is_holiday_package:
+                if objPackage.to_time < time(
+                    17, 30
+                ):  # should replace with the cutoff time
+                    extrChargesUpTo530 = ExtraHoursUpTo530.objects.all()
+
+            if extrChargesAfter530 is not None:
+                for rateAfter530 in extrChargesAfter530:
+                    if rateAfter530.to_time > objPackage.to_time:
+                        objMapping = PackageExtraHoursMapping()
+                        objMapping.package = objPackage
+                        objMapping.extra_hours_after_530 = rateAfter530
+                        objMapping.save()
+
+            if extrChargesUpTo530 is not None:
+                for rateBefore530 in extrChargesUpTo530:
+                    objMapping = PackageExtraHoursMapping()
+                    objMapping.package = objPackage
+                    objMapping.extra_hours_upto_530 = rateBefore530
+                    objMapping.save()
+
             messages.success(request, "Package details saved.")
         else:
             messages.error(request, form.errors)

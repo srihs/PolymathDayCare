@@ -210,10 +210,10 @@ class ExtraHoursUpTo530(BaseClass):
 class PackageExtraHoursMapping(BaseClass):
     package = models.ForeignKey(Package, on_delete=models.CASCADE)
     extra_hours_upto_530 = models.ForeignKey(
-        ExtraHoursUpTo530, on_delete=models.CASCADE
+        ExtraHoursUpTo530, on_delete=models.CASCADE, null=True, blank=True
     )
     extra_hours_after_530 = models.ForeignKey(
-        ExtraHoursAfter530, on_delete=models.CASCADE
+        ExtraHoursAfter530, on_delete=models.CASCADE, null=True, blank=True
     )
 
     class Meta:
