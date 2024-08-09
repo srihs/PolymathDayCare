@@ -353,22 +353,6 @@ def getPacakgeTypes(request):
     )
 
 
-# @login_required
-# def getRateByID(request, pk):
-#     try:
-#         rate_form = None
-#         objRate = get_object_or_404(Rates, pk=pk)
-
-#         if objRate is not None:
-#             rate_form = UpdateRatesForm(instance=objRate)
-
-#     except Exception as e:
-#         messages.error(request, e)
-#     return render(
-#         request, "../templates/partials/rateUpdate.html", {"formU": rate_form}
-#     )
-
-
 @login_required
 def getPackageTypeIdJs(request):
     if request.GET.get("packageType_id") is not None:
@@ -963,19 +947,6 @@ def getPackagesJs(request):
     return JsonResponse(packageList, safe=False)
 
 
-# @login_required
-# def checkIfHolidayPackage(id):
-#     is_holiday = None
-
-#     objBaseRate = Rates.objects.get(pk=id)
-#     if objBaseRate.is_holiday_rate:
-#         is_holiday = True
-#     else:
-#         is_holiday = False
-
-#     return is_holiday
-
-
 @login_required
 @transaction.atomic
 def savePackage(request):
@@ -1029,25 +1000,65 @@ def savePackage(request):
 
 
 @login_required
-def getBranches(request):
-    if request.method == "GET":
-        try:
-            # trying to retrive the next primaryKey
-            nextId = Branch.objects.all().count()
-            nextId += 1
-        except:
-            nextId = 1  # if the next ID is null define the record as the first
+def getPacakageExtrahoursUpto530JS(request):
+    extraHoursUpto530List = []
+    if request.GET.get("id"):
+        print(request.GET.get("id"))
+        extraHoursList = list(
+            PackageExtraHoursMapping.objects.filter(
+                package=request.GET.get("id")
+            ).values(
+                "id",
+                "extra_hours_upto_530",
+            )
+        )
 
-        branch_form = CreateBranchForm(initial={"branch_code": "BRN00" + str(nextId)})
+        for i, n in enumerate(extraHoursList):
+            if n["extra_hours_upto_530"]:
+                objExtraHoursUpto530 = ExtraHoursUpTo530.objects.filter(
+                    pk=extraHoursList[i]["extra_hours_upto_530"]
+                ).first()
+                extraHoursUpto530List.append(
+                    {
+                        "hour_number": objExtraHoursUpto530.id,
+                        "extra_rate": objExtraHoursUpto530.extra_rate,
+                        "effective_from": objExtraHoursUpto530.effective_from,
+                        "effective_to": objExtraHoursUpto530.effective_to,
+                    }
+                )
+        print(extraHoursUpto530List)
+    return JsonResponse(extraHoursUpto530List, safe=False)
 
-    return render(
-        request,
-        "../templates/branch.html",
-        {
-            "form": branch_form,
-            "UserName": request.user.username,
-        },
-    )
+
+@login_required
+def getPacakageExtrahoursAfter530JS(request):
+    extraHoursAfter530List = []
+    if request.GET.get("id"):
+        extraHoursList = list(
+            PackageExtraHoursMapping.objects.filter(
+                package=request.GET.get("id")
+            ).values(
+                "id",
+                "extra_hours_after_530",
+            )
+        )
+
+        for i, n in enumerate(extraHoursList):
+            if n["extra_hours_upto_530"]:
+                objExtraHoursAfter530 = ExtraHoursAfter530.objects.filter(
+                    pk=extraHoursList[i]["extra_hours_after_530"]
+                ).first()
+                extraHoursAfter530List.append(
+                    {
+                        "from_time": objExtraHoursAfter530.from_time,
+                        "to_time": objExtraHoursAfter530.to_time,
+                        "extra_rate": objExtraHoursAfter530.extra_rate,
+                        "effective_from": objExtraHoursAfter530.effective_from,
+                        "effective_to": objExtraHoursAfter530.effective_to,
+                    }
+                )
+        print(extraHoursAfter530List)
+    return JsonResponse(extraHoursAfter530List, safe=False)
 
 
 @login_required
@@ -1069,6 +1080,28 @@ def getBranchesJs(request):
         )
 
     return JsonResponse(branchList, safe=False)
+
+
+@login_required
+def getBranches(request):
+    if request.method == "GET":
+        try:
+            # trying to retrive the next primaryKey
+            nextId = Branch.objects.all().count()
+            nextId += 1
+        except:
+            nextId = 1  # if the next ID is null define the record as the first
+
+        branch_form = CreateBranchForm(initial={"branch_code": "BRN00" + str(nextId)})
+
+    return render(
+        request,
+        "../templates/branch.html",
+        {
+            "form": branch_form,
+            "UserName": request.user.username,
+        },
+    )
 
 
 @login_required

@@ -134,14 +134,23 @@
   <div class="modal-dialog modal-fullscreen-lg-down">
     <div class="modal-content">
       <div class="modal-header">
-        <h4 class="modal-title" id="exampleModalFullscreenLgLabel">Charges before 5.30p.m</h4>
+        <h4 class="modal-title" id="exampleModalFullscreenLgLabel">Charges upto 5.30p.m</h4>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <h4 class="fs-15"> Please select the extra charges upto 5.30p.m</h6>
-        </h4><br>
-        <div id="contenupto530">
-        </div>
+        
+        <div>
+          <table id="RatesUpto530" class="display" style="width: 100%">
+              <thead>
+                  <tr>
+                      <th>Hr</th>
+                      <th>Rate (hr)</th>
+                      <th>Effective from</th>
+                      <th>Effective to</th>
+                  </tr>
+              </thead>
+          </table>
+      </div>
       </div>
     </div>
   </div>
@@ -159,10 +168,19 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <h4 class="fs-15"> Please select the extra charges after 5.30p.m</h6>
-        </h4><br>
-        <div id="contentafter530">
-        </div>
+        <div>
+          <table id="RatesAfter530" class="display" style="width: 100%">
+            <thead>
+                <tr>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Rate (hr)</th>
+                    <th>Effective from</th>
+                    <th>Effective to</th>
+                </tr>
+            </thead>
+        </table>
+      </div>
       </div>
     </div>
   </div>
@@ -197,6 +215,24 @@
     var dataTable;
 
     jQuery(document).ready(function () {
+
+      dataTable = $('#RatesUpto530').DataTable({
+            responsive: true,
+            paging: false,
+            searching: false,
+            ordering:  false,
+            order: [[0, "asc"]],
+            retrieve: true,
+    });
+
+    dataTable = $('#RatesAfter530').DataTable({
+            responsive: true,
+            paging: false,
+            searching: false,
+            ordering:  false,
+            order: [[0, "asc"]],
+            retrieve: true,
+    });
 
       window.setTimeout(function () {
         // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
@@ -257,7 +293,8 @@
               }
               else {
                 // ADD URL HERE
-                return '<a href="#" class="link-secondary" data-id="' + id + '"   data-bs-toggle="modal"   role="button">upto 5.30p.m</a>';
+                
+                return '<a href="" class="link-secondary" data-id="' + id + '"   data-bs-toggle="modal"   role="button">upto 5.30p.m</a>';
               }
 
 
@@ -308,18 +345,32 @@
 
     jQuery(document).on("click", ".link-secondary", function (e) {
       e.preventDefault();
+      dataTable = $("#RatesUpto530").DataTable();
+      dataTable.clear();
       // Show the modal
       jQuery("#divbefore530").modal("show");
+      var url = "{% url 'core:get_pacakage_extrahours_upto530_js'  %}";
+      id = jQuery(this).attr("data-id");
       // Load the form into the modal using AJAX
       jQuery.ajax({
         type: "GET",
         url: url,
-        data: { rate_id: id },
-        dataType: "html",
-        success: function (data) {
-          // Assuming you have a modal body with the id "updateModalBody"
-          jQuery("#modelRateForm").html(data);
-          jQuery("#effective_from").flatpickr();
+        data: { id: id },
+        beforeSend: function () { },
+        success: function (response) {
+          jQuery.each(response, function (i, item) {
+            dataTable.row.add(
+                [
+                  response[i].hour_number,
+                  response[i].extra_rate,
+                  response[i].effective_from,
+                  response[i].effective_to,
+
+
+                ],)
+            });
+
+            dataTable.draw();
         },
         error: function (xhr, textStatus, errorThrown) {
           alert("Error: " + xhr.status + ", " + xhr.statusText);

@@ -103,6 +103,11 @@ urlpatterns = [
     # ),
     path("packages/", views.getPackages, name="view_packages"),
     path("get_packages_js/", views.getPackagesJs, name="view_packages_js"),
+    path(
+        "get_pacakage_extrahours_upto530_js/",
+        views.getPacakageExtrahoursUpto530JS,
+        name="get_pacakage_extrahours_upto530_js",
+    ),
     path("save_package/", views.savePackage, name="save_package"),
     path("branches/", views.getBranches, name="view_branches"),
     path("get_branches_js/", views.getBranchesJs, name="get_branches_js"),
