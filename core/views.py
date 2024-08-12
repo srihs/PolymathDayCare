@@ -1002,8 +1002,8 @@ def savePackage(request):
 @login_required
 def getPacakageExtrahoursUpto530JS(request):
     extraHoursUpto530List = []
+
     if request.GET.get("id"):
-        print(request.GET.get("id"))
         extraHoursList = list(
             PackageExtraHoursMapping.objects.filter(
                 package=request.GET.get("id")
@@ -1044,7 +1044,7 @@ def getPacakageExtrahoursAfter530JS(request):
         )
 
         for i, n in enumerate(extraHoursList):
-            if n["extra_hours_upto_530"]:
+            if n["extra_hours_after_530"]:
                 objExtraHoursAfter530 = ExtraHoursAfter530.objects.filter(
                     pk=extraHoursList[i]["extra_hours_after_530"]
                 ).first()
@@ -1057,7 +1057,6 @@ def getPacakageExtrahoursAfter530JS(request):
                         "effective_to": objExtraHoursAfter530.effective_to,
                     }
                 )
-        print(extraHoursAfter530List)
     return JsonResponse(extraHoursAfter530List, safe=False)
 
 

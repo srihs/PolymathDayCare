@@ -383,14 +383,27 @@
       // Show the modal
       jQuery("#divafter530").modal("show");
       // Load the form into the modal using AJAX
+      dataTable = $("#RatesAfter530").DataTable();
+      dataTable.clear();
+      var url = "{% url 'core:get_pacakage_extrahours_after530_js'  %}";
+      id = jQuery(this).attr("data-id");
       jQuery.ajax({
         type: "GET",
         url: url,
-        data: { rate_id: id },
-        dataType: "html",
-        success: function (data) {
-          jQuery("#contentafter530").html(data);
-          jQuery("#effective_from").flatpickr();
+        data: { id: id },
+        beforeSend: function () { },
+        success: function (response) {
+          jQuery.each(response, function (i, item) {
+            dataTable.row.add(
+                [
+                  response[i].from_time,
+                  response[i].to_time,
+                  response[i].extra_rate,
+                  response[i].effective_from,
+                  response[i].effective_to,
+                ],)
+            });
+            dataTable.draw();
         },
         error: function (xhr, textStatus, errorThrown) {
           alert("Error: " + xhr.status + ", " + xhr.statusText);
