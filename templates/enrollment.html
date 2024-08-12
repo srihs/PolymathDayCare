@@ -393,7 +393,6 @@
     .end()
     .append('<option value="">-Select daycare-</option>');
 //////////////////////////////////////////////////////////////////////////////
-    
     if (branchID) {
       jQuery.ajax({
         url: "{% url 'core:get_daycares_by_branch_js' %}",
