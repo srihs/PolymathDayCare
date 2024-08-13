@@ -421,12 +421,8 @@
             success: function (data) {
                // Optionally, you can also close the current modal
                jQuery("#deleteModals").modal("hide");
-               
                 // Open the second modal on success
                 jQuery("#secondmodal").modal("show");
-
-               
-                
             },
             error: function (xhr, textStatus, errorThrown) {
                 alert("Error: " + xhr.status + ", " + xhr.statusText);

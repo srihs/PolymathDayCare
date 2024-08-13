@@ -1605,7 +1605,7 @@ def getAllPendingEnrollmentsJS(request):
     enrolmentList = list(
         ChildEnrollment.objects.filter(
             is_active=True,  # Add this filter for is_active
-            status=1,
+            status="Pending Approval",
         )
         .annotate(
             child_name=Concat(
@@ -1645,6 +1645,7 @@ def getAllPendingEnrollmentsJS(request):
             "is_active",
         )
     )
+    print(enrolmentList)
 
     return JsonResponse(enrolmentList, safe=False)
 
