@@ -1862,7 +1862,7 @@ def processMissingAttendanceRecords(request):
 
 
 @login_required
-def loadAttendanceReports(request):
+def getAttendanceReports(request):
     return render(request, "../templates/reports/attendancereport.html")
 
 

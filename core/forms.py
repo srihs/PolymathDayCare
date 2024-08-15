@@ -1734,3 +1734,59 @@ class UpdateExtraHoursUpTo530Form(forms.ModelForm):
             "effective_to",
             "id",
         )
+
+
+class AttendanceReportForm(forms.ModelForm):
+    child = forms.ModelChoiceField(
+        required=True,
+        queryset=Child.objects.filter(is_active=True).order_by("admission_number"),
+        empty_label="-Select child-",
+        widget=forms.Select(
+            attrs={"class": "form-control", "placeholder": "Child", "id": "child"}
+        ),
+    )
+
+    from_date = forms.DateField(
+        required=True,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "from_date",
+                "placeholder": "From",
+                "required": "required",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+            }
+        ),
+    )
+    to_date = forms.DateField(
+        required=True,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "to_date",
+                "placeholder": "To",
+                "required": "required",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+            }
+        ),
+    )
+
+    branch = forms.ModelChoiceField(
+        required=True,
+        queryset=Branch.objects.filter(is_active=True).order_by("branch_code"),
+        empty_label="-Select the branch-",
+        widget=forms.Select(
+            attrs={"class": "form-control", "placeholder": "branch", "id": "branch"}
+        ),
+    )
+
+    center = forms.ModelChoiceField(
+        required=True,
+        queryset=DayCare.objects.filter(is_active=True).order_by("daycare_code"),
+        empty_label="-Select the center-",
+        widget=forms.Select(
+            attrs={"class": "form-control", "placeholder": "center", "id": "center"}
+        ),
+    )

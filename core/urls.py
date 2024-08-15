@@ -179,5 +179,5 @@ urlpatterns = [
         views.getInvoices,
         name="get_invoices",
     ),
-    path("attendenceReport/", views.loadAttendanceReports, name="getAttendenceReport"),
+    path("attendenceReport/", views.getAttendanceReports, name="getAttendenceReport"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
