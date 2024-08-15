@@ -335,6 +335,15 @@ class AttendanceLog(BaseClass):
         verbose_name_plural = "Attendance Logs"
         db_table = "dc_attendancelog"
 
+    def __str__(self):
+        return (
+            self.child.child_first_name
+            + " "
+            + self.child.child_last_name
+            + " - "
+            + str(self.date_logged)
+        )
+
 
 class ExtraChargesHistory(BaseClass):
     extra_charges_after530 = models.ForeignKey(
@@ -353,3 +362,23 @@ class ExtraChargesHistory(BaseClass):
         verbose_name = "Extra Charge History"
         verbose_name_plural = "Extra Charge History"
         db_table = "dc_extrachargeshistory"
+
+
+class Invoice(BaseClass):
+    invoice_date = models.DateField()
+    invoice_no = models.CharField(null=True, blank=True)
+    child = models.ForeignKey("Child", on_delete=models.CASCADE)
+    month = models.IntegerField()
+    amount = models.DecimalField(max_digits=8, decimal_places=2)
+    receipt_no = models.CharField(null=True, blank=True)
+    paid_amount = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True
+    )
+    balance_amount = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True
+    )
+
+    class Meta:
+        verbose_name = "Invoices"
+        verbose_name_plural = "Invoices"
+        db_table = "dc_invoices"

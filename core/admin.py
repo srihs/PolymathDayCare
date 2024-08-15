@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import (
+    AttendanceLog,
     Branch,
     Child,
     ChildEnrollment,
@@ -20,3 +21,5 @@ admin.site.register(HolidayType)
 admin.site.register(Holiday)
 admin.site.register(Branch)
 admin.site.register(ChildEnrollment)
+
+admin.site.register(AttendanceLog)

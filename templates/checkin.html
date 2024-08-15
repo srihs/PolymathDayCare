@@ -1,33 +1,15 @@
 {% extends "base.html" %} {% load static %} {% block UserName %} {{ UserName}}
 {% block PageTitle %}Attendance{% endblock %}
-{% endblock %} {% block Title %} TRANSACTIONS {% endblock %} {% block functionTitle%}CHECK-IN/CHECK-OUT{% endblock %} {% block content %}
+{% endblock %} {% block Title %} TRANSACTIONS {% endblock %} {% block functionTitle%}CHECK-IN/CHECK-OUT{% endblock %}
+{% block content %}
 
 <!-- Data Table-->
 <div class="card">
   <div class="card-header border-0">
     <div class="d-flex align-items-center">
-      <h5 class="card-title mb-0 flex-grow-1">Attendance</h5>
+      <h5 class="card-title mb-0 flex-grow-1">Manual time adjustments</h5>
       <div class="flex-shrink-0">
-        <div class="d-flex flex-wrap gap-2">
-          <button
-            class="btn btn-primary add-btn"
-            data-bs-toggle="modal"
-            data-bs-target="#showModalCreate"
-          >
-          <i class="ri-arrow-down-line"></i> In
-          </button>
-
-          <button
-            class="btn btn-danger add-btn"
-            data-bs-toggle="modal"
-            data-bs-target="#showModalCreate"
-          >
-          <i class="ri-arrow-up-line"></i> Out
-          </button>
-          <button class="btn btn-soft-secondary" id="remove-actions">
-            <i class="ri-delete-bin-2-line"></i>
-          </button>
-        </div>
+     
       </div>
     </div>
   </div>
@@ -36,114 +18,53 @@
     <div class="alert alert-dismissible" role="alert">
       {% if messages %} {% for message in messages %}
       <!-- Danger Alert -->
-      <div
-        class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
-        role="alert"
-      >
+      <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show" role="alert">
         <strong>
           <center>{{ message }}</center>
         </strong>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="alert"
-          aria-label="Close"
-        ></button>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
       </div>
       {% endfor %} {% endif %}
       <!-- end row -->
     </div>
-   
-    <table id="attendanceList" class="table table-striped table-hover" cellspacing="0">
-      <thead>
-        <tr>
-          <th>Child</th>
-          <th>Date</th>
-          <th>Time</th>
-         
-        </tr>
-      </thead>
-    </table>
-  
-</div>
+
+    <div class="row">
+      <form action="{% url 'core:save_Attendance' %}" method="post" class="tablelist-form" autocomplete="off">
+        {% csrf_token %}
+        <div class="row gy-4">
+          <div class="col-xxl-4 col-md-6">{{form.child}}</div>
+          <datalist id='children'></datalist>
+          <div class="col-xxl-3 col-md-6">{{form.date_logged}}</div>
+          <div class="col-xxl-3 col-md-6">{{form.time_logged}}</div>
+        
+        <div class="col-xxl-2 col-md-6">
+          <button class="btn btn-secondary" type="submit">Save</button>
+        </div>
+        </div>
+      </form>
+    </div>
+
+
+  </div>
   <!-- end card-body -->
 </div>
 
 {% endblock %} {% block modals %}
 
-<div
-  class="modal fade zoomIn"
-  id="showModal"
-  tabindex="-1"
-  aria-labelledby="exampleModalLabel"
-  style="display: none"
-  aria-hidden="true"
->
+<div class="modal fade zoomIn" id="showModal" tabindex="-1" aria-labelledby="exampleModalLabel" style="display: none"
+  aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0">
       <div class="modal-header p-3 bg-secondary-subtle">
         <h5 class="modal-title" id="exampleModalLabels">Add Child</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-target="#showModalCreate"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-          id="close-modalAdd"
-        ></button>
+        <button type="button" class="btn-close" data-bs-target="#showModalCreate" data-bs-dismiss="modal"
+          aria-label="Close" id="close-modalAdd"></button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Settings Form -->
-<div
-  class="modal fade zoomIn"
-  id="showModalCreate"
-  tabindex="-1"
-  aria-labelledby="exampleModalLabel"
-  style="display: none"
-  aria-hidden="true"
->
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content border-0">
-      <div class="modal-header">
-        <h5 class="modal-title">Enter the attendance log</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-          id="close-modal"
-        ></button>
-      </div>
-      <form
-        action="{% url 'core:save_Attendance' %}"
-        method="post"
-        class="tablelist-form"
-        autocomplete="off"
-      >
-        {% csrf_token %}
-        <div class="modal-body">
-          <div class="row g-3">
-            <div class="col-sm-4">{{form.child}}</div>
-            <datalist id='children'></datalist>
-            <div class="col-sm-4">{{form.date_logged}}</div>
-            <div class="col-sm-4">{{form.time_logged}}</div>
-        </div>
-        </div>
-        <div class="modal-footer" style="display: block">
-          <div class="hstack gap-2 justify-content-end">
-            <button type="button" class="btn btn-light" data-bs-dismiss="modal">
-              Close
-            </button>
-            <button class="btn btn-secondary" type="submit">Save</button>
-          </div>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
+
 
 
 
@@ -177,23 +98,23 @@
   jQuery(document).ready(function () {
 
     jQuery('#date_logged').flatpickr({
-                minDate: new Date().fp_incr(-30), 
-                maxDate:  "today",
-                defaultDate: new Date(),
-                
-            });
+      minDate: new Date().fp_incr(-30),
+      maxDate: "today",
+      defaultDate: new Date(),
 
-// Load the Child into the text box
-jQuery.ajax({
+    });
+
+    // Load the Child into the text box
+    jQuery.ajax({
       type: "GET",
       url: "{% url 'core:getChildWithEnrolementsJson' %}",
-      beforeSend: function () {},
+      beforeSend: function () { },
       success: function (response) {
         console.log(response);
         for (var i in response) {
-            child = response[i];
-            jQuery("#children").append(`<option value="${child.admission_number}">${child.child_first_name + " - " + child.child_last_name}</option>`);
-          }
+          child = response[i];
+          jQuery("#children").append(`<option value="${child.admission_number}">${child.child_first_name + " - " + child.child_last_name}</option>`);
+        }
       },
       error: function (xhr, textStatus, errorThrown) {
         alert("Error: " + xhr.status + ", " + xhr.statusText);
@@ -227,13 +148,14 @@ jQuery.ajax({
         { data: "child_name" },
         { data: "date_logged" },
         { data: "time_logged" },
-        
+
       ],
       dom: "Bfrtip",
-            pageLength: 50,
+      pageLength: 15,
+      buttons: ["excel", "print"],
+      order: [[ 1, "desc" ]],
+     
 
-            buttons: ["excel", "print"],
-      order: [[1, "asc"]], // Set default sorting by admission_date in descending order
     });
   });
 
@@ -251,34 +173,34 @@ jQuery.ajax({
   var url = "";
 
 
-    // Add an event listener to the "to_time" field
-        jQuery(document).on('change', '#to_time',function () {
-            
-            // Get the values of "from_time" and "to_time"
-            var fromTime = jQuery('#from_time').val();
-            var toTime = jQuery(this).val();
-           
+  // Add an event listener to the "to_time" field
+  jQuery(document).on('change', '#to_time', function () {
 
-            // Make an Ajax request to calculate the duration
-            jQuery.ajax({
-                url: "{% url 'core:calculate_duration' %}",
-                method: 'GET',
-                data: {
-                    'from_time': fromTime,
-                    'to_time': toTime,
-                },
-                success: function (data) {
-                    // Combine hours and minutes with a dot separator
-                var durationFormatted = data.duration_hours + '.' + (data.duration_minutes < 10 ? '0' : '') + data.duration_minutes;
+    // Get the values of "from_time" and "to_time"
+    var fromTime = jQuery('#from_time').val();
+    var toTime = jQuery(this).val();
 
-                    // Update the "no_hours" field with the formatted duration
-                jQuery('#no_hours').val(durationFormatted);
-                },
-                error: function () {
-                    console.error('Error calculating duration.');
-                }
-            });
-        });
+
+    // Make an Ajax request to calculate the duration
+    jQuery.ajax({
+      url: "{% url 'core:calculate_duration' %}",
+      method: 'GET',
+      data: {
+        'from_time': fromTime,
+        'to_time': toTime,
+      },
+      success: function (data) {
+        // Combine hours and minutes with a dot separator
+        var durationFormatted = data.duration_hours + '.' + (data.duration_minutes < 10 ? '0' : '') + data.duration_minutes;
+
+        // Update the "no_hours" field with the formatted duration
+        jQuery('#no_hours').val(durationFormatted);
+      },
+      error: function () {
+        console.error('Error calculating duration.');
+      }
+    });
+  });
 
 </script>
 

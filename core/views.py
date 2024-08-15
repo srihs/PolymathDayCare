@@ -1755,6 +1755,8 @@ def saveAttendance(request):
                     form = CreateCheckInForm(request.POST)
                     if form.is_valid():
                         objAttendance = form.save(commit=False)
+                        print(objChild.admission_date)
+                        print(objAttendance.date_logged)
                         if objChild.admission_date <= objAttendance.date_logged:
                             objAttendance.user_created = request.user.username
                             objAttendance.child = objChild
@@ -1874,3 +1876,14 @@ def attendanceReportsJS(request):
             ).values()
 
     return JsonResponse(objAttendanceList, safe=False)
+
+
+@login_required
+def getInvoices(request):
+    try:
+        pass
+
+    except Exception as e:
+        messages.error(request, e)
+
+    return render(request, "../templates/invoice.html")
