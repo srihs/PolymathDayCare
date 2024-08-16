@@ -113,7 +113,7 @@
         console.log(response);
         for (var i in response) {
           child = response[i];
-          jQuery("#children").append(`<option value="${child.admission_number}">${child.child_first_name + " - " + child.child_last_name}</option>`);
+          jQuery("#children").append(`<option value="${child.admission_number}">${child.child_first_name + "  " + child.child_last_name}</option>`);
         }
       },
       error: function (xhr, textStatus, errorThrown) {

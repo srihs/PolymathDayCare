@@ -179,5 +179,10 @@ urlpatterns = [
         views.getInvoices,
         name="get_invoices",
     ),
+    path(
+        "get_attendence_dataJs/",
+        views.attendanceReportsJS,
+        name="get_attendence_dataJs",
+    ),
     path("attendenceReport/", views.getAttendanceReports, name="getAttendenceReport"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

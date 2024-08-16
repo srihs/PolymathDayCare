@@ -1736,13 +1736,12 @@ class UpdateExtraHoursUpTo530Form(forms.ModelForm):
         )
 
 
-class AttendanceReportForm(forms.ModelForm):
-    child = forms.ModelChoiceField(
-        required=True,
-        queryset=Child.objects.filter(is_active=True).order_by("admission_number"),
-        empty_label="-Select child-",
-        widget=forms.Select(
-            attrs={"class": "form-control", "placeholder": "Child", "id": "child"}
+class AttendanceReportForm(forms.Form):
+    child = forms.CharField(
+        max_length=250,
+        required=False,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Child", "list": "children"}
         ),
     )
 
@@ -1774,8 +1773,8 @@ class AttendanceReportForm(forms.ModelForm):
     )
 
     branch = forms.ModelChoiceField(
-        required=True,
         queryset=Branch.objects.filter(is_active=True).order_by("branch_code"),
+        required=False,
         empty_label="-Select the branch-",
         widget=forms.Select(
             attrs={"class": "form-control", "placeholder": "branch", "id": "branch"}
@@ -1783,8 +1782,8 @@ class AttendanceReportForm(forms.ModelForm):
     )
 
     center = forms.ModelChoiceField(
-        required=True,
-        queryset=DayCare.objects.filter(is_active=True).order_by("daycare_code"),
+        required=False,
+        queryset=DayCare.objects.none(),
         empty_label="-Select the center-",
         widget=forms.Select(
             attrs={"class": "form-control", "placeholder": "center", "id": "center"}

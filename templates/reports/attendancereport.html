@@ -14,39 +14,44 @@
                                        
                                     </div>
                                 </div>
+                                <!-- <form action="{% url 'core:save_child' %}"
+                                method="post"
+                                autocomplete="on"> -->
+                                <!-- {% csrf_token %} -->
                                 <div class="card-body border border-dashed border-end-0 border-start-0">
-                                    <form>
                                         <div class="row g-3">
                                             <div class="col-xxl-3 col-sm-8">
                                                 <div class="search-box">
-                                                    <input type="text" id="childCode" class="form-control" placeholder="Child">
-                                                    
+                                                    {{form.child}}
+                                                    <datalist id='children'>
+              
+                                                    </datalist>
                                                 </div>
                                             </div>
                                             <!--end col-->
 
                                             <div class="col-xxl-2 col-sm-4">
-                                                <input type="text" required class="form-control bg-light border-light" id="fromDate" data-provider="flatpickr" data-date-format='Y-m-d'  placeholder="From">
+                                              {{form.from_date}}
                                             </div>
                                             <!--end col-->
 
                                             <div class="col-xxl-2 col-sm-4">
-                                                <input type="text" required class="form-control bg-light border-light" id="toDate" data-provider="flatpickr" data-date-format='Y-m-d' placeholder="To">
+                                              {{form.to_date}}
                                             </div>
                                             <!--end col-->
 
                                             <div class="col-xxl-2 col-sm-4">
-                                              <input type="text" id="childCode"  class="form-control search bg-light border-light" placeholder="Branch" required>
+                                              {{form.branch}}
                                             </div>
                                             <!--end col-->
 
                                             <div class="col-xxl-2 col-sm-4">
-                                              <input type="text" id="childCode"  class="form-control search bg-light border-light" placeholder="Daycare Center" required>
+                                              {{form.center}}
                                             </div>
 
                                             <!--end col-->
                                             <div class="col-xxl-1 col-sm-4">
-                                              <button type="button" class="btn btn-primary w-100" > 
+                                              <button id="btnSubmit" type="submit" class="btn btn-secondary" > 
                                                 <i class="ri-search-line search-icon"></i> Search
                                               </button>
                                           </div>
@@ -54,9 +59,10 @@
                                             <!--end col-->
                                         </div>
                                         <!--end row-->
-                                    </form>
+                                   
                                 </div>
                                 <!--end card-body-->
+                              <!-- </form> -->
                                 <div class="card-body">
                                     <table id="tblAttendanceRecords" class="table table-striped table-hover" cellspacing="0">
                                         <thead>
@@ -153,7 +159,22 @@
     });
   });
 
-
+ // Load the Child into the text box
+ jQuery.ajax({
+      type: "GET",
+      url: "{% url 'core:getChildWithEnrolementsJson' %}",
+      beforeSend: function () { },
+      success: function (response) {
+        console.log(response);
+        for (var i in response) {
+          child = response[i];
+          jQuery("#children").append(`<option value="${child.admission_number}">${child.child_first_name + "  " + child.child_last_name}</option>`);
+        }
+      },
+      error: function (xhr, textStatus, errorThrown) {
+        alert("Error: " + xhr.status + ", " + xhr.statusText);
+      },
+    });
 
   jQuery("#time_logged").flatpickr({
     enableTime: true,
@@ -163,7 +184,99 @@
     allowInput: true,
   });
 
-  
+  jQuery("#branch").change(function () {
+    var branchID = jQuery(this).val();
+
+//////This section will reset the daycare option valuses to initial///////////
+    $('#center')
+    .find('option')
+    .remove()
+    .end()
+    .append('<option value="">-Select daycare-</option>');
+//////////////////////////////////////////////////////////////////////////////
+    if (branchID) {
+      jQuery.ajax({
+        url: "{% url 'core:get_daycares_by_branch_js' %}",
+        type: "GET",
+        data: { id: branchID },
+        beforeSend: function () {},
+        success: function (response) {
+          for (var i in response) {
+            center = response[i];
+            console.log(center.daycare_code + " - " + center.daycare_name)
+            jQuery("#center").append(`<option value="${center.id}">${center.daycare_code + " - " + center.daycare_name}</option>`);
+          }
+        },
+      });
+    } 
+  });
+
+//This function will retrive the data from the backend
+  jQuery("#btnSubmit").click(function (e) {
+        e.preventDefault(); // prevent the default behavior of the anchor tag
+        alert("here");
+        
+// Get the values of the date fields
+    var fromDate = jQuery("#from_date").val();
+    var toDate = jQuery("#to_date").val();
+
+    // Get today's date
+    var today = new Date();
+    var todayString = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+
+    // Calculate the date 30 days ago
+    var pastDate = new Date(today);
+    pastDate.setDate(today.getDate() - 30);
+    var pastDateString = pastDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+
+    // If from_date is not set, default to 30 days ago
+    if (!fromDate) {
+        fromDate = pastDateString;
+    }
+
+    // If to_date is not set, default to today's date
+    if (!toDate) {
+        toDate = todayString;
+    }
+
+    // Capture all form parameters
+    var data = {
+        child: jQuery("input[name='child']").val(),
+        from_date: fromDate,
+        to_date: toDate,
+        branch: jQuery("select[name='branch']").val(),
+        center: jQuery("select[name='center']").val()
+    };
+
+    dataTable = $("#tblAttendanceRecords").DataTable();
+    dataTable.clear();
+
+    jQuery.ajax({
+            type: "GET",
+            url: "{% url 'core:get_attendence_dataJs' %}",
+            dataType: "json",
+            data:data,
+            beforeSend: function () { },
+            success: function (response) {
+              jQuery.each(response, function (i, item) {
+                    dataTable.row.add(
+                        [
+                        response[i].admission_number,
+                        response[i].child_name,
+                        response[i].branch_name,
+                        response[i].center_name,
+                        response[i].date_logged,
+                        response[i].time_logged,
+                                                
+                        ],)
+                });
+                dataTable.draw();
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                alert("Error: " + xhr.status + ", " + xhr.statusText);
+            },
+        });
+    });
 
 </script>
 

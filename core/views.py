@@ -9,13 +9,14 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import F, Value
+from django.db.models import F, Q, Value
 from django.db.models.functions import Concat
 from django.http import *
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from .forms import (
+    AttendanceReportForm,
     CreateBranchForm,
     CreateCheckInForm,
     CreateChildForm,
@@ -1758,6 +1759,14 @@ def saveAttendance(request):
                         print(objChild.admission_date)
                         print(objAttendance.date_logged)
                         if objChild.admission_date <= objAttendance.date_logged:
+                            objEnrollment = ChildEnrollment.objects.filter(
+                                child=objChild.id
+                            ).first()
+
+                            if objEnrollment is not None:
+                                objAttendance.branch = objEnrollment.branch
+                                objAttendance.day_care = objEnrollment.center
+
                             objAttendance.user_created = request.user.username
                             objAttendance.child = objChild
                             objAttendance.save()
@@ -1863,27 +1872,71 @@ def processMissingAttendanceRecords(request):
 
 @login_required
 def getAttendanceReports(request):
-    return render(request, "../templates/reports/attendancereport.html")
+    attendenceform = AttendanceReportForm()
+    return render(
+        request,
+        "../templates/reports/attendancereport.html",
+        {"form": attendenceform, "UserName": request.user.username},
+    )
 
 
 @login_required
 def attendanceReportsJS(request):
     # This method will be used to do the search and return the attendance records according to parameters
-    if request.method == "POST":
-        if pk is not None:
-            objAttendanceList = AttendanceLog.objects.get(
-                child=pk, is_active=True
-            ).values()
+    if request.method == "GET":
+        childId = request.GET.get("child")
+        from_date = request.GET.get("from_date")
+        to_date = request.GET.get("to_date")
+        branchId = request.GET.get("branch")
+        centerID = request.GET.get("center")
 
-    return JsonResponse(objAttendanceList, safe=False)
+        # Prepare filters for AttendanceLogs
+        filters = Q(date_logged__range=[from_date, to_date])
+
+        if childId:
+            filters &= Q(child=childId)
+
+        if branchId:
+            filters &= Q(branch=branchId)
+
+        if centerID:
+            filters &= Q(center=centerID)
+
+        attendance_logs = list(
+            (
+                AttendanceLog.objects.filter(filters)
+                .annotate(
+                    child_name=Concat(
+                        F("child__child_first_name"),
+                        Value(" "),
+                        F("child__child_last_name"),
+                    ),
+                    branch_name=Concat(
+                        F("branch__branch_code"), Value("-"), F("branch__branch_name")
+                    ),
+                    center_name=Concat(
+                        F("day_care__daycare_code"),
+                        Value("-"),
+                        F("day_care__daycare_name"),
+                    ),
+                    admission_number=Concat(
+                        F("child__admission_number"), Value(" "), Value(" ")
+                    ),
+                )
+                .values(
+                    "admission_number",
+                    "child_name",
+                    "branch_name",
+                    "center_name",
+                    "date_logged",
+                    "time_logged",
+                )
+            )
+        )
+
+    return JsonResponse(attendance_logs, safe=False)
 
 
 @login_required
 def getInvoices(request):
-    try:
-        pass
-
-    except Exception as e:
-        messages.error(request, e)
-
-    return render(request, "../templates/invoice.html")
+    pass
