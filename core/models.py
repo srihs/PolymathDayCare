@@ -117,10 +117,26 @@ class Child(BaseClass):
         )
 
 
-class Package(BaseClass):
+class PackageTerm(BaseClass):
+    package_type_code = models.CharField(max_length=10)
+    package_type_name = models.CharField(max_length=100)
+    is_fixed_package = models.BooleanField(default=True)
+    is_dynamic_package = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Package Term"
+        verbose_name_plural = "Package Terms"
+        db_table = "dc_package_terms"
+
+    def __str__(self):
+        return self.package_type_code + " - " + self.package_type_name
+
+
+class FixedPackage(BaseClass):
     package_code = models.CharField(max_length=10)
     package_name = models.CharField(max_length=200)
     package_type = models.ForeignKey(PackageType, on_delete=models.CASCADE)
+    package_term = models.ForeignKey(PackageTerm, on_delete=models.CASCADE, default=1)
     from_time = models.TimeField()
     to_time = models.TimeField()
     no_hours = models.DecimalField(max_digits=10, decimal_places=2)
@@ -129,9 +145,9 @@ class Package(BaseClass):
     package_total = models.DecimalField(max_digits=12, decimal_places=2)
 
     class Meta:
-        verbose_name = "package"
-        verbose_name_plural = "packages"
-        db_table = "dc_package"
+        verbose_name = "fixed package"
+        verbose_name_plural = "fixed packages"
+        db_table = "dc_fixed_packages"
 
     def __str__(self):
         return self.package_code + " - " + self.package_name
@@ -173,7 +189,7 @@ class ExtraHoursUpTo530(BaseClass):
 
 
 class PackageExtraHoursMapping(BaseClass):
-    package = models.ForeignKey(Package, on_delete=models.CASCADE)
+    package = models.ForeignKey(FixedPackage, on_delete=models.CASCADE)
     extra_hours_upto_530 = models.ForeignKey(
         ExtraHoursUpTo530,
         on_delete=models.CASCADE,
@@ -266,10 +282,10 @@ class ChildEnrollment(BaseClass):
     enrollment_date = models.DateField()
     child = models.ForeignKey("Child", on_delete=models.CASCADE)
     normal_package = models.ForeignKey(
-        "Package", on_delete=models.CASCADE, related_name="normal_package"
+        "FixedPackage", on_delete=models.CASCADE, related_name="normal_package"
     )
     holiday_package = models.ForeignKey(
-        "Package", on_delete=models.CASCADE, related_name="holiday_package"
+        "FixedPackage", on_delete=models.CASCADE, related_name="holiday_package"
     )
     branch = models.ForeignKey("Branch", on_delete=models.CASCADE)
     center = models.ForeignKey("DayCare", on_delete=models.CASCADE)

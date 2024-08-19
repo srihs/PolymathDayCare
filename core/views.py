@@ -25,7 +25,7 @@ from .forms import (
     CreateEnrollmentForm,
     CreateExtraChargesForm,
     CreateExtraHoursUpTo530Form,
-    CreatePackagesForm,
+    CreateFixedPackagesForm,
     CreatePackageTypeForm,
     SearchForm,
     UpdateBranchForm,
@@ -45,7 +45,7 @@ from .models import (
     ExtraChargesHistory,
     ExtraHoursAfter530,
     ExtraHoursUpTo530,
-    Package,
+    FixedPackage,
     PackageExtraHoursMapping,
     PackageType,
 )
@@ -884,18 +884,18 @@ def getExtraHoursUpto530(request):
 
 
 @login_required
-def getPackages(request):
+def getFixedPackages(request):
     if request.method == "GET":
         try:
             # trying to retrive the next primaryKey
-            nextId = Package.objects.all().count()
+            nextId = FixedPackage.objects.all().count()
             nextId += 1
             packageTypeCount = PackageType.objects.all().count()
             extraChargesCount = ExtraHoursAfter530.objects.all().count()
-            additionalChargesUpto530 = ExtraHoursUpTo530.objects.filter(is_active=True)
-            additionalChargesAfter530 = ExtraHoursAfter530.objects.filter(
-                is_active=True
-            )
+            # additionalChargesUpto530 = ExtraHoursUpTo530.objects.filter(is_active=True)
+            # additionalChargesAfter530 = ExtraHoursAfter530.objects.filter(
+            #     is_active=True
+            # )
 
             if packageTypeCount == 0:
                 messages.error(request, "Package Types are not defined.")
@@ -905,7 +905,7 @@ def getPackages(request):
         except:
             nextId = 1  # if the next ID is null define the record as the first
 
-        package_form = CreatePackagesForm(
+        package_form = CreateFixedPackagesForm(
             initial={"package_code": "PKG00" + str(nextId)}
         )
     return render(
@@ -913,18 +913,18 @@ def getPackages(request):
         "../templates/packages.html",
         {
             "form": package_form,
-            "additionalChargesUpto530": additionalChargesUpto530,
-            "additionalChargesAfter530": additionalChargesAfter530,
+            # "additionalChargesUpto530": additionalChargesUpto530,
+            # "additionalChargesAfter530": additionalChargesAfter530,
             "UserName": request.user.username,
         },
     )
 
 
 @login_required
-def getPackagesJs(request):
+def getFixedPackagesJs(request):
     if request.method == "GET":
         packageList = list(
-            Package.objects.all().values(
+            FixedPackage.objects.all().values(
                 "id",
                 "package_type",
                 "package_code",
@@ -950,11 +950,11 @@ def getPackagesJs(request):
 
 @login_required
 @transaction.atomic
-def savePackage(request):
+def saveFixedPackage(request):
     extrChargesUpTo530 = None
     extrChargesUpTo530 = None
     if request.method == "POST":
-        form = CreatePackagesForm(request.POST)
+        form = CreateFixedPackagesForm(request.POST)
         if form.is_valid():
             objPackage = form.save(commit=False)
 
@@ -997,7 +997,7 @@ def savePackage(request):
     else:
         messages.error(request, "Something went wrong")
 
-    return redirect("core:view_packages")
+    return redirect("core:view_fixed_packages")
 
 
 @login_required
@@ -1583,10 +1583,10 @@ def saveEnrollments(request):
                     objEnrollment.center = DayCare.objects.get(
                         daycare_code=dayCare, is_active=True
                     )
-                    objEnrollment.normal_package = Package.objects.get(
+                    objEnrollment.normal_package = FixedPackage.objects.get(
                         pk=normal_package, is_active=True
                     )
-                    objEnrollment.holiday_package = Package.objects.get(
+                    objEnrollment.holiday_package = FixedPackage.objects.get(
                         pk=holiday_package, is_active=True
                     )
                     if discount is not None and discount != "":

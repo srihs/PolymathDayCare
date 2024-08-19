@@ -12,7 +12,7 @@ from .models import (
     Discount,
     ExtraHoursAfter530,
     ExtraHoursUpTo530,
-    Package,
+    FixedPackage,
     PackageType,
 )
 
@@ -671,16 +671,18 @@ class UpdateExtraChargesForm(forms.ModelForm):
         )
 
 
-class CreatePackagesForm(forms.ModelForm):
-    # base_rate = forms.ModelChoiceField(
+class CreateFixedPackagesForm(forms.ModelForm):
+    # package_term = forms.ModelChoiceField(
     #     required=True,
-    #     queryset=Rates.objects.filter(is_active=True).order_by("rate_name"),
-    #     empty_label="-Select Base Rate-",
+    #     queryset=PackageTerm.objects.filter(is_active=True).order_by(
+    #         "package_type_code"
+    #     ),
+    #     empty_label="-Select Package Term-",
     #     widget=forms.Select(
     #         attrs={
     #             "class": "form-control",
     #             "placeholder": "Base Rate",
-    #             "id": "base_rate",
+    #             "id": "package_term",
     #         }
     #     ),
     # )
@@ -776,7 +778,7 @@ class CreatePackagesForm(forms.ModelForm):
     )
 
     class Meta:
-        model = Package
+        model = FixedPackage
         fields = (
             "package_name",
             "package_code",
@@ -1199,7 +1201,7 @@ class CreateEnrollmentForm(forms.ModelForm):
 
     normal_package = forms.ModelChoiceField(
         required=True,
-        queryset=Package.objects.filter(
+        queryset=FixedPackage.objects.filter(
             is_active=True, package_type__is_holiday_package=False
         ).order_by("package_code"),
         empty_label="-Select normal package-",
@@ -1214,7 +1216,7 @@ class CreateEnrollmentForm(forms.ModelForm):
 
     holiday_package = forms.ModelChoiceField(
         required=True,
-        queryset=Package.objects.filter(
+        queryset=FixedPackage.objects.filter(
             is_active=True, package_type__is_holiday_package=True
         ).order_by("package_code"),
         empty_label="-Select holiday package-",
@@ -1392,7 +1394,7 @@ class SearchForm(forms.Form):
 
     normal_package = forms.ModelChoiceField(
         required=True,
-        queryset=Package.objects.filter(
+        queryset=FixedPackage.objects.filter(
             is_active=True, package_type__is_holiday_package=False
         ).order_by("package_code"),
         empty_label="-Select normal package-",
@@ -1407,7 +1409,7 @@ class SearchForm(forms.Form):
 
     holiday_package = forms.ModelChoiceField(
         required=True,
-        queryset=Package.objects.filter(
+        queryset=FixedPackage.objects.filter(
             is_active=True, package_type__is_holiday_package=True
         ).order_by("package_code"),
         empty_label="-Select holiday package-",

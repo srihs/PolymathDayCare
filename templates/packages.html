@@ -1,20 +1,20 @@
 {% extends "base.html" %} 
 {% load static %} 
 {% block UserName %} {{ UserName}}
-{% block PageTitle %}Packages{% endblock %}
+{% block PageTitle %}Fixed Packages{% endblock %}
 {% endblock %} {% block Title %} SETTINGS {% endblock %} 
-{% block functionTitle%}PACKAGES{% endblock %}
+{% block functionTitle%}FIXED PACKAGES{% endblock %}
 {% block content%}
 
 <!-- Data Table-->
 <div class="card">
   <div class="card-header border-0">
     <div class="d-flex align-items-center">
-      <h5 class="card-title mb-0 flex-grow-1">Packages</h5>
+      <h5 class="card-title mb-0 flex-grow-1">Fixed Packages</h5>
       <div class="flex-shrink-0">
         <div class="d-flex flex-wrap gap-2">
           <button class="btn btn-secondary add-btn" data-bs-toggle="modal" data-bs-target="#showModalCreate">
-            <i class="ri-add-line align-bottom me-1"></i> Add new package
+            <i class="ri-add-line align-bottom me-1"></i> Add new fixed package
           </button>
           <button class="btn btn-soft-secondary" id="remove-actions">
             <i class="ri-delete-bin-2-line"></i>
@@ -84,7 +84,7 @@
         <h5 class="modal-title">Add Packages</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="close-modal"></button>
       </div>
-      <form action="{% url 'core:save_package' %}" method="post" class="tablelist-form" autocomplete="on">
+      <form action="{% url 'core:save_fixed_package' %}" method="post" class="tablelist-form" autocomplete="on">
         {% csrf_token %}
         <div class="modal-body">
           <div class="row g-3">
@@ -253,7 +253,7 @@
         responsive: true,
         ajax: {
           processing: true,
-          url: "{% url 'core:view_packages_js' %}",
+          url: "{% url 'core:get_fixed_packages_js' %}",
           dataSrc: "",
         },
         columns: [

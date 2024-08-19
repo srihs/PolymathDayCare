@@ -6,9 +6,10 @@ from .models import (
     Child,
     ChildEnrollment,
     ExtraHoursAfter530,
+    FixedPackage,
     Holiday,
     HolidayType,
-    Package,
+    PackageTerm,
 )
 
 # Register your models here.
@@ -16,7 +17,8 @@ admin.site.register(Child)
 # admin.site.register(Rates)
 # admin.site.register(RateHistory)
 admin.site.register(ExtraHoursAfter530)
-admin.site.register(Package)
+admin.site.register(PackageTerm)
+admin.site.register(FixedPackage)
 admin.site.register(HolidayType)
 admin.site.register(Holiday)
 admin.site.register(Branch)
