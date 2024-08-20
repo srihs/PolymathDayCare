@@ -1129,7 +1129,7 @@ def getPacakageExtrahoursUpto530JS(request):
                 ).first()
                 extraHoursUpto530List.append(
                     {
-                        "hour_number": objExtraHoursUpto530.id,
+                        "hour_number": objExtraHoursUpto530.hour_number,
                         "extra_rate": objExtraHoursUpto530.extra_rate,
                         "effective_from": objExtraHoursUpto530.effective_from,
                         "effective_to": objExtraHoursUpto530.effective_to,
