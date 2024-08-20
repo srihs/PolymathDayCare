@@ -355,7 +355,7 @@
       jQuery.ajax({
         type: "GET",
         url: url,
-        data: { id: id },
+        data: { id: id, packageTerm:1},
         beforeSend: function () { },
         success: function (response) {
           jQuery.each(response, function (i, item) {
@@ -365,8 +365,6 @@
                   response[i].extra_rate,
                   response[i].effective_from,
                   response[i].effective_to,
-
-
                 ],)
             });
 

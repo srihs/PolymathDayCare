@@ -233,7 +233,7 @@ class PackageExtraHoursMapping(BaseClass):
     class Meta:
         verbose_name = "package mapping extra charges upto 5.30"
         verbose_name_plural = "extra charges upto 5.30"
-        db_table = "dc_packageextrachargesmapping"
+        db_table = "dc_package_extra_charges_mapping"
 
 
 class HolidayType(BaseClass):

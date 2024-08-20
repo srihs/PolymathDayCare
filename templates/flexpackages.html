@@ -321,7 +321,6 @@
       e.preventDefault();
       dataTable = $("#RatesUpto530").DataTable();
       dataTable.clear();
-      alert(id);
       // Show the modal
       jQuery("#divbefore530").modal("show");
       var url = "{% url 'core:get_pacakage_extrahours_upto530_js'  %}";

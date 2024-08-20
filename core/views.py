@@ -1111,8 +1111,7 @@ def saveFlexPackage(request):
 @login_required
 def getPacakageExtrahoursUpto530JS(request):
     extraHoursUpto530List = []
-
-    if request.GET.get("id"):
+    if request.GET.get("id") and request.GET.get("packageTerm") == "1":
         extraHoursList = list(
             PackageExtraHoursMapping.objects.filter(
                 fixed_package=request.GET.get("id")
@@ -1121,28 +1120,35 @@ def getPacakageExtrahoursUpto530JS(request):
                 "extra_hours_upto_530",
             )
         )
-
-        for i, n in enumerate(extraHoursList):
-            if n["extra_hours_upto_530"]:
-                objExtraHoursUpto530 = ExtraHoursUpTo530.objects.filter(
-                    pk=extraHoursList[i]["extra_hours_upto_530"]
-                ).first()
-                extraHoursUpto530List.append(
-                    {
-                        "hour_number": objExtraHoursUpto530.hour_number,
-                        "extra_rate": objExtraHoursUpto530.extra_rate,
-                        "effective_from": objExtraHoursUpto530.effective_from,
-                        "effective_to": objExtraHoursUpto530.effective_to,
-                    }
-                )
-        print(extraHoursUpto530List)
+    else:
+        extraHoursList = list(
+            PackageExtraHoursMapping.objects.filter(
+                flex_package=request.GET.get("id")
+            ).values(
+                "id",
+                "extra_hours_upto_530",
+            )
+        )
+    for i, n in enumerate(extraHoursList):
+        if n["extra_hours_upto_530"]:
+            objExtraHoursUpto530 = ExtraHoursUpTo530.objects.filter(
+                pk=extraHoursList[i]["extra_hours_upto_530"]
+            ).first()
+            extraHoursUpto530List.append(
+                {
+                    "hour_number": objExtraHoursUpto530.hour_number,
+                    "extra_rate": objExtraHoursUpto530.extra_rate,
+                    "effective_from": objExtraHoursUpto530.effective_from,
+                    "effective_to": objExtraHoursUpto530.effective_to,
+                }
+            )
     return JsonResponse(extraHoursUpto530List, safe=False)
 
 
 @login_required
 def getPacakageExtrahoursAfter530JS(request):
     extraHoursAfter530List = []
-    if request.GET.get("id"):
+    if request.GET.get("id") and request.GET.get("packageTerm") == "1":
         extraHoursList = list(
             PackageExtraHoursMapping.objects.filter(
                 fixed_package=request.GET.get("id")
@@ -1151,21 +1157,29 @@ def getPacakageExtrahoursAfter530JS(request):
                 "extra_hours_after_530",
             )
         )
-
-        for i, n in enumerate(extraHoursList):
-            if n["extra_hours_after_530"]:
-                objExtraHoursAfter530 = ExtraHoursAfter530.objects.filter(
-                    pk=extraHoursList[i]["extra_hours_after_530"]
-                ).first()
-                extraHoursAfter530List.append(
-                    {
-                        "from_time": objExtraHoursAfter530.from_time,
-                        "to_time": objExtraHoursAfter530.to_time,
-                        "extra_rate": objExtraHoursAfter530.extra_rate,
-                        "effective_from": objExtraHoursAfter530.effective_from,
-                        "effective_to": objExtraHoursAfter530.effective_to,
-                    }
-                )
+    else:
+        extraHoursList = list(
+            PackageExtraHoursMapping.objects.filter(
+                flex_package=request.GET.get("id")
+            ).values(
+                "id",
+                "extra_hours_after_530",
+            )
+        )
+    for i, n in enumerate(extraHoursList):
+        if n["extra_hours_after_530"]:
+            objExtraHoursAfter530 = ExtraHoursAfter530.objects.filter(
+                pk=extraHoursList[i]["extra_hours_after_530"]
+            ).first()
+            extraHoursAfter530List.append(
+                {
+                    "from_time": objExtraHoursAfter530.from_time,
+                    "to_time": objExtraHoursAfter530.to_time,
+                    "extra_rate": objExtraHoursAfter530.extra_rate,
+                    "effective_from": objExtraHoursAfter530.effective_from,
+                    "effective_to": objExtraHoursAfter530.effective_to,
+                }
+            )
     return JsonResponse(extraHoursAfter530List, safe=False)
 
 
