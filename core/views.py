@@ -26,6 +26,7 @@ from .forms import (
     CreateExtraChargesForm,
     CreateExtraHoursUpTo530Form,
     CreateFixedPackagesForm,
+    CreateFlexPackagesForm,
     CreatePackageTypeForm,
     SearchForm,
     UpdateBranchForm,
@@ -46,6 +47,7 @@ from .models import (
     ExtraHoursAfter530,
     ExtraHoursUpTo530,
     FixedPackage,
+    FlexPackages,
     PackageExtraHoursMapping,
     PackageType,
 )
@@ -906,11 +908,11 @@ def getFixedPackages(request):
             nextId = 1  # if the next ID is null define the record as the first
 
         package_form = CreateFixedPackagesForm(
-            initial={"package_code": "PKG00" + str(nextId)}
+            initial={"package_code": "FIP00" + str(nextId)}
         )
     return render(
         request,
-        "../templates/packages.html",
+        "../templates/fixedpackages.html",
         {
             "form": package_form,
             # "additionalChargesUpto530": additionalChargesUpto530,
@@ -979,14 +981,14 @@ def saveFixedPackage(request):
                 for rateAfter530 in extrChargesAfter530:
                     if rateAfter530.to_time > objPackage.to_time:
                         objMapping = PackageExtraHoursMapping()
-                        objMapping.package = objPackage
+                        objMapping.fixed_package = objPackage
                         objMapping.extra_hours_after_530 = rateAfter530
                         objMapping.save()
 
             if extrChargesUpTo530 is not None:
                 for rateBefore530 in extrChargesUpTo530:
                     objMapping = PackageExtraHoursMapping()
-                    objMapping.package = objPackage
+                    objMapping.fixed_package = objPackage
                     objMapping.extra_hours_upto_530 = rateBefore530
                     objMapping.save()
 
@@ -1001,13 +1003,119 @@ def saveFixedPackage(request):
 
 
 @login_required
+def getFlexPackages(request):
+    if request.method == "GET":
+        try:
+            # trying to retrive the next primaryKey
+            nextId = FlexPackages.objects.all().count()
+            nextId += 1
+            packageTypeCount = PackageType.objects.all().count()
+            extraChargesCount = ExtraHoursAfter530.objects.all().count()
+
+            if packageTypeCount == 0:
+                messages.error(request, "Package Types are not defined.")
+            if extraChargesCount == 0:
+                messages.error(request, "Extra charges are not defined.")
+
+        except:
+            nextId = 1  # if the next ID is null define the record as the first
+
+        package_form = CreateFlexPackagesForm(
+            initial={"package_code": "FLP00" + str(nextId)}
+        )
+    return render(
+        request,
+        "../templates/flexpackages.html",
+        {
+            "form": package_form,
+            # "additionalChargesUpto530": additionalChargesUpto530,
+            # "additionalChargesAfter530": additionalChargesAfter530,
+            "UserName": request.user.username,
+        },
+    )
+
+
+@login_required
+def getflexPackagesJs(request):
+    if request.method == "GET":
+        packageList = list(
+            FlexPackages.objects.all().values(
+                "id",
+                "package_type",
+                "package_code",
+                "package_name",
+                "no_hours",
+                "no_days_week",
+                "no_days_months",
+                "package_total",
+            )
+        )
+
+        for i, n in enumerate(packageList):
+            if n["package_type"]:
+                package_type = PackageType.objects.filter(
+                    pk=packageList[i]["package_type"]
+                ).first()
+                packageList[i]["package_type"] = package_type.package_type_name
+
+    return JsonResponse(packageList, safe=False)
+
+
+@login_required
+@transaction.atomic
+def saveFlexPackage(request):
+    extrChargesUpTo530 = None
+    extrChargesUpTo530 = None
+    if request.method == "POST":
+        form = CreateFlexPackagesForm(request.POST)
+        if form.is_valid():
+            objPackage = form.save(commit=False)
+
+            objPackageType = PackageType.objects.get(
+                pk=request.POST.get("package_type")
+            )
+            objPackage.package_type = objPackageType
+            objPackage.user_created = request.user.username
+
+            objPackage.save()
+
+            extrChargesAfter530 = ExtraHoursAfter530.objects.filter(
+                package_type=objPackageType
+            )
+            extrChargesUpTo530 = ExtraHoursUpTo530.objects.all()
+
+            if extrChargesAfter530 is not None:
+                for rateAfter530 in extrChargesAfter530:
+                    objMapping = PackageExtraHoursMapping()
+                    objMapping.flex_package = objPackage
+                    objMapping.extra_hours_after_530 = rateAfter530
+                    objMapping.save()
+
+            if extrChargesUpTo530 is not None:
+                for rateBefore530 in extrChargesUpTo530:
+                    objMapping = PackageExtraHoursMapping()
+                    objMapping.flex_package = objPackage
+                    objMapping.extra_hours_upto_530 = rateBefore530
+                    objMapping.save()
+
+            messages.success(request, "Package details saved.")
+        else:
+            messages.error(request, form.errors)
+
+    else:
+        messages.error(request, "Something went wrong")
+
+    return redirect("core:view_flex_packages")
+
+
+@login_required
 def getPacakageExtrahoursUpto530JS(request):
     extraHoursUpto530List = []
 
     if request.GET.get("id"):
         extraHoursList = list(
             PackageExtraHoursMapping.objects.filter(
-                package=request.GET.get("id")
+                fixed_package=request.GET.get("id")
             ).values(
                 "id",
                 "extra_hours_upto_530",
@@ -1037,7 +1145,7 @@ def getPacakageExtrahoursAfter530JS(request):
     if request.GET.get("id"):
         extraHoursList = list(
             PackageExtraHoursMapping.objects.filter(
-                package=request.GET.get("id")
+                fixed_package=request.GET.get("id")
             ).values(
                 "id",
                 "extra_hours_after_530",

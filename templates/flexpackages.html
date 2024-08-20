@@ -1,20 +1,20 @@
 {% extends "base.html" %} 
 {% load static %} 
 {% block UserName %} {{ UserName}}
-{% block PageTitle %}Fixed Packages{% endblock %}
+{% block PageTitle %}Flex Packages{% endblock %}
 {% endblock %} {% block Title %} SETTINGS {% endblock %} 
-{% block functionTitle%}FIXED PACKAGES{% endblock %}
+{% block functionTitle%}FLEX PACKAGES{% endblock %}
 {% block content%}
 
 <!-- Data Table-->
 <div class="card">
   <div class="card-header border-0">
     <div class="d-flex align-items-center">
-      <h5 class="card-title mb-0 flex-grow-1">Fixed Packages</h5>
+      <h5 class="card-title mb-0 flex-grow-1">Flex Packages</h5>
       <div class="flex-shrink-0">
         <div class="d-flex flex-wrap gap-2">
           <button class="btn btn-secondary add-btn" data-bs-toggle="modal" data-bs-target="#showModalCreate">
-            <i class="ri-add-line align-bottom me-1"></i> Add new fixed package
+            <i class="ri-add-line align-bottom me-1"></i> Add new flex package
           </button>
           <button class="btn btn-soft-secondary" id="remove-actions">
             <i class="ri-delete-bin-2-line"></i>
@@ -44,8 +44,7 @@
           <th>Package code</th>
           <th>Package name</th>
           <th>Package type</th>
-          <th>From</th>
-          <th>To</th>
+          <th>No of hrs</th>
           <th>No of days per week</th>
           <th>No of days per month</th>
           <th>Package amount</th>
@@ -84,16 +83,14 @@
         <h5 class="modal-title">Add Packages</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="close-modal"></button>
       </div>
-      <form action="{% url 'core:save_fixed_package' %}" method="post" class="tablelist-form" autocomplete="on">
+      <form action="{% url 'core:save_flex_package' %}" method="post" class="tablelist-form" autocomplete="on">
         {% csrf_token %}
         <div class="modal-body">
           <div class="row g-3">
             <div class="col-sm-4">{{form.package_type}}</div>
             <div class="col-sm-4">{{form.package_code}}</div>
             <div class="col-sm-4">{{form.package_name}}</div>
-
-            <div class="col-sm-4">{{form.from_time}}</div>
-            <div class="col-sm-4">{{form.to_time}}</div>
+            <div class="col-sm-4">{{form.no_hours}}</div>
             <div class="col-sm-4">{{form.no_days_week}}</div>
             <div class="col-sm-4">{{form.no_days_months}}</div>
             <div class="col-sm-4">{{form.package_total}}</div>
@@ -253,15 +250,14 @@
         responsive: true,
         ajax: {
           processing: true,
-          url: "{% url 'core:get_fixed_packages_js' %}",
+          url: "{% url 'core:get_flex_packages_js' %}",
           dataSrc: "",
         },
         columns: [
           { data: "package_code" },
           { data: "package_name" },
           { data: "package_type" },
-          { data: "from_time" },
-          { data: "to_time" },
+          { data: "no_hours" },
           { data: "no_days_week" },
           { data: "no_days_months" },
           {
@@ -273,30 +269,8 @@
             data: null,
             className: "dt-right",
             render: function (data, type, row) {
-              // url = "{% url 'core:approve_discount' %}";
               id = row.id;
-
-              // Convert to_time to a Date object
-              var to_time_parts = row.to_time.split(':');
-              var to_time = new Date();
-              to_time.setHours(parseInt(to_time_parts[0], 10));
-              to_time.setMinutes(parseInt(to_time_parts[1], 10));
-              to_time.setSeconds(parseInt(to_time_parts[2], 10));
-
-              // Set the cutoff time to 17:30:00
-              var cutoff_time = new Date();
-              cutoff_time.setHours(17, 30, 00);
-
-              if (to_time >= cutoff_time) {
-
-                return 'upto 5.30p.m';
-              }
-              else {
-                // ADD URL HERE
-                
                 return '<a href="" class="link-secondary" data-id="' + id + '"   data-bs-toggle="modal"   role="button">upto 5.30p.m</a>';
-              }
-
 
             },
           },
@@ -347,6 +321,7 @@
       e.preventDefault();
       dataTable = $("#RatesUpto530").DataTable();
       dataTable.clear();
+      alert(id);
       // Show the modal
       jQuery("#divbefore530").modal("show");
       var url = "{% url 'core:get_pacakage_extrahours_upto530_js'  %}";
@@ -355,7 +330,7 @@
       jQuery.ajax({
         type: "GET",
         url: url,
-        data: { id: id },
+        data: { id: id, packageTerm:2 },
         beforeSend: function () { },
         success: function (response) {
           jQuery.each(response, function (i, item) {
@@ -446,70 +421,6 @@
       jQuery(this).find("form").trigger("reset");
 
     });
-
-    // Add an event listener to the "to_time" field
-    jQuery(document).on('change', '#to_time', function () {
-
-      // Get the values of "from_time" and "to_time"
-      var fromTime = jQuery('#from_time').val();
-      var toTime = jQuery(this).val();
-
-
-      // Make an Ajax request to calculate the duration
-      jQuery.ajax({
-        url: "{% url 'core:calculate_duration' %}",
-        method: 'GET',
-        data: {
-          'from_time': fromTime,
-          'to_time': toTime,
-        },
-        success: function (data) {
-          // Combine hours and minutes with a dot separator
-          var durationFormatted = data.duration_hours + '.' + (data.duration_minutes < 10 ? '0' : '') + data.duration_minutes;
-
-          // Update the "no_hours" field with the formatted duration
-          jQuery('#no_hours').val(durationFormatted);
-        },
-        error: function () {
-          console.error('Error calculating duration.');
-        }
-      });
-    });
-
-    // Add an event listener to the "from_time" field
-    jQuery(document).on('change', '#from_time', function () {
-      var toTime = jQuery('#to_time').val();
-      if (toTime) {
-        // Get the values of "from_time" and "to_time"
-        var fromTime = jQuery(this).val();
-        var toTime = jQuery('#to_time').val();
-
-
-        // Make an Ajax request to calculate the duration
-        jQuery.ajax({
-          url: "{% url 'core:calculate_duration' %}",
-          method: 'GET',
-          data: {
-            'from_time': fromTime,
-            'to_time': toTime,
-          },
-          success: function (data) {
-            // Combine hours and minutes with a dot separator
-            var durationFormatted = data.duration_hours + '.' + (data.duration_minutes < 10 ? '0' : '') + data.duration_minutes;
-
-            // Update the "no_hours" field with the formatted duration
-            jQuery('#no_hours').val(durationFormatted);
-          },
-          error: function () {
-            console.error('Error calculating duration.');
-          }
-        });
-
-      }
-
-    });
-
-
 
 
     jQuery("#extraCharges").hide();

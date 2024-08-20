@@ -13,6 +13,7 @@ from .models import (
     ExtraHoursAfter530,
     ExtraHoursUpTo530,
     FixedPackage,
+    FlexPackages,
     PackageType,
 )
 
@@ -476,36 +477,6 @@ class CreatePackageTypeForm(forms.ModelForm):
         fields = ("package_type_name", "is_holiday_package")
 
 
-# class CreateRateHistoryForm(forms.ModelForm):
-#     standard_hourly_rate = forms.DecimalField(
-#         max_digits=15,
-#         decimal_places=2,
-#         validators=[MinValueValidator(Decimal("0.01"))],
-#         required=True,
-#         widget=forms.NumberInput(
-#             attrs={"class": "form-control", "placeholder": "Rate"}
-#         ),
-#     )
-
-#     effective_from = forms.DateField(
-#         required=True,
-#         widget=MyDateInput(
-#             attrs={
-#                 "class": "form-control",
-#                 "id": "effective_from",
-#                 "placeholder": "Effective From",
-#                 "required": "required",
-#                 "data-provider": "flatpickr",
-#                 "data-date-format": "Y-m-d",
-#             }
-#         ),
-#     )
-
-#     class Meta:
-#         model = RateHistory
-#         fields = ("standard_hourly_rate", "effective_from")
-
-
 class UpdatePackageTypeForm(forms.ModelForm):
     package_type_name = forms.CharField(
         max_length=250,
@@ -785,6 +756,94 @@ class CreateFixedPackagesForm(forms.ModelForm):
             "package_type",
             "from_time",
             "to_time",
+            "no_days_week",
+            "no_days_months",
+            "package_total",
+        )
+
+
+class CreateFlexPackagesForm(forms.ModelForm):
+    package_type = forms.ModelChoiceField(
+        required=True,
+        empty_label="-Select package type -",
+        queryset=PackageType.objects.filter(is_active=True).order_by(
+            "package_type_name"
+        ),
+        label="- Package Type -",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Base Rate",
+                "id": "package_type",
+            }
+        ),
+    )
+
+    package_name = forms.CharField(
+        max_length=250,
+        required=True,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Package Name"}
+        ),
+    )
+
+    package_code = forms.CharField(
+        max_length=250,
+        required=True,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Package Code"}
+        ),
+    )
+
+    no_hours = forms.IntegerField(
+        validators=[MinValueValidator(int("0"))],
+        required=True,
+        widget=forms.NumberInput(
+            attrs={"class": "form-control", "placeholder": "No of hours"}
+        ),
+    )
+
+    no_days_week = forms.IntegerField(
+        validators=[MinValueValidator(int("0"))],
+        required=True,
+        widget=forms.NumberInput(
+            attrs={"class": "form-control", "placeholder": "No of days for a week"}
+        ),
+    )
+    no_days_months = forms.IntegerField(
+        validators=[MinValueValidator(int("0"))],
+        required=True,
+        widget=forms.NumberInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "No of days for a month",
+                "id": "no_days_months",
+            }
+        ),
+    )
+
+    package_total = forms.DecimalField(
+        decimal_places=2,
+        max_digits=12,
+        validators=[MinValueValidator(Decimal("00.00"))],
+        required=True,
+        widget=forms.NumberInput(
+            attrs={
+                "autocomplete": "off",
+                "id": "package_total",
+                "class": "form-control",
+                "placeholder": "Package total",
+            }
+        ),
+    )
+
+    class Meta:
+        model = FlexPackages
+        fields = (
+            "package_name",
+            "package_code",
+            "package_type",
+            "no_hours",
             "no_days_week",
             "no_days_months",
             "package_total",

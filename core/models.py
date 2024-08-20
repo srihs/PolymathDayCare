@@ -171,6 +171,25 @@ class FixedPackage(BaseClass):
         super().save(*args, **kwargs)
 
 
+class FlexPackages(BaseClass):
+    package_code = models.CharField(max_length=10)
+    package_name = models.CharField(max_length=200)
+    package_type = models.ForeignKey(PackageType, on_delete=models.CASCADE)
+    package_term = models.ForeignKey(PackageTerm, on_delete=models.CASCADE, default=2)
+    no_hours = models.DecimalField(max_digits=10, decimal_places=2)
+    no_days_week = models.IntegerField()
+    no_days_months = models.IntegerField()
+    package_total = models.DecimalField(max_digits=12, decimal_places=2)
+
+    class Meta:
+        verbose_name = "flex package"
+        verbose_name_plural = "flex packages"
+        db_table = "dc_flex_packages"
+
+    def __str__(self):
+        return self.package_code + " - " + self.package_name
+
+
 class ExtraHoursUpTo530(BaseClass):
     hour_number = models.IntegerField(null=True, blank=True)
     extra_rate = models.DecimalField(
@@ -189,7 +208,13 @@ class ExtraHoursUpTo530(BaseClass):
 
 
 class PackageExtraHoursMapping(BaseClass):
-    package = models.ForeignKey(FixedPackage, on_delete=models.CASCADE)
+    fixed_package = models.ForeignKey(
+        FixedPackage, on_delete=models.CASCADE, null=True, blank=True
+    )
+    flex_package = models.ForeignKey(
+        FlexPackages, on_delete=models.CASCADE, null=True, blank=True
+    )
+
     extra_hours_upto_530 = models.ForeignKey(
         ExtraHoursUpTo530,
         on_delete=models.CASCADE,
