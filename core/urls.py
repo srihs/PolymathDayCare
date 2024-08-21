@@ -10,6 +10,16 @@ urlpatterns = [
     path("", views.index, name="home"),
     path("login/", views.UserLogin, name="login"),
     path("logout/", views.UserLogOut, name="logout"),
+    path(
+        "holiday_types/",
+        views.getHolidayTypes,
+        name="holiday_types",
+    ),
+    path(
+        "get_all_holiday_types_JS/",
+        views.getHolidayTypesJS,
+        name="get_all_holiday_types_JS",
+    ),
     path("child/", views.getChild, name="view_child"),
     path("get_all_child_JS/", views.getChild, name="get_all_child_JS"),
     path("childview/", views.getChildJson, name="view_child_j"),

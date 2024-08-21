@@ -14,6 +14,7 @@ from .models import (
     ExtraHoursUpTo530,
     FixedPackage,
     FlexPackages,
+    HolidayType,
     PackageType,
 )
 
@@ -1259,7 +1260,6 @@ class CreateEnrollmentForm(forms.ModelForm):
     )
 
     normal_package = forms.ModelChoiceField(
-        required=True,
         queryset=FixedPackage.objects.filter(
             is_active=True, package_type__is_holiday_package=False
         ).order_by("package_code"),
@@ -1274,13 +1274,24 @@ class CreateEnrollmentForm(forms.ModelForm):
     )
 
     holiday_package = forms.ModelChoiceField(
-        required=True,
         queryset=FixedPackage.objects.filter(
             is_active=True, package_type__is_holiday_package=True
         ).order_by("package_code"),
         empty_label="-Select holiday package-",
         widget=forms.Select(
             attrs={"class": "form-control", "placeholder": "Base Rate", "id": "package"}
+        ),
+    )
+
+    flex_package = forms.ModelChoiceField(
+        queryset=FlexPackages.objects.filter(is_active=True).order_by("package_code"),
+        empty_label="-Select flex package-",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Base Rate",
+                "id": "flex_package",
+            }
         ),
     )
 
@@ -1316,6 +1327,7 @@ class CreateEnrollmentForm(forms.ModelForm):
             "dayCare",
             "normal_package",
             "holiday_package",
+            "flex_package",
             "discount",
             "recipt_number",
         )
@@ -1850,3 +1862,28 @@ class AttendanceReportForm(forms.Form):
             attrs={"class": "form-control", "placeholder": "center", "id": "center"}
         ),
     )
+
+
+class CreateHolidayTypesForm(forms.ModelForm):
+    holiday_code = forms.CharField(
+        max_length=250,
+        required=False,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Holiday Code"}
+        ),
+    )
+
+    holiday_type = forms.CharField(
+        max_length=250,
+        required=True,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Holiday Code"}
+        ),
+    )
+
+    class Meta:
+        model = HolidayType
+        fields = (
+            "holiday_code",
+            "holiday_type",
+        )

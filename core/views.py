@@ -27,6 +27,7 @@ from .forms import (
     CreateExtraHoursUpTo530Form,
     CreateFixedPackagesForm,
     CreateFlexPackagesForm,
+    CreateHolidayTypesForm,
     CreatePackageTypeForm,
     SearchForm,
     UpdateBranchForm,
@@ -48,6 +49,7 @@ from .models import (
     ExtraHoursUpTo530,
     FixedPackage,
     FlexPackages,
+    HolidayType,
     PackageExtraHoursMapping,
     PackageType,
 )
@@ -2057,6 +2059,37 @@ def attendanceReportsJS(request):
         )
 
     return JsonResponse(attendance_logs, safe=False)
+
+
+@login_required
+def getHolidayTypes(request):
+    try:
+        # trying to retrive the next primaryKey
+        nextId = HolidayType.objects.all().count()
+        nextId += 1
+    except:
+        nextId = 1  # if the next ID is null define the record as the first
+
+    holidaytypeform = CreateHolidayTypesForm(
+        initial={"holiday_code": "HT00" + str(nextId)}
+    )
+    return render(
+        request,
+        "../templates/holidaytypes.html",
+        {"form": holidaytypeform, "UserName": request.user.username},
+    )
+
+
+@login_required
+def getHolidayTypesJS(request):
+    holidayTypeList = list(
+        HolidayType.objects.filter(is_active=True).values(
+            "id",
+            "holiday_code",
+            "holiday_type",
+        )
+    )
+    return JsonResponse(holidayTypeList, safe=False)
 
 
 @login_required

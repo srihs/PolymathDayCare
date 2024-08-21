@@ -307,10 +307,25 @@ class ChildEnrollment(BaseClass):
     enrollment_date = models.DateField()
     child = models.ForeignKey("Child", on_delete=models.CASCADE)
     normal_package = models.ForeignKey(
-        "FixedPackage", on_delete=models.CASCADE, related_name="normal_package"
+        "FixedPackage",
+        on_delete=models.CASCADE,
+        related_name="normal_package",
+        null=True,
+        blank=True,
     )
     holiday_package = models.ForeignKey(
-        "FixedPackage", on_delete=models.CASCADE, related_name="holiday_package"
+        "FixedPackage",
+        on_delete=models.CASCADE,
+        related_name="holiday_package",
+        null=True,
+        blank=True,
+    )
+    flex_package = models.ForeignKey(
+        "FlexPackages",
+        on_delete=models.CASCADE,
+        related_name="flex_package",
+        null=True,
+        blank=True,
     )
     branch = models.ForeignKey("Branch", on_delete=models.CASCADE)
     center = models.ForeignKey("DayCare", on_delete=models.CASCADE)
