@@ -239,6 +239,14 @@ class PackageExtraHoursMapping(BaseClass):
 class HolidayType(BaseClass):
     holiday_code = models.CharField(max_length=10)
     holiday_type = models.CharField(max_length=100)
+    is_polymath_holiday = models.BooleanField(
+        null=True,
+        blank=True,
+    )
+    is_public_holiday = models.BooleanField(
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         verbose_name = "holiday type"

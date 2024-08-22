@@ -20,6 +20,7 @@ urlpatterns = [
         views.getHolidayTypesJS,
         name="get_all_holiday_types_JS",
     ),
+    path("save_holiday_type/", views.saveHolidayTypes, name="save_holiday_type"),
     path("child/", views.getChild, name="view_child"),
     path("get_all_child_JS/", views.getChild, name="get_all_child_JS"),
     path("childview/", views.getChildJson, name="view_child_j"),

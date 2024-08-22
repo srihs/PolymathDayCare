@@ -1,5 +1,5 @@
 {% extends "base.html" %} {% load static %} 
-{% block PageTitle %}Base rates{% endblock %}
+{% block PageTitle %}Holiday types{% endblock %}
 {% block UserName %} {{ UserName }}{% endblock %} 
 {% block Title %} MASTER {% endblock %} 
 {% block functionTitle %}HOLIDAY TYPES{% endblock %} 
@@ -53,6 +53,8 @@
             <tr>
                 <th>Holiday type code</th>
                 <th>Holiday type</th>
+                <th>Is Polymath holiday?</th>
+                <th>Is public holiday</th>
                 <th data-orderable="false"></th>
             </tr>
             </thead>
@@ -97,21 +99,42 @@
         <h5 class="modal-title">Add Holiday Types</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="close-modal"></button>
       </div>
-      <form action="{% url 'core:save_fixed_package' %}" method="post" class="tablelist-form" autocomplete="on">
+      <form action="{% url 'core:save_holiday_type' %}" method="post" class="tablelist-form" autocomplete="on">
         {% csrf_token %}
         <div class="modal-body">
           <div class="row g-3">
-            <div class="col-sm-4">{{form.holiday_code}}</div>
+            <div class="col-sm-2">{{form.holiday_code}}</div>
             <div class="col-sm-4">{{form.holiday_type}}</div>
+            <div class="col-sm-3">
+                
+                <div> <div class="form-check form-switch">
+                    {{ form.is_polymath_holiday }}
+                    <label class="form-check-label"
+                    > Polymath holiday?</label
+                    >
+                </div></div>
+        
+        </div>
+        <div class="col-sm-3">
+            <div> <div class="form-check form-switch">
+                {{ form.is_public_holiday }}
+                <label class="form-check-label"
+                >Public holiday?</label
+                >
+            </div></div></div>
+            <div class="col-sm-12">
+                <div class="hstack gap-2 justify-content-end">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                            Close
+                        </button>
+                        <button class="btn btn-secondary" type="submit">Submit form</button>
+                        <!-- <button type="button" class="btn btn-success" id="edit-btn">Update</button> -->
+                    </div>
+            </div>
           </div>
           </br>
           <div class="modal-footer" style="display: block">
-            <div class="hstack gap-2 justify-content-end">
-              <button type="button" class="btn btn-light" data-bs-dismiss="modal">
-                Close
-              </button>
-              <button class="btn btn-secondary" type="submit">Save</button>
-            </div>
+            
           </div>
         </div>
       </form>
@@ -151,35 +174,6 @@
     </div><!-- /.modal-dialog -->
 </div>
 
-<!--Rate History pop-up-->
-<div id="historyModal" class="modal fade flip" tabindex="-1" aria-labelledby="flipModalLabel" style="display: none;" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="flipModalLabel">Rate History</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div>
-                    <table id="RateHistoryList" class="display" style="width: 100%">
-                        <thead>
-                        <tr>
-                        <th>Rate (hr)</th>
-                        <th>Effective from</th>
-                        <th>Effective to</th>
-                        <th>Status</th>
-                        </tr>
-                        </thead>
-                    </table>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
-            </div>
-
-        </div><!-- /.modal-content -->
-    </div><!-- /.modal-dialog -->
-</div>
 
 <!--Update Form-->
 <div class="modal fade zoomIn" id="showUpdateModal" tabindex="-1" aria-labelledby="exampleModalLabel"
@@ -280,6 +274,8 @@
             columns: [
                 {data: "holiday_code"},
                 {data: "holiday_type"},
+                {data: "is_polymath_holiday"},
+                {data: "is_public_holiday"},
                 {
                     data: null,
                     render: function (data, type, row) {

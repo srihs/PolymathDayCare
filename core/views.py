@@ -2087,9 +2087,82 @@ def getHolidayTypesJS(request):
             "id",
             "holiday_code",
             "holiday_type",
+            "is_polymath_holiday",
+            "is_public_holiday",
         )
     )
+    for i, n in enumerate(holidayTypeList):
+        if n["is_polymath_holiday"] == True:
+            holidayTypeList[i]["is_polymath_holiday"] = "Yes"
+        else:
+            holidayTypeList[i]["is_polymath_holiday"] = "No"
+
+        if n["is_public_holiday"] == True:
+            holidayTypeList[i]["is_public_holiday"] = "Yes"
+        else:
+            holidayTypeList[i]["is_public_holiday"] = "No"
+
     return JsonResponse(holidayTypeList, safe=False)
+
+
+@login_required
+def saveHolidayTypes(request):
+    try:
+        if request.method == "POST":
+            form = CreateHolidayTypesForm(request.POST)
+            objHolidayType = form.save(commit=False)
+
+            # capturing the variables with data
+            holiday_code = request.POST.get("holiday_code")
+            holiday_type = request.POST.get("holiday_type")
+            is_polymath_holiday = request.POST.get("is_polymath_holiday")
+            is_public_holiday = request.POST.get("is_public_holiday")
+
+            if is_polymath_holiday == "on":
+                is_polymath_holiday = True
+            else:
+                is_polymath_holiday = False
+
+            if is_public_holiday == "on":
+                is_public_holiday = True
+            else:
+                is_public_holiday = False
+
+            if request.POST.get("id") is not None:
+                objHolidayType = PackageType.objects.get(id=request.POST.get("id"))
+                if objHolidayType is not None:
+                    user = User.objects.get(username=request.user.username)
+                    if user.groups.filter(name="Data Entry").exists():
+                        messages.error(
+                            request,
+                            "You are not authorized to performe this operation.",
+                        )
+                    else:
+                        objHolidayType.holiday_code = holiday_code
+                        objHolidayType.holiday_type = holiday_type
+                        objHolidayType.is_polymath_holiday = is_polymath_holiday
+                        objHolidayType.is_public_holiday = is_public_holiday
+
+                        objHolidayType.is_active = True
+                        objHolidayType.user_updated = request.user.username
+                        objHolidayType.date_updated = datetime.now()
+                        objHolidayType.save()
+                        messages.success(request, "Holiday type details updated.")
+            else:
+                objHolidayType = HolidayType(
+                    holiday_code=holiday_code,
+                    holiday_type=holiday_type,
+                    is_polymath_holiday=is_polymath_holiday,
+                    is_public_holiday=is_public_holiday,
+                    is_active=True,
+                    user_created=request.user.username,
+                )
+                objHolidayType.save()
+                messages.success(request, "Holiday type saved.")
+
+    except Exception as e:
+        messages.error(request, e)
+    return redirect("core:holiday_types")
 
 
 @login_required
