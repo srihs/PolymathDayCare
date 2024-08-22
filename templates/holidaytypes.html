@@ -181,7 +181,7 @@
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0">
             <div class="modal-header p-3 bg-secondary-subtle">
-                <h5 class="modal-title">Update base rate details</h5>
+                <h5 class="modal-title">Update holiday types</h5>
                 <button
                         type="button"
                         class="btn-close"
@@ -279,13 +279,12 @@
                 {
                     data: null,
                     render: function (data, type, row) {
-                        var url = "";
+                        var url = "{% url 'core:get_holiday_type_byID' 0 %}";
                         var id = row.id;
                         url = url.replace(0, id);
                         return data =
                             '<a href=' + url + ' class="link-success"  data-id='+ id +' data-bs-target="#showUpdateModal"\
-                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"\
-                ><i class="ri-edit-2-fill"></i></a>';
+                data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="ri-edit-2-fill"></i></a>';
                     },
                 },
             ],
@@ -300,11 +299,10 @@
         jQuery(this).find("form").trigger("reset");
     });
 
-    var url = "";
+  
     jQuery(document).on("click", ".link-success", function (e) {
         e.preventDefault();
         url = jQuery(this).attr("href");
-       
         // Show the modal
         jQuery("#showUpdateModal").modal("show");
 
@@ -323,35 +321,6 @@
         });
 
     });
-
-
-    jQuery(document).on("click", "#addRates", function (e) {
-        e.preventDefault();
-        url = jQuery(this).attr("href");
-        id = jQuery(this).attr("data-id");
-        
-        // Show the modal
-        jQuery("#rateModals").modal("show");
-        // Load the form into the modal using AJAX
-        jQuery.ajax({
-            type: "GET",    
-            url: url,
-            data: { rate_id: id },
-            dataType: "html",
-            success: function (data) {
-                // Assuming you have a modal body with the id "updateModalBody"
-                jQuery("#modelRateForm").html(data);
-                jQuery('#effective_from').flatpickr();
-                
-            },
-            error: function (xhr, textStatus, errorThrown) {
-                alert("Error: " + xhr.status + ", " + xhr.statusText);
-            }
-        });
-
-    });
-
-
     jQuery("secondButton").click(function () {
         window.parent.location = window.parent.location.href;
     });

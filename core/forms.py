@@ -1920,3 +1920,61 @@ class CreateHolidayTypesForm(forms.ModelForm):
             "is_polymath_holiday",
             "is_public_holiday",
         )
+
+
+class UpdateHolidayTypesForm(forms.ModelForm):
+    CHOICES = [
+        ("1", "Yes"),
+        ("0", "No"),
+    ]
+    holiday_code = forms.CharField(
+        max_length=250,
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "readonly": "readonly",
+                "class": "form-control",
+                "placeholder": "Holiday Code",
+            }
+        ),
+    )
+
+    holiday_type = forms.CharField(
+        max_length=250,
+        required=True,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Holiday Type"}
+        ),
+    )
+
+    is_polymath_holiday = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(
+            attrs={
+                "class": "form-check-input",
+                "type": "checkbox",
+                "checked": "checked",
+                "id": "is_polymath_holiday",
+            }
+        ),
+    )
+
+    is_public_holiday = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(
+            attrs={
+                "class": "form-check-input",
+                "type": "checkbox",
+                "id": "is_public_holiday",
+            }
+        ),
+    )
+
+    class Meta:
+        model = HolidayType
+        fields = (
+            "holiday_code",
+            "holiday_type",
+            "is_polymath_holiday",
+            "is_public_holiday",
+        )

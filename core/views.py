@@ -35,6 +35,7 @@ from .forms import (
     UpdateDayCareForm,
     UpdateExtraChargesForm,
     UpdateExtraHoursUpTo530Form,
+    UpdateHolidayTypesForm,
     UpdatePackageTypeForm,
 )
 from .models import (
@@ -2106,6 +2107,21 @@ def getHolidayTypesJS(request):
 
 
 @login_required
+def getHolidayTypesID(request, pk):
+    try:
+        form = None
+        objHolidayType = get_object_or_404(HolidayType, pk=pk)
+        if objHolidayType is not None:
+            form = UpdateHolidayTypesForm(instance=objHolidayType)
+
+    except Exception as e:
+        messages.error(request, e)
+    return render(
+        request, "../templates/partials/holidaytypesupdate.html", {"form": form}
+    )
+
+
+@login_required
 def saveHolidayTypes(request):
     try:
         if request.method == "POST":
@@ -2128,8 +2144,8 @@ def saveHolidayTypes(request):
             else:
                 is_public_holiday = False
 
-            if request.POST.get("id") is not None:
-                objHolidayType = PackageType.objects.get(id=request.POST.get("id"))
+            if request.POST.get("√") is not None:
+                objHolidayType = HolidayType.objects.get(holiday_code=holiday_code)
                 if objHolidayType is not None:
                     user = User.objects.get(username=request.user.username)
                     if user.groups.filter(name="Data Entry").exists():
