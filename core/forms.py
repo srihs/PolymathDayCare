@@ -14,6 +14,7 @@ from .models import (
     ExtraHoursUpTo530,
     FixedPackage,
     FlexPackages,
+    Holiday,
     HolidayType,
     PackageType,
 )
@@ -1978,3 +1979,47 @@ class UpdateHolidayTypesForm(forms.ModelForm):
             "is_polymath_holiday",
             "is_public_holiday",
         )
+
+
+class CreatePublicHolidayForm(forms.ModelForm):
+    title = forms.CharField(
+        max_length=250,
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Holiday Name",
+            }
+        ),
+    )
+
+    start_date = forms.DateField(
+        required=True,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "start_date",
+                "placeholder": "Effective From",
+                "required": "required",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+            }
+        ),
+    )
+    end_date = forms.DateField(
+        required=True,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "end_date",
+                "placeholder": "Effective To",
+                "required": "required",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+            }
+        ),
+    )
+
+    class Meta:
+        model = Holiday
+        fields = ("title", "start_date", "end_date")

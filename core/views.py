@@ -29,6 +29,7 @@ from .forms import (
     CreateFlexPackagesForm,
     CreateHolidayTypesForm,
     CreatePackageTypeForm,
+    CreatePublicHolidayForm,
     SearchForm,
     UpdateBranchForm,
     UpdateChildForm,
@@ -50,6 +51,7 @@ from .models import (
     ExtraHoursUpTo530,
     FixedPackage,
     FlexPackages,
+    Holiday,
     HolidayType,
     PackageExtraHoursMapping,
     PackageType,
@@ -2180,6 +2182,106 @@ def saveHolidayTypes(request):
     except Exception as e:
         messages.error(request, e)
     return redirect("core:holiday_types")
+
+
+@login_required
+def getHolidays(request):
+    try:
+        # trying to retrive the next primaryKey
+        nextId = Holiday.objects.all().count()
+        nextId += 1
+    except:
+        nextId = 1  # if the next ID is null define the record as the first
+
+    holidayform = CreatePublicHolidayForm()
+
+    return render(
+        request,
+        "../templates/holidays.html",
+        {"form": holidayform, "UserName": request.user.username},
+    )
+
+
+@login_required
+def getHolidaysJS(request):
+    holidayList = list(
+        Holiday.objects.filter(is_active=True)
+        .annotate(
+            holiday_types=Concat(
+                F("holiday_type__holiday_code"),
+                Value("-"),
+                F("holiday_type__holiday_type"),
+            )
+        )
+        .values(
+            "id",
+            "title",
+            "holiday_types",
+            "start_date",
+            "end_date",
+        )
+    )
+    return JsonResponse(holidayList, safe=False)
+
+
+@login_required
+def getHolidayID(request, pk):
+    try:
+        form = None
+        objHoliday = get_object_or_404(Holiday, pk=pk)
+        if objHoliday is not None:
+            form = UpdateHolidayTypesForm(instance=objHoliday)
+
+    except Exception as e:
+        messages.error(request, e)
+    return render(
+        request, "../templates/partials/holidaytypesupdate.html", {"form": form}
+    )
+
+
+@login_required
+def saveHoliday(request):
+    try:
+        if request.method == "POST":
+            form = CreatePublicHolidayForm(request.POST)
+            if form.is_valid():
+                objHoliday = form.save(commit=False)
+                # capturing the variables with data
+                title = request.POST.get("title")
+                objHolidayType = HolidayType.objects.filter(
+                    is_public_holiday=True
+                ).first()
+                is_polymath_holiday = request.POST.get("is_polymath_holiday")
+                is_public_holiday = request.POST.get("is_public_holiday")
+
+                if request.POST.get("holiday_code") is not None:
+                    objHoliday = Holiday.objects.get(title=title)
+                    if objHoliday is not None:
+                        user = User.objects.get(username=request.user.username)
+                        if user.groups.filter(name="Data Entry").exists():
+                            messages.error(
+                                request,
+                                "You are not authorized to performe this operation.",
+                            )
+                        else:
+                            objHoliday.title = title
+                            objHoliday.holiday_type = objHolidayType
+                            objHoliday.is_active = True
+                            objHoliday.user_updated = request.user.username
+                            objHoliday.date_updated = datetime.now()
+                            objHoliday.save()
+                            messages.success(request, "Holiday details updated.")
+                else:
+                    objHoliday.is_active = True
+                    objHoliday.user_created = request.user.username
+                    objHoliday.holiday_type = objHolidayType
+                    objHoliday.save()
+                    messages.success(request, "Holiday saved.")
+            else:
+                messages.error(request, form.errors)
+    except Exception as e:
+        messages.error(request, e)
+    return redirect("core:holidays")
 
 
 @login_required

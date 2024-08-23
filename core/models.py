@@ -2,6 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from django.db import models
+from django.utils import timezone
 
 
 # This model will hold the most common properties of the each model.
@@ -262,11 +263,31 @@ class Holiday(BaseClass):
     holiday_type = models.ForeignKey("HolidayType", on_delete=models.CASCADE)
     start_date = models.DateField()
     end_date = models.DateField()
+    start_year = models.CharField(max_length=4)
+    end_year = models.CharField(max_length=4)
 
     class Meta:
         verbose_name = "Holiday"
         verbose_name_plural = "Holidays"
-        db_table = "dc_holiday"
+        db_table = "dc_holidays"
+
+    def save(self, *args, **kwargs):
+        # Set start_year and end_year based on start_date and end_date
+        if self.start_date:
+            self.start_year = str(self.start_date.year)
+        else:
+            self.start_year = str(
+                timezone.now().year
+            )  # Default to current year if no start_date
+
+        if self.end_date:
+            self.end_year = str(self.end_date.year)
+        else:
+            self.end_year = str(
+                timezone.now().year
+            )  # Default to current year if no end_date
+
+        super().save(*args, **kwargs)
 
 
 class Branch(BaseClass):
