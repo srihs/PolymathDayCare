@@ -2033,7 +2033,7 @@ def saveHolidayTypes(request):
 
 
 @login_required
-def getHolidays(request):
+def getPublicHolidays(request):
     # checking if the holiday types are defined
     objHolidayType = HolidayType.objects.all().count()
     if objHolidayType == 0:
@@ -2047,7 +2047,7 @@ def getHolidays(request):
 
 
 @login_required
-def getHolidaysJS(request):
+def getPublicHolidaysJS(request):
     holidayList = list(
         Holiday.objects.filter(is_active=True)
         .annotate(
@@ -2069,7 +2069,7 @@ def getHolidaysJS(request):
 
 
 @login_required
-def getHolidayID(request, pk):
+def getPublicHolidayID(request, pk):
     try:
         form = None
         objHoliday = get_object_or_404(Holiday, pk=pk)
@@ -2083,7 +2083,7 @@ def getHolidayID(request, pk):
 
 
 @login_required
-def saveHoliday(request):
+def savePublicHoliday(request):
     try:
         if request.method == "POST":
             form = CreatePublicHolidayForm(request.POST)
@@ -2094,8 +2094,7 @@ def saveHoliday(request):
                 objHolidayType = HolidayType.objects.filter(
                     is_public_holiday=True
                 ).first()
-                is_polymath_holiday = request.POST.get("is_polymath_holiday")
-                is_public_holiday = request.POST.get("is_public_holiday")
+
                 if request.POST.get("holiday_code") is not None:
                     objHoliday = Holiday.objects.get(title=title)
                     if objHoliday is not None:
@@ -2106,6 +2105,19 @@ def saveHoliday(request):
                                 "You are not authorized to performe this operation.",
                             )
                         else:
+                            if objHoliday.start_date > objHoliday.end_date:
+                                raise Exception(
+                                    "End date "
+                                    + "("
+                                    + str(objHoliday.end_date)
+                                    + ")"
+                                    + " cannot be older than the start date "
+                                    + "("
+                                    + str(objHoliday.start_date)
+                                    + ")"
+                                    + ".",
+                                )
+
                             objHoliday.title = title
                             objHoliday.holiday_type = objHolidayType
                             objHoliday.is_active = True
@@ -2114,6 +2126,19 @@ def saveHoliday(request):
                             objHoliday.save()
                             messages.success(request, "Holiday details updated.")
                 else:
+                    if objHoliday.start_date > objHoliday.end_date:
+                        raise Exception(
+                            "End date "
+                            + "("
+                            + str(objHoliday.end_date)
+                            + ")"
+                            + " cannot be older than the start date "
+                            + "("
+                            + str(objHoliday.start_date)
+                            + ")"
+                            + ".",
+                        )
+
                     objHoliday.is_active = True
                     objHoliday.user_created = request.user.username
                     objHoliday.holiday_type = objHolidayType
