@@ -2041,7 +2041,7 @@ def getHolidays(request):
     holidayform = CreatePublicHolidayForm()
     return render(
         request,
-        "../templates/holidays.html",
+        "../templates/publicholidays.html",
         {"form": holidayform, "UserName": request.user.username},
     )
 
@@ -2123,7 +2123,7 @@ def saveHoliday(request):
                 messages.error(request, form.errors)
     except Exception as e:
         messages.error(request, e)
-    return redirect("core:holidays")
+    return redirect("core:public_holidays")
 
 
 @login_required

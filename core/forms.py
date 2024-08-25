@@ -1984,7 +1984,7 @@ class UpdateHolidayTypesForm(forms.ModelForm):
 class CreatePublicHolidayForm(forms.ModelForm):
     title = forms.CharField(
         max_length=250,
-        required=False,
+        required=True,
         widget=forms.TextInput(
             attrs={
                 "class": "form-control",
@@ -1994,26 +1994,22 @@ class CreatePublicHolidayForm(forms.ModelForm):
     )
 
     start_date = forms.DateField(
-        required=True,
         widget=MyDateInput(
             attrs={
                 "class": "form-control",
                 "id": "start_date",
-                "placeholder": "Effective From",
-                "required": "required",
+                "placeholder": "From",
                 "data-provider": "flatpickr",
                 "data-date-format": "Y-m-d",
             }
         ),
     )
     end_date = forms.DateField(
-        required=True,
         widget=MyDateInput(
             attrs={
                 "class": "form-control",
                 "id": "end_date",
-                "placeholder": "Effective To",
-                "required": "required",
+                "placeholder": "To",
                 "data-provider": "flatpickr",
                 "data-date-format": "Y-m-d",
             }
