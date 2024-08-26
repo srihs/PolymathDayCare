@@ -38,6 +38,7 @@ from .forms import (
     UpdateExtraHoursUpTo530Form,
     UpdateHolidayTypesForm,
     UpdatePackageTypeForm,
+    UpdatePublicHolidayForm,
 )
 from .models import (
     AttendanceLog,
@@ -2081,30 +2082,40 @@ def getPublicHolidayID(request, pk):
         form = None
         objHoliday = get_object_or_404(Holiday, pk=pk)
         if objHoliday is not None:
-            form = UpdateHolidayTypesForm(instance=objHoliday)
+            form = UpdatePublicHolidayForm(instance=objHoliday)
     except Exception as e:
         messages.error(request, e)
     return render(
-        request, "../templates/partials/holidaytypesupdate.html", {"form": form}
+        request, "../templates/partials/publicholidayupdate.html", {"form": form}
     )
 
 
 @login_required
 def savePublicHoliday(request):
     try:
+        title = request.POST.get("title")
+        id = request.POST.get("id")
+        start_date = request.POST.get("start_date")
+        end_date = request.POST.get("end_date")
+        print(title)
+        print(id)
+        print(start_date)
+        print(end_date)
+
         if request.method == "POST":
             form = CreatePublicHolidayForm(request.POST)
             if form.is_valid():
                 objHoliday = form.save(commit=False)
                 # capturing the variables with data
-                title = request.POST.get("title")
                 objHolidayType = HolidayType.objects.filter(
                     is_public_holiday=True
                 ).first()
-
-                if request.POST.get("holiday_code") is not None:
-                    objHoliday = Holiday.objects.get(title=title)
+                print(id)
+                if request.POST.get("id") is not None:
+                    print("Id not null")
+                    objHoliday = Holiday.objects.get(pk=request.POST.get("id"))
                     if objHoliday is not None:
+                        print("objHoliday not null")
                         user = User.objects.get(username=request.user.username)
                         if user.groups.filter(name="Data Entry").exists():
                             messages.error(
@@ -2128,6 +2139,12 @@ def savePublicHoliday(request):
                             objHoliday.title = title
                             objHoliday.holiday_type = objHolidayType
                             objHoliday.is_active = True
+                            objHoliday.start_date = datetime.strptime(
+                                start_date, "%Y-%m-%d"
+                            ).date()
+                            objHoliday.end_date = datetime.strptime(
+                                end_date, "%Y-%m-%d"
+                            ).date()
                             objHoliday.user_updated = request.user.username
                             objHoliday.date_updated = datetime.now()
                             objHoliday.save()

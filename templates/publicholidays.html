@@ -41,6 +41,7 @@
                         <div class="row ">
                             <div class="col-sm">
                                 {{form.title}}
+                                
                             </div>
                             <div class="col-sm">
                                 {{form.start_date}}
@@ -114,29 +115,32 @@
         </div>
     </div>
     <!--Update Form-->
-    <div class="modal fade bs-example-modal-sm show" id="showUpdateModal" tabindex="-1" aria-labelledby="exampleModalLabel"
-         style="display: none" aria-hidden="true">
-        <div class="modal-dialog modal-sm">
-            <div class="modal-content border-0">
-                <div class="modal-header p-3 bg-secondary-subtle">
-                    <h5 class="modal-title">Update extra rate details</h5>
-                    <button
-                            type="button"
-                            class="btn-close"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"
-                            id="close-upmodal"
-                    ></button>
-                </div>
-                <div id="modelForm">
-    
-                </div>
-            </div>
-        </div>
+<div
+class="modal fade zoomIn"
+id="showUpdateModal"
+tabindex="-1"
+aria-labelledby="exampleModalLabel"
+style="display: none"
+aria-hidden="true"
+>
+<div class="modal-dialog modal-dialog-centered modal-lg">
+  <div class="modal-content border-0">
+    <div class="modal-header p-3 bg-secondary-subtle">
+      <h5 class="modal-title">Update Public Holiday</h5>
+      <button
+        type="button"
+        class="btn-close"
+        data-bs-dismiss="modal"
+        aria-label="Close"
+        id="close-upmodal"
+      ></button>
     </div>
-    
+    <div id="modelForm" bs-focus="false"></div>
+  </div>
+</div>
+</div>
    
-    
+  
     
     {% endblock %} {% block scripts %}
     <!-- jQuery -->
@@ -175,10 +179,22 @@
     
         jQuery(document).on("click", ".link-success", function (e) {
             e.preventDefault();
-           
-            id = jQuery(this).attr("data-value");
+            url = jQuery(this).attr("href");
             // Show the modal
-            jQuery("#firstmodal").modal("show");
+            jQuery("#showUpdateModal").modal("show");
+            // Load the form into the modal using AJAX
+            jQuery.ajax({
+            type: "GET",
+            url: url,
+            dataType: "html",
+            success: function (data) {
+                // Assuming you have a modal body with the id "updateModalBody"
+                jQuery("#modelForm").html(data);
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                alert("Error: " + xhr.status + ", " + xhr.statusText);
+            },
+    });
         });
     
        
@@ -242,7 +258,7 @@
                     [response[i].title,
                     response[i].start_date,
                     response[i].end_date,
-                    '<a href="#" class="link-success" data-bs-target="#firstmodal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button" data-value="' + response[i].id + '"><i class="ri-edit-2-fill"></i></a>',
+                    '<a href= ' + url_history +'  class="link-success" data-bs-target="#firstmodal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button" data-value="' + response[i].id + '"><i class="ri-edit-2-fill"></i></a>',
                     ],)
                     });
                     dataTable.draw();

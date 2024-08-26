@@ -2019,3 +2019,53 @@ class CreatePublicHolidayForm(forms.ModelForm):
     class Meta:
         model = Holiday
         fields = ("title", "start_date", "end_date")
+
+
+class UpdatePublicHolidayForm(forms.ModelForm):
+    title = forms.CharField(
+        max_length=250,
+        required=True,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Holiday Name",
+            }
+        ),
+    )
+
+    start_date = forms.DateField(
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "start_date",
+                "placeholder": "From",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+            }
+        ),
+    )
+    end_date = forms.DateField(
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "end_date",
+                "placeholder": "To",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+            }
+        ),
+    )
+
+    id = forms.CharField(
+        max_length=250,
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+            }
+        ),
+    )
+
+    class Meta:
+        model = Holiday
+        fields = ("id", "title", "start_date", "end_date")
