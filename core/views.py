@@ -1982,6 +1982,7 @@ def saveHolidayTypes(request):
             form = CreateHolidayTypesForm(request.POST)
             if form.is_valid():
                 objHolidayType = form.save(commit=False)
+                print("in the method")
                 # capturing the variables with data
                 holiday_code = request.POST.get("holiday_code")
                 holiday_type = request.POST.get("holiday_type")
@@ -1996,8 +1997,12 @@ def saveHolidayTypes(request):
                 else:
                     is_public_holiday = False
                 if request.POST.get("holiday_code") is not None:
-                    objHolidayType = HolidayType.objects.get(holiday_code=holiday_code)
+                    print("Code is not null")
+                    objHolidayType = HolidayType.objects.filter(
+                        holiday_code=holiday_code
+                    ).first()
                     if objHolidayType is not None:
+                        print("objHolidayType not null")
                         user = User.objects.get(username=request.user.username)
                         if user.groups.filter(name="Data Entry").exists():
                             messages.error(
@@ -2014,17 +2019,19 @@ def saveHolidayTypes(request):
                             objHolidayType.date_updated = datetime.now()
                             objHolidayType.save()
                             messages.success(request, "Holiday type details updated.")
-                else:
-                    objHolidayType = HolidayType(
-                        holiday_code=holiday_code,
-                        holiday_type=holiday_type,
-                        is_polymath_holiday=is_polymath_holiday,
-                        is_public_holiday=is_public_holiday,
-                        is_active=True,
-                        user_created=request.user.username,
-                    )
-                    objHolidayType.save()
-                    C
+                    else:
+                        print("In the Save Method")
+                        objHolidayType = HolidayType(
+                            holiday_code=holiday_code,
+                            holiday_type=holiday_type,
+                            is_polymath_holiday=is_polymath_holiday,
+                            is_public_holiday=is_public_holiday,
+                            is_active=True,
+                            user_created=request.user.username,
+                        )
+                        objHolidayType.save()
+                        messages.success(request, "Holiday type details saved.")
+
             else:
                 messages.error(request, form.errors)
     except Exception as e:
