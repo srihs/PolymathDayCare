@@ -1,5 +1,6 @@
 {% extends "base.html" %} {% load static %} 
-{% block PageTitle %}Holidays{% endblock %}
+{% block PageTitle %}Polymath Holidays
+{% endblock %}
 {% block UserName %} {{ UserName }}{% endblock %} 
 {% block Title %} HOLIDAY SETUP {% endblock %} 
 {% block functionTitle %}POLYMATH HOLIDAYS{% endblock %} 
@@ -9,7 +10,7 @@
     <div class="card">
         <div class="card-header border-0">
             <div class="d-flex align-items-center">
-                <h5 class="card-title mb-0 flex-grow-1">Public Holidays</h5>
+                <h5 class="card-title mb-0 flex-grow-1">Polymath Holidays</h5>
                 
             </div>
         </div>
@@ -243,10 +244,15 @@ aria-hidden="true"
             window.parent.location = window.parent.location.href;
         });
 
+        jQuery$('#start_date').on('click', function(e) {
+        e.preventDefault();
+        $(this).attr("autocomplete", "off");  
+        });
+
         function getRatesforTable(){
         
                 jQuery.ajax({
-                    url: "{% url 'core:get_all_public_holiday_JS' %}",
+                    url: "{% url 'core:get_all_polymath_holiday_JS' %}",
                     type: "GET",
                     beforeSend: function () { },
                     success: function (response) {       

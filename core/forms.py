@@ -2001,6 +2001,7 @@ class CreatePublicHolidayForm(forms.ModelForm):
                 "placeholder": "From",
                 "data-provider": "flatpickr",
                 "data-date-format": "Y-m-d",
+                "autocomplete": "off",
             }
         ),
     )
@@ -2012,7 +2013,8 @@ class CreatePublicHolidayForm(forms.ModelForm):
                 "placeholder": "To",
                 "data-provider": "flatpickr",
                 "data-date-format": "Y-m-d",
-            }
+                "autocomplete": "off",
+            },
         ),
     )
 

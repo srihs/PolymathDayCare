@@ -46,7 +46,17 @@ urlpatterns = [
         views.getPolymathHolidays,
         name="polymath_holidays",
     ),
+    path(
+        "save_polymath_holiday/",
+        views.savePolymathHoliday,
+        name="save_polymath_holiday",
+    ),
     # path("save_holiday_type/", views.saveHolidayTypes, name="save_holiday_type"),
+    path(
+        "get_all_polymath_holiday_JS/",
+        views.getPolymathHolidaysJS,
+        name="get_all_polymath_holiday_JS",
+    ),
     path("child/", views.getChild, name="view_child"),
     path("get_all_child_JS/", views.getChild, name="get_all_child_JS"),
     path("childview/", views.getChildJson, name="view_child_j"),
