@@ -203,21 +203,19 @@ aria-hidden="true"
             dataTable = $('#PublicHolidayList').DataTable({
                 responsive: true,
                 dom: "Bfrtip",
-                pageLength: 15,
+                pageLength: 25,
     
                 buttons: ["excel", "print"],
-                order: [[0, "asc"]],
+                order: [[1, "asc"]],
                 retrieve: true,
         });
         jQuery('#start_date').flatpickr({
                     allowInput: true,
-                    altInput: true,
                     dateFormat: "Y-m-d"
                 });
 
         jQuery('#end_date').flatpickr({
                     allowInput: true,
-                    altInput: true,
                     dateFormat: "Y-m-d"
                 });
         });

@@ -2093,14 +2093,16 @@ def getPublicHolidayID(request, pk):
 @login_required
 def savePublicHoliday(request):
     try:
+        print(type(request.POST.get("start_date")))
+        print(request.POST.get("end_date"))
+        print("------------------------------------------")
         title = request.POST.get("title")
         id = request.POST.get("id")
-        start_date = request.POST.get("start_date")
-        end_date = request.POST.get("end_date")
-        print(title)
-        print(id)
-        print(start_date)
-        print(end_date)
+
+        start_date = datetime.strptime(
+            request.POST.get("start_date"), "%Y-%m-%d"
+        ).date()
+        end_date = datetime.strptime(request.POST.get("end_date"), "%Y-%m-%d").date()
 
         if request.method == "POST":
             form = CreatePublicHolidayForm(request.POST)
@@ -2123,15 +2125,15 @@ def savePublicHoliday(request):
                                 "You are not authorized to performe this operation.",
                             )
                         else:
-                            if objHoliday.start_date > objHoliday.end_date:
+                            if start_date > end_date:
                                 raise Exception(
                                     "End date "
                                     + "("
-                                    + str(objHoliday.end_date)
+                                    + str(end_date)
                                     + ")"
                                     + " cannot be older than the start date "
                                     + "("
-                                    + str(objHoliday.start_date)
+                                    + str(start_date)
                                     + ")"
                                     + ".",
                                 )
@@ -2139,12 +2141,8 @@ def savePublicHoliday(request):
                             objHoliday.title = title
                             objHoliday.holiday_type = objHolidayType
                             objHoliday.is_active = True
-                            objHoliday.start_date = datetime.strptime(
-                                start_date, "%Y-%m-%d"
-                            ).date()
-                            objHoliday.end_date = datetime.strptime(
-                                end_date, "%Y-%m-%d"
-                            ).date()
+                            objHoliday.start_date = start_date
+                            objHoliday.end_date = end_date
                             objHoliday.user_updated = request.user.username
                             objHoliday.date_updated = datetime.now()
                             objHoliday.save()
