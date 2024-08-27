@@ -10,21 +10,21 @@ urlpatterns = [
     path("", views.index, name="home"),
     path("login/", views.UserLogin, name="login"),
     path("logout/", views.UserLogOut, name="logout"),
-    path(
-        "holiday_types/",
-        views.getHolidayTypes,
-        name="holiday_types",
-    ),
-    path(
-        "get_all_holiday_types_JS/",
-        views.getHolidayTypesJS,
-        name="get_all_holiday_types_JS",
-    ),
-    path(
-        "get_holiday_type_byID/<int:pk>/",
-        views.getHolidayTypesID,
-        name="get_holiday_type_byID",
-    ),
+    # path(
+    #     "holiday_types/",
+    #     views.getHolidayTypes,
+    #     name="holiday_types",
+    # ),
+    # path(
+    #     "get_all_holiday_types_JS/",
+    #     views.getHolidayTypesJS,
+    #     name="get_all_holiday_types_JS",
+    # ),
+    # path(
+    #     "get_holiday_type_byID/<int:pk>/",
+    #     views.getHolidayTypesID,
+    #     name="get_holiday_type_byID",
+    # ),
     path(
         "public_holidays/",
         views.getPublicHolidays,
@@ -41,7 +41,12 @@ urlpatterns = [
         name="get_holiday_public_byID",
     ),
     path("save_public_holiday/", views.savePublicHoliday, name="save_public_holiday"),
-    path("save_holiday_type/", views.saveHolidayTypes, name="save_holiday_type"),
+    path(
+        "polymath_holidays/",
+        views.getPolymathHolidays,
+        name="polymath_holidays",
+    ),
+    # path("save_holiday_type/", views.saveHolidayTypes, name="save_holiday_type"),
     path("child/", views.getChild, name="view_child"),
     path("get_all_child_JS/", views.getChild, name="get_all_child_JS"),
     path("childview/", views.getChildJson, name="view_child_j"),

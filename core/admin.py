@@ -8,7 +8,6 @@ from .models import (
     ExtraHoursAfter530,
     FixedPackage,
     Holiday,
-    HolidayType,
     PackageTerm,
 )
 
@@ -19,9 +18,8 @@ admin.site.register(Child)
 admin.site.register(ExtraHoursAfter530)
 admin.site.register(PackageTerm)
 admin.site.register(FixedPackage)
-admin.site.register(HolidayType)
+# admin.site.register(HolidayType)
 admin.site.register(Holiday)
 admin.site.register(Branch)
 admin.site.register(ChildEnrollment)
-
 admin.site.register(AttendanceLog)

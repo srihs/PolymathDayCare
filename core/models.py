@@ -237,9 +237,33 @@ class PackageExtraHoursMapping(BaseClass):
         db_table = "dc_package_extra_charges_mapping"
 
 
-class HolidayType(BaseClass):
-    holiday_code = models.CharField(max_length=10)
-    holiday_type = models.CharField(max_length=100)
+# class HolidayType(BaseClass):
+#     holiday_code = models.CharField(max_length=10)
+#     holiday_type = models.CharField(max_length=100)
+#     is_polymath_holiday = models.BooleanField(
+#         null=True,
+#         blank=True,
+#     )
+#     is_public_holiday = models.BooleanField(
+#         null=True,
+#         blank=True,
+#     )
+
+#     class Meta:
+#         verbose_name = "holiday type"
+#         verbose_name_plural = "holiday Types"
+#         db_table = "dc_holidaytypes"
+
+#     def __str__(self):
+#         return self.holiday_code + " - " + self.holiday_type
+
+
+class Holiday(BaseClass):
+    title = models.CharField(max_length=100)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    start_year = models.CharField(max_length=4)
+    end_year = models.CharField(max_length=4)
     is_polymath_holiday = models.BooleanField(
         null=True,
         blank=True,
@@ -248,23 +272,10 @@ class HolidayType(BaseClass):
         null=True,
         blank=True,
     )
-
-    class Meta:
-        verbose_name = "holiday type"
-        verbose_name_plural = "holiday Types"
-        db_table = "dc_holidaytypes"
-
-    def __str__(self):
-        return self.holiday_code + " - " + self.holiday_type
-
-
-class Holiday(BaseClass):
-    title = models.CharField(max_length=100)
-    holiday_type = models.ForeignKey("HolidayType", on_delete=models.CASCADE)
-    start_date = models.DateField()
-    end_date = models.DateField()
-    start_year = models.CharField(max_length=4)
-    end_year = models.CharField(max_length=4)
+    is_other_school_holiday = models.BooleanField(
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         verbose_name = "Holiday"
