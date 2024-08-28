@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.db import models
@@ -276,6 +276,9 @@ class Holiday(BaseClass):
         null=True,
         blank=True,
     )
+    no_of_days = models.IntegerField(default=0)
+    weekdays_count = models.IntegerField(default=0)
+    weekends_count = models.IntegerField(default=0)
 
     class Meta:
         verbose_name = "Holiday"
@@ -297,6 +300,29 @@ class Holiday(BaseClass):
             self.end_year = str(
                 timezone.now().year
             )  # Default to current year if no end_date
+
+        # Calculate number of days, weekdays, and weekends
+        if self.start_date and self.end_date:
+            delta = self.end_date - self.start_date
+            self.no_of_days = delta.days + 1  # Include the start date
+
+            # Initialize counts
+            weekdays_count = 0
+            weekends_count = 0
+
+            for i in range(self.no_of_days):
+                day = self.start_date + timedelta(days=i)
+                if day.weekday() < 5:  # Monday to Friday are 0 to 4
+                    weekdays_count += 1
+                else:  # Saturday and Sunday are 5 and 6
+                    weekends_count += 1
+
+            self.weekdays_count = weekdays_count
+            self.weekends_count = weekends_count
+        else:
+            self.no_of_days = 0
+            self.weekdays_count = 0
+            self.weekends_count = 0
 
         super().save(*args, **kwargs)
 

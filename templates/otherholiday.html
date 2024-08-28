@@ -1,16 +1,16 @@
 {% extends "base.html" %} {% load static %} 
-{% block PageTitle %}Polymath Holidays
+{% block PageTitle %}Other Holidays
 {% endblock %}
 {% block UserName %} {{ UserName }}{% endblock %} 
 {% block Title %} HOLIDAY SETUP {% endblock %} 
-{% block functionTitle %}POLYMATH HOLIDAYS{% endblock %} 
+{% block functionTitle %}OTHER HOLIDAYS{% endblock %} 
 {% block content %}
 
 <div class="row">
     <div class="card">
         <div class="card-header border-0">
             <div class="d-flex align-items-center">
-                <h5 class="card-title mb-0 flex-grow-1">Polymath Holidays</h5>
+                <h5 class="card-title mb-0 flex-grow-1">Other Holidays</h5>
                 
             </div>
         </div>
@@ -37,7 +37,7 @@
                     {% endfor %} {% endif %}
                     <!-- end row -->
                 </div>
-                <form id="additionalRatesForm"  action="{% url 'core:save_polymath_holiday' %}"
+                <form id="additionalRatesForm"  action="{% url 'core:save_other_holiday' %}"
                 method="POST">
                 {% csrf_token %}
                         <div class="row ">
@@ -64,7 +64,7 @@
                         <div class="row">
                             <div class="row gy-4">
                                 
-                                    <table id="PublicHolidayList" class="table table-striped table-hover" cellspacing="0">
+                                    <table id="OtherHolidayList" class="table table-striped table-hover" cellspacing="0">
                                         <thead>
                                         <tr>
                                             <th>Holiday</th>
@@ -206,7 +206,7 @@ aria-hidden="true"
        
         var dataTable;
         jQuery(document).ready(function () {
-            dataTable = $('#PublicHolidayList').DataTable({
+            dataTable = $('#OtherHolidayList').DataTable({
                 responsive: true,
                 dom: "Bfrtip",
                 pageLength: 25,
@@ -260,15 +260,14 @@ aria-hidden="true"
         });
 
         function getRatesforTable(){
-        
                 jQuery.ajax({
-                    url: "{% url 'core:get_all_polymath_holiday_JS' %}",
+                    url: "{% url 'core:get_all_other_holiday_JS' %}",
                     type: "GET",
                     beforeSend: function () { },
                     success: function (response) {       
                         
                     jQuery.each(response, function(i, item) {
-                    var url_history= "{% url 'core:get_holiday_polymath_byID' 0  %}".replace(0, response[i].id);;
+                    var url_history= "{% url 'core:get_holiday_other_byID' 0  %}".replace(0, response[i].id);;
                     dataTable.row.add(                 
                     [response[i].title,
                     response[i].start_date,

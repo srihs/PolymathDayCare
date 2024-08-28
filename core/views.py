@@ -27,6 +27,7 @@ from .forms import (
     CreateExtraHoursUpTo530Form,
     CreateFixedPackagesForm,
     CreateFlexPackagesForm,
+    CreateOtherhHolidayForm,
     # CreateHolidayTypesForm,
     CreatePackageTypeForm,
     CreatePolymathHolidayForm,
@@ -37,8 +38,10 @@ from .forms import (
     UpdateDayCareForm,
     UpdateExtraChargesForm,
     UpdateExtraHoursUpTo530Form,
+    UpdateOtherHolidayForm,
     # UpdateHolidayTypesForm,
     UpdatePackageTypeForm,
+    UpdatePolymathHolidayForm,
     UpdatePublicHolidayForm,
 )
 from .models import (
@@ -2059,6 +2062,9 @@ def getPublicHolidaysJS(request):
             "title",
             "start_date",
             "end_date",
+            "no_of_days",
+            "weekdays_count",
+            "weekends_count",
         )
     )
     return JsonResponse(holidayList, safe=False)
@@ -2174,6 +2180,9 @@ def getPolymathHolidaysJS(request):
             "title",
             "start_date",
             "end_date",
+            "no_of_days",
+            "weekdays_count",
+            "weekends_count",
         )
     )
     return JsonResponse(holidayList, safe=False)
@@ -2182,9 +2191,6 @@ def getPolymathHolidaysJS(request):
 @login_required
 def savePolymathHoliday(request):
     try:
-        print(type(request.POST.get("start_date")))
-        print(request.POST.get("end_date"))
-        print("------------------------------------------")
         title = request.POST.get("title")
         id = request.POST.get("id")
 
@@ -2198,10 +2204,8 @@ def savePolymathHoliday(request):
             if form.is_valid():
                 objHoliday = form.save(commit=False)
                 if request.POST.get("id") is not None:
-                    print("Id not null")
                     objHoliday = Holiday.objects.get(pk=request.POST.get("id"))
                     if objHoliday is not None:
-                        print("objHoliday not null")
                         user = User.objects.get(username=request.user.username)
                         if user.groups.filter(name="Data Entry").exists():
                             messages.error(
@@ -2230,7 +2234,9 @@ def savePolymathHoliday(request):
                             objHoliday.date_updated = datetime.now()
                             objHoliday.is_polymath_holiday = True
                             objHoliday.save()
-                            messages.success(request, "Holiday details updated.")
+                            messages.success(
+                                request, "Polymath holiday details updated."
+                            )
                 else:
                     if objHoliday.start_date > objHoliday.end_date:
                         raise Exception(
@@ -2249,12 +2255,140 @@ def savePolymathHoliday(request):
                     objHoliday.user_created = request.user.username
                     objHoliday.is_polymath_holiday = True
                     objHoliday.save()
-                    messages.success(request, "Holiday saved.")
+                    messages.success(request, "Polymath holiday saved.")
             else:
                 messages.error(request, form.errors)
     except Exception as e:
         messages.error(request, e)
     return redirect("core:polymath_holidays")
+
+
+@login_required
+def getPolymathHolidayID(request, pk):
+    try:
+        form = None
+        objHoliday = get_object_or_404(Holiday, pk=pk)
+        if objHoliday is not None:
+            form = UpdatePolymathHolidayForm(instance=objHoliday)
+    except Exception as e:
+        messages.error(request, e)
+    return render(
+        request, "../templates/partials/polymathholidayupdate.html", {"form": form}
+    )
+
+
+@login_required
+def getOtherHolidays(request):
+    holidayform = CreateOtherhHolidayForm()
+    return render(
+        request,
+        "../templates/otherholiday.html",
+        {"form": holidayform, "UserName": request.user.username},
+    )
+
+
+@login_required
+def getOtherHolidaysJS(request):
+    print("in the JS")
+    holidayList = list(
+        Holiday.objects.filter(is_active=True, is_other_school_holiday=True).values(
+            "id",
+            "title",
+            "start_date",
+            "end_date",
+            "no_of_days",
+            "weekdays_count",
+            "weekends_count",
+        )
+    )
+    return JsonResponse(holidayList, safe=False)
+
+
+@login_required
+def saveOtherHoliday(request):
+    try:
+        title = request.POST.get("title")
+        id = request.POST.get("id")
+
+        start_date = datetime.strptime(
+            request.POST.get("start_date"), "%Y-%m-%d"
+        ).date()
+        end_date = datetime.strptime(request.POST.get("end_date"), "%Y-%m-%d").date()
+
+        if request.method == "POST":
+            form = CreatePublicHolidayForm(request.POST)
+            if form.is_valid():
+                objHoliday = form.save(commit=False)
+                if request.POST.get("id") is not None:
+                    objHoliday = Holiday.objects.get(pk=request.POST.get("id"))
+                    if objHoliday is not None:
+                        user = User.objects.get(username=request.user.username)
+                        if user.groups.filter(name="Data Entry").exists():
+                            messages.error(
+                                request,
+                                "You are not authorized to performe this operation.",
+                            )
+                        else:
+                            if start_date > end_date:
+                                raise Exception(
+                                    "End date "
+                                    + "("
+                                    + str(end_date)
+                                    + ")"
+                                    + " cannot be older than the start date "
+                                    + "("
+                                    + str(start_date)
+                                    + ")"
+                                    + ".",
+                                )
+
+                            objHoliday.title = title
+                            objHoliday.is_active = True
+                            objHoliday.start_date = start_date
+                            objHoliday.end_date = end_date
+                            objHoliday.user_updated = request.user.username
+                            objHoliday.date_updated = datetime.now()
+                            objHoliday.is_other_school_holiday = True
+                            objHoliday.save()
+                            messages.success(request, "Other holiday details updated.")
+                else:
+                    if objHoliday.start_date > objHoliday.end_date:
+                        raise Exception(
+                            "End date "
+                            + "("
+                            + str(objHoliday.end_date)
+                            + ")"
+                            + " cannot be older than the start date "
+                            + "("
+                            + str(objHoliday.start_date)
+                            + ")"
+                            + ".",
+                        )
+
+                    objHoliday.is_active = True
+                    objHoliday.user_created = request.user.username
+                    objHoliday.is_other_school_holiday = True
+                    objHoliday.save()
+                    messages.success(request, "Other holiday saved.")
+            else:
+                messages.error(request, form.errors)
+    except Exception as e:
+        messages.error(request, e)
+    return redirect("core:other_holidays")
+
+
+@login_required
+def getOtherHolidayID(request, pk):
+    try:
+        form = None
+        objHoliday = get_object_or_404(Holiday, pk=pk)
+        if objHoliday is not None:
+            form = UpdateOtherHolidayForm(instance=objHoliday)
+    except Exception as e:
+        messages.error(request, e)
+    return render(
+        request, "../templates/partials/otherholidayupdate.html", {"form": form}
+    )
 
 
 @login_required
