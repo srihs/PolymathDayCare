@@ -2402,17 +2402,16 @@ def upload_csv(request):
     if request.method == "GET":
         return render(request, "../templates/utils/dataimporter.html")
 
-    print("in the method")
     if request.method == "POST":
         csv_file = request.FILES.get("csv_file")
 
         if not csv_file:
             messages.error(request, "No file was uploaded.")
-            return redirect("upload_csv")
+            return render(request, "../templates/utils/dataimporter.html")
 
         if not csv_file.name.endswith(".csv"):
             messages.error(request, "This is not a CSV file.")
-            return redirect("upload_csv")
+            return render(request, "../templates/utils/dataimporter.html")
 
         file_data = csv_file.read().decode("utf-8").splitlines()
         reader = csv.reader(file_data)
