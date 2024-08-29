@@ -2420,12 +2420,12 @@ def upload_csv(request):
         next(reader, None)
 
         for row in reader:
-            # Ensure there are exactly 5 columns
+            # Ensure there are exactly 8 columns
             if len(row) < 8:
                 print(len(row))
                 messages.error(
                     request,
-                    "CSV file format is incorrect. Each row must have 5 columns.",
+                    "CSV file format is incorrect. Each row must have 8 columns.",
                 )
                 return render(request, "../templates/utils/dataimporter.html")
 
