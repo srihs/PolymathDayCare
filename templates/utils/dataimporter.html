@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block PageTitle %}Upload Child File{% endblock %}
+{% block UserName %} {{ UserName }}{% endblock %} 
+{% block Title %} UTILS {% endblock %} 
+{% block functionTitle %}UPLOAD CHILD DATA{% endblock %} 
+{% block content %}
+<div class="card-header border-0">
+    <div class="d-flex align-items-center">
+        <h5 class="card-title mb-0 flex-grow-1">Upload child file</h5>
+        <div class="flex-shrink-0">
+            
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-dismissible" role="alert">
+    {% if messages %} {% for message in messages %}
+    <!-- Danger Alert -->
+    <div
+      class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
+      role="alert"
+    >
+      <strong>
+        <center>{{ message }}</center>
+      </strong>
+      <button
+        type="button"
+        class="btn-close"
+        data-bs-dismiss="alert"
+        aria-label="Close"
+      ></button>
+    </div>
+    {% endfor %} {% endif %}
+    <!-- end row -->
+  </div>
+
+<h2></h2>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <label for="csv_file">Select the CSV File:</label>
+    <input type="file" name="csv_file" id="csv_file" accept=".csv">
+    <button type="submit">Upload</button>
+</form>
+
+
+{% endblock %}

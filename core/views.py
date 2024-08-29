@@ -1,3 +1,4 @@
+import csv
 import datetime
 import os
 from datetime import datetime, time, timedelta
@@ -103,7 +104,7 @@ def UserLogin(request):
     return render(request, "../templates/login.html")
 
 
-def generateQR(admission_no):
+def generateQR(admission_no, child_first_name, child_last_name):
     qr_directory = os.path.join(settings.MEDIA_ROOT, "qr")
     # Create the 'qr' directory if it doesn't exist
     try:
@@ -113,7 +114,7 @@ def generateQR(admission_no):
     # Generate the QR code
     qr = qrcode.make(settings.PROD_URL + settings.QR_METHOD_NAME + admission_no)
     # Save the QR code image to the 'qr' directory
-    file_name = admission_no + ".png"
+    file_name = admission_no + "- " + child_first_name + " " + child_last_name + ".png"
     file_path = os.path.join(qr_directory, file_name)
     try:
         qr.save(file_path)
@@ -261,7 +262,11 @@ def createChild(request):
                     objChild.user_updated = request.user.username
                     objChild.is_active = is_active
                     if objChild.qr_code == None:
-                        objChild.qr_code = generateQR(admission_number)
+                        objChild.qr_code = generateQR(
+                            admission_number,
+                            objChild.child_first_name,
+                            objChild.child_last_name,
+                        )
                     objChild.child_image = child_image
                     objChild.save()
                     messages.success(request, "Child details updated.")
@@ -284,7 +289,7 @@ def createChild(request):
             email_address=email_address,
             is_polymath_student=is_polymath_student,
             user_created=request.user.username,
-            qr_code=generateQR(admission_number),
+            qr_code=generateQR(admission_number, child_first_name, child_last_name),
             child_image=child_image,
             admission_date=datetime.strptime(admission_date, "%Y-%m-%d").date(),
             is_active=is_active,
@@ -306,6 +311,7 @@ def deleteChild(request, pk):
             objChild = get_object_or_404(Child, pk=pk)
             if objChild is not None:
                 objChild.is_active = False
+                objChild.leave_date = datetime.now()
                 objChild.user_updated = request.user.username
                 objChild.save()
     except Exception as e:
@@ -2389,6 +2395,75 @@ def getOtherHolidayID(request, pk):
     return render(
         request, "../templates/partials/otherholidayupdate.html", {"form": form}
     )
+
+
+@login_required
+def upload_csv(request):
+    if request.method == "GET":
+        return render(request, "../templates/utils/dataimporter.html")
+
+    print("in the method")
+    if request.method == "POST":
+        csv_file = request.FILES.get("csv_file")
+
+        if not csv_file:
+            messages.error(request, "No file was uploaded.")
+            return redirect("upload_csv")
+
+        if not csv_file.name.endswith(".csv"):
+            messages.error(request, "This is not a CSV file.")
+            return redirect("upload_csv")
+
+        file_data = csv_file.read().decode("utf-8").splitlines()
+        reader = csv.reader(file_data)
+
+        # Skip the header if your CSV file has one
+        next(reader, None)
+
+        for row in reader:
+            # Ensure there are exactly 5 columns
+            if len(row) < 8:
+                print(len(row))
+                messages.error(
+                    request,
+                    "CSV file format is incorrect. Each row must have 5 columns.",
+                )
+                return render(request, "../templates/utils/dataimporter.html")
+
+            (
+                child_first_name,
+                admission_number,
+                date_of_birth,
+                leave_date,
+                fathers_name,
+                resident_contact_number,
+                email_address,
+                is_polymath_student,
+            ) = row
+
+            # Convert dates from string to date format
+            date_of_birth = date_of_birth or None
+            leave_date = leave_date or None
+
+            # Update or create a Child record
+            Child.objects.update_or_create(
+                admission_number=admission_number,
+                defaults={
+                    "child_first_name": child_first_name,
+                    "date_of_birth": date_of_birth,
+                    "leave_date": leave_date,
+                    "fathers_name": fathers_name,
+                    "resident_contact_number": resident_contact_number,
+                    "email_address": email_address,
+                    "is_polymath_student": is_polymath_student,
+                    "qr_code": generateQR(admission_number, child_first_name, ""),
+                },
+            )
+
+        messages.success(
+            request, "CSV file has been uploaded and processed successfully."
+        )
+        return render(request, "../templates/utils/dataimporter.html")
 
 
 @login_required

@@ -261,4 +261,5 @@ urlpatterns = [
         name="get_attendence_dataJs",
     ),
     path("attendenceReport/", views.getAttendanceReports, name="getAttendenceReport"),
+    path("upload_csv/", views.upload_csv, name="upload_csv"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
