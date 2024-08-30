@@ -425,6 +425,8 @@
     var $ = jQuery;
     jQuery(document).ready(function () {
 
+      
+
         window.setTimeout(function () {
       // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
       var alertDiv = jQuery(".alert");
@@ -532,8 +534,15 @@
             
 
             },
+            layout: {
+                bottomEnd: {
+                    paging: {
+                        firstLast: false
+                            }
+                        }
+                },
             dom: "Bfrtip",
-            pageLength: 50,
+            pageLength: 20,
 
             buttons: ["excel", "print"],
 
@@ -547,6 +556,9 @@
         jQuery(this).find("msgID").trigger("reset");
 
     });
+
+    
+    
 
     var url = "";
 

@@ -1,6 +1,8 @@
 import csv
 import datetime
 import os
+import shutil
+import tempfile
 from datetime import datetime, time, timedelta
 
 import qrcode
@@ -2413,56 +2415,86 @@ def upload_csv(request):
             messages.error(request, "This is not a CSV file.")
             return render(request, "../templates/utils/dataimporter.html")
 
-        file_data = csv_file.read().decode("utf-8").splitlines()
-        reader = csv.reader(file_data)
-
-        # Skip the header if your CSV file has one
-        next(reader, None)
-
-        for row in reader:
-            # Ensure there are exactly 8 columns
-            if len(row) < 8:
-                print(len(row))
-                messages.error(
-                    request,
-                    "CSV file format is incorrect. Each row must have 8 columns.",
-                )
-                return render(request, "../templates/utils/dataimporter.html")
-
-            (
-                child_first_name,
-                admission_number,
-                date_of_birth,
-                leave_date,
-                fathers_name,
-                resident_contact_number,
-                email_address,
-                is_polymath_student,
-            ) = row
-
-            # Convert dates from string to date format
-            date_of_birth = date_of_birth or None
-            leave_date = leave_date or None
-
-            # Update or create a Child record
-            Child.objects.update_or_create(
-                admission_number=admission_number,
-                defaults={
-                    "child_first_name": child_first_name,
-                    "date_of_birth": date_of_birth,
-                    "leave_date": leave_date,
-                    "fathers_name": fathers_name,
-                    "resident_contact_number": resident_contact_number,
-                    "email_address": email_address,
-                    "is_polymath_student": is_polymath_student,
-                    "qr_code": generateQR(admission_number, child_first_name, ""),
-                },
+        user = User.objects.get(username=request.user.username)
+        if user.groups.filter(name="Data Entry").exists():
+            messages.error(
+                request, "You are not authorized to performe this operation."
             )
+        else:
+            file_data = csv_file.read().decode("utf-8").splitlines()
+            reader = csv.reader(file_data)
 
-        messages.success(
-            request, "CSV file has been uploaded and processed successfully."
-        )
-        return render(request, "../templates/utils/dataimporter.html")
+            # Skip the header if your CSV file has one
+            next(reader, None)
+
+            for row in reader:
+                # Ensure there are exactly 8 columns
+                if len(row) < 8:
+                    print(len(row))
+                    messages.error(
+                        request,
+                        "CSV file format is incorrect. Each row must have 8 columns.",
+                    )
+                    return render(request, "../templates/utils/dataimporter.html")
+
+                (
+                    child_first_name,
+                    admission_number,
+                    date_of_birth,
+                    leave_date,
+                    fathers_name,
+                    resident_contact_number,
+                    email_address,
+                    is_polymath_student,
+                ) = row
+
+                # Convert dates from string to date format
+                date_of_birth = date_of_birth or None
+                leave_date = leave_date or None
+
+                # Update or create a Child record
+                Child.objects.update_or_create(
+                    admission_number=admission_number,
+                    defaults={
+                        "child_first_name": child_first_name,
+                        "date_of_birth": date_of_birth,
+                        "leave_date": leave_date,
+                        "fathers_name": fathers_name,
+                        "resident_contact_number": resident_contact_number,
+                        "email_address": email_address,
+                        "is_polymath_student": is_polymath_student,
+                        "qr_code": generateQR(admission_number, child_first_name, ""),
+                    },
+                )
+
+            messages.success(
+                request, "CSV file has been uploaded and processed successfully."
+            )
+    return render(request, "../templates/utils/dataimporter.html")
+
+
+def download_qr_files(request):
+    # Path to the folder containing the files
+    folder_path = os.path.join(settings.MEDIA_ROOT, "qr")
+
+    # Create a temporary directory
+    temp_dir = tempfile.mkdtemp()
+
+    try:
+        # Path to the temporary ZIP file
+        temp_zip_path = os.path.join(temp_dir, "qr_files.zip")
+
+        # Create a ZIP file
+        shutil.make_archive(temp_zip_path.replace(".zip", ""), "zip", folder_path)
+
+        # Open the ZIP file and return it as a response
+        with open(temp_zip_path, "rb") as zip_file:
+            response = HttpResponse(zip_file.read(), content_type="application/zip")
+            response["Content-Disposition"] = "attachment; filename=qr_files.zip"
+            return response
+    finally:
+        # Clean up the temporary directory
+        shutil.rmtree(temp_dir)
 
 
 @login_required
