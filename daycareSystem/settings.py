@@ -28,7 +28,9 @@ SECRET_KEY = "django-insecure--n)j^$1*12%0v-r-$m93zx)mq=1ftc9qfl()e67!15nohp$^4b
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+
+ALLOWED_HOSTS = ["www.polymathcore.online", "polymathcore.online", "localhost", "127.0.0.1"] # new
+CSRF_TRUSTED_ORIGINS = ["https:www.polymathcore.online"] # new
 
 
 # Application definition
