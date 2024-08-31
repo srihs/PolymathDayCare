@@ -30,7 +30,7 @@ DEBUG = True
 
 
 ALLOWED_HOSTS = ["www.polymathcore.online", "polymathcore.online", "localhost", "127.0.0.1"] # new
-CSRF_TRUSTED_ORIGINS = ["https:www.polymathcore.online"] # new
+CSRF_TRUSTED_ORIGINS = ["https://www.polymathcore.online","https://polymathcore.online"] # new
 
 
 # Application definition
