@@ -13,24 +13,35 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from pathlib import Path
 
+import environ
 from django.contrib.messages import constants as message_constants
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
+config = environ.Env()
+# reading .env file
+environ.Env.read_env()
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure--n)j^$1*12%0v-r-$m93zx)mq=1ftc9qfl()e67!15nohp$^4b"
+SECRET_KEY = config("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config("DEBUG", default=False, cast=bool)
 
 
-ALLOWED_HOSTS = ["www.polymathcore.online", "polymathcore.online", "localhost", "127.0.0.1"] # new
-CSRF_TRUSTED_ORIGINS = ["https://www.polymathcore.online","https://polymathcore.online"] # new
+ALLOWED_HOSTS = [
+    "www.polymathcore.online",
+    "polymathcore.online",
+    "localhost",
+    "127.0.0.1",
+]  # new
+CSRF_TRUSTED_ORIGINS = [
+    "https://www.polymathcore.online",
+    "https://polymathcore.online",
+]  # new
 
 
 # Application definition
@@ -87,11 +98,11 @@ WSGI_APPLICATION = "daycareSystem.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
-        "NAME": "polymath_core",
-        "USER": "dc_user",
-        "PASSWORD": "V9J%Pe6J2#",
-        "HOST": "localhost",
-        "PORT": "5432",
+        "NAME": config("DB_NAME"),
+        "USER": config("DB_USER"),
+        "PASSWORD": config("DB_PASSWORD"),
+        "HOST": config("DB_HOST"),
+        "PORT": config("DB_PORT"),
     }
 }
 
