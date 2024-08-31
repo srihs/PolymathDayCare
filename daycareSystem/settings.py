@@ -98,7 +98,7 @@ WSGI_APPLICATION = "daycareSystem.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "ENGINE": "django.db.backends.mysql",
         "NAME": config.get("DB_NAME"),
         "USER": config.get("DB_USER"),
         "PASSWORD": config.get("DB_PASSWORD"),
