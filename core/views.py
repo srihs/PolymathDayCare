@@ -2474,13 +2474,13 @@ def upload_csv(request):
 
 
 def download_qr_files(request):
-    # Path to the folder containing the files
-    folder_path = os.path.join(settings.MEDIA_ROOT, "qr")
-
-    # Create a temporary directory
-    temp_dir = tempfile.mkdtemp()
-
     try:
+        # Path to the folder containing the files
+        folder_path = os.path.join(settings.MEDIA_ROOT, "qr")
+
+        # Create a temporary directory
+        temp_dir = tempfile.mkdtemp()
+
         # Path to the temporary ZIP file
         temp_zip_path = os.path.join(temp_dir, "qr_files.zip")
 
@@ -2492,6 +2492,10 @@ def download_qr_files(request):
             response = HttpResponse(zip_file.read(), content_type="application/zip")
             response["Content-Disposition"] = "attachment; filename=qr_files.zip"
             return response
+
+    except Exception as e:
+        messages.error(request, e)
+
     finally:
         # Clean up the temporary directory
         shutil.rmtree(temp_dir)

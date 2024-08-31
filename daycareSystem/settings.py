@@ -13,15 +13,16 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from pathlib import Path
 
-import environ
+from decouple import Config, RepositoryEnv
+
+# import environ
 from django.contrib.messages import constants as message_constants
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-config = environ.Env()
-# reading .env file
-environ.Env.read_env()
+config = Config(RepositoryEnv(".env"))
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
@@ -98,11 +99,11 @@ WSGI_APPLICATION = "daycareSystem.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
-        "NAME": config("DB_NAME"),
-        "USER": config("DB_USER"),
-        "PASSWORD": config("DB_PASSWORD"),
-        "HOST": config("DB_HOST"),
-        "PORT": config("DB_PORT"),
+        "NAME": config.get("DB_NAME"),
+        "USER": config.get("DB_USER"),
+        "PASSWORD": config.get("DB_PASSWORD"),
+        "HOST": config.get("DB_HOST"),
+        "PORT": config.get("DB_PORT"),
     }
 }
 
