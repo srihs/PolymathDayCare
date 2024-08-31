@@ -91,7 +91,7 @@ class Child(BaseClass):
     mothers_name = models.CharField(max_length=200)
     mothers_contact_number = models.IntegerField(null=True, blank=True)
     mothers_whatsapp_number = models.IntegerField(null=True, blank=True)
-    resident_contact_number = models.CharField(null=True, blank=True)
+    resident_contact_number = models.CharField(max_length=15, null=True, blank=True)
     address_line1 = models.CharField(max_length=200)
     address_line2 = models.CharField(max_length=200)
     address_line3 = models.CharField(max_length=200)
@@ -456,11 +456,11 @@ class ExtraChargesHistory(BaseClass):
 
 class Invoice(BaseClass):
     invoice_date = models.DateField()
-    invoice_no = models.CharField(null=True, blank=True)
+    invoice_no = models.CharField(max_length=10, null=True, blank=True)
     child = models.ForeignKey("Child", on_delete=models.CASCADE)
     month = models.IntegerField()
     amount = models.DecimalField(max_digits=8, decimal_places=2)
-    receipt_no = models.CharField(null=True, blank=True)
+    receipt_no = models.CharField(max_length=10, null=True, blank=True)
     paid_amount = models.DecimalField(
         max_digits=8, decimal_places=2, null=True, blank=True
     )
