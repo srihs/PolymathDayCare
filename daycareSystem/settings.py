@@ -86,8 +86,8 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
         "NAME": "polymath_core",
-        "USER": "postgres",
-        "PASSWORD": "imaliem123",
+        "USER": "dc_user",
+        "PASSWORD": "V9J%Pe6J2#",
         "HOST": "localhost",
         "PORT": "5432",
     }
@@ -171,7 +171,7 @@ CORS_ALLOW_METHODS = [
 
 LOGIN_URL = "core:login"
 
-PROD_URL = "http://127.0.0.1:8000/"  # this is the URL that will stored in the QR URL for scanning
+PROD_URL = "http://polymathcore.online/"  # this is the URL that will stored in the QR URL for scanning
 QR_METHOD_NAME = (
     "checkInView/"  # this is the method that will stored in the QR URL for scanning
 )
