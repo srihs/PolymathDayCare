@@ -2462,7 +2462,7 @@ def upload_csv(request):
                         "fathers_name": fathers_name,
                         "resident_contact_number": resident_contact_number,
                         "email_address": email_address,
-                        "is_polymath_student": is_polymath_student,
+                        "is_polymath_student": bool(is_polymath_student),
                         "qr_code": generateQR(admission_number, child_first_name, ""),
                     },
                 )

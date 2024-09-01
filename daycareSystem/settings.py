@@ -34,14 +34,13 @@ DEBUG = config("DEBUG", default=False, cast=bool)
 
 
 ALLOWED_HOSTS = [
-    "www.polymathcore.online",
-    "polymathcore.online",
+    "www.dc.polymathcore.online",
+    "dc.polymathcore.online",
     "localhost",
     "127.0.0.1",
 ]  # new
 CSRF_TRUSTED_ORIGINS = [
-    "https://www.polymathcore.online",
-    "https://polymathcore.online",
+    "https://dc.polymathcore.online/",
 ]  # new
 
 
@@ -185,7 +184,7 @@ CORS_ALLOW_METHODS = [
 
 LOGIN_URL = "core:login"
 
-PROD_URL = "http://polymathcore.online/"  # this is the URL that will stored in the QR URL for scanning
+PROD_URL = "https://dc.polymathcore.online"  # this is the URL that will stored in the QR URL for scanning
 QR_METHOD_NAME = (
     "checkInView/"  # this is the method that will stored in the QR URL for scanning
 )
