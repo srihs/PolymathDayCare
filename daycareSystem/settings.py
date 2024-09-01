@@ -185,7 +185,7 @@ CORS_ALLOW_METHODS = [
 
 LOGIN_URL = "core:login"
 
-PROD_URL = "https://dc.polymathcore.online"  # this is the URL that will stored in the QR URL for scanning
+PROD_URL = "https://dc.polymathcore.online/"  # this is the URL that will stored in the QR URL for scanning
 QR_METHOD_NAME = (
     "checkInView/"  # this is the method that will stored in the QR URL for scanning
 )
