@@ -52,6 +52,7 @@ from .models import (
     Branch,
     Child,
     ChildEnrollment,
+    ChildPackageMapping,
     DayCare,
     Discount,
     ExtraChargesHistory,
@@ -1474,16 +1475,6 @@ def getEnrollmentsJS(request):
             child_name=Concat(
                 F("child__child_first_name"), Value(" "), F("child__child_last_name")
             ),
-            normal_package_name=Concat(
-                F("normal_package__package_code"),
-                Value("-"),
-                F("normal_package__package_name"),
-            ),
-            holiday_package_name=Concat(
-                F("holiday_package__package_code"),
-                Value("-"),
-                F("holiday_package__package_name"),
-            ),
             branch_name=Concat(
                 F("branch__branch_code"), Value("-"), F("branch__branch_name")
             ),
@@ -1499,8 +1490,6 @@ def getEnrollmentsJS(request):
             "enrollment_code",
             "enrollment_date",
             "child_name",
-            "normal_package_name",
-            "holiday_package_name",
             "branch_name",
             "center_name",
             "discount_name",
@@ -1519,16 +1508,6 @@ def getEnrollmentsForApprovalJS(request):
             child_name=Concat(
                 F("child__child_first_name"), Value(" "), F("child__child_last_name")
             ),
-            normal_package_name=Concat(
-                F("normal_package__package_code"),
-                Value("-"),
-                F("normal_package__package_name"),
-            ),
-            holiday_package_name=Concat(
-                F("holiday_package__package_code"),
-                Value("-"),
-                F("holiday_package__package_name"),
-            ),
             branch_name=Concat(
                 F("branch__branch_code"), Value("-"), F("branch__branch_name")
             ),
@@ -1544,8 +1523,6 @@ def getEnrollmentsForApprovalJS(request):
             "enrollment_code",
             "enrollment_date",
             "child_name",
-            "normal_package_name",
-            "holiday_package_name",
             "branch_name",
             "center_name",
             "discount_name",
@@ -1557,6 +1534,7 @@ def getEnrollmentsForApprovalJS(request):
 
 
 @login_required
+@transaction.atomic
 def saveEnrollments(request):
     if request.method == "POST":
         enrollment_code = request.POST.get("enrollment_code")
@@ -1567,6 +1545,7 @@ def saveEnrollments(request):
         normal_package = request.POST.get("normal_package")
         holiday_package = request.POST.get("holiday_package")
         discount = request.POST.get("discount")
+        flex_package = request.POST.get("flex_package")
         recipt_number = request.POST.get("recipt_number")
         is_active = request.POST.get("is_active")
         try:
@@ -1580,8 +1559,6 @@ def saveEnrollments(request):
                 objEnrollment.child = child
                 objEnrollment.branch = branch
                 objEnrollment.center = dayCare
-                objEnrollment.normal_package = normal_package
-                objEnrollment.holiday_package = holiday_package
                 objEnrollment.discount = discount
                 if is_active == "on":
                     is_active = True
@@ -1599,6 +1576,7 @@ def saveEnrollments(request):
                     objEnrollment.user_created = request.user.username
                     objEnrollment.status = "Pending Approval"
                     objEnrollment.child = Child.objects.get(pk=child, is_active=True)
+                    objEnrollment.recipt_number = recipt_number
                     objChild = objEnrollment.child
                     objChild.is_enrolled = True
                     objChild.save()
@@ -1606,17 +1584,18 @@ def saveEnrollments(request):
                     objEnrollment.center = DayCare.objects.get(
                         daycare_code=dayCare, is_active=True
                     )
-                    objEnrollment.normal_package = FixedPackage.objects.get(
-                        pk=normal_package, is_active=True
-                    )
-                    objEnrollment.holiday_package = FixedPackage.objects.get(
-                        pk=holiday_package, is_active=True
-                    )
                     if discount is not None and discount != "":
                         objEnrollment.discount = Discount.objects.get(
                             pk=discount, is_active=True
                         )
                     objEnrollment.save()
+                    objPackageMapping = ChildPackageMapping()
+                    objPackageMapping.child = Child.objects.get(
+                        pk=child, is_active=True
+                    )
+                    objPackageMapping.holiday_package = holiday_package
+                    objPackageMapping.normal_package = normal_package
+                    objPackageMapping.flex_package = flex_package
                     messages.success(request, "Enrollment details saved.")
         except Exception as e:
             messages.error(request, e)

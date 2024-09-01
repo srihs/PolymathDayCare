@@ -373,6 +373,28 @@ class ChildEnrollment(BaseClass):
     enrollment_code = models.CharField(max_length=20)
     enrollment_date = models.DateField()
     child = models.ForeignKey("Child", on_delete=models.CASCADE)
+
+    branch = models.ForeignKey("Branch", on_delete=models.CASCADE)
+    center = models.ForeignKey("DayCare", on_delete=models.CASCADE)
+    discount = models.ForeignKey(
+        "Discount", on_delete=models.CASCADE, null=True, blank=True
+    )
+    recipt_number = models.CharField(max_length=50, null=True, blank=True)
+    status = models.CharField(
+        max_length=30, choices=STATUS_CHOICES, default="Pending Approval"
+    )
+
+    class Meta:
+        verbose_name = "enrollment"
+        verbose_name_plural = "enrollments"
+        db_table = "dc_childenrollment"
+
+    def __str__(self):
+        return self.child
+
+
+class ChildPackageMapping(BaseClass):
+    child = models.ForeignKey("Child", on_delete=models.CASCADE)
     normal_package = models.ForeignKey(
         "FixedPackage",
         on_delete=models.CASCADE,
@@ -394,23 +416,8 @@ class ChildEnrollment(BaseClass):
         null=True,
         blank=True,
     )
-    branch = models.ForeignKey("Branch", on_delete=models.CASCADE)
-    center = models.ForeignKey("DayCare", on_delete=models.CASCADE)
-    discount = models.ForeignKey(
-        "Discount", on_delete=models.CASCADE, null=True, blank=True
-    )
-    recipt_number = models.CharField(max_length=50, null=True, blank=True)
-    status = models.CharField(
-        max_length=30, choices=STATUS_CHOICES, default="Pending Approval"
-    )
-
-    class Meta:
-        verbose_name = "enrollment"
-        verbose_name_plural = "enrollments"
-        db_table = "dc_childenrollment"
-
-    def __str__(self):
-        return self.child
+    effective_from = models.DateField()
+    effective_to = models.DateField(null=True)
 
 
 class AttendanceLog(BaseClass):
