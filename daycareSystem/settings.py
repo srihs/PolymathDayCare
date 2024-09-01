@@ -34,13 +34,14 @@ DEBUG = config("DEBUG", default=False, cast=bool)
 
 
 ALLOWED_HOSTS = [
-    "www.dc.polymathcore.online",
-    "dc.polymathcore.online",
+    "*.polymathcore.online",
+    "polymathcore.online",
     "localhost",
     "127.0.0.1",
 ]  # new
 CSRF_TRUSTED_ORIGINS = [
-    "https://dc.polymathcore.online/",
+    "https://polymathcore.online",
+    "https://*.polymathcore.online",
 ]  # new
 
 
