@@ -252,25 +252,33 @@ aria-hidden="true"
         });
 
         function getRatesforTable(){
-        
                 jQuery.ajax({
                     url: "{% url 'core:get_all_public_holiday_JS' %}",
                     type: "GET",
                     beforeSend: function () { },
                     success: function (response) {       
-                        
-                    jQuery.each(response, function(i, item) {
-                    var url_history= "{% url 'core:get_holiday_public_byID' 0  %}".replace(0, response[i].id);;
+                        dataTable = $('#PublicHolidayList').DataTable({
+                responsive: true,
+                dom: "Bfrtip",
+                pageLength: 25,
+    
+                buttons: ["excel", "print"],
+                order: [[1, "asc"]],
+                retrieve: true,
+                columnDefs: [
+            { width: "30%", targets: 0 },  // Set width of the first column
+            { width: "15%", targets: 1 },  // Set width of the second column
+            { width: "15%", targets: 2 },  // Set width of the third column
+            // Add more columns as needed
+        ]
+        });
+                    jQuery.each(response, function(i, item) 
+                    {
+                    var url_history= "{% url 'core:get_holiday_public_byID' 0  %}".replace(0, response[i].id);
                     dataTable.row.add(                 
-                    [response[i].title,
-                    response[i].start_date,
-                    response[i].end_date,
-                    response[i].no_of_days,
-                    response[i].weekdays_count,
-                    response[i].weekends_count,
-
+                    [response[i].title, response[i].start_date,response[i].end_date,response[i].no_of_days,response[i].weekdays_count,response[i].weekends_count,
                     '<a href= ' + url_history +'  class="link-success" data-bs-target="#firstmodal" data-bs-toggle="modal" data-bs-dismiss="modal" role="button" data-value="' + response[i].id + '"><i class="ri-edit-2-fill"></i></a>',
-                    ],)
+                    ]);
                     });
                     dataTable.draw();
                     },error: function(response){
