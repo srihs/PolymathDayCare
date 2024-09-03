@@ -1287,6 +1287,7 @@ class CreateEnrollmentForm(forms.ModelForm):
     flex_package = forms.ModelChoiceField(
         queryset=FlexPackages.objects.filter(is_active=True).order_by("package_code"),
         empty_label="-Select flex package-",
+        required=False,
         widget=forms.Select(
             attrs={
                 "class": "form-control",

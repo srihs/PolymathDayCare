@@ -239,7 +239,11 @@ urlpatterns = [
     path("check_ins/", views.getCheckIns, name="view_check_ins"),
     path("getAllAttendance/", views.getAllAttendanceJS, name="get_all_attendance_JS"),
     path("save_Attendance/", views.saveAttendance, name="save_Attendance"),
-    path("checkInView/<studentID>/", views.autoAttendanceRecorder, name="checkInView"),
+    path(
+        "checkInView/<str:admission_no>/",
+        views.autoAttendanceRecorder,
+        name="checkInView",
+    ),
     path(
         "missingAttendenceReport/",
         views.getMissingAttendanceRecords,

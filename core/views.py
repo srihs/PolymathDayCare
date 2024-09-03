@@ -12,7 +12,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import F, Q, Value
+from django.db.models import Case, CharField, F, OuterRef, Subquery, Value, When
 from django.db.models.functions import Concat
 from django.http import *
 from django.shortcuts import get_object_or_404, redirect, render
@@ -1469,6 +1469,24 @@ def getEnrollments(request):
 
 @login_required
 def getEnrollmentsJS(request):
+    # Subqueries to get the package names from ChildPackageMapping
+    normal_package_name_subquery = Subquery(
+        ChildPackageMapping.objects.filter(child=OuterRef("child")).values(
+            "normal_package__package_name"
+        )[:1]
+    )
+    flex_package_name_subquery = Subquery(
+        ChildPackageMapping.objects.filter(child=OuterRef("child")).values(
+            "flex_package__package_name"
+        )[:1]
+    )
+    holiday_package_name_subquery = Subquery(
+        ChildPackageMapping.objects.filter(child=OuterRef("child")).values(
+            "holiday_package__package_name"
+        )[:1]
+    )
+
+    # Annotate the packages based on availability
     enrolmentList = list(
         ChildEnrollment.objects.filter(status="Pending Approval", is_active=True)
         .annotate(
@@ -1484,6 +1502,21 @@ def getEnrollmentsJS(request):
             discount_name=Concat(
                 F("discount__discount_code"), Value("-"), F("discount__discount_name")
             ),
+            normal_package_name=normal_package_name_subquery,
+            flex_package_name=flex_package_name_subquery,
+            holiday_package_name=holiday_package_name_subquery,
+            package_name=Case(
+                When(
+                    normal_package_name_subquery__isnull=False,
+                    then=F("normal_package_name"),
+                ),
+                When(
+                    flex_package_name_subquery__isnull=False,
+                    then=F("flex_package_name"),
+                ),
+                default=F("holiday_package_name"),
+                output_field=CharField(),
+            ),
         )
         .values(
             "id",
@@ -1495,6 +1528,7 @@ def getEnrollmentsJS(request):
             "discount_name",
             "status",
             "is_active",
+            "package_name",
         )
     )
     return JsonResponse(enrolmentList, safe=False)
@@ -1548,55 +1582,79 @@ def saveEnrollments(request):
         flex_package = request.POST.get("flex_package")
         recipt_number = request.POST.get("recipt_number")
         is_active = request.POST.get("is_active")
+
         try:
-            if enrollment_code is not None:
-                objEnrollment = ChildEnrollment.objects.filter(
-                    enrollment_code=enrollment_code
-                ).first()
-            if objEnrollment is not None:
-                objEnrollment.enrollment_code = enrollment_code
-                objEnrollment.enrollment_date = enrollment_date
-                objEnrollment.child = child
-                objEnrollment.branch = branch
-                objEnrollment.center = dayCare
-                objEnrollment.discount = discount
-                if is_active == "on":
-                    is_active = True
-                else:
-                    is_active = False
-                objEnrollment.is_active = is_active
-                objEnrollment.user_updated = request.user.username
-                objEnrollment.date_updated = datetime.now()
-                objEnrollment.save()
-                messages.success(request, "Enrollment details updated.")
-            else:
-                form = CreateEnrollmentForm(request.POST)
-                if form.is_valid():
-                    objEnrollment = form.save(commit=False)
-                    objEnrollment.user_created = request.user.username
-                    objEnrollment.status = "Pending Approval"
-                    objEnrollment.child = Child.objects.get(pk=child, is_active=True)
-                    objEnrollment.recipt_number = recipt_number
-                    objChild = objEnrollment.child
-                    objChild.is_enrolled = True
-                    objChild.save()
-                    objEnrollment.branch = Branch.objects.get(pk=branch, is_active=True)
-                    objEnrollment.center = DayCare.objects.get(
-                        daycare_code=dayCare, is_active=True
-                    )
-                    if discount is not None and discount != "":
-                        objEnrollment.discount = Discount.objects.get(
-                            pk=discount, is_active=True
-                        )
+            with transaction.atomic():
+                if enrollment_code is not None:
+                    objEnrollment = ChildEnrollment.objects.filter(
+                        enrollment_code=enrollment_code
+                    ).first()
+                if objEnrollment is not None:
+                    objEnrollment.enrollment_code = enrollment_code
+                    objEnrollment.enrollment_date = enrollment_date
+                    objEnrollment.child = child
+                    objEnrollment.branch = branch
+                    objEnrollment.center = dayCare
+                    objEnrollment.discount = discount
+                    if is_active == "on":
+                        is_active = True
+                    else:
+                        is_active = False
+                    objEnrollment.is_active = is_active
+                    objEnrollment.user_updated = request.user.username
+                    objEnrollment.date_updated = datetime.now()
                     objEnrollment.save()
-                    objPackageMapping = ChildPackageMapping()
-                    objPackageMapping.child = Child.objects.get(
-                        pk=child, is_active=True
-                    )
-                    objPackageMapping.holiday_package = holiday_package
-                    objPackageMapping.normal_package = normal_package
-                    objPackageMapping.flex_package = flex_package
-                    messages.success(request, "Enrollment details saved.")
+                    messages.success(request, "Enrollment details updated.")
+                else:
+                    form = CreateEnrollmentForm(request.POST)
+                    if form.is_valid():
+                        objEnrollment = form.save(commit=False)
+                        objEnrollment.user_created = request.user.username
+                        objEnrollment.status = "Pending Approval"
+                        objEnrollment.child = Child.objects.get(
+                            pk=child, is_active=True
+                        )
+                        objEnrollment.recipt_number = recipt_number
+                        objChild = objEnrollment.child
+                        objChild.is_enrolled = True
+                        objChild.save()
+                        objEnrollment.branch = Branch.objects.get(
+                            pk=branch, is_active=True
+                        )
+                        objEnrollment.center = DayCare.objects.get(
+                            daycare_code=dayCare, is_active=True
+                        )
+                        if discount is not None and discount != "":
+                            objEnrollment.discount = Discount.objects.get(
+                                pk=discount, is_active=True
+                            )
+                        objEnrollment.save()
+
+                        print("normal_package: " + normal_package)
+                        print("holiday_package: " + holiday_package)
+                        print("flex_package :" + flex_package)
+
+                        objPackageMapping = ChildPackageMapping()
+                        objPackageMapping.child = Child.objects.get(
+                            pk=child, is_active=True
+                        )
+                        if holiday_package:
+                            objPackageMapping.holiday_package = (
+                                FixedPackage.objects.get(pk=holiday_package)
+                            )
+
+                        if normal_package:
+                            objPackageMapping.normal_package = FixedPackage.objects.get(
+                                pk=normal_package
+                            )
+
+                        if flex_package:
+                            objPackageMapping.flex_package = FlexPackages.objects.get(
+                                pk=flex_package
+                            )
+                        objPackageMapping.effective_from = datetime.now()
+                        objPackageMapping.save()
+                        messages.success(request, "Enrollment details saved.")
         except Exception as e:
             messages.error(request, e)
         return redirect("core:view_enrollments")
@@ -1613,12 +1671,12 @@ def getAllPendingEnrollmentsJS(request):
             child_name=Concat(
                 F("child__child_first_name"), Value("-"), F("child__child_last_name")
             ),
-            normal_package_name=Concat(
+            normal_package=Concat(
                 F("normal_package__package_code"),
                 Value("-"),
                 F("normal_package__package_name"),
             ),
-            holiday_package_name=Concat(
+            holiday_package=Concat(
                 F("holiday_package__package_code"),
                 Value("-"),
                 F("holiday_package__package_name"),
@@ -1638,8 +1696,8 @@ def getAllPendingEnrollmentsJS(request):
             "enrollment_code",
             "enrollment_date",
             "child_name",
-            "normal_package_name",
-            "holiday_package_name",
+            "normal_package",
+            "holiday_package",
             "branch_name",
             "center_name",
             "discount_name",
@@ -1771,23 +1829,36 @@ def saveAttendance(request):
             return redirect("core:view_check_ins")
 
 
-@login_required
 def autoAttendanceRecorder(request, admission_no):
-    if request.method == "POST":
+    print("in the method before post")
+    if request.method == "GET":
+        print("in the method")
         if admission_no is not None:
+            print("admission_no not null")
             objChild = Child.objects.get(admission_number=admission_no, is_active=True)
+
             if objChild is not None:
+                print("Child not null")
                 try:
+                    objEnrollment = ChildEnrollment.objects.filter(
+                        is_active=True, child=objChild
+                    )
+                    print("after objEnrollment")
                     objAttendance = AttendanceLog()
                     objAttendance.date_logged = datetime.now().date
                     objAttendance.time_logged = datetime.now().time
                     objAttendance.date_created = datetime.now()
                     objAttendance.user_created = "Scanned by the USER"
                     objAttendance.child = objChild
+                    objAttendance.branch = objEnrollment.branch
+                    objAttendance.day_care = objEnrollment.center
+                    print("before save")
                     objAttendance.save()
                     messages.success(request, "Attendance record saved.")
                 except Exception as e:
+                    print(e)
                     messages.error(request, e)
+        return HttpResponse(request, "Done")
 
 
 @login_required
