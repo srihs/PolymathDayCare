@@ -1470,17 +1470,17 @@ def getEnrollments(request):
 @login_required
 def getEnrollmentsJS(request):
     # Subqueries to get the package names from ChildPackageMapping
-    normal_package_name_subquery = Subquery(
+    normal_package_subquery = Subquery(
         ChildPackageMapping.objects.filter(child=OuterRef("child")).values(
             "normal_package__package_name"
         )[:1]
     )
-    flex_package_name_subquery = Subquery(
+    flex_package_subquery = Subquery(
         ChildPackageMapping.objects.filter(child=OuterRef("child")).values(
             "flex_package__package_name"
         )[:1]
     )
-    holiday_package_name_subquery = Subquery(
+    holiday_package_subquery = Subquery(
         ChildPackageMapping.objects.filter(child=OuterRef("child")).values(
             "holiday_package__package_name"
         )[:1]
@@ -1502,19 +1502,13 @@ def getEnrollmentsJS(request):
             discount_name=Concat(
                 F("discount__discount_code"), Value("-"), F("discount__discount_name")
             ),
-            normal_package_name=normal_package_name_subquery,
-            flex_package_name=flex_package_name_subquery,
-            holiday_package_name=holiday_package_name_subquery,
+            normal_package_name=normal_package_subquery,
+            flex_package_name=flex_package_subquery,
+            holiday_package=holiday_package_subquery,
             package_name=Case(
-                When(
-                    normal_package_name_subquery__isnull=False,
-                    then=F("normal_package_name"),
-                ),
-                When(
-                    flex_package_name_subquery__isnull=False,
-                    then=F("flex_package_name"),
-                ),
-                default=F("holiday_package_name"),
+                When(normal_package_name__isnull=False, then=F("normal_package_name")),
+                When(flex_package_name__isnull=False, then=F("flex_package_name")),
+                default=F("holiday_package"),
                 output_field=CharField(),
             ),
         )
@@ -1529,6 +1523,7 @@ def getEnrollmentsJS(request):
             "status",
             "is_active",
             "package_name",
+            "holiday_package",
         )
     )
     return JsonResponse(enrolmentList, safe=False)

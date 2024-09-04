@@ -467,9 +467,9 @@
     jQuery(document).ready(function () {
         dataTable = $('#RateHistoryList').DataTable({
             responsive: true,
-            paging: false,
-            searching: false,
-            ordering:  false,
+            dom: "Bfrtip",
+        pageLength: 20,
+        buttons: ["excel", "print"],
             order: [[0, "asc"]],
             retrieve: true, });
 
