@@ -15,6 +15,7 @@ from .models import (
     FixedPackage,
     FlexPackages,
     Holiday,
+    PackageChangerequest,
     # HolidayType,
     PackageType,
 )
@@ -2252,3 +2253,78 @@ class UpdateOtherHolidayForm(forms.ModelForm):
     class Meta:
         model = Holiday
         fields = ("id", "title", "start_date", "end_date")
+
+
+class CreatePackageChangeRequestForm(forms.ModelForm):
+    child = forms.CharField(
+        max_length=250,
+        required=True,
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Child", "list": "children"}
+        ),
+    )
+
+    old_fixed_package = forms.ModelChoiceField(
+        queryset=FixedPackage.objects.filter(
+            is_active=True, package_type__is_holiday_package=False
+        ).order_by("package_code"),
+        empty_label="-Select normal package-",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Old fixed package",
+                "id": "old_fixed_package",
+            }
+        ),
+    )
+
+    new_fixed_package = forms.ModelChoiceField(
+        queryset=FixedPackage.objects.filter(
+            is_active=True, package_type__is_holiday_package=False
+        ).order_by("package_code"),
+        empty_label="-Select normal package-",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Old fixed package",
+                "id": "new_fixed_package",
+            }
+        ),
+    )
+    old_flex_package = forms.ModelChoiceField(
+        queryset=FlexPackages.objects.filter(
+            is_active=True, package_type__is_holiday_package=False
+        ).order_by("package_code"),
+        empty_label="-Select normal package-",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Old flex package",
+                "id": "old_flex_package",
+            }
+        ),
+    )
+
+    new_flex_package = forms.ModelChoiceField(
+        queryset=FlexPackages.objects.filter(
+            is_active=True, package_type__is_holiday_package=False
+        ).order_by("package_code"),
+        empty_label="-Select normal package-",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "New flex package",
+                "id": "new_flex_package",
+            }
+        ),
+    )
+
+    class Meta:
+        model = PackageChangerequest
+        fields = (
+            "child",
+            "old_fixed_package",
+            "new_fixed_package",
+            "old_flex_package",
+            "new_flex_package",
+        )

@@ -267,4 +267,5 @@ urlpatterns = [
     path("attendenceReport/", views.getAttendanceReports, name="getAttendenceReport"),
     path("upload_csv/", views.upload_csv, name="upload_csv"),
     path("download_qr/", views.download_qr_files, name="download_qr"),
+    path("get_package_change/", views.getPackageChange, name="getPackageChange"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

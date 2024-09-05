@@ -66,7 +66,7 @@ class ExtraHoursAfter530(BaseClass):
         unique_together = (("from_time", "to_time", "package_type"),)
         verbose_name = "Extra Charge"
         verbose_name_plural = "Extra Charges"
-        db_table = "dc_extrachargeafter530"
+        db_table = "dc_extra_charge_after_530"
 
     def __str__(self):
         return (
@@ -203,7 +203,7 @@ class ExtraHoursUpTo530(BaseClass):
     class Meta:
         verbose_name = "extra charges till 5.30"
         verbose_name_plural = "extra charges till 5.30"
-        db_table = "dc_extrachargestill530"
+        db_table = "dc_extra_charges_till_530"
 
     def __str__(self):
         return f"{self.hour_number} - {self.extra_rate} - {self.effective_from} - {self.effective_to}"
@@ -387,7 +387,7 @@ class ChildEnrollment(BaseClass):
     class Meta:
         verbose_name = "enrollment"
         verbose_name_plural = "enrollments"
-        db_table = "dc_childenrollment"
+        db_table = "dc_child_enrollment"
 
     def __str__(self):
         return self.child
@@ -419,6 +419,11 @@ class ChildPackageMapping(BaseClass):
     effective_from = models.DateField()
     effective_to = models.DateField(null=True)
 
+    class Meta:
+        verbose_name = "Child Package Mapping"
+        verbose_name_plural = "Child Package Mappings"
+        db_table = "dc_child_package_mapping"
+
 
 class AttendanceLog(BaseClass):
     child = models.ForeignKey("Child", on_delete=models.CASCADE)
@@ -430,7 +435,7 @@ class AttendanceLog(BaseClass):
     class Meta:
         verbose_name = "Attendance Log"
         verbose_name_plural = "Attendance Logs"
-        db_table = "dc_attendancelog"
+        db_table = "dc_attendance_log"
 
     def __str__(self):
         return (
@@ -458,7 +463,7 @@ class ExtraChargesHistory(BaseClass):
     class Meta:
         verbose_name = "Extra Charge History"
         verbose_name_plural = "Extra Charge History"
-        db_table = "dc_extrachargeshistory"
+        db_table = "dc_extra_charges_history"
 
 
 class Invoice(BaseClass):
@@ -479,3 +484,43 @@ class Invoice(BaseClass):
         verbose_name = "Invoices"
         verbose_name_plural = "Invoices"
         db_table = "dc_invoices"
+
+
+class PackageChangerequest(BaseClass):
+    child = models.ForeignKey("Child", on_delete=models.CASCADE)
+    old_fixed_package = models.ForeignKey(
+        FixedPackage,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(class)s_old_fixed_package",
+    )
+    old_flexed_package = models.ForeignKey(
+        FlexPackages,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(class)s_old_flex_package",
+    )
+    new_fixed_package = models.ForeignKey(
+        FixedPackage,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(class)s_new_fixed_package",
+    )
+    new_flexed_package = models.ForeignKey(
+        FlexPackages,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(class)s_new_flex_package",
+    )
+    date_requested = models.DateField(auto_now_add=True)
+    date_approved = models.DateField(null=True)
+    reason_for_request = models.TextField()
+
+    class Meta:
+        verbose_name = "Package Change Request"
+        verbose_name_plural = "Package Change Requests"
+        db_table = "dc_package_change_request"

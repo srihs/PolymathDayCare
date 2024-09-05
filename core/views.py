@@ -31,6 +31,7 @@ from .forms import (
     CreateFixedPackagesForm,
     CreateFlexPackagesForm,
     CreateOtherhHolidayForm,
+    CreatePackageChangeRequestForm,
     # CreateHolidayTypesForm,
     CreatePackageTypeForm,
     CreatePolymathHolidayForm,
@@ -1493,12 +1494,8 @@ def getEnrollmentsJS(request):
             child_name=Concat(
                 F("child__child_first_name"), Value(" "), F("child__child_last_name")
             ),
-            branch_name=Concat(
-                F("branch__branch_code"), Value("-"), F("branch__branch_name")
-            ),
-            center_name=Concat(
-                F("center__daycare_code"), Value("-"), F("center__daycare_name")
-            ),
+            branch_name=F("branch__branch_name"),
+            center_name=F("center__daycare_name"),
             discount_name=Concat(
                 F("discount__discount_code"), Value("-"), F("discount__discount_name")
             ),
@@ -1531,20 +1528,43 @@ def getEnrollmentsJS(request):
 
 @login_required
 def getEnrollmentsForApprovalJS(request):
+    # Subqueries to get the package names from ChildPackageMapping
+    normal_package_subquery = Subquery(
+        ChildPackageMapping.objects.filter(child=OuterRef("child")).values(
+            "normal_package__package_name"
+        )[:1]
+    )
+    flex_package_subquery = Subquery(
+        ChildPackageMapping.objects.filter(child=OuterRef("child")).values(
+            "flex_package__package_name"
+        )[:1]
+    )
+    holiday_package_subquery = Subquery(
+        ChildPackageMapping.objects.filter(child=OuterRef("child")).values(
+            "holiday_package__package_name"
+        )[:1]
+    )
+
+    # Annotate the packages based on availability
     enrolmentList = list(
-        ChildEnrollment.objects.filter(child__enrollement_approved=False)
+        ChildEnrollment.objects.filter(status="Pending Approval", is_active=True)
         .annotate(
             child_name=Concat(
                 F("child__child_first_name"), Value(" "), F("child__child_last_name")
             ),
-            branch_name=Concat(
-                F("branch__branch_code"), Value("-"), F("branch__branch_name")
-            ),
-            center_name=Concat(
-                F("center__daycare_code"), Value("-"), F("center__daycare_name")
-            ),
+            branch_name=F("branch__branch_name"),
+            center_name=F("center__daycare_name"),
             discount_name=Concat(
                 F("discount__discount_code"), Value("-"), F("discount__discount_name")
+            ),
+            normal_package_name=normal_package_subquery,
+            flex_package_name=flex_package_subquery,
+            holiday_package=holiday_package_subquery,
+            package_name=Case(
+                When(normal_package_name__isnull=False, then=F("normal_package_name")),
+                When(flex_package_name__isnull=False, then=F("flex_package_name")),
+                default=F("holiday_package"),
+                output_field=CharField(),
             ),
         )
         .values(
@@ -1557,6 +1577,8 @@ def getEnrollmentsForApprovalJS(request):
             "discount_name",
             "status",
             "is_active",
+            "package_name",
+            "holiday_package",
         )
     )
     return JsonResponse(enrolmentList, safe=False)
@@ -1625,10 +1647,6 @@ def saveEnrollments(request):
                             )
                         objEnrollment.save()
 
-                        print("normal_package: " + normal_package)
-                        print("holiday_package: " + holiday_package)
-                        print("flex_package :" + flex_package)
-
                         objPackageMapping = ChildPackageMapping()
                         objPackageMapping.child = Child.objects.get(
                             pk=child, is_active=True
@@ -1657,33 +1675,43 @@ def saveEnrollments(request):
 
 @login_required
 def getAllPendingEnrollmentsJS(request):
+    # Subqueries to get the package names from ChildPackageMapping
+    normal_package_subquery = Subquery(
+        ChildPackageMapping.objects.filter(child=OuterRef("child")).values(
+            "normal_package__package_name"
+        )[:1]
+    )
+    flex_package_subquery = Subquery(
+        ChildPackageMapping.objects.filter(child=OuterRef("child")).values(
+            "flex_package__package_name"
+        )[:1]
+    )
+    holiday_package_subquery = Subquery(
+        ChildPackageMapping.objects.filter(child=OuterRef("child")).values(
+            "holiday_package__package_name"
+        )[:1]
+    )
+
+    # Annotate the packages based on availability
     enrolmentList = list(
-        ChildEnrollment.objects.filter(
-            is_active=True,  # Add this filter for is_active
-            status="Pending Approval",
-        )
+        ChildEnrollment.objects.filter(status="Pending Approval", is_active=True)
         .annotate(
             child_name=Concat(
-                F("child__child_first_name"), Value("-"), F("child__child_last_name")
+                F("child__child_first_name"), Value(" "), F("child__child_last_name")
             ),
-            normal_package=Concat(
-                F("normal_package__package_code"),
-                Value("-"),
-                F("normal_package__package_name"),
-            ),
-            holiday_package=Concat(
-                F("holiday_package__package_code"),
-                Value("-"),
-                F("holiday_package__package_name"),
-            ),
-            branch_name=Concat(
-                F("branch__branch_code"), Value("-"), F("branch__branch_name")
-            ),
-            center_name=Concat(
-                F("center__daycare_code"), Value("-"), F("center__daycare_name")
-            ),
+            branch_name=F("branch__branch_name"),
+            center_name=F("center__daycare_name"),
             discount_name=Concat(
                 F("discount__discount_code"), Value("-"), F("discount__discount_name")
+            ),
+            normal_package_name=normal_package_subquery,
+            flex_package_name=flex_package_subquery,
+            holiday_package=holiday_package_subquery,
+            package_name=Case(
+                When(normal_package_name__isnull=False, then=F("normal_package_name")),
+                When(flex_package_name__isnull=False, then=F("flex_package_name")),
+                default=F("holiday_package"),
+                output_field=CharField(),
             ),
         )
         .values(
@@ -1691,16 +1719,15 @@ def getAllPendingEnrollmentsJS(request):
             "enrollment_code",
             "enrollment_date",
             "child_name",
-            "normal_package",
-            "holiday_package",
             "branch_name",
             "center_name",
             "discount_name",
             "status",
             "is_active",
+            "package_name",
+            "holiday_package",
         )
     )
-    print(enrolmentList)
     return JsonResponse(enrolmentList, safe=False)
 
 
@@ -2544,6 +2571,16 @@ def download_qr_files(request):
     finally:
         # Clean up the temporary directory
         shutil.rmtree(temp_dir)
+
+
+@login_required
+def getPackageChange(request):
+    requestform = CreatePackageChangeRequestForm()
+    return render(
+        request,
+        "../templates/packagechange.html",
+        {"form": requestform, "UserName": request.user.username},
+    )
 
 
 @login_required
