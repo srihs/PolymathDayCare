@@ -1281,7 +1281,11 @@ class CreateEnrollmentForm(forms.ModelForm):
         ).order_by("package_code"),
         empty_label="-Select holiday package-",
         widget=forms.Select(
-            attrs={"class": "form-control", "placeholder": "Base Rate", "id": "package"}
+            attrs={
+                "class": "form-control",
+                "placeholder": "Base Rate",
+                "id": "holiday_package",
+            }
         ),
     )
 
@@ -2256,24 +2260,16 @@ class UpdateOtherHolidayForm(forms.ModelForm):
 
 
 class CreatePackageChangeRequestForm(forms.ModelForm):
-    child = forms.CharField(
-        max_length=250,
-        required=True,
-        widget=forms.TextInput(
-            attrs={"class": "form-control", "placeholder": "Child", "list": "children"}
-        ),
-    )
-
-    old_fixed_package = forms.ModelChoiceField(
-        queryset=FixedPackage.objects.filter(
-            is_active=True, package_type__is_holiday_package=False
-        ).order_by("package_code"),
-        empty_label="-Select normal package-",
+    child = forms.ModelChoiceField(
+        queryset=Child.objects.filter(
+            is_active=True, enrollement_approved=True
+        ).order_by("admission_number"),
+        empty_label="-Select Child -",
         widget=forms.Select(
             attrs={
                 "class": "form-control",
                 "placeholder": "Old fixed package",
-                "id": "old_fixed_package",
+                "id": "child",
             }
         ),
     )
@@ -2283,6 +2279,7 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
             is_active=True, package_type__is_holiday_package=False
         ).order_by("package_code"),
         empty_label="-Select normal package-",
+        required=False,
         widget=forms.Select(
             attrs={
                 "class": "form-control",
@@ -2291,25 +2288,12 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
             }
         ),
     )
-    old_flex_package = forms.ModelChoiceField(
-        queryset=FlexPackages.objects.filter(
-            is_active=True, package_type__is_holiday_package=False
-        ).order_by("package_code"),
-        empty_label="-Select normal package-",
-        widget=forms.Select(
-            attrs={
-                "class": "form-control",
-                "placeholder": "Old flex package",
-                "id": "old_flex_package",
-            }
-        ),
-    )
-
     new_flex_package = forms.ModelChoiceField(
         queryset=FlexPackages.objects.filter(
             is_active=True, package_type__is_holiday_package=False
         ).order_by("package_code"),
         empty_label="-Select normal package-",
+        required=False,
         widget=forms.Select(
             attrs={
                 "class": "form-control",
@@ -2323,8 +2307,6 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
         model = PackageChangerequest
         fields = (
             "child",
-            "old_fixed_package",
             "new_fixed_package",
-            "old_flex_package",
             "new_flex_package",
         )

@@ -268,4 +268,9 @@ urlpatterns = [
     path("upload_csv/", views.upload_csv, name="upload_csv"),
     path("download_qr/", views.download_qr_files, name="download_qr"),
     path("get_package_change/", views.getPackageChange, name="getPackageChange"),
+    path(
+        "get_package_by_child_ID_Js/",
+        views.getPackagesByChildIdJS,
+        name="getPackageByChildIdJS",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,5 +1,6 @@
 import csv
 import datetime
+import json
 import os
 import shutil
 import tempfile
@@ -2581,6 +2582,43 @@ def getPackageChange(request):
         "../templates/packagechange.html",
         {"form": requestform, "UserName": request.user.username},
     )
+
+
+@login_required
+def getPackagesByChildIdJS(request):
+    packageList = None
+    packageText = None
+    isFixed = False
+    if request.GET.get("id") is not None:
+        id = request.GET.get("id")
+        package = ChildPackageMapping.objects.get(child=id, is_active=True)
+        if package is not None:
+            print(package.normal_package.id)
+
+            if package.normal_package is not None:
+                objPackage = FixedPackage.objects.filter(
+                    pk=package.normal_package.id
+                ).first()
+                if objPackage is not None:
+                    packageText = (
+                        objPackage.package_code + " - " + objPackage.package_name
+                    )
+                    isFixed = True
+                    packageList = [isFixed, packageText]
+            else:
+                if package.flex_package is not None:
+                    objPackage = FlexPackages.objects.filter(
+                        pk=package.flex_package.id
+                    ).first()
+                    if objPackage is not None:
+                        packageText = (
+                            objPackage.package_code + " - " + objPackage.package_name
+                        )
+                    isFixed = False
+                    packageList = [isFixed, packageText]
+            response_json = json.dumps(packageList)  # Serialize to JSON string
+
+    return JsonResponse(response_json, safe=False)
 
 
 @login_required

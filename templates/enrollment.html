@@ -130,6 +130,7 @@
             <div class="col-sm-4">{{form.child}}</div>
             <div class="col-sm-4">{{form.branch}}</div>
             <div class="col-sm-4">{{form.dayCare}}</div>
+            <div class="col-sm-4">{{form.discount}}</div>
             <datalist id='branches'>
               
            </datalist>
@@ -138,7 +139,7 @@
             <div class="col-sm-4">{{form.normal_package}}</div>
             <div class="col-sm-4">{{form.holiday_package}}</div>
             <div class="col-sm-4">{{form.flex_package}}</div>
-            <div class="col-sm-4">{{form.discount}}</div>
+            
             <div class="col-sm-4">{{form.recipt_number}}</div>
           </div>
         </div>
@@ -261,7 +262,8 @@
 <script src="{% static 'assets/libs/flatpickr/flatpickr.min.js' %}"></script>
 <script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
 <script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
-
+ 
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
   var $ = jQuery;
   var id;
@@ -269,6 +271,11 @@
   var url;
 
   jQuery(document).ready(function () {
+    jQuery('#normal_package').select2({ dropdownParent: $('#showModalCreate')});
+    jQuery('#holiday_package').select2({ dropdownParent: $('#showModalCreate')});
+    jQuery('#flex_package').select2({ dropdownParent: $('#showModalCreate')});
+
+
     window.setTimeout(function () {
       // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
       var alertDiv = jQuery(".alert");

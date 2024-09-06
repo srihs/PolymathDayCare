@@ -418,6 +418,7 @@ class ChildPackageMapping(BaseClass):
     )
     effective_from = models.DateField()
     effective_to = models.DateField(null=True)
+    is_holiday_package = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "Child Package Mapping"

@@ -1,6 +1,8 @@
-{% extends "base.html" %} {% load static %} {% block UserName %} {{ UserName}}
+{% extends "base.html" %} {% load static %} 
+{% block UserName %} {{ UserName}}{% endblock %}
 {% block PageTitle %}Package Change Request{% endblock %}
-{% endblock %} {% block Title %} SETTINGS {% endblock %} {% block functionTitle%}PACKAGE CHANGE REQUEST{% endblock %} {% block content %}
+ {% block Title %} SETTINGS {% endblock %} {% block functionTitle%}PACKAGE CHANGE REQUEST{% endblock %} 
+{% block content %}
 
 <!-- Data Table-->
 <div class="card">
@@ -39,7 +41,6 @@
         <!-- end row -->
       </div>
   
-     
       <table id="enrollmentList" class="table table-striped table-hover" cellspacing="0">
         <thead>
           <tr>
@@ -63,7 +64,7 @@
   <div
     class="modal fade zoomIn"
     id="showModal"
-    tabindex="-1"
+
     aria-labelledby="exampleModalLabel"
     style="display: none"
     aria-hidden="true"
@@ -89,7 +90,6 @@
   <div
     class="modal fade zoomIn"
     id="showModalCreate"
-    tabindex="-1"
     aria-labelledby="exampleModalLabel"
     style="display: none"
     aria-hidden="true"
@@ -116,19 +116,10 @@
           <div class="modal-body">
             <div class="row g-3">
               <div class="col-md-12 position-relative">{{form.child}}</div>
-              <div class="col-lg-6">{{form.old_fixed_package}}</div>
+              <div class="col-lg-6">Old fixed package :  <label id="lblfixed"></label></div>
               <div class="col-lg-6">{{form.new_fixed_package}}</div>
-              <div class="col-lg-6">{{form.old_flex_package}}</div>
+              <div class="col-lg-6">Old flex package : <label id="lblflex"></label></div>
               <div class="col-lg-6">{{form.new_flex_package}}</div>
-              <datalist id='branches'>
-                
-             </datalist>
-  
-              <!-- <div class="col-sm-4">{{form.dayCare}}</div> -->
-              <div class="col-sm-4">{{form.normal_package}}</div>
-              <div class="col-sm-4">{{form.holiday_package}}</div>
-              <div class="col-sm-4">{{form.discount}}</div>
-              <div class="col-sm-4">{{form.recipt_number}}</div>
             </div>
           </div>
   
@@ -320,6 +311,8 @@
   <script src="{% static 'assets/libs/flatpickr/flatpickr.min.js' %}"></script>
   <script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
   <script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
+ 
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
   
   <script>
     var $ = jQuery;
@@ -327,6 +320,10 @@
     var dataTable;
   
     jQuery(document).ready(function () {
+      jQuery('#child').select2({ dropdownParent: $('#showModalCreate')});
+      jQuery('#new_fixed_package').select2({ dropdownParent: $('#showModalCreate')});
+      jQuery('#new_flex_package').select2({ dropdownParent: $('#showModalCreate')});
+
       window.setTimeout(function () {
         // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
         var alertDiv = jQuery(".alert");
@@ -519,9 +516,6 @@
           data: { id: branchID },
           beforeSend: function () {},
           success: function (response) {
-            
-           
-  
             for (var i in response) {
               center = response[i];
               console.log(center.daycare_code + "-" + center.daycare_name)
@@ -532,6 +526,44 @@
       } 
     });
   
+  jQuery("#child").change(function () {
+    var childID = jQuery(this).val();
+    if (childID) {
+        jQuery.ajax({
+          url: "{% url 'core:getPackageByChildIdJS' %}",
+          type: "GET",
+          data: { id:  childID },
+          success: function (response) {
+            console.log("Raw response:", response); // Log the raw response
+            
+            try {
+                // If response is a JSON string, parse it
+                var data = typeof response === 'string' ? JSON.parse(response) : response;
+                console.log("Parsed data:", data); // Log parsed data
+
+                if (Array.isArray(data) && data.length === 2) {
+                    if (data[0]) { // If the first element is True
+                        document.getElementById('lblfixed').innerHTML = data[1]; // Display the second element
+                        document.getElementById('lblflex').innerHTML = "-NA-"; // Display in lblflex
+                    } else { // If the first element is False
+                        document.getElementById('lblflex').innerHTML = data[1]; // Display in lblflex
+                    }
+                } else {
+                    console.error("Unexpected response format. Data:", data);
+                    document.getElementById('lblfixed').innerHTML = "Unexpected response format";
+                }
+            } catch (e) {
+                console.error("Failed to parse response:", e);
+                document.getElementById('lblfixed').innerHTML = "Error processing response";
+            }
+          },
+          error: function (xhr, status, error) {
+            console.log("AJAX error:", error);
+            document.getElementById('lblfixed').innerHTML = "Request failed";
+          }
+        });
+    }
+  });
   
   </script>
   
