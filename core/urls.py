@@ -7,6 +7,7 @@ from . import views
 app_name = "core"
 
 urlpatterns = [
+    path("home/", views.index, name="home"),
     path("", views.index, name="home"),
     path("login/", views.UserLogin, name="login"),
     path("logout/", views.UserLogOut, name="logout"),

@@ -71,7 +71,7 @@
                                     {% if next %}
                                     <form action="/login/?next={{next}}" method="post">
                                         {% else %}
-                                        <form action="/login/" method="post">
+                                        <form action="/login/?next=/home" method="post">
                                             {% endif %}
                                             {% csrf_token %}
 
