@@ -2274,6 +2274,21 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
         ),
     )
 
+    old_fixed_package = forms.ModelChoiceField(
+        queryset=FixedPackage.objects.filter(
+            is_active=True, package_type__is_holiday_package=False
+        ).order_by("package_code"),
+        empty_label="-Select normal package-",
+        required=False,
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Old fixed package",
+                "id": "old_fixed_package",
+            }
+        ),
+    )
+
     new_fixed_package = forms.ModelChoiceField(
         queryset=FixedPackage.objects.filter(
             is_active=True, package_type__is_holiday_package=False
@@ -2299,6 +2314,21 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
                 "class": "form-control",
                 "placeholder": "New flex package",
                 "id": "new_flex_package",
+            }
+        ),
+    )
+
+    old_flex_package = forms.ModelChoiceField(
+        queryset=FlexPackages.objects.filter(
+            is_active=True, package_type__is_holiday_package=False
+        ).order_by("package_code"),
+        empty_label="-Select normal package-",
+        required=False,
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "New flex package",
+                "id": "old_flex_package",
             }
         ),
     )

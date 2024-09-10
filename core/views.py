@@ -2594,7 +2594,6 @@ def getPackagesByChildIdJS(request):
         package = ChildPackageMapping.objects.get(child=id, is_active=True)
         if package is not None:
             print(package.normal_package.id)
-
             if package.normal_package is not None:
                 objPackage = FixedPackage.objects.filter(
                     pk=package.normal_package.id
@@ -2604,7 +2603,8 @@ def getPackagesByChildIdJS(request):
                         objPackage.package_code + " - " + objPackage.package_name
                     )
                     isFixed = True
-                    packageList = [isFixed, packageText]
+                    id = objPackage.id
+                    packageList = [isFixed, packageText, id]
             else:
                 if package.flex_package is not None:
                     objPackage = FlexPackages.objects.filter(
@@ -2615,7 +2615,8 @@ def getPackagesByChildIdJS(request):
                             objPackage.package_code + " - " + objPackage.package_name
                         )
                     isFixed = False
-                    packageList = [isFixed, packageText]
+                    id = objPackage.id
+                    packageList = [isFixed, packageText, id]
             response_json = json.dumps(packageList)  # Serialize to JSON string
 
     return JsonResponse(response_json, safe=False)
