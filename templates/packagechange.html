@@ -111,6 +111,7 @@
           method="post"
           class="tablelist-form"
           autocomplete="on"
+          onsubmit="return checkDropdowns()"
         >
           {% csrf_token %}
           <div class="modal-body">
@@ -547,7 +548,34 @@
         });
     }
   });
-  
+  function checkDropdowns() {
+    // Get the values of the new_fixed_package and new_flex_package dropdowns
+    var newFixedPackage = document.getElementById('new_fixed_package').value; // Use the ID of new_fixed_package
+    var newFlexPackage = document.getElementById('new_flex_package').value; // Use the ID of new_flex_package
+
+    // Get the old package IDs stored in hidden input fields
+    var oldFixedPackage = document.getElementById('old_fixed_package').value;
+    var oldFlexPackage = document.getElementById('old_flex_package').value;
+
+    // Check if at least one of the dropdowns has a selected value
+    if (!newFixedPackage && !newFlexPackage) {
+        alert("Please select either a new fixed package or a new flex package.");
+        return false;  // Prevent form submission
+    }
+
+     // Check if both packages are selected
+     if (newFixedPackage && newFlexPackage) {
+        alert("You can only select one package: either a new fixed package or a new flex package.");
+        return false;  // Prevent form submission
+    }
+
+
+     // Check if the selected new package matches the old package
+     if (newFixedPackage === oldFixedPackage && newFlexPackage === oldFlexPackage) {
+        alert("The selected new package cannot be the same as the old package.");
+        return false;  // Prevent form submission if both are the same
+    }
+}
   </script>
   
   <!-- App js -->

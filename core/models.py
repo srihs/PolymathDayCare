@@ -145,6 +145,7 @@ class FixedPackage(BaseClass):
     no_days_week = models.IntegerField()
     no_days_months = models.IntegerField()
     package_total = models.DecimalField(max_digits=12, decimal_places=2)
+    is_holiday_package = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "fixed package"
@@ -488,6 +489,11 @@ class Invoice(BaseClass):
 
 
 class PackageChangerequest(BaseClass):
+    STATUS_CHOICES = (
+        ("PENDING_APPROVAL", "Pending Approval"),
+        ("APPROVED", "Approved"),
+        ("REJECTED", "Rejected"),
+    )
     child = models.ForeignKey("Child", on_delete=models.CASCADE)
     old_fixed_package = models.ForeignKey(
         FixedPackage,
@@ -496,13 +502,6 @@ class PackageChangerequest(BaseClass):
         blank=True,
         related_name="%(class)s_old_fixed_package",
     )
-    old_flexed_package = models.ForeignKey(
-        FlexPackages,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="%(class)s_old_flex_package",
-    )
     new_fixed_package = models.ForeignKey(
         FixedPackage,
         on_delete=models.CASCADE,
@@ -510,6 +509,14 @@ class PackageChangerequest(BaseClass):
         blank=True,
         related_name="%(class)s_new_fixed_package",
     )
+    old_flexed_package = models.ForeignKey(
+        FlexPackages,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(class)s_old_flex_package",
+    )
+
     new_flexed_package = models.ForeignKey(
         FlexPackages,
         on_delete=models.CASCADE,
@@ -517,9 +524,13 @@ class PackageChangerequest(BaseClass):
         blank=True,
         related_name="%(class)s_new_flex_package",
     )
+
     date_requested = models.DateField(auto_now_add=True)
     date_approved = models.DateField(null=True)
     reason_for_request = models.TextField()
+    status = models.CharField(
+        max_length=30, choices=STATUS_CHOICES, default="Pending Approval"
+    )
 
     class Meta:
         verbose_name = "Package Change Request"

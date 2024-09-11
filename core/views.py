@@ -916,6 +916,7 @@ def getFixedPackagesJs(request):
 def saveFixedPackage(request):
     extrChargesUpTo530 = None
     extrChargesUpTo530 = None
+    is_holiday_package = False
     if request.method == "POST":
         form = CreateFixedPackagesForm(request.POST)
         if form.is_valid():
@@ -923,13 +924,16 @@ def saveFixedPackage(request):
             objPackageType = PackageType.objects.get(
                 pk=request.POST.get("package_type")
             )
+            if not objPackageType.is_holiday_package:
+                is_holiday_package = True
             objPackage.package_type = objPackageType
+            objPackage.is_holiday_package = is_holiday_package
             objPackage.user_created = request.user.username
             objPackage.save()
             extrChargesAfter530 = ExtraHoursAfter530.objects.filter(
                 package_type=objPackageType
             )
-            if not objPackageType.is_holiday_package:
+            if not is_holiday_package:
                 if objPackage.to_time < time(
                     17, 30
                 ):  # should replace with the cutoff time
@@ -2620,6 +2624,54 @@ def getPackagesByChildIdJS(request):
             response_json = json.dumps(packageList)  # Serialize to JSON string
 
     return JsonResponse(response_json, safe=False)
+
+
+@login_required
+@transaction.atomic
+def savePackageRequest(request):
+    try:
+        if request.method == "POST":
+            objPackageChangeRequest = form.save(commit=False)
+            if request.POST.get("old_fixed_package") is not None:
+                objOldFixedPcakage = FixedPackage.objects.filter(
+                    pk=request.POST.get("old_fixed_package")
+                ).first()
+                if objOldFixedPcakage is not None:
+                    if (
+                        objPackageChangeRequest.new_fixed_package
+                        == objPackageChangeRequest.old_fixed_package
+                    ):
+                        messages.error(
+                            request,
+                            "The selected new package cannot be the same as the old package.",
+                        )
+                objPackageChangeRequest.old_fixed_package = objOldFixedPcakage
+
+            elif request.POST.get("old_flexed_package") is not None:
+                objOldFlexPackage = FlexPackages.objects.filter(
+                    pk=request.POST.get("old_flexed_package")
+                ).filter()
+                if objOldFlexPackage is not None:
+                    if (
+                        objPackageChangeRequest.new_flexed_package
+                        == objPackageChangeRequest.old_flexed_package
+                    ):
+                        messages.error(
+                            request,
+                            "The selected new package cannot be the same as the old package.",
+                        )
+                    objPackageChangeRequest.old_flexed_package = objOldFlexPackage
+
+            objPackageChangeRequest.user_created = request.user.username
+            objPackageChangeRequest.save()
+
+            with transaction.atomic():
+                pass
+    except Exception as e:
+        messages.error(request, e)
+
+    finally:
+        return redirect("core:getPackageChange")
 
 
 @login_required

@@ -2333,6 +2333,20 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
         ),
     )
 
+    holiday_package = forms.ModelChoiceField(
+        queryset=FixedPackage.objects.filter(
+            is_active=True, package_type__is_holiday_package=True
+        ).order_by("package_code"),
+        empty_label="-Select holiday package-",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Base Rate",
+                "id": "holiday_package",
+            }
+        ),
+    )
+
     class Meta:
         model = PackageChangerequest
         fields = (
