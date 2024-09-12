@@ -63,6 +63,7 @@ from .models import (
     FixedPackage,
     FlexPackages,
     Holiday,
+    PackageChangerequest,
     # HolidayType,
     PackageExtraHoursMapping,
     PackageType,
@@ -2590,15 +2591,16 @@ def getPackageChange(request):
 
 @login_required
 def getPackagesByChildIdJS(request):
-    packageList = None
+    packageList = []
     packageText = None
     isFixed = False
+    isHoliday = False
     if request.GET.get("id") is not None:
         id = request.GET.get("id")
         package = ChildPackageMapping.objects.get(child=id, is_active=True)
         if package is not None:
-            print(package.normal_package.id)
             if package.normal_package is not None:
+                print("normal package not null")
                 objPackage = FixedPackage.objects.filter(
                     pk=package.normal_package.id
                 ).first()
@@ -2608,70 +2610,142 @@ def getPackagesByChildIdJS(request):
                     )
                     isFixed = True
                     id = objPackage.id
-                    packageList = [isFixed, packageText, id]
-            else:
-                if package.flex_package is not None:
-                    objPackage = FlexPackages.objects.filter(
-                        pk=package.flex_package.id
-                    ).first()
-                    if objPackage is not None:
-                        packageText = (
-                            objPackage.package_code + " - " + objPackage.package_name
-                        )
-                    isFixed = False
-                    id = objPackage.id
-                    packageList = [isFixed, packageText, id]
+                    packageList.append([isFixed, packageText, id, isHoliday])
+            if package.flex_package is not None:
+                print("flex package not null")
+                objPackage = FlexPackages.objects.filter(
+                    pk=package.flex_package.id
+                ).first()
+                if objPackage is not None:
+                    packageText = (
+                        objPackage.package_code + " - " + objPackage.package_name
+                    )
+                isFixed = False
+                id = objPackage.id
+                packageList.append([isFixed, packageText, id, isHoliday])
+            if package.holiday_package is not None:
+                print("holiday package not null")
+                objHolidayPackage = FixedPackage.objects.filter(
+                    pk=package.holiday_package.id
+                ).first()
+                if objHolidayPackage is not None:
+                    print(objHolidayPackage)
+                    packageText = (
+                        objHolidayPackage.package_code
+                        + " - "
+                        + objHolidayPackage.package_name
+                    )
+                isFixed = False
+                id = objHolidayPackage.id
+                isHoliday = True
+                packageList.append([isFixed, packageText, id, isHoliday])
+            print(packageList)
             response_json = json.dumps(packageList)  # Serialize to JSON string
-
     return JsonResponse(response_json, safe=False)
 
 
 @login_required
-@transaction.atomic
 def savePackageRequest(request):
     try:
         if request.method == "POST":
-            objPackageChangeRequest = form.save(commit=False)
-            if request.POST.get("old_fixed_package") is not None:
-                objOldFixedPcakage = FixedPackage.objects.filter(
-                    pk=request.POST.get("old_fixed_package")
-                ).first()
-                if objOldFixedPcakage is not None:
-                    if (
-                        objPackageChangeRequest.new_fixed_package
-                        == objPackageChangeRequest.old_fixed_package
-                    ):
-                        messages.error(
-                            request,
-                            "The selected new package cannot be the same as the old package.",
-                        )
-                objPackageChangeRequest.old_fixed_package = objOldFixedPcakage
-
-            elif request.POST.get("old_flexed_package") is not None:
-                objOldFlexPackage = FlexPackages.objects.filter(
-                    pk=request.POST.get("old_flexed_package")
-                ).filter()
-                if objOldFlexPackage is not None:
-                    if (
-                        objPackageChangeRequest.new_flexed_package
-                        == objPackageChangeRequest.old_flexed_package
-                    ):
-                        messages.error(
-                            request,
-                            "The selected new package cannot be the same as the old package.",
-                        )
-                    objPackageChangeRequest.old_flexed_package = objOldFlexPackage
-
-            objPackageChangeRequest.user_created = request.user.username
-            objPackageChangeRequest.save()
-
-            with transaction.atomic():
-                pass
+            form = CreatePackageChangeRequestForm(request.POST)
+            if form.is_valid():
+                objPackageChangeRequest = form.save(commit=False)
+                if request.POST.get("old_fixed_package") is not None:
+                    objOldFixedPcakage = FixedPackage.objects.filter(
+                        pk=request.POST.get("old_fixed_package")
+                    ).first()
+                    if objOldFixedPcakage is not None:
+                        if (
+                            objPackageChangeRequest.new_fixed_package
+                            == objPackageChangeRequest.old_fixed_package
+                        ):
+                            messages.error(
+                                request,
+                                "The selected new package cannot be the same as the old package.",
+                            )
+                            return
+                    objPackageChangeRequest.old_fixed_package = objOldFixedPcakage
+                elif request.POST.get("old_flexed_package") is not None:
+                    objOldFlexPackage = FlexPackages.objects.filter(
+                        pk=request.POST.get("old_flexed_package")
+                    ).filter()
+                    if objOldFlexPackage is not None:
+                        if (
+                            objPackageChangeRequest.new_flexed_package
+                            == objPackageChangeRequest.old_flexed_package
+                        ):
+                            return messages.error(
+                                request,
+                                "The selected new package cannot be the same as the old package.",
+                            )
+                        objPackageChangeRequest.old_flexed_package = objOldFlexPackage
+                objPackageChangeRequest.user_created = request.user.username
+                # checking if the new package is selected
+                if (
+                    objPackageChangeRequest.new_fixed_package is None
+                    and objPackageChangeRequest.new_flexed_package is None
+                ):
+                    return messages.error(
+                        request,
+                        "Please select either a new fixed package or a new flex package.",
+                    )
+                elif (
+                    objPackageChangeRequest.new_fixed_package is not None
+                    and objPackageChangeRequest.new_flexed_package is not None
+                ):
+                    return messages.error(
+                        request,
+                        "You can only select one package: either a new fixed package or a new flex package.",
+                    )
+                if request.POST.get("old_holiday_package") is not None:
+                    objHolidayPackage = FixedPackage.objects.filter(
+                        pk=request.POST.get("old_holiday_package")
+                    )
+                    if objHolidayPackage is not None:
+                        objPackageChangeRequest.new_holiday_package = objHolidayPackage
+                objPackageChangeRequest.save()
+            else:
+                messages.error(request, form.errors)
     except Exception as e:
         messages.error(request, e)
-
     finally:
         return redirect("core:getPackageChange")
+
+
+@login_required
+def getPackageChangeRequests(request):
+    try:
+        packageChangeRequestList = list(
+            PackageChangerequest.objects.filter(
+                is_active=True, status="Pending Approval"
+            ).annotate(child_name=Concat(
+                F("child__child_first_name"), Value(" "), F("child__child_last_name")
+            ).values(
+                "id",
+                "child_name",
+                "start_date",
+                "end_date",
+                "no_of_days",
+                "weekdays_count",
+                "weekends_count",
+            )
+        )
+attendanceList = list(
+        AttendanceLog.objects.filter(is_active=True)
+        .annotate(
+            
+        )
+        .values(
+            "id",
+            "child_name",
+            "date_logged",
+            "time_logged",
+            "is_active",
+        )
+    )
+    except Exception as e:
+        messages.error(request, e)
 
 
 @login_required

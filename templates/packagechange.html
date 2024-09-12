@@ -107,7 +107,7 @@
           ></button>
         </div>
         <form
-          action="{% url 'core:save_enrollments' %}"
+          action="{% url 'core:save_PackageRequest' %}"
           method="post"
           class="tablelist-form"
           autocomplete="on"
@@ -124,6 +124,10 @@
                 </div>
                 <input type="hidden" id="old_flex_package" name="old_flex_package">
               <div class="col-lg-6">{{form.new_flex_package}}</div>
+              <div class="col-lg-6">Old holiday package : <label id="lblholiday"></label>
+              </div>
+              <input type="hidden" id="old_holiday_package" name="old_flex_package">
+            <div class="col-lg-6">{{form.new_holiday_package}}</div>
             </div>
           </div>
   
@@ -503,51 +507,63 @@
     });
   
     
-  
-  jQuery("#child").change(function () {
+    jQuery("#child").change(function () {
     var childID = jQuery(this).val();
     if (childID) {
         jQuery.ajax({
-          url: "{% url 'core:getPackageByChildIdJS' %}",
-          type: "GET",
-          data: { id:  childID },
-          success: function (response) {
-            console.log("Raw response:", response); // Log the raw response
-            
-            try {
-                // If response is a JSON string, parse it
-                var data = typeof response === 'string' ? JSON.parse(response) : response;
-                console.log("Parsed data:", data); // Log parsed data
+            url: "{% url 'core:getPackageByChildIdJS' %}",
+            type: "GET",
+            data: { id: childID },
+            success: function (response) {
+                try {
+                    // If response is a JSON string, parse it
+                    var data = typeof response === 'string' ? JSON.parse(response) : response;
 
-                if (Array.isArray(data) && data.length === 3) {
-                    
+                    // Assuming the response is a list, loop through the list
+                    if (Array.isArray(data)) {
+                        data.forEach(function (item, index) {
+                            console.log("Item at index", index, ":", item);
+                            var isFixed = data[index][0];
+                            var packageText = data[index][1];
+                            var packageId = data[index][2];
+                            var isHoliday = data[index][3];
+                            
+                            // Process each item as necessary
+                            // You can add conditions to handle different items
+                            if (item[0]===true) {
+                                document.getElementById('lblfixed').innerHTML = packageText;
+                                document.getElementById('lblflex').innerHTML = "-NA-";
+                                document.getElementById('old_fixed_package').value = packageId;
+                            } else if (item[0]===false && item[3]===false){
+                                document.getElementById('lblflex').innerHTML = packageText;
+                                document.getElementById('lblfixed').innerHTML = "-NA-";
+                                document.getElementById('old_flex_package').value = packageId;
+                            }
 
-                    if (data[0]) { // If the first element is True
-                        document.getElementById('lblfixed').innerHTML = data[1]; // Display the second element
-                        document.getElementById('lblflex').innerHTML = "-NA-"; // Display in lblflex
-                        document.getElementById('old_fixed_package').value = data[2];
-                    } else { // If the first element is False
-                        document.getElementById('lblflex').innerHTML = data[1]; // Display in lblflex
-                        document.getElementById('lblfixed').innerHTML = "-NA-"; // Display in lblfix
-                        document.getElementById('old_flex_package').value = data[2];
+                            if (item[3]===true) {
+                              alert("item[0] is a holiday")
+                                document.getElementById('lblholiday').innerHTML = packageText;
+                            }
+                        });
+                    } else {
+                        console.error("Unexpected response format. Data:", data);
+                        document.getElementById('lblfixed').innerHTML = "Unexpected response format";
                     }
-                } else {
-                    console.error("Unexpected response format. Data:", data);
-                    document.getElementById('lblfixed').innerHTML = "Unexpected response format";
+
+                } catch (e) {
+                    console.error("Failed to parse response:", e);
+                    document.getElementById('lblfixed').innerHTML = "Error processing response";
                 }
-                
-            } catch (e) {
-                console.error("Failed to parse response:", e);
-                document.getElementById('lblfixed').innerHTML = "Error processing response";
+            },
+            error: function (xhr, status, error) {
+                console.log("AJAX error:", error);
+                document.getElementById('lblfixed').innerHTML = "Request failed";
             }
-          },
-          error: function (xhr, status, error) {
-            console.log("AJAX error:", error);
-            document.getElementById('lblfixed').innerHTML = "Request failed";
-          }
         });
     }
-  });
+});
+
+
   function checkDropdowns() {
     // Get the values of the new_fixed_package and new_flex_package dropdowns
     var newFixedPackage = document.getElementById('new_fixed_package').value; // Use the ID of new_fixed_package

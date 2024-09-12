@@ -524,7 +524,13 @@ class PackageChangerequest(BaseClass):
         blank=True,
         related_name="%(class)s_new_flex_package",
     )
-
+    new_holiday_package = models.ForeignKey(
+        FlexPackages,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(class)s_new_holiday_package",
+    )
     date_requested = models.DateField(auto_now_add=True)
     date_approved = models.DateField(null=True)
     reason_for_request = models.TextField()
