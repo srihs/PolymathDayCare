@@ -2719,31 +2719,23 @@ def getPackageChangeRequests(request):
         packageChangeRequestList = list(
             PackageChangerequest.objects.filter(
                 is_active=True, status="Pending Approval"
-            ).annotate(child_name=Concat(
-                F("child__child_first_name"), Value(" "), F("child__child_last_name")
-            ).values(
-                "id",
-                "child_name",
-                "start_date",
-                "end_date",
-                "no_of_days",
-                "weekdays_count",
-                "weekends_count",
+            ).annotate(
+                child_name=Concat(
+                    F("child__child_first_name"),
+                    Value(" "),
+                    F("child__child_last_name"),
+                ).values(
+                    "id",
+                    "child_name",
+                    "start_date",
+                    "end_date",
+                    "no_of_days",
+                    "weekdays_count",
+                    "weekends_count",
+                )
             )
         )
-attendanceList = list(
-        AttendanceLog.objects.filter(is_active=True)
-        .annotate(
-            
-        )
-        .values(
-            "id",
-            "child_name",
-            "date_logged",
-            "time_logged",
-            "is_active",
-        )
-    )
+
     except Exception as e:
         messages.error(request, e)
 

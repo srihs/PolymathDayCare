@@ -2316,6 +2316,19 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
         ),
     )
 
+    reason_for_request = forms.CharField(
+        max_length=550,
+        required=True,
+        widget=forms.Textarea(
+            attrs={
+                "class": "form-control",
+                "id": "reason_for_request",
+                "placeholder": "Reason for the change request",
+                "rows": "3",
+            }
+        ),
+    )
+
     class Meta:
         model = PackageChangerequest
         fields = (
@@ -2323,4 +2336,5 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
             "new_fixed_package",
             "new_flex_package",
             "new_holiday_package",
+            "reason_for_request",
         )
