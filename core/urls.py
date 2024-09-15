@@ -275,4 +275,9 @@ urlpatterns = [
         name="getPackageByChildIdJS",
     ),
     path("save_PackageRequest/", views.savePackageRequest, name="save_PackageRequest"),
+    path(
+        "get_package_change_requestsJs/",
+        views.getPackageChangeRequests,
+        name="get_package_change_requestsJs",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

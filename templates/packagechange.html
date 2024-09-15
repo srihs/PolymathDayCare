@@ -43,7 +43,7 @@
                 {% endif %}
                 <!-- end row -->
             </div>
-            <table id="enrollmentList"
+            <table id="requestList"
                    class="table table-striped table-hover"
                    cellspacing="0">
                 <thead>
@@ -312,10 +312,10 @@
         }
       }, 2000);
   
-      var table = $("#enrollmentList").DataTable({
+      var table = $("#requestList").DataTable({
         ajax: {
           processing: true,
-          url: "{% url 'core:get_all_enrollments_js' %}",
+          url: "{% url 'core:get_package_change_requestsJs' %}",
           dataSrc: "",
         },
         // columns: [
