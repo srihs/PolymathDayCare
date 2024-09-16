@@ -2620,16 +2620,24 @@ def getPackageChangeRequestsJS(request):
                 "new_holiday_package_name",  # New Holiday Package
                 "date_requested",  # Date requested
                 "reason_for_request",  # Reason(s) for change
+                "user_created",  # Reason(s) for change
             )
         )
-        print(len(packageChangeRequestList))
-        print(packageChangeRequestList)
 
     except Exception as e:
         messages.error(request, e)
 
     finally:
         return JsonResponse(packageChangeRequestList, safe=False)
+
+
+@login_required
+def getPackageChangeApproval(request):
+    return render(
+        request,
+        "../templates/packagechangeslist.html",
+        {"UserName": request.user.username},
+    )
 
 
 @login_required

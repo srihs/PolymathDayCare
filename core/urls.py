@@ -284,4 +284,9 @@ urlpatterns = [
         views.getPackageChangeRequestsJS,
         name="get_package_change_requestsJs",
     ),
+    path(
+        "get_package_change_approval/",
+        views.getPackageChangeApproval,
+        name="get_package_change_approval",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
