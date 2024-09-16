@@ -14,7 +14,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Case, CharField, F, OuterRef, Subquery, Value, When
-from django.db.models.functions import Concat
+from django.db.models.functions import Coalesce, Concat
 from django.http import *
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -1832,8 +1832,7 @@ def saveAttendance(request):
                     form = CreateCheckInForm(request.POST)
                     if form.is_valid():
                         objAttendance = form.save(commit=False)
-                        print(objChild.admission_date)
-                        print(objAttendance.date_logged)
+
                         if objChild.admission_date <= objAttendance.date_logged:
                             objEnrollment = ChildEnrollment.objects.filter(
                                 child=objChild.id
@@ -1858,20 +1857,15 @@ def saveAttendance(request):
 
 
 def autoAttendanceRecorder(request, admission_no):
-    print("in the method before post")
     if request.method == "GET":
-        print("in the method")
         if admission_no is not None:
-            print("admission_no not null")
             objChild = Child.objects.get(admission_number=admission_no, is_active=True)
 
             if objChild is not None:
-                print("Child not null")
                 try:
                     objEnrollment = ChildEnrollment.objects.filter(
                         is_active=True, child=objChild
                     )
-                    print("after objEnrollment")
                     objAttendance = AttendanceLog()
                     objAttendance.date_logged = datetime.now().date
                     objAttendance.time_logged = datetime.now().time
@@ -1880,11 +1874,9 @@ def autoAttendanceRecorder(request, admission_no):
                     objAttendance.child = objChild
                     objAttendance.branch = objEnrollment.branch
                     objAttendance.day_care = objEnrollment.center
-                    print("before save")
                     objAttendance.save()
                     messages.success(request, "Attendance record saved.")
                 except Exception as e:
-                    print(e)
                     messages.error(request, e)
         return HttpResponse(request, "Done")
 
@@ -2054,9 +2046,6 @@ def getPublicHolidayID(request, pk):
 @login_required
 def savePublicHoliday(request):
     try:
-        print(type(request.POST.get("start_date")))
-        print(request.POST.get("end_date"))
-        print("------------------------------------------")
         title = request.POST.get("title")
         id = request.POST.get("id")
 
@@ -2070,10 +2059,8 @@ def savePublicHoliday(request):
             if form.is_valid():
                 objHoliday = form.save(commit=False)
                 if request.POST.get("id") is not None:
-                    print("Id not null")
                     objHoliday = Holiday.objects.get(pk=request.POST.get("id"))
                     if objHoliday is not None:
-                        print("objHoliday not null")
                         user = User.objects.get(username=request.user.username)
                         if user.groups.filter(name="Data Entry").exists():
                             messages.error(
@@ -2256,7 +2243,6 @@ def getOtherHolidays(request):
 
 @login_required
 def getOtherHolidaysJS(request):
-    print("in the JS")
     holidayList = list(
         Holiday.objects.filter(is_active=True, is_other_school_holiday=True).values(
             "id",
@@ -2389,7 +2375,6 @@ def upload_csv(request):
             for row in reader:
                 # Ensure there are exactly 8 columns
                 if len(row) < 8:
-                    print(len(row))
                     messages.error(
                         request,
                         "CSV file format is incorrect. Each row must have 8 columns.",
@@ -2481,7 +2466,6 @@ def getPackagesByChildIdJS(request):
         package = ChildPackageMapping.objects.get(child=id, is_active=True)
         if package is not None:
             if package.normal_package is not None:
-                print("normal package not null")
                 objPackage = FixedPackage.objects.filter(
                     pk=package.normal_package.id
                 ).first()
@@ -2493,7 +2477,6 @@ def getPackagesByChildIdJS(request):
                     id = objPackage.id
                     packageList.append([isFixed, packageText, id, isHoliday])
             if package.flex_package is not None:
-                print("flex package not null")
                 objPackage = FlexPackages.objects.filter(
                     pk=package.flex_package.id
                 ).first()
@@ -2505,12 +2488,10 @@ def getPackagesByChildIdJS(request):
                 id = objPackage.id
                 packageList.append([isFixed, packageText, id, isHoliday])
             if package.holiday_package is not None:
-                print("holiday package not null")
                 objHolidayPackage = FixedPackage.objects.filter(
                     pk=package.holiday_package.id
                 ).first()
                 if objHolidayPackage is not None:
-                    print(objHolidayPackage)
                     packageText = (
                         objHolidayPackage.package_code
                         + " - "
@@ -2520,7 +2501,6 @@ def getPackagesByChildIdJS(request):
                 id = objHolidayPackage.id
                 isHoliday = True
                 packageList.append([isFixed, packageText, id, isHoliday])
-            print(packageList)
             response_json = json.dumps(packageList)  # Serialize to JSON string
     return JsonResponse(response_json, safe=False)
 
@@ -2579,12 +2559,15 @@ def savePackageRequest(request):
                         request,
                         "You can only select one package: either a new fixed package or a new flex package.",
                     )
+                print(request.POST.get("old_holiday_package"))
                 if request.POST.get("old_holiday_package") is not None:
+                    print("old_holiday_package is not null")
                     objHolidayPackage = FixedPackage.objects.filter(
                         pk=request.POST.get("old_holiday_package")
-                    )
+                    ).first()
                     if objHolidayPackage is not None:
-                        objPackageChangeRequest.new_holiday_package = objHolidayPackage
+                        objPackageChangeRequest.old_holiday_package = objHolidayPackage
+                print(objPackageChangeRequest.old_holiday_package)
                 objPackageChangeRequest.save()
             else:
                 messages.error(request, form.errors)
@@ -2595,7 +2578,7 @@ def savePackageRequest(request):
 
 
 @login_required
-def getPackageChangeRequests(request):
+def getPackageChangeRequestsJS(request):
     packageChangeRequestList = None
     try:
         # Retrieve the package change requests
@@ -2613,44 +2596,34 @@ def getPackageChangeRequests(request):
                     Value(" "),
                     F("child__child_last_name"),
                 ),
-                # Annotate for old/new package names using the correct field names
-                old_fixed_package_name=F("old_fixed_package__package_name"),
-                new_fixed_package_name=F("new_fixed_package__package_name"),
-                old_flexed_package_name=F("old_flexed_package__package_name"),
-                new_flexed_package_name=F("new_flexed_package__package_name"),
-                new_holiday_package_name=F(
-                    "new_holiday_package__package_name"
-                ),  # Assuming similar field exists for holiday packages
+                # Annotate old package as the non-null value between old_fixed and old_flexed packages
+                old_package=Coalesce(
+                    F("old_fixed_package__package_name"),
+                    F("old_flexed_package__package_name"),
+                ),
+                # Annotate new package as the non-null value between new_fixed and new_flexed packages
+                new_package=Coalesce(
+                    F("new_fixed_package__package_name"),
+                    F("new_flexed_package__package_name"),
+                ),
+                # Annotate old holiday package
+                old_holiday_package_name=F("old_holiday_package__package_name"),
+                # Annotate new holiday package
+                new_holiday_package_name=F("new_holiday_package__package_name"),
             )
             .values(
                 "id",  # ID of the package change request
                 "child_info",
-                "old_fixed_package_name",
-                "new_fixed_package_name",
-                "old_flexed_package_name",
-                "new_flexed_package_name",
-                "new_holiday_package_name",  # Include holiday package if applicable
+                "old_package",  # Old package (either fixed or flexed)
+                "new_package",  # New package (either fixed or flexed)
+                "old_holiday_package_name",  # Old Holiday Package
+                "new_holiday_package_name",  # New Holiday Package
                 "date_requested",  # Date requested
                 "reason_for_request",  # Reason(s) for change
             )
         )
         print(len(packageChangeRequestList))
-        # Remove any records where all relevant package fields are None
-        packageChangeRequestList = [
-            request
-            for request in packageChangeRequestList
-            if any(
-                [
-                    request.get("old_fixed_package_name"),
-                    request.get("new_fixed_package_name"),
-                    request.get("old_flexed_package_name"),
-                    request.get("new_flexed_package_name"),
-                    request.get("new_holiday_package_name"),
-                ]
-            )
-        ]
-
-        print(len(packageChangeRequestList))
+        print(packageChangeRequestList)
 
     except Exception as e:
         messages.error(request, e)

@@ -524,8 +524,16 @@ class PackageChangerequest(BaseClass):
         blank=True,
         related_name="%(class)s_new_flex_package",
     )
+    old_holiday_package = models.ForeignKey(
+        FixedPackage,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(class)s_old_holiday_package",
+    )
+
     new_holiday_package = models.ForeignKey(
-        FlexPackages,
+        FixedPackage,
         on_delete=models.CASCADE,
         null=True,
         blank=True,

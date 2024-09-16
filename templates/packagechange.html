@@ -5,558 +5,336 @@
 {% block Title %}SETTINGS{% endblock %}
 {% block functionTitle %}PACKAGE CHANGE REQUEST{% endblock %}
 {% block content %}
-    <!-- Data Table-->
-    <div class="card">
-        <div class="card-header border-0">
-            <div class="d-flex align-items-center">
-                <h5 class="card-title mb-0 flex-grow-1">Package Change Request</h5>
-                <div class="flex-shrink-0">
-                    <div class="d-flex flex-wrap gap-2">
-                        <button class="btn btn-secondary add-btn"
-                                data-bs-toggle="modal"
-                                data-bs-target="#showModalCreate">
-                            <i class="ri-add-line align-bottom me-1"></i> New package change request
-                        </button>
-                        <button class="btn btn-soft-secondary" id="remove-actions">
-                            <i class="ri-delete-bin-2-line"></i>
-                        </button>
-                    </div>
+<!-- Data Table-->
+<div class="card">
+    <div class="card-header border-0">
+        <div class="d-flex align-items-center">
+            <h5 class="card-title mb-0 flex-grow-1">Package Change Request</h5>
+            <div class="flex-shrink-0">
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-secondary add-btn" data-bs-toggle="modal" data-bs-target="#showModalCreate">
+                        <i class="ri-add-line align-bottom me-1"></i> New package change request
+                    </button>
+                    <button class="btn btn-soft-secondary" id="remove-actions">
+                        <i class="ri-delete-bin-2-line"></i>
+                    </button>
                 </div>
             </div>
         </div>
-        <div class="card-body">
-            <div class="alert alert-dismissible" role="alert">
-                {% if messages %}
-                    {% for message in messages %}
-                        <!-- Danger Alert -->
-                        <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
-                             role="alert">
-                            <strong>
-                                <center>{{ message }}</center>
-                            </strong>
-                            <button type="button"
-                                    class="btn-close"
-                                    data-bs-dismiss="alert"
-                                    aria-label="Close"></button>
-                        </div>
-                    {% endfor %}
-                {% endif %}
-                <!-- end row -->
-            </div>
-            <table id="requestList"
-                   class="table table-striped table-hover"
-                   cellspacing="0">
-                <thead>
-                    <tr>
-                        <th>Child Code</th>
-                        <th>Child Name</th>
-                        <th>Old Package</th>
-                        <th>New package</th>
-                        <th>Requested on</th>
-                        <th>Reason(s) for change</th>
-                        <th data-orderable="false"></th>
-                    </tr>
-                </thead>
-            </table>
-        </div>
-        <!-- end card-body -->
     </div>
+    <div class="card-body">
+        <div class="alert alert-dismissible" role="alert">
+            {% if messages %}
+            {% for message in messages %}
+            <!-- Danger Alert -->
+            <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
+                role="alert">
+                <strong>
+                    <center>{{ message }}</center>
+                </strong>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+            {% endif %}
+            <!-- end row -->
+        </div>
+        <table id="requestList" class="table table-striped table-hover" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>Child </th>
+                    <th>Old Package</th>
+                    <th>New package</th>
+                    <th>Old holiday package</th>
+                    <th>New holiday package</th>
+                    <th>Requested on</th>
+                    <th>Reason(s) for change</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+    <!-- end card-body -->
+</div>
 {% endblock %}
 {% block modals %}
-    <div class="modal fade zoomIn"
-         id="showModal"
-         aria-labelledby="exampleModalLabel"
-         style="display: none"
-         aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content border-0">
-                <div class="modal-header p-3 bg-secondary-subtle">
-                    <h5 class="modal-title" id="exampleModalLabels">New Enrollment</h5>
-                    <button type="button"
-                            class="btn-close"
-                            data-bs-target="#showModalCreate"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"
-                            id="close-modalAdd"></button>
-                </div>
+<div class="modal fade zoomIn" id="showModal" aria-labelledby="exampleModalLabel" style="display: none"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0">
+            <div class="modal-header p-3 bg-secondary-subtle">
+                <h5 class="modal-title" id="exampleModalLabels">New Enrollment</h5>
+                <button type="button" class="btn-close" data-bs-target="#showModalCreate" data-bs-dismiss="modal"
+                    aria-label="Close" id="close-modalAdd"></button>
             </div>
         </div>
     </div>
-    <!-- Add Modal Form -->
-    <div class="modal fade zoomIn"
-         id="showModalCreate"
-         aria-labelledby="exampleModalLabel"
-         style="display: none"
-         aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content border-0">
-                <div class="modal-header">
-                    <h5 class="modal-title">New Enrollmentp</h5>
-                    <button type="button"
-                            class="btn-close"
-                            data-bs-dismiss="modal"
-                            aria-label="Close"
-                            id="close-modal"></button>
-                </div>
-                <form action="{% url 'core:save_PackageRequest' %}"
-                      method="post"
-                      class="tablelist-form"
-                      autocomplete="on"
-                      onsubmit="return checkDropdowns()">
-                    {% csrf_token %}
-                    <div class="modal-body">
-                        <div class="row g-3">
-                            <div class="col-md-12 position-relative">{{ form.child }}</div>
-                            <div class="col-lg-6">
-                                Old fixed package :
-                                <label id="lblfixed"></label>
-                            </div>
-                            <input type="hidden" id="old_fixed_package" name="old_fixed_package">
-                            <div class="col-lg-6">{{ form.new_fixed_package }}</div>
-                            <div class="col-lg-6">
-                                Old flex package :
-                                <label id="lblflex"></label>
-                            </div>
-                            <input type="hidden" id="old_flex_package" name="old_flex_package">
-                            <div class="col-lg-6">{{ form.new_flex_package }}</div>
-                            <div class="col-lg-6">
-                                Old holiday package :
-                                <label id="lblholiday"></label>
-                            </div>
-                            <input type="hidden" id="old_holiday_package" name="old_flex_package">
-                            <div class="col-lg-6">{{ form.new_holiday_package }}</div>
-                            <div class="col-lg-12">{{ form.reason_for_request }}</div>
-                        </div>
-                    </div>
-                    <div class="modal-footer" style="display: block">
-                        <div class="hstack gap-2 justify-content-end">
-                            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
-                            <button class="btn btn-secondary" type="submit">Save</button>
-                        </div>
-                    </div>
-                </form>
+</div>
+<!-- Add Modal Form -->
+<div class="modal fade zoomIn" id="showModalCreate" aria-labelledby="exampleModalLabel" style="display: none"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0">
+            <div class="modal-header">
+                <h5 class="modal-title">New Enrollmentp</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
+                    id="close-modal"></button>
             </div>
-        </div>
-        <!--Additional Rates Form-->
-        <div id="flipModal"
-             class="modal fade flip"
-             tabindex="-1"
-             aria-labelledby="flipModalLabel"
-             style="display: none"
-             aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="flipModalLabel">Extra hour rates</h5>
-                        <button type="button"
-                                class="btn-close"
-                                data-bs-dismiss="modal"
-                                aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div>
-                            <table id="AdditionalRateList" class="display" style="width: 100%">
-                                <thead>
-                                    <tr>
-                                        <th>Slot (hr)</th>
-                                        <th>Rate</th>
-                                        <th>Effective from</th>
-                                        <th>Effective to</th>
-                                    </tr>
-                                </thead>
-                            </table>
+            <form action="{% url 'core:save_PackageRequest' %}" method="post" class="tablelist-form" autocomplete="on"
+                onsubmit="return checkDropdowns()">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-12 position-relative">{{ form.child }}</div>
+                        <div class="col-lg-6">
+                            Old fixed package :
+                            <label id="lblfixed"></label>
                         </div>
+                        <input type="hidden" id="old_fixed_package" name="old_fixed_package">
+                        <div class="col-lg-6">{{ form.new_fixed_package }}</div>
+                        <div class="col-lg-6">
+                            Old flex package :
+                            <label id="lblflex"></label>
+                        </div>
+                        <input type="hidden" id="old_flex_package" name="old_flex_package">
+                        <div class="col-lg-6">{{ form.new_flex_package }}</div>
+                        <div class="col-lg-6">
+                            Old holiday package :
+                            <label id="lblholiday"></label>
+                        </div>
+                        <input type="hidden" id="old_holiday_package" name="old_holiday_package">
+                        <div class="col-lg-6">{{ form.new_holiday_package }}</div>
+                        <div class="col-lg-12">{{ form.reason_for_request }}</div>
                     </div>
-                    <div class="modal-footer">
+                </div>
+                <div class="modal-footer" style="display: block">
+                    <div class="hstack gap-2 justify-content-end">
                         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                        <button class="btn btn-secondary" type="submit">Save</button>
                     </div>
                 </div>
-                <!-- /.modal-content -->
-            </div>
-            <!-- /.modal-dialog -->
+            </form>
         </div>
-        <!--Rate History pop-up-->
-        <div id="historyModal"
-             class="modal fade flip"
-             tabindex="-1"
-             aria-labelledby="flipModalLabel"
-             style="display: none"
-             aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="flipModalLabel">Rate History</h5>
-                        <button type="button"
-                                class="btn-close"
-                                data-bs-dismiss="modal"
-                                aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div>
-                            <table id="RateHistoryList" class="display" style="width: 100%">
-                                <thead>
-                                    <tr>
-                                        <th>Rate (hr)</th>
-                                        <th>Effective from</th>
-                                        <th>Effective to</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
-                    </div>
-                </div>
-                <!-- /.modal-content -->
-            </div>
-            <!-- /.modal-dialog -->
-        </div>
-        <!--Update Form-->
-        <div class="modal fade zoomIn"
-             id="showUpdateModal"
-             tabindex="-1"
-             aria-labelledby="exampleModalLabel"
-             style="display: none"
-             aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered modal-lg">
-                <div class="modal-content border-0">
-                    <div class="modal-header p-3 bg-secondary-subtle">
-                        <h5 class="modal-title">Update base rate details</h5>
-                        <button type="button"
-                                class="btn-close"
-                                data-bs-dismiss="modal"
-                                aria-label="Close"
-                                id="close-upmodal"></button>
-                    </div>
-                    <div id="modelForm" bs-focus="false"></div>
-                </div>
-            </div>
-        </div>
-        <!--Rate Form-->
-        <div id="rateModals"
-             class="modal fade zoomIn"
-             tabindex="-1"
-             style="display: none"
-             aria-modal="true"
-             role="dialog">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content border-0 overflow-hidden">
-                    <div class="modal-header p-3">
-                        <h4 class="card-title mb-0">Set rates</h4>
-                        <button type="button"
-                                class="btn-close"
-                                data-bs-dismiss="modal"
-                                aria-label="Close"></button>
-                    </div>
-                    <div class="alert alert-danger rounded-0 mb-0">
-                        <p class="mb-0">
-                            <center>
-                                <strong>Please note that this operation will change the rates for all
-                                    pcakages associated with this base rate from the selected
-                                effective date.</strong>
-                            </center>
-                        </p>
-                    </div>
-                    <div id="modelRateForm" bs-focus="false"></div>
-                </div>
-                <!-- /.modal-content -->
-            </div>
-            <!-- /.modal-dialog -->
-        </div>
+    </div>
     {% endblock %}
     {% block scripts %}
-        <!-- jQuery -->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-        <!--datatable js-->
-        <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-        <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
-        <script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
-        <script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
-        <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
-        <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
-        <script src="{% static 'assets/js/pages/datatables.init.js' %}"></script>
-        <script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
-        <script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
-        <!-- flatpickr -->
-        <script src="{% static 'assets/libs/flatpickr/flatpickr.min.js' %}"></script>
-        <script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
-        <script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
-        <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-        <script>
-    var $ = jQuery;
-    var id;
-    var dataTable;
-  
-    jQuery(document).ready(function () {
-      jQuery('#child').select2({ dropdownParent: $('#showModalCreate')});
-      jQuery('#new_fixed_package').select2({ dropdownParent: $('#showModalCreate')});
-      jQuery('#new_flex_package').select2({ dropdownParent: $('#showModalCreate')});
-
-      window.setTimeout(function () {
-        // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
-        var alertDiv = jQuery(".alert");
-  
-        // Check if the inner div contains a success message
-        var successMessageFound = alertDiv.find(".alert-success").length > 0;
-  
-        // If a success message is found, apply the fade-out effect
-        if (successMessageFound) {
-          alertDiv.fadeTo(1000, 0).slideUp(1000, function () {
-            jQuery(this).remove();
-          });
-        }
-      }, 2000);
-  
-      var table = $("#requestList").DataTable({
-        ajax: {
-          processing: true,
-          url: "{% url 'core:get_package_change_requestsJs' %}",
-          dataSrc: "",
-        },
-        // columns: [
-        //   { data: "enrollment_code" },
-        //   { data: "enrollment_date" },
-        //   { data: "child_name"},
-        //   { data: "package_name" },
-        //   { data: "holiday_package" },
-        //   { data: "branch_name" },
-        //   { data: "center_name" },
-        //   { data: "discount_name" },
-        //   { data: "status" },
-        //   { data: "is_active" },
-        //   {
-        //     data: null,
-        //     render: function (data, type, row) {
-        //       var url = "{% url 'core:approve_enrollments'  %}";
-        //       id = row.id;
-        //       //url = url.replace(0, id);
-        //       return (data =
-        //         "<a href=" +
-        //         url +
-        //         ' class="link-success"  data-id="'+ id +'" data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="mdi mdi-check-circle"></i></a>');
-        //     },
-            
-        //   },
-        //   {
-        //     data: null,
-        //     render: function (data, type, row) {
-        //       var url = "{% url 'core:reject_enrollments' %}";
-        //       id = row.id;
-        //       //url = url.replace(0, id);
-        //       return (data =
-        //         "<a href=" +
-        //         url +
-        //         ' class="link-danger"  data-id="'+ id +'" data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="mdi mdi-close-box"></i></a>');
-        //     },
-        //   },
-        // ],
-  
-        // createdRow: function (row, data, dataIndex) {
-        //   // Combining all the address fields
-  
-        //   if (data.is_active) {
-        //     $("td", row).eq(9).html('<span class="badge bg-success">Yes</span>');
-        //   } else {
-        //     $("td", row).eq(9).html('<span class="badge bg-warning">No</span>');
-        //   }
-  
-        //   if (data.status =='Approved')
-        //   {
-        //   $("td", row).eq(8).html('<span class="badge bg-success">'+data.status +'</span>');
-        //   $("td", row).eq(10).html('');
-        //   $("td", row).eq(11).html('');
-  
-        //   }
-  
-        //   if (data.status =='Rejected')
-        //   {
-        //   $("td", row).eq(8).html('<span class="badge bg-danger">'+data.status +'</span>');
-        //   $("td", row).eq(10).html('');
-        //   $("td", row).eq(11).html('');
-        //   }
-  
-        //   if (data.status =='Pending Approval')
-        //   {
-        //   $("td", row).eq(8).html('<span class="badge bg-warning">'+data.status +'</span>');
-        //   }
-  
-          
-  
-  
-  
-  
-        // },
-  
-        searching: false,
-        paging: false,
-        order: [[0, "asc"]], // Set default sorting by admission_date in descending order
-      });
-    });
-  
-    jQuery("#from_time").flatpickr({
-      enableTime: true,
-      noCalendar: true,
-      enableSeconds: false,
-      dateFormat: "H:i",
-      allowInput: true,
-    });
-  
-    jQuery("#to_time").flatpickr({
-      enableTime: true,
-      noCalendar: true,
-      enableSeconds: false,
-      dateFormat: "H:i",
-      allowInput: true,
-    });
-  
-    jQuery("#showModal").on("hidden.bs.modal", function () {
-      jQuery(this).find("form").trigger("reset");
-    });
-  
-    var url = "";
-  
-    jQuery(document).on("click", ".link-success", function (e) {
-      e.preventDefault();
-      url = jQuery(this).attr("href");
-      id = jQuery(this).attr("data-id");
-   
-     // Load the form into the modal using AJAX
-      jQuery.ajax({
-        type: "GET",
-        url: url,
-        data: { id: id },
-        dataType: "html",
-        success: function (data) {
-          window.parent.location = window.parent.location.href;
-        },
-        error: function (xhr, textStatus, errorThrown) {
-          console.log("Error: " + xhr.status + ", " + xhr.statusText);
-        },
-      });
-    });
-  
-  
-    jQuery(document).on("click", ".link-danger", function (e) {
-      e.preventDefault();
-      url = jQuery(this).attr("href");
-      id = jQuery(this).attr("data-id");
-   
-     // Load the form into the modal using AJAX
-      jQuery.ajax({
-        type: "GET",
-        url: url,
-        data: { id: id },
-        dataType: "html",
-        success: function (data) {
-          window.parent.location = window.parent.location.href;
-        },
-        error: function (xhr, textStatus, errorThrown) {
-          console.log("Error: " + xhr.status + ", " + xhr.statusText);
-        },
-      });
-    });
-  
-  
-   jQuery("secondButton").click(function () {
-      window.parent.location = window.parent.location.href;
-    });
-  
-    
-    jQuery("#showModalCreate").on("hidden.bs.modal", function () {
-      jQuery(this).find("form").trigger("reset");
-    });
-  
-    
-    jQuery("#child").change(function () {
-    var childID = jQuery(this).val();
-    if (childID) {
-        jQuery.ajax({
-            url: "{% url 'core:getPackageByChildIdJS' %}",
-            type: "GET",
-            data: { id: childID },
-            success: function (response) {
-                try {
-                    // If response is a JSON string, parse it
-                    var data = typeof response === 'string' ? JSON.parse(response) : response;
-
-                    // Assuming the response is a list, loop through the list
-                    if (Array.isArray(data)) {
-                        data.forEach(function (item, index) {
-                            console.log("Item at index", index, ":", item);
-                            var isFixed = data[index][0];
-                            var packageText = data[index][1];
-                            var packageId = data[index][2];
-                            var isHoliday = data[index][3];
-                            
-                            // Process each item as necessary
-                            // You can add conditions to handle different items
-                            if (item[0]===true) {
-                                document.getElementById('lblfixed').innerHTML = packageText;
-                                document.getElementById('lblflex').innerHTML = "-NA-";
-                                document.getElementById('old_fixed_package').value = packageId;
-                            } else if (item[0]===false && item[3]===false){
-                                document.getElementById('lblflex').innerHTML = packageText;
-                                document.getElementById('lblfixed').innerHTML = "-NA-";
-                                document.getElementById('old_flex_package').value = packageId;
-                            }
-
-                            if (item[3]===true) {
-                                document.getElementById('lblholiday').innerHTML = packageText;
-                            }
-                        });
-                    } else {
-                        console.error("Unexpected response format. Data:", data);
-                        document.getElementById('lblfixed').innerHTML = "Unexpected response format";
-                    }
-
-                } catch (e) {
-                    console.error("Failed to parse response:", e);
-                    document.getElementById('lblfixed').innerHTML = "Error processing response";
+    <!-- jQuery -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <!--datatable js-->
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+    <script src="{% static 'assets/js/pages/datatables.init.js' %}"></script>
+    <script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
+    <script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
+    <!-- flatpickr -->
+    <script src="{% static 'assets/libs/flatpickr/flatpickr.min.js' %}"></script>
+    <script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        var $ = jQuery;
+        var id;
+        var dataTable;
+        jQuery(document).ready(function() {
+            jQuery('#child').select2({
+                dropdownParent: $('#showModalCreate')
+            });
+            jQuery('#new_fixed_package').select2({
+                dropdownParent: $('#showModalCreate')
+            });
+            jQuery('#new_flex_package').select2({
+                dropdownParent: $('#showModalCreate')
+            });
+            window.setTimeout(function() {
+                // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
+                var alertDiv = jQuery(".alert");
+                // Check if the inner div contains a success message
+                var successMessageFound = alertDiv.find(".alert-success").length > 0;
+                // If a success message is found, apply the fade-out effect
+                if (successMessageFound) {
+                    alertDiv.fadeTo(1000, 0).slideUp(1000, function() {
+                        jQuery(this).remove();
+                    });
                 }
-            },
-            error: function (xhr, status, error) {
-                console.log("AJAX error:", error);
-                document.getElementById('lblfixed').innerHTML = "Request failed";
+            }, 2000);
+            var table = $("#requestList").DataTable({
+                responsive: true,
+                ajax: {
+                    processing: true,
+                    url: "{% url 'core:get_package_change_requestsJs' %}",
+                    dataSrc: "",
+                },
+                columns: [
+                    {data: "child_info"},
+                    {data: "old_package"},
+                    {data: "new_package"},
+                    {data: "old_holiday_package_name"},
+                    {data: "new_holiday_package_name" },
+                    {data: "date_requested"},
+                    {data: "reason_for_request"},
+                    ],
+                    createdRow: function (row, data, dataIndex) {
+                        // Combining all the address fields
+                
+                        if (data.new_holiday_package_name===null) {
+                        $("td", row).eq(4).html('<span class="badge bg-success">'+"No Change" +'</span>');
+
+                        } 
+                
+                      },
+                searching: false,
+                paging: false,
+                order: [[0, "asc"]], // Set default sorting by admission_date in descending order
+            });
+        });
+        
+        jQuery("#showModal").on("hidden.bs.modal", function() {
+            jQuery(this).find("form").trigger("reset");
+        });
+        var url = "";
+        jQuery(document).on("click", ".link-success", function(e) {
+            e.preventDefault();
+            url = jQuery(this).attr("href");
+            id = jQuery(this).attr("data-id");
+            // Load the form into the modal using AJAX
+            jQuery.ajax({
+                type: "GET",
+                url: url,
+                data: {
+                    id: id
+                },
+                dataType: "html",
+                success: function(data) {
+                    window.parent.location = window.parent.location.href;
+                },
+                error: function(xhr, textStatus, errorThrown) {
+                    console.log("Error: " + xhr.status + ", " + xhr.statusText);
+                },
+            });
+        });
+        jQuery(document).on("click", ".link-danger", function(e) {
+            e.preventDefault();
+            url = jQuery(this).attr("href");
+            id = jQuery(this).attr("data-id");
+            // Load the form into the modal using AJAX
+            jQuery.ajax({
+                type: "GET",
+                url: url,
+                data: {
+                    id: id
+                },
+                dataType: "html",
+                success: function(data) {
+                    window.parent.location = window.parent.location.href;
+                },
+                error: function(xhr, textStatus, errorThrown) {
+                    console.log("Error: " + xhr.status + ", " + xhr.statusText);
+                },
+            });
+        });
+        jQuery("secondButton").click(function() {
+            window.parent.location = window.parent.location.href;
+        });
+        jQuery("#showModalCreate").on("hidden.bs.modal", function() {
+            jQuery(this).find("form").trigger("reset");
+        });
+        jQuery("#child").change(function() {
+            var childID = jQuery(this).val();
+            if (childID) {
+                jQuery.ajax({
+                    url: "{% url 'core:getPackageByChildIdJS' %}",
+                    type: "GET",
+                    data: {
+                        id: childID
+                    },
+                    success: function(response) {
+                        try {
+                            // If response is a JSON string, parse it
+                            var data = typeof response === 'string' ? JSON.parse(response) :
+                                response;
+                            // Assuming the response is a list, loop through the list
+                            if (Array.isArray(data)) {
+                                data.forEach(function(item, index) {
+                                    console.log("Item at index", index, ":", item);
+                                    var isFixed = data[index][0];
+                                    var packageText = data[index][1];
+                                    var packageId = data[index][2];
+                                    var isHoliday = data[index][3];
+                                    // Process each item as necessary
+                                    // You can add conditions to handle different items
+                                    if (item[0] === true) {
+                                        alert(packageText);
+                                        document.getElementById('lblfixed').innerHTML =
+                                            packageText;
+                                        document.getElementById('lblflex').innerHTML =
+                                            "-NA-";
+                                        document.getElementById('old_fixed_package').value =
+                                            packageId;
+                                    } else if (item[0] === false && item[3] === false) {
+                                        document.getElementById('lblflex').innerHTML =
+                                            packageText;
+                                        document.getElementById('lblfixed').innerHTML =
+                                            "-NA-";
+                                        document.getElementById('old_flex_package').value =
+                                            packageId;
+                                    }
+                                    if (item[3] === true) {
+                                        document.getElementById('lblholiday').innerHTML =
+                                            packageText;
+                                        document.getElementById('old_holiday_package')
+                                            .value = packageId;
+                                        alert(document.getElementById('old_holiday_package')
+                                            .value);
+                                    }
+                                });
+                            } else {
+                                console.error("Unexpected response format. Data:", data);
+                                document.getElementById('lblfixed').innerHTML =
+                                    "Unexpected response format";
+                            }
+                        } catch (e) {
+                            console.error("Failed to parse response:", e);
+                            document.getElementById('lblfixed').innerHTML =
+                                "Error processing response";
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.log("AJAX error:", error);
+                        document.getElementById('lblfixed').innerHTML = "Request failed";
+                    }
+                });
             }
         });
-    }
-});
 
-
-  function checkDropdowns() {
-    // Get the values of the new_fixed_package and new_flex_package dropdowns
-    var newFixedPackage = document.getElementById('new_fixed_package').value; // Use the ID of new_fixed_package
-    var newFlexPackage = document.getElementById('new_flex_package').value; // Use the ID of new_flex_package
-
-    // Get the old package IDs stored in hidden input fields
-    var oldFixedPackage = document.getElementById('old_fixed_package').value;
-    var oldFlexPackage = document.getElementById('old_flex_package').value;
-
-    // Check if at least one of the dropdowns has a selected value
-    if (!newFixedPackage && !newFlexPackage) {
-        alert("Please select either a new fixed package or a new flex package.");
-        return false;  // Prevent form submission
-    }
-
-     // Check if both packages are selected
-     if (newFixedPackage && newFlexPackage) {
-        alert("You can only select one package: either a new fixed package or a new flex package.");
-        return false;  // Prevent form submission
-    }
-
-
-     // Check if the selected new package matches the old package
-     if (newFixedPackage === oldFixedPackage && newFlexPackage === oldFlexPackage) {
-        alert("The selected new package cannot be the same as the old package.");
-        return false;  // Prevent form submission if both are the same
-    }
-}
-        </script>
-        <!-- App js -->
-        <script src="{% static 'assets/js/app.js' %}"></script>
+        function checkDropdowns() {
+            // Get the values of the new_fixed_package and new_flex_package dropdowns
+            var newFixedPackage = document.getElementById('new_fixed_package').value; // Use the ID of new_fixed_package
+            var newFlexPackage = document.getElementById('new_flex_package').value; // Use the ID of new_flex_package
+            // Get the old package IDs stored in hidden input fields
+            var oldFixedPackage = document.getElementById('old_fixed_package').value;
+            var oldFlexPackage = document.getElementById('old_flex_package').value;
+            // Check if at least one of the dropdowns has a selected value
+            if (!newFixedPackage && !newFlexPackage) {
+                alert("Please select either a new fixed package or a new flex package.");
+                return false; // Prevent form submission
+            }
+            // Check if both packages are selected
+            if (newFixedPackage && newFlexPackage) {
+                alert("You can only select one package: either a new fixed package or a new flex package.");
+                return false; // Prevent form submission
+            }
+            // Check if the selected new package matches the old package
+            if (newFixedPackage === oldFixedPackage && newFlexPackage === oldFlexPackage) {
+                alert("The selected new package cannot be the same as the old package.");
+                return false; // Prevent form submission if both are the same
+            }
+        }
+    </script>
+    <!-- App js -->
+    <script src="{% static 'assets/js/app.js' %}"></script>
     {% endblock %}
