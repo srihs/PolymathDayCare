@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% load static %}
-{% block UserName %}{{ UserName }}{% endblock %}
 {% block PageTitle %}Package Change Request{% endblock %}
+
+{% block UserName %}{{ UserName }}{% endblock UserName %}
 {% block Title %}PACKAGE CHANGE REQUEST{% endblock %}
 {% block functionTitle %}NEW REQUEST{% endblock %}
 {% block content %}
@@ -47,6 +48,7 @@
                     <th>Old holiday package</th>
                     <th>New holiday package</th>
                     <th>Requested on</th>
+                    <th>Effective from</th>
                     <th>Reason(s) for change</th>
                 </tr>
             </thead>
@@ -103,6 +105,7 @@
                         <input type="hidden" id="old_holiday_package" name="old_holiday_package">
                         <div class="col-lg-6">{{ form.new_holiday_package }}</div>
                         <div class="col-lg-12">{{ form.reason_for_request }}</div>
+                        <div class="col-lg-12">{{ form.effective_date }}</div>
                     </div>
                 </div>
                 <div class="modal-footer" style="display: block">
@@ -176,6 +179,7 @@
                     {data: "old_holiday_package_name"},
                     {data: "new_holiday_package_name" },
                     {data: "date_requested"},
+                    {data: "effective_date"},
                     {data: "reason_for_request"},
                     ],
                     createdRow: function (row, data, dataIndex) {
@@ -268,7 +272,6 @@
                                     // Process each item as necessary
                                     // You can add conditions to handle different items
                                     if (item[0] === true) {
-                                        alert(packageText);
                                         document.getElementById('lblfixed').innerHTML =
                                             packageText;
                                         document.getElementById('lblflex').innerHTML =
@@ -288,8 +291,6 @@
                                             packageText;
                                         document.getElementById('old_holiday_package')
                                             .value = packageId;
-                                        alert(document.getElementById('old_holiday_package')
-                                            .value);
                                     }
                                 });
                             } else {

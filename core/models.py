@@ -540,6 +540,7 @@ class PackageChangerequest(BaseClass):
         related_name="%(class)s_new_holiday_package",
     )
     date_requested = models.DateField(auto_now_add=True)
+    effective_date = models.DateField(default=timezone.now)
     date_approved = models.DateField(null=True)
     reason_for_request = models.TextField()
     status = models.CharField(

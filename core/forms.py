@@ -1871,122 +1871,6 @@ class AttendanceReportForm(forms.Form):
     )
 
 
-# class CreateHolidayTypesForm(forms.ModelForm):
-#     CHOICES = [
-#         ("1", "Yes"),
-#         ("0", "No"),
-#     ]
-#     holiday_code = forms.CharField(
-#         max_length=250,
-#         required=False,
-#         widget=forms.TextInput(
-#             attrs={
-#                 "readonly": "readonly",
-#                 "class": "form-control",
-#                 "placeholder": "Holiday Code",
-#             }
-#         ),
-#     )
-
-#     holiday_type = forms.CharField(
-#         max_length=250,
-#         required=True,
-#         widget=forms.TextInput(
-#             attrs={"class": "form-control", "placeholder": "Holiday Type"}
-#         ),
-#     )
-
-#     is_polymath_holiday = forms.BooleanField(
-#         required=False,
-#         widget=forms.CheckboxInput(
-#             attrs={
-#                 "class": "form-check-input",
-#                 "type": "checkbox",
-#                 "checked": "checked",
-#                 "id": "is_polymath_holiday",
-#             }
-#         ),
-#     )
-
-#     is_public_holiday = forms.BooleanField(
-#         required=False,
-#         widget=forms.CheckboxInput(
-#             attrs={
-#                 "class": "form-check-input",
-#                 "type": "checkbox",
-#                 "id": "is_public_holiday",
-#             }
-#         ),
-#     )
-
-#     class Meta:
-#         model = HolidayType
-#         fields = (
-#             "holiday_code",
-#             "holiday_type",
-#             "is_polymath_holiday",
-#             "is_public_holiday",
-#         )
-
-
-# class UpdateHolidayTypesForm(forms.ModelForm):
-#     CHOICES = [
-#         ("1", "Yes"),
-#         ("0", "No"),
-#     ]
-#     holiday_code = forms.CharField(
-#         max_length=250,
-#         required=False,
-#         widget=forms.TextInput(
-#             attrs={
-#                 "readonly": "readonly",
-#                 "class": "form-control",
-#                 "placeholder": "Holiday Code",
-#             }
-#         ),
-#     )
-
-#     holiday_type = forms.CharField(
-#         max_length=250,
-#         required=True,
-#         widget=forms.TextInput(
-#             attrs={"class": "form-control", "placeholder": "Holiday Type"}
-#         ),
-#     )
-
-#     is_polymath_holiday = forms.BooleanField(
-#         required=False,
-#         widget=forms.CheckboxInput(
-#             attrs={
-#                 "class": "form-check-input",
-#                 "type": "checkbox",
-#                 "checked": "checked",
-#                 "id": "is_polymath_holiday",
-#             }
-#         ),
-#     )
-
-#     is_public_holiday = forms.BooleanField(
-#         required=False,
-#         widget=forms.CheckboxInput(
-#             attrs={
-#                 "class": "form-check-input",
-#                 "type": "checkbox",
-#                 "id": "is_public_holiday",
-#             }
-#         ),
-#     )
-
-#     class Meta:
-#         model = HolidayType
-#         fields = (
-#             "holiday_code",
-#             "holiday_type",
-#             "is_polymath_holiday",
-#             "is_public_holiday",
-#         )
-
-
 class CreatePublicHolidayForm(forms.ModelForm):
     title = forms.CharField(
         max_length=250,
@@ -2329,6 +2213,20 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
         ),
     )
 
+    effective_date = forms.DateField(
+        required=True,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "effective_date",
+                "placeholder": "Effective from",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+                "required": "true",
+            }
+        ),
+    )
+
     class Meta:
         model = PackageChangerequest
         fields = (
@@ -2337,4 +2235,5 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
             "new_flex_package",
             "new_holiday_package",
             "reason_for_request",
+            "effective_date",
         )

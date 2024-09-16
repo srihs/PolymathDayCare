@@ -2621,6 +2621,7 @@ def getPackageChangeRequestsJS(request):
                 "date_requested",  # Date requested
                 "reason_for_request",  # Reason(s) for change
                 "user_created",  # Reason(s) for change
+                "effective_date",
             )
         )
 

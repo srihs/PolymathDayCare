@@ -1,5 +1,5 @@
-{% extends "base.html" %} {% load static %} {% block UserName %} {{ UserName}}
-{% block PageTitle %}Change Requests{% endblock %}
+{% extends "base.html" %} {% load static %}{% block PageTitle %}Change Requests{% endblock %} {% block UserName %} {{ UserName}}
+
 {% endblock %} {% block Title %} PACKAGE CHANGE REQUEST {% endblock %} {% block functionTitle%}APPROVE REQUEST{% endblock %} {% block content %}
 
 <!-- Data Table-->
@@ -37,6 +37,7 @@
                     <th>Old holiday package</th>
                     <th>New holiday package</th>
                     <th>Requested on</th>
+                    <th>Effective from</th>
                     <th>Reason(s) for change</th>
                     <th>Requested by</th>
                     <th  data-orderable="false"> </th>
@@ -47,6 +48,45 @@
     </div>
     <!-- end card-body -->
 </div>
+
+<!--Conformation Form-->
+<div id="confirmModals" class="modal fade zoomIn" tabindex="-1" style="display: none;" aria-modal="true" role="dialog">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center p-5">
+                <img
+                        src="{% static 'assets/images/stop.gif' %}"
+                        alt="alert"
+                        width="100px"
+                        height="100px"
+                />
+                <div class="mt-4 pt-4">
+                    <h4>You are about to approve the package change request!</h4>
+                    <p class="text-muted">
+                        Are you sure? Please note that this will change the charges from the effective date.
+                    </p>
+                    <!-- Toogle to second dialog -->
+                    <button
+                            class="btn btn-secondary"
+                            data-bs-target="#firstmodal"
+                            data-bs-toggle="modal"
+                            data-bs-dismiss="modal"
+                    >
+                        No
+                    </button>
+                    <button
+                            name="btnModelDelete"
+                            id="btnModelDelete"
+                            class="btn btn-danger"
+                    >
+                        Yes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
     {% block scripts %}
@@ -111,6 +151,7 @@
                     {data: "old_holiday_package_name"},
                     {data: "new_holiday_package_name" },
                     {data: "date_requested"},
+                    {data: "effective_date"},
                     {data: "reason_for_request"},
                     {data: "user_created"}, 
                     {
@@ -148,7 +189,6 @@
                         $("td", row).eq(4).html('<span class="badge bg-success">'+"No Change" +'</span>');
 
                         } 
-                
                       },
                 searching: false,
                 paging: false,
@@ -162,6 +202,8 @@
         var url = "";
         jQuery(document).on("click", ".link-success", function(e) {
             e.preventDefault();
+              // Show the modal
+            jQuery("#confirmModals").modal("show");
             url = jQuery(this).attr("href");
             id = jQuery(this).attr("data-id");
             // Load the form into the modal using AJAX
@@ -182,6 +224,7 @@
         });
         jQuery(document).on("click", ".link-danger", function(e) {
             e.preventDefault();
+           
             url = jQuery(this).attr("href");
             id = jQuery(this).attr("data-id");
             // Load the form into the modal using AJAX
@@ -206,97 +249,27 @@
         jQuery("#showModalCreate").on("hidden.bs.modal", function() {
             jQuery(this).find("form").trigger("reset");
         });
-        jQuery("#child").change(function() {
-            var childID = jQuery(this).val();
-            if (childID) {
-                jQuery.ajax({
-                    url: "{% url 'core:getPackageByChildIdJS' %}",
-                    type: "GET",
-                    data: {
-                        id: childID
-                    },
-                    success: function(response) {
-                        try {
-                            // If response is a JSON string, parse it
-                            var data = typeof response === 'string' ? JSON.parse(response) :
-                                response;
-                            // Assuming the response is a list, loop through the list
-                            if (Array.isArray(data)) {
-                                data.forEach(function(item, index) {
-                                    console.log("Item at index", index, ":", item);
-                                    var isFixed = data[index][0];
-                                    var packageText = data[index][1];
-                                    var packageId = data[index][2];
-                                    var isHoliday = data[index][3];
-                                    // Process each item as necessary
-                                    // You can add conditions to handle different items
-                                    if (item[0] === true) {
-                                        alert(packageText);
-                                        document.getElementById('lblfixed').innerHTML =
-                                            packageText;
-                                        document.getElementById('lblflex').innerHTML =
-                                            "-NA-";
-                                        document.getElementById('old_fixed_package').value =
-                                            packageId;
-                                    } else if (item[0] === false && item[3] === false) {
-                                        document.getElementById('lblflex').innerHTML =
-                                            packageText;
-                                        document.getElementById('lblfixed').innerHTML =
-                                            "-NA-";
-                                        document.getElementById('old_flex_package').value =
-                                            packageId;
-                                    }
-                                    if (item[3] === true) {
-                                        document.getElementById('lblholiday').innerHTML =
-                                            packageText;
-                                        document.getElementById('old_holiday_package')
-                                            .value = packageId;
-                                        alert(document.getElementById('old_holiday_package')
-                                            .value);
-                                    }
-                                });
-                            } else {
-                                console.error("Unexpected response format. Data:", data);
-                                document.getElementById('lblfixed').innerHTML =
-                                    "Unexpected response format";
-                            }
-                        } catch (e) {
-                            console.error("Failed to parse response:", e);
-                            document.getElementById('lblfixed').innerHTML =
-                                "Error processing response";
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        console.log("AJAX error:", error);
-                        document.getElementById('lblfixed').innerHTML = "Request failed";
-                    }
-                });
-            }
-        });
+        
+        jQuery("#btnModelDelete").click(function (e) {
+        //e.preventDefault(); // prevent the default behavior of the anchor tag
+        var $this = "";
+        jQuery.ajax({
+            type: "GET",
+            url: url,
+            dataType: "json",
+            success: function (data) {
+                // Open the second modal on success
+                jQuery("#secondmodal").modal("show");
 
-        function checkDropdowns() {
-            // Get the values of the new_fixed_package and new_flex_package dropdowns
-            var newFixedPackage = document.getElementById('new_fixed_package').value; // Use the ID of new_fixed_package
-            var newFlexPackage = document.getElementById('new_flex_package').value; // Use the ID of new_flex_package
-            // Get the old package IDs stored in hidden input fields
-            var oldFixedPackage = document.getElementById('old_fixed_package').value;
-            var oldFlexPackage = document.getElementById('old_flex_package').value;
-            // Check if at least one of the dropdowns has a selected value
-            if (!newFixedPackage && !newFlexPackage) {
-                alert("Please select either a new fixed package or a new flex package.");
-                return false; // Prevent form submission
-            }
-            // Check if both packages are selected
-            if (newFixedPackage && newFlexPackage) {
-                alert("You can only select one package: either a new fixed package or a new flex package.");
-                return false; // Prevent form submission
-            }
-            // Check if the selected new package matches the old package
-            if (newFixedPackage === oldFixedPackage && newFlexPackage === oldFlexPackage) {
-                alert("The selected new package cannot be the same as the old package.");
-                return false; // Prevent form submission if both are the same
-            }
-        }
+                // Optionally, you can also close the current modal
+                jQuery("#firstmodal").modal("hide");
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                alert("Error: " + xhr.status + ", " + xhr.statusText);
+            },
+        });
+    });
+        
     </script>
     <!-- App js -->
     <script src="{% static 'assets/js/app.js' %}"></script>
