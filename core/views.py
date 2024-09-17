@@ -2642,5 +2642,16 @@ def getPackageChangeApproval(request):
 
 
 @login_required
+def approvePackageChange(request):
+    try:
+        pass
+    except Exception as e:
+        messages.error(request, e)
+
+    finally:
+        return JsonResponse(packageChangeRequestList, safe=False)
+
+
+@login_required
 def getInvoices(request):
     pass
