@@ -207,7 +207,7 @@
                     {
                         data: null,
                         render: function (data, type, row) {
-                          var url = "{% url 'core:approve_enrollments'  %}";
+                          var url = "{% url 'core:package_change_approval'  %}";
                           id = row.id;
                           //url = url.replace(0, id);
                           return (data =
@@ -256,7 +256,6 @@
             jQuery("#confirmModals").modal("show");
             
             url = jQuery(this).attr("href");
-            alert(url);
             id = jQuery(this).attr("data-id");
             // Load the form into the modal using AJAX
             
@@ -291,18 +290,31 @@
         });
         
         jQuery("#btnModelDelete").click(function (e) {
+            alert(id);
         //e.preventDefault(); // prevent the default behavior of the anchor tag
         var $this = "";
         jQuery.ajax({
             type: "GET",
             url: url,
+            data: {
+                id: id
+            },
             dataType: "json",
             success: function (data) {
-                // Open the second modal on success
-                jQuery("#sucessmodal").modal("show");
+                if (data === "Approved"){
+                    // Open the second modal on success
+                    jQuery("#sucessmodal").modal("show");
 
-                // Optionally, you can also close the current modal
-                jQuery("#confirmModals").modal("hide");
+                    // Optionally, you can also close the current modal
+                    jQuery("#confirmModals").modal("hide");
+                }
+                else {
+                    
+                    jQuery("#confirmModals").modal("hide");
+                    location.reload();
+                  }
+                
+                
             },
             error: function (xhr, textStatus, errorThrown) {
                 alert("Error: " + xhr.status + ", " + xhr.statusText);

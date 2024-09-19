@@ -2509,13 +2509,32 @@ def getPackagesByChildIdJS(request):
 def savePackageRequest(request):
     try:
         if request.method == "POST":
+            print("In the method")
+            print(request.POST.get("old_fixed_package"))
+            print("ID NULL")
+
+            user = User.objects.get(username=request.user.username)
+            if user.groups.filter(name="Data Entry").exists():
+                messages.error(
+                    request,
+                    "You are not authorized to performe this operation.",
+                )
+                return
             form = CreatePackageChangeRequestForm(request.POST)
             if form.is_valid():
+                print("from is valid")
                 objPackageChangeRequest = form.save(commit=False)
-                if request.POST.get("old_fixed_package") is not None:
+                print(request.POST.get("old_fixed_package"))
+                print(objPackageChangeRequest.new_fixed_package)
+                if (
+                    request.POST.get("old_fixed_package") is not None
+                    and request.POST.get("old_fixed_package") != ""
+                ):
+                    print("old_fixed_package not empty")
                     objOldFixedPcakage = FixedPackage.objects.filter(
                         pk=request.POST.get("old_fixed_package")
                     ).first()
+
                     if objOldFixedPcakage is not None:
                         if (
                             objPackageChangeRequest.new_fixed_package
@@ -2527,7 +2546,13 @@ def savePackageRequest(request):
                             )
                             return
                     objPackageChangeRequest.old_fixed_package = objOldFixedPcakage
-                elif request.POST.get("old_flexed_package") is not None:
+                if (
+                    request.POST.get("old_flexed_package") is not None
+                    and request.POST.get("old_flexed_package") != ""
+                ):
+                    print("in the flex package")
+                    print("flex package id:" + request.POST.get("old_flexed_package"))
+
                     objOldFlexPackage = FlexPackages.objects.filter(
                         pk=request.POST.get("old_flexed_package")
                     ).filter()
@@ -2569,6 +2594,7 @@ def savePackageRequest(request):
                         objPackageChangeRequest.old_holiday_package = objHolidayPackage
                 print(objPackageChangeRequest.old_holiday_package)
                 objPackageChangeRequest.save()
+                messages.success(request, "Package change request saved.")
             else:
                 messages.error(request, form.errors)
     except Exception as e:
@@ -2642,14 +2668,81 @@ def getPackageChangeApproval(request):
 
 
 @login_required
+@transaction.atomic
 def approvePackageChange(request):
+    status = None
     try:
-        pass
+        user = User.objects.get(username=request.user.username)
+        if user.groups.filter(name="Data Entry").exists():
+            messages.error(
+                request,
+                "You are not authorized to performe this operation.",
+            )
+        elif request.GET.get("id") is not None:
+            objPackageChangeRequest = PackageChangerequest.objects.get(
+                pk=request.GET.get("id")
+            )
+            print("Id Not Null")
+
+            with transaction.atomic():
+                print("in the transaction")
+                objPackageChangeRequest.status = "Approved"
+                objPackageChangeRequest.user_updated = request.user.username
+                objPackageChangeRequest.date_updated = datetime.now()
+                objPackageChangeRequest.save()
+                print("objPackageChangeRequest saved")
+
+                # Changing the package update the old mapping effective date
+                objChildPackageMapping = ChildPackageMapping.objects.get(
+                    child_id=objPackageChangeRequest.child.id, is_active=True
+                )
+                if objChildPackageMapping:
+                    objChildPackageMapping.effective_to = (
+                        objPackageChangeRequest.effective_date
+                    )
+                    objChildPackageMapping.user_updated = request.user.username
+                    objChildPackageMapping.is_active = False
+                    objChildPackageMapping.save()
+                    print("old objChildPackageMapping updated")
+
+                else:
+                    messages.error(
+                        request,
+                        "No package mappings",
+                    )
+                # Adding the new mapping
+                objChildPackageMapping = ChildPackageMapping()
+                objChildPackageMapping.child = objPackageChangeRequest.child
+                objChildPackageMapping.normal_package = (
+                    objPackageChangeRequest.new_fixed_package
+                )
+                objChildPackageMapping.flex_package = (
+                    objPackageChangeRequest.new_flexed_package
+                )
+                if objPackageChangeRequest.new_holiday_package:
+                    objChildPackageMapping.holiday_package = (
+                        objPackageChangeRequest.new_holiday_package
+                    )
+                else:
+                    objChildPackageMapping.holiday_package = (
+                        objPackageChangeRequest.old_holiday_package
+                    )
+                objChildPackageMapping.effective_from = (
+                    objPackageChangeRequest.effective_date
+                )
+                objChildPackageMapping.user_updated = request.user.username
+                objChildPackageMapping.save()
+                print("New objChildPackageMapping updated")
+                status = "Approved"
+        else:
+            messages.error(request, "Package request not found")
+            status = "Not Found"
+
     except Exception as e:
         messages.error(request, e)
 
     finally:
-        return JsonResponse(packageChangeRequestList, safe=False)
+        return JsonResponse(status, safe=False)
 
 
 @login_required

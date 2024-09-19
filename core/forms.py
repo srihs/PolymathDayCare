@@ -1265,6 +1265,7 @@ class CreateEnrollmentForm(forms.ModelForm):
         queryset=FixedPackage.objects.filter(
             is_active=True, package_type__is_holiday_package=False
         ).order_by("package_code"),
+        required=False,
         empty_label="-Select normal package-",
         widget=forms.Select(
             attrs={
@@ -1280,6 +1281,7 @@ class CreateEnrollmentForm(forms.ModelForm):
             is_active=True, package_type__is_holiday_package=True
         ).order_by("package_code"),
         empty_label="-Select holiday package-",
+        required=True,
         widget=forms.Select(
             attrs={
                 "class": "form-control",
@@ -2162,7 +2164,7 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
         queryset=FixedPackage.objects.filter(
             is_active=True, package_type__is_holiday_package=False
         ).order_by("package_code"),
-        empty_label="-Select normal package-",
+        empty_label="-Select fixed package-",
         required=False,
         widget=forms.Select(
             attrs={
@@ -2176,7 +2178,7 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
         queryset=FlexPackages.objects.filter(
             is_active=True, package_type__is_holiday_package=False
         ).order_by("package_code"),
-        empty_label="-Select normal package-",
+        empty_label="-Select flex package-",
         required=False,
         widget=forms.Select(
             attrs={
