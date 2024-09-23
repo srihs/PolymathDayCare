@@ -65,6 +65,7 @@ from .models import (
     FixedPackage,
     FlexPackages,
     Holiday,
+    Invoice,
     PackageChangerequest,
     # HolidayType,
     PackageExtraHoursMapping,
@@ -2793,6 +2794,115 @@ def getChildrenList(request):
         "../templates/childrenlist.html",
         {"form": form, "UserName": request.user.username},
     )
+
+
+@login_required
+def getAllChildDetails(request):
+    try:
+        child = get_object_or_404(Child, id=child_id)
+
+        # Retrieve enrollment details
+        enrollments = ChildEnrollment.objects.filter(child=child)
+
+        # Retrieve package mappings
+        package_mappings = ChildPackageMapping.objects.filter(child=child)
+
+        # Retrieve package change requests
+        package_changes = PackageChangerequest.objects.filter(child=child)
+
+        # Retrieve attendance logs for the current month
+        current_month = datetime.now().month
+        current_year = datetime.now().year
+        attendance_logs = AttendanceLog.objects.filter(
+            child=child,
+            date_logged__month=current_month,
+            date_logged__year=current_year,
+        )
+
+        # Retrieve invoices for the current month
+        invoices = Invoice.objects.filter(child=child)
+
+        # Prepare the data to return
+        child_data = {
+            "child": {
+                "admission_number": child.admission_number,
+                "first_name": child.child_first_name,
+                "last_name": child.child_last_name,
+                "date_of_birth": child.date_of_birth,
+                "fathers_name": child.fathers_name,
+                "mothers_name": child.mothers_name,
+                "address": f"{child.address_line1}, {child.address_line2}, {child.address_line3}",
+                "email": child.email_address,
+                "admission_date": child.admission_date,
+                "is_enrolled": child.is_enrolled,
+                # Add more fields as needed
+            },
+            "enrollments": [
+                {
+                    "enrollment_code": enrollment.enrollment_code,
+                    "enrollment_date": enrollment.enrollment_date,
+                    "status": enrollment.status,
+                    "branch": enrollment.branch.id,
+                    "center": enrollment.center.id,
+                }
+                for enrollment in enrollments
+            ],
+            "package_mappings": [
+                {
+                    "normal_package": mapping.normal_package.id
+                    if mapping.normal_package
+                    else None,
+                    "holiday_package": mapping.holiday_package.id
+                    if mapping.holiday_package
+                    else None,
+                    "flex_package": mapping.flex_package.id
+                    if mapping.flex_package
+                    else None,
+                    "effective_from": mapping.effective_from,
+                    "effective_to": mapping.effective_to,
+                }
+                for mapping in package_mappings
+            ],
+            "package_change_requests": [
+                {
+                    "old_fixed_package": change.old_fixed_package.id
+                    if change.old_fixed_package
+                    else None,
+                    "new_fixed_package": change.new_fixed_package.id
+                    if change.new_fixed_package
+                    else None,
+                    "date_requested": change.date_requested,
+                    "status": change.status,
+                    "reason_for_request": change.reason_for_request,
+                }
+                for change in package_changes
+            ],
+            "attendance_logs": [
+                {
+                    "date_logged": attendance.date_logged,
+                    "time_logged": attendance.time_logged,
+                    "branch": attendance.branch.id,
+                    "day_care": attendance.day_care.id,
+                }
+                for attendance in attendance_logs
+            ],
+            "invoices": [
+                {
+                    "invoice_no": invoice.invoice_no,
+                    "invoice_date": invoice.invoice_date,
+                    "amount": invoice.amount,
+                    "paid_amount": invoice.paid_amount,
+                    "balance_amount": invoice.balance_amount,
+                    "receipt_no": invoice.receipt_no,
+                }
+                for invoice in invoices
+            ],
+        }
+    except Exception as e:
+        messages.error(request, e)
+
+    finally:
+        return JsonResponse(child_data, safe=False)
 
 
 @login_required

@@ -21,8 +21,11 @@
                         <th></th>
                         <th>First name</th>
                         <th>Last name</th>
+                        <th>Father's phone no</th>
+                        <th>Mothers's phone no</th>
+                        <th>Home phone No</th>
+                        <th>Is Polymath student</th>
                         <th>Status</th>
-                        <th data-orderable="false"></th>
                         <th data-orderable="false"></th>
                     </tr>
                     </thead>
@@ -73,22 +76,11 @@
                     {data: "child_image"},
                     {data: "child_first_name"},
                     {data: "child_last_name"},
-                    
+                    {data: "fathers_contact_number"},
+                    {data: "mothers_contact_number"},
+                    {data: "resident_contact_number"},
+                    {data: "is_polymath_student"},
                     {data: "is_active"},
-                    
-                    {
-                        data: null,
-                        render: function (data, type, row) {
-                            var url = "{% url 'core:child_delete' 0 %}";
-                            var id = row.id;
-                            url = url.replace(0, id);
-    
-                            return data =
-                                '<a href=' + url + ' class="link-danger" data-bs-target="#firstmodal"  data-bs-toggle="modal"\
-                  data-bs-dismiss="modal" role="button"\
-                  aria-label="close"><i class="ri-delete-bin-line"></i></a>';
-                        },
-                    },
                     {
                         data: null,
                         render: function (data, type, row) {
@@ -96,11 +88,12 @@
                             var id = row.id;
                             url = url.replace(0, id);
                             return data =
-                                '<a href=' + url + ' class="link-success"  data-bs-target="#showUpdateModal"\
+                                '<a href=' + url + ' class="link-secondary"  data-bs-target="#showUpdateModal"\
                     data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"\
-                    data-value={{ child.id }}><i class="ri-edit-2-fill"></i></a>';
+                    data-value={{ child.id }}>View details</a>';
                         },
                     },
+                    
                 ],
     
                 createdRow: function (row, data, dataIndex) {
@@ -114,40 +107,27 @@
                         $("td", row).eq(1).html('<img  src="/media/child_images/user_icon.png"  width="25px;"/>');
                     }
                     
-    
                     // Check the condition for the 'is_polymath_student' column
                     if (data.is_polymath_student) {
                         $("td", row)
-                            .eq(8)
+                            .eq(7)
                             .html(
                                 '<span class="badge bg-secondary-subtle text-secondary">Yes</span>'
                             );
                     } else {
                         $("td", row)
-                            .eq(8)
+                            .eq(7)
                             .html(
                                 '<span class="badge bg-danger-subtle text-danger">No</span>'
                             );
                     }
                     // Check the condition for the 'is_active' column
                     if (data.is_active) {
-                        $("td", row).eq(9).html('<span class="badge bg-success">Active</span>');
+                        $("td", row).eq(8).html('<span class="badge bg-success">Active</span>');
                     } else {
-                        $("td", row).eq(9).html('<span class="badge bg-danger">Inactive</span>');
+                        $("td", row).eq(8).html('<span class="badge bg-danger">Inactive</span>');
                     }
                     
-                    if (data.qr_code != null) {
-                    
-                        $("td", row).eq(10).html('<p style="text-align:center"><a  href="/media/qr/'+ data.qr_code +'"  width="100px;" download>Download</a></p>');
-    
-                    }
-                    else
-                    {
-                        $("td", row).eq(10).html('<span class="badge bg-danger">No QR generated</span>');
-                    }
-                    
-                
-    
                 },
                 layout: {
                     bottomEnd: {
@@ -161,7 +141,7 @@
     
                 buttons: ["excel", "print"],
     
-                order: [[3, "desc"]], // Set default sorting by admission_date in descending order
+                order: [[0, "asc"]], // Set default sorting by admission_date in descending order
             });
         });
         
