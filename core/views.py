@@ -18,9 +18,11 @@ from django.db.models.functions import Coalesce, Concat
 from django.http import *
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
+from PIL import Image, ImageDraw, ImageFont
 
 from .forms import (
     AttendanceReportForm,
+    ChildSearchForm,
     CreateBranchForm,
     CreateCheckInForm,
     CreateChildForm,
@@ -111,19 +113,55 @@ def UserLogin(request):
 
 
 def generateQR(admission_no, child_first_name, child_last_name):
+    text = child_first_name + " " + child_last_name + " -" + admission_no
     qr_directory = os.path.join(settings.MEDIA_ROOT, "qr")
     # Create the 'qr' directory if it doesn't exist
     try:
         os.makedirs(qr_directory, exist_ok=True)
     except Exception:
         messages.error(request, "Error creating 'qr' directory: {e}")
-    # Generate the QR code
-    qr = qrcode.make(settings.PROD_URL + settings.QR_METHOD_NAME + admission_no)
+
     # Save the QR code image to the 'qr' directory
     file_name = admission_no + "- " + child_first_name + " " + child_last_name + ".png"
     file_path = os.path.join(qr_directory, file_name)
+
+    # Create a QR Code instance
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(settings.PROD_URL + settings.QR_METHOD_NAME + admission_no)
+    qr.make(fit=True)
+
+    # Generate QR code image
+    qr_img = qr.make_image(fill_color="black", back_color="white")
+
+    # Convert to RGB
+    qr_img = qr_img.convert("RGB")
+
+    # Create a new image to hold the QR code and text
+    img_with_text = Image.new("RGB", (qr_img.size[0], qr_img.size[1] + 50), "white")
+    img_with_text.paste(qr_img, (0, 0))
+
+    # Draw the text below the QR code
+    draw = ImageDraw.Draw(img_with_text)
+    font = ImageFont.load_default()  # Default font
+
+    # Use the textbbox method to get dimensions
+    text_width, text_height = draw.textbbox((0, 0), text, font=font)[2:4]
+
+    # Center the text
+    draw.text(
+        ((img_with_text.size[0] - text_width) // 2, qr_img.size[1] + 10),
+        text,
+        fill="black",
+        font=font,
+    )
+
     try:
-        qr.save(file_path)
+        img_with_text.save(file_path)
     except Exception:
         messages.error(request, "Error saving QR code image")
     return file_name
@@ -2383,6 +2421,7 @@ def upload_csv(request):
 
                 (
                     child_first_name,
+                    child_last_name,
                     admission_number,
                     date_of_birth,
                     leave_date,
@@ -2401,6 +2440,7 @@ def upload_csv(request):
                     admission_number=admission_number,
                     defaults={
                         "child_first_name": child_first_name,
+                        "child_last_name": child_last_name,
                         "date_of_birth": date_of_birth,
                         "leave_date": leave_date,
                         "fathers_name": fathers_name,
@@ -2743,6 +2783,16 @@ def approvePackageChange(request):
 
     finally:
         return JsonResponse(status, safe=False)
+
+
+@login_required
+def getChildrenList(request):
+    form = ChildSearchForm()
+    return render(
+        request,
+        "../templates/childrenlist.html",
+        {"form": form, "UserName": request.user.username},
+    )
 
 
 @login_required

@@ -2239,3 +2239,21 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
             "reason_for_request",
             "effective_date",
         )
+
+
+class ChildSearchForm(forms.ModelForm):
+    child = forms.ModelChoiceField(
+        queryset=Child.objects.filter(is_active=True).order_by("admission_number"),
+        empty_label="-Select Child -",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Child",
+                "id": "child",
+            }
+        ),
+    )
+
+    class Meta:
+        model = Child
+        fields = ("child",)

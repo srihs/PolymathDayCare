@@ -271,6 +271,7 @@
   var url;
 
   jQuery(document).ready(function () {
+    jQuery('#child').select2({ dropdownParent: $('#showModalCreate')});
     jQuery('#normal_package').select2({ dropdownParent: $('#showModalCreate')});
     jQuery('#holiday_package').select2({ dropdownParent: $('#showModalCreate')});
     jQuery('#flex_package').select2({ dropdownParent: $('#showModalCreate')});

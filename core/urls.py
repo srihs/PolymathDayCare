@@ -290,6 +290,11 @@ urlpatterns = [
         name="get_package_change_approval",
     ),
     path(
+        "get_child_list/",
+        views.getChildrenList,
+        name="get_child_list",
+    ),
+    path(
         "package_change_approval/",
         views.approvePackageChange,
         name="package_change_approval",
