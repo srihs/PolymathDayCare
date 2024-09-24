@@ -299,4 +299,9 @@ urlpatterns = [
         views.approvePackageChange,
         name="package_change_approval",
     ),
+    path(
+        "get_all_child_list_JS/",
+        views.getAllChildDetailsJS,
+        name="get_all_child_list_JS",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
