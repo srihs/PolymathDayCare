@@ -2836,6 +2836,7 @@ def getAllChildDetailsJS(request):
                     "email": child.email_address,
                     "admission_date": child.admission_date,
                     "is_enrolled": child.is_enrolled,
+                    "child_image": child.child_image,
                     # Add more fields as needed
                 },
                 "enrollments": [
