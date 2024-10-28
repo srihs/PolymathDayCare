@@ -391,7 +391,7 @@ class ChildEnrollment(BaseClass):
         db_table = "dc_child_enrollment"
 
     def __str__(self):
-        return self.child
+        return self.enrollment_code
 
 
 class ChildPackageMapping(BaseClass):
@@ -546,6 +546,9 @@ class PackageChangerequest(BaseClass):
     status = models.CharField(
         max_length=30, choices=STATUS_CHOICES, default="Pending Approval"
     )
+
+    def __str__(self):
+        return self.child.child_first_name + " " + self.child.child_last_name
 
     class Meta:
         verbose_name = "Package Change Request"

@@ -24,6 +24,7 @@ from .forms import (
     AttendanceReportForm,
     ChildSearchForm,
     CreateBranchForm,
+    CreateCenterChangeRequestForm,
     CreateCheckInForm,
     CreateChildForm,
     CreateDayCareForm,
@@ -2787,6 +2788,16 @@ def approvePackageChange(request):
 
 
 @login_required
+def getCenterChange(request):
+    requestform = CreateCenterChangeRequestForm()
+    return render(
+        request,
+        "../templates/centerchange.html",
+        {"form": requestform, "UserName": request.user.username},
+    )
+
+
+@login_required
 def getChildrenList(request):
     form = ChildSearchForm()
     return render(
@@ -2797,19 +2808,35 @@ def getChildrenList(request):
 
 
 @login_required
-def getAllChildDetailsJS(request):
+def getAllChildDetailsByIdJS(request, pk):
+    child_data = None
     try:
-        if request.GET.get("id") is not None:
-            child = get_object_or_404(Child, id=id)
+        if pk is not None:
+            print(pk)
+            child = get_object_or_404(Child, pk=pk)
+            print(child)
+            print(child.id)
+            print("child is not null")
+            print("------------------------")
 
             # Retrieve enrollment details
-            enrollments = ChildEnrollment.objects.filter(child=child)
+            enrollments = ChildEnrollment.objects.get(child=child.id, is_active=True)
+            if enrollments == None:
+                print("Null")
+
+            print(f"Enrollment: {enrollments}")
 
             # Retrieve package mappings
-            package_mappings = ChildPackageMapping.objects.filter(child=child)
+            package_mappings = ChildPackageMapping.objects.filter(
+                child=child.id, is_active=True
+            )
+            print(f"Package Mapping: {package_mappings}")
 
             # Retrieve package change requests
-            package_changes = PackageChangerequest.objects.filter(child=child)
+            package_changes = PackageChangerequest.objects.filter(
+                child=child, is_active=True
+            )
+            print(f"Package Change: {package_changes}")
 
             # Retrieve attendance logs for the current month
             current_month = datetime.now().month
@@ -2819,9 +2846,12 @@ def getAllChildDetailsJS(request):
                 date_logged__month=current_month,
                 date_logged__year=current_year,
             )
+            print(f"Attendance: {attendance_logs}")
 
             # Retrieve invoices for the current month
             invoices = Invoice.objects.filter(child=child)
+            print(f"Invoice: {invoices}")
+            print("ppppppppppppppppp")
 
             # Prepare the data to return
             child_data = {
@@ -2900,11 +2930,11 @@ def getAllChildDetailsJS(request):
                     for invoice in invoices
                 ],
             }
+            print(child_data)
     except Exception as e:
         messages.error(request, e)
 
-    finally:
-        return JsonResponse(child_data, safe=False)
+    return JsonResponse(child_data, safe=False)
 
 
 @login_required

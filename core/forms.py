@@ -2257,3 +2257,99 @@ class ChildSearchForm(forms.ModelForm):
     class Meta:
         model = Child
         fields = ("child",)
+
+
+class CreateCenterChangeRequestForm(forms.ModelForm):
+    child = forms.ModelChoiceField(
+        queryset=Child.objects.filter(
+            is_active=True, enrollement_approved=True
+        ).order_by("admission_number"),
+        empty_label="-Select Child -",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Old fixed package",
+                "id": "child",
+            }
+        ),
+    )
+
+    new_fixed_package = forms.ModelChoiceField(
+        queryset=FixedPackage.objects.filter(
+            is_active=True, package_type__is_holiday_package=False
+        ).order_by("package_code"),
+        empty_label="-Select fixed package-",
+        required=False,
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Old fixed package",
+                "id": "new_fixed_package",
+            }
+        ),
+    )
+    new_flex_package = forms.ModelChoiceField(
+        queryset=FlexPackages.objects.filter(
+            is_active=True, package_type__is_holiday_package=False
+        ).order_by("package_code"),
+        empty_label="-Select flex package-",
+        required=False,
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "New flex package",
+                "id": "new_flex_package",
+            }
+        ),
+    )
+
+    new_holiday_package = forms.ModelChoiceField(
+        queryset=FixedPackage.objects.filter(is_active=True, is_holiday_package=True),
+        empty_label="-Select holiday package-",
+        required=False,
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Base Rate",
+                "id": "holiday_package",
+            }
+        ),
+    )
+
+    reason_for_request = forms.CharField(
+        max_length=550,
+        required=True,
+        widget=forms.Textarea(
+            attrs={
+                "class": "form-control",
+                "id": "reason_for_request",
+                "placeholder": "Reason for the change request",
+                "rows": "3",
+            }
+        ),
+    )
+
+    effective_date = forms.DateField(
+        required=True,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "effective_date",
+                "placeholder": "Effective from",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+                "required": "true",
+            }
+        ),
+    )
+
+    class Meta:
+        model = PackageChangerequest
+        fields = (
+            "child",
+            "new_fixed_package",
+            "new_flex_package",
+            "new_holiday_package",
+            "reason_for_request",
+            "effective_date",
+        )

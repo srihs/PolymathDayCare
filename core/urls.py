@@ -300,8 +300,13 @@ urlpatterns = [
         name="package_change_approval",
     ),
     path(
-        "get_all_child_list_JS/",
-        views.getAllChildDetailsJS,
-        name="get_all_child_list_JS",
+        "get_all_child_details_by_id_JS/<int:pk>/",
+        views.getAllChildDetailsByIdJS,
+        name="get_all_child_details_by_id_JS",
+    ),
+    path(
+        "center_change_request/",
+        views.getCenterChange,
+        name="center_change_request",
     ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

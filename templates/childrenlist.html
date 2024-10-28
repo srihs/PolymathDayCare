@@ -1,4 +1,4 @@
-{% extends "base.html" %} {% load static %}
+    {% extends "base.html" %} {% load static %}
 {% block PageTitle %}Children List{% endblock %} 
 {% block UserName %} {{ UserName}} {% endblock %} 
 {% block Title %} CHILDREN {% endblock %} 
@@ -45,6 +45,26 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="alert alert-dismissible" role="alert">
+                        {% if messages %} {% for message in messages %}
+                        <!-- Danger Alert -->
+                        <div
+                          class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
+                          role="alert"
+                        >
+                          <strong>
+                            <center>{{ message }}</center>
+                          </strong>
+                          <button
+                            type="button"
+                            class="btn-close"
+                            data-bs-dismiss="alert"
+                            aria-label="Close"
+                          ></button>
+                        </div>
+                        {% endfor %} {% endif %}
+                        <!-- end row -->
+                      </div>
                     <div class="row">
                         <div class="col-xl-8">
                             <div class="card">
@@ -618,16 +638,16 @@
                     {
                         data: null,
                         render: function (data, type, row) {
-                            var url = "{% url 'core:view_child_with_id' 0 %}";
+                            var url = "{% url 'core:get_all_child_details_by_id_JS' 0 %}";
                             var id = row.id;
                             url = url.replace(0, id);
                             return data =
-                                '<a href=' + url + ' class="link-secondary"  data-bs-target="#showUpdateModal"\
+                                '<a href=' + url + ' class="link-secondary" data-id='+id+' data-bs-target="#showUpdateModal"\
                     data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"\
                     data-value={{ child.id }}>View details</a>';
                         },
                     },
-                    
+                            
                 ],
     
                 createdRow: function (row, data, dataIndex) {
@@ -682,8 +702,13 @@
         jQuery(document).on("click", ".link-secondary", function (e) {
             e.preventDefault();
             url = jQuery(this).attr("href");
+            id = jQuery(this).attr("data-id");
+
             // Show the modal
             jQuery("#childProfile").modal("show");
+            alert("Clicked")
+            alert(id);
+
     
             // Load the form into the modal using AJAX
             jQuery.ajax({
