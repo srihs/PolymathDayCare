@@ -6,6 +6,7 @@ from django.core.validators import MinValueValidator
 from .models import (
     AttendanceLog,
     Branch,
+    CenterChangerequest,
     Child,
     ChildEnrollment,
     DayCare,
@@ -2274,25 +2275,9 @@ class CreateCenterChangeRequestForm(forms.ModelForm):
         ),
     )
 
-    new_fixed_package = forms.ModelChoiceField(
-        queryset=FixedPackage.objects.filter(
-            is_active=True, package_type__is_holiday_package=False
-        ).order_by("package_code"),
-        empty_label="-Select fixed package-",
-        required=False,
-        widget=forms.Select(
-            attrs={
-                "class": "form-control",
-                "placeholder": "Old fixed package",
-                "id": "new_fixed_package",
-            }
-        ),
-    )
-    new_flex_package = forms.ModelChoiceField(
-        queryset=FlexPackages.objects.filter(
-            is_active=True, package_type__is_holiday_package=False
-        ).order_by("package_code"),
-        empty_label="-Select flex package-",
+    new_branch = forms.ModelChoiceField(
+        queryset=Branch.objects.filter(is_active=True),
+        empty_label="-Select new branch-",
         required=False,
         widget=forms.Select(
             attrs={
@@ -2303,9 +2288,9 @@ class CreateCenterChangeRequestForm(forms.ModelForm):
         ),
     )
 
-    new_holiday_package = forms.ModelChoiceField(
-        queryset=FixedPackage.objects.filter(is_active=True, is_holiday_package=True),
-        empty_label="-Select holiday package-",
+    new_center = forms.ModelChoiceField(
+        queryset=DayCare.objects.filter(is_active=True),
+        empty_label="-Select new center-",
         required=False,
         widget=forms.Select(
             attrs={
@@ -2344,12 +2329,10 @@ class CreateCenterChangeRequestForm(forms.ModelForm):
     )
 
     class Meta:
-        model = PackageChangerequest
+        model = CenterChangerequest
         fields = (
             "child",
-            "new_fixed_package",
-            "new_flex_package",
-            "new_holiday_package",
-            "reason_for_request",
+            "new_center",
+            "new_branch",
             "effective_date",
         )

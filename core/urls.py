@@ -309,4 +309,9 @@ urlpatterns = [
         views.getCenterChange,
         name="center_change_request",
     ),
+    path(
+        "get_center_change_requestsJs/",
+        views.getCenterChangeRequestsJS,
+        name="get_center_change_requestsJs",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

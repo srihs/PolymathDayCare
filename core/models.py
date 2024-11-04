@@ -554,3 +554,57 @@ class PackageChangerequest(BaseClass):
         verbose_name = "Package Change Request"
         verbose_name_plural = "Package Change Requests"
         db_table = "dc_package_change_request"
+
+
+class CenterChangerequest(BaseClass):
+    STATUS_CHOICES = (
+        ("PENDING_APPROVAL", "Pending Approval"),
+        ("APPROVED", "Approved"),
+        ("REJECTED", "Rejected"),
+    )
+
+    child = models.ForeignKey("Child", on_delete=models.CASCADE)
+
+    old_center = models.ForeignKey(
+        DayCare,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(class)s_old_center",
+    )
+
+    new_center = models.ForeignKey(
+        DayCare,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(class)s_new_center",
+    )
+
+    old_branch = models.ForeignKey(
+        Branch,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(class)s_old_branch",
+    )
+
+    new_branch = models.ForeignKey(
+        Branch,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(class)s_new_branch",
+    )
+    date_requested = models.DateField(auto_now_add=True)
+    effective_date = models.DateField(default=timezone.now)
+    date_approved = models.DateField(null=True)
+    reason_for_request = models.TextField()
+    status = models.CharField(
+        max_length=30, choices=STATUS_CHOICES, default="Pending Approval"
+    )
+
+    class Meta:
+        verbose_name = "Center Change Request"
+        verbose_name_plural = "Center Change Requests"
+        db_table = "dc_center_change_request"

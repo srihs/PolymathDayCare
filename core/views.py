@@ -55,6 +55,7 @@ from .forms import (
 from .models import (
     AttendanceLog,
     Branch,
+    CenterChangerequest,
     Child,
     ChildEnrollment,
     ChildPackageMapping,
@@ -2795,6 +2796,61 @@ def getCenterChange(request):
         "../templates/centerchange.html",
         {"form": requestform, "UserName": request.user.username},
     )
+
+
+@login_required
+def getCenterChangeRequestsJS(request):
+    centerChangeRequestList = None
+    try:
+        # Retrieve the package change requests
+        centerChangeRequestList = list(
+            CenterChangerequest.objects.filter(
+                is_active=True,
+                status="Pending Approval",  # Match the status field name
+            )
+            .annotate(
+                # Concatenating child code and name
+                child_info=Concat(
+                    F("child__admission_number"),  # Assuming `child_code` field exists
+                    Value(" - "),
+                    F("child__child_first_name"),
+                    Value(" "),
+                    F("child__child_last_name"),
+                ),
+                # Annotate old package as the non-null value between old_fixed and old_flexed packages
+                old_center=Coalesce(
+                    F("old_center__daycare_code"),
+                    F("old_center__daycare_name"),
+                ),
+                # Annotate new package as the non-null value between new_fixed and new_flexed packages
+                new_center=Coalesce(
+                    F("new_center__daycare_code"),
+                    F("new_center__daycare_name"),
+                ),
+                # Annotate old holiday package
+                old_Branch=F("old_Branch__branch_name"),
+                # Annotate new holiday package
+                new_Branch=F("new_Branch__branch_name"),
+            )
+            .values(
+                "id",  # ID of the package change request
+                "child_info",
+                "old_center",
+                "new_center",
+                "old_Branch",
+                "new_Branch",
+                "date_requested",  # Date requested
+                "reason_for_request",  # Reason(s) for change
+                "user_created",  # Reason(s) for change
+                "effective_date",
+            )
+        )
+
+    except Exception as e:
+        messages.error(request, e)
+
+    finally:
+        return JsonResponse(centerChangeRequestList, safe=False)
 
 
 @login_required

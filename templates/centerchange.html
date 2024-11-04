@@ -14,7 +14,7 @@
             <div class="flex-shrink-0">
                 <div class="d-flex flex-wrap gap-2">
                     <button class="btn btn-secondary add-btn" data-bs-toggle="modal" data-bs-target="#showModalCreate">
-                        <i class="ri-add-line align-bottom me-1"></i> New package change request
+                        <i class="ri-add-line align-bottom me-1"></i> New center change request
                     </button>
                     <button class="btn btn-soft-secondary" id="remove-actions">
                         <i class="ri-delete-bin-2-line"></i>
@@ -43,10 +43,10 @@
             <thead>
                 <tr>
                     <th>Child </th>
-                    <th>Old Package</th>
-                    <th>New package</th>
-                    <th>Old holiday package</th>
-                    <th>New holiday package</th>
+                    <th>Old branch</th>
+                    <th>New branch</th>
+                    <th>Old center</th>
+                    <th>New center  </th>
                     <th>Requested on</th>
                     <th>Effective from</th>
                     <th>Reason(s) for change</th>
@@ -63,7 +63,7 @@
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0">
             <div class="modal-header p-3 bg-secondary-subtle">
-                <h5 class="modal-title" id="exampleModalLabels">New Enrollment</h5>
+                <h5 class="modal-title" id="exampleModalLabels">New Request</h5>
                 <button type="button" class="btn-close" data-bs-target="#showModalCreate" data-bs-dismiss="modal"
                     aria-label="Close" id="close-modalAdd"></button>
             </div>
@@ -87,22 +87,18 @@
                     <div class="row g-3">
                         <div class="col-md-12 position-relative">{{ form.child }}</div>
                         <div class="col-lg-6">
-                            Old fixed package :
-                            <label id="lblfixed"></label>
+                            Old branch : 
+                            <label id="lbloldbranch">-NA-</label>
                         </div>
                         <input type="hidden" id="old_fixed_package" name="old_fixed_package">
-                        <div class="col-lg-6">{{ form.new_fixed_package }}</div>
+                        <div class="col-lg-6">{{ form.new_branch }}</div>
                         <div class="col-lg-6">
-                            Old flex package :
-                            <label id="lblflex"></label>
+                           Old center :
+                            <label id="lbloldcenter">-NA-</label>
                         </div>
                         <input type="hidden" id="old_flex_package" name="old_flex_package">
-                        <div class="col-lg-6">{{ form.new_flex_package }}</div>
-                        <div class="col-lg-6">
-                            Old holiday package :
-                            <label id="lblholiday"></label>
-                        </div>
-                        <input type="hidden" id="old_holiday_package" name="old_holiday_package">
+                        <div class="col-lg-6">{{ form.new_center}}</div>
+                        
                         <div class="col-lg-6">{{ form.new_holiday_package }}</div>
                         <div class="col-lg-12">{{ form.reason_for_request }}</div>
                         <div class="col-lg-12">{{ form.effective_date }}</div>
@@ -169,27 +165,24 @@
                 responsive: true,
                 ajax: {
                     processing: true,
-                    url: "{% url 'core:get_package_change_requestsJs' %}",
+                    url: "{% url 'core:get_center_change_requestsJs' %}",
                     dataSrc: "",
                 },
                 columns: [
                     {data: "child_info"},
-                    {data: "old_package"},
-                    {data: "new_package"},
-                    {data: "old_holiday_package_name"},
-                    {data: "new_holiday_package_name" },
+                    {data: "old_Branch"},
+                    {data: "new_Branch"},
+                    {data: "old_center"},
+                    {data: "new_center" },
                     {data: "date_requested"},
                     {data: "effective_date"},
                     {data: "reason_for_request"},
                     ],
                     createdRow: function (row, data, dataIndex) {
                         // Combining all the address fields
-                
-                        if (data.new_holiday_package_name===null) {
-                        $("td", row).eq(4).html('<span class="badge bg-success">'+"No Change" +'</span>');
-
+                        if (data.new_Branch===null) {
+                        $("td", row).eq(2).html('<span class="badge bg-success">'+"No Change" +'</span>');
                         } 
-                
                       },
                 searching: false,
                 paging: false,
@@ -198,7 +191,7 @@
         });
         
         jQuery("#showModal").on("hidden.bs.modal", function() {
-            jQuery(this).find("form").trigger("reset");
+            jQuery(this).find("form").trigger("reset");         
         });
         var url = "";
         jQuery(document).on("click", ".link-success", function(e) {
