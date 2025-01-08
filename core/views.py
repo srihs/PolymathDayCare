@@ -2385,6 +2385,26 @@ def getOtherHolidayID(request, pk):
     )
 
 
+def nullify_empty(value, is_numeric=False, is_date=False):
+    if value in [None, ""]:
+        return None
+    if is_numeric:
+        # Ensure the value is numeric or convert it to `None`
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return None
+
+    if is_date:
+        # Attempt to parse the date; return `None` if invalid
+        try:
+            return datetime.strptime(value, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            return None
+
+    return value
+
+
 @login_required
 def upload_csv(request):
     if request.method == "GET":
@@ -2429,9 +2449,18 @@ def upload_csv(request):
                     date_of_birth,
                     leave_date,
                     fathers_name,
+                    fathers_contact_number,
+                    fathers_whatsapp_number,
+                    mothers_name,
+                    mothers_contact_number,
+                    mothers_whatsapp_number,
                     resident_contact_number,
+                    address_line1,
+                    address_line2,
+                    address_line3,
                     email_address,
                     is_polymath_student,
+                    admission_date,
                 ) = row
 
                 # Convert dates from string to date format
@@ -2442,14 +2471,34 @@ def upload_csv(request):
                 Child.objects.update_or_create(
                     admission_number=admission_number,
                     defaults={
-                        "child_first_name": child_first_name,
-                        "child_last_name": child_last_name,
-                        "date_of_birth": date_of_birth,
-                        "leave_date": leave_date,
-                        "fathers_name": fathers_name,
-                        "resident_contact_number": resident_contact_number,
-                        "email_address": email_address,
+                        "child_first_name": nullify_empty(child_first_name),
+                        "child_last_name": nullify_empty(child_last_name) or " ",
+                        "admission_number": admission_number,
+                        "date_of_birth": nullify_empty(date_of_birth, is_date=True),
+                        "leave_date": nullify_empty(leave_date, is_date=True),
+                        "fathers_name": nullify_empty(fathers_name) or " ",
+                        "fathers_contact_number": nullify_empty(
+                            fathers_contact_number, is_numeric=True
+                        ),
+                        "fathers_whatsapp_number": nullify_empty(
+                            fathers_whatsapp_number, is_numeric=True
+                        ),
+                        "mothers_name": nullify_empty(mothers_name) or " ",
+                        "mothers_contact_number": nullify_empty(
+                            mothers_contact_number, is_numeric=True
+                        ),
+                        "mothers_whatsapp_number": nullify_empty(
+                            mothers_whatsapp_number, is_numeric=True
+                        ),
+                        "resident_contact_number": nullify_empty(
+                            resident_contact_number, is_numeric=True
+                        ),
+                        "address_line1": nullify_empty(address_line1) or " ",
+                        "address_line2": nullify_empty(address_line2) or " ",
+                        "address_line3": nullify_empty(address_line3) or " ",
+                        "email_address": nullify_empty(email_address) or " ",
                         "is_polymath_student": bool(is_polymath_student),
+                        "admission_date": nullify_empty(admission_date, is_date=True),
                         "qr_code": generateQR(admission_number, child_first_name, ""),
                     },
                 )
