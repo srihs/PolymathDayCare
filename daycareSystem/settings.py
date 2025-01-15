@@ -166,7 +166,7 @@ MESSAGE_TAGS = {
 }
 
 # session settings
-SESSION_COOKIE_AGE = 300  # 3 minutes. "1209600(2 weeks)" by default
+SESSION_COOKIE_AGE = 3000  # 3 minutes. "1209600(2 weeks)" by default
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 

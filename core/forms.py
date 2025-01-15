@@ -78,7 +78,7 @@ class CreateChildForm(forms.ModelForm):
             attrs={
                 "class": "form-control",
                 "required": "true",
-                "placeholder": "Father" "s Name",
+                "placeholder": "Fathers Name",
             }
         ),
     )
@@ -259,7 +259,6 @@ class UpdateChildForm(forms.ModelForm):
         required=True,
         widget=forms.TextInput(
             attrs={
-                "readonly": "readonly",
                 "class": "form-control",
                 "required": "true",
                 "placeholder": "First Name",
@@ -271,7 +270,6 @@ class UpdateChildForm(forms.ModelForm):
         required=True,
         widget=forms.TextInput(
             attrs={
-                "readonly": "readonly",
                 "class": "form-control",
                 "required": "true",
                 "placeholder": "Last Name",
@@ -300,7 +298,7 @@ class UpdateChildForm(forms.ModelForm):
                 "readonly": "readonly",
                 "class": "form-control",
                 "required": "true",
-                "placeholder": "Father" "s Name",
+                "placeholder": "Fathers Name",
             }
         ),
     )

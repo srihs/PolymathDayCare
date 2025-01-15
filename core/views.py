@@ -297,10 +297,13 @@ def createChild(request):
                     admission_number=request.POST.get("admission_number")
                 )
                 if objChild is not None:
+                    objChild.child_first_name = child_first_name
+                    objChild.child_last_name = child_last_name
                     objChild.fathers_contact_number = int(fathers_contact_number)
                     objChild.fathers_whatsapp_number = int(fathers_whatsapp_number)
                     objChild.mothers_contact_number = int(mothers_contact_number)
                     objChild.mothers_whatsapp_number = int(mothers_whatsapp_number)
+                    objChild.resident_contact_number = int(resident_contact_number)
                     objChild.address_line1 = address_line1
                     objChild.address_line2 = address_line2
                     objChild.address_line3 = address_line3
