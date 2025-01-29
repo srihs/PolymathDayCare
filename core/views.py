@@ -264,12 +264,16 @@ def createChild(request):
             child_last_name = request.POST.get("child_last_name")
             date_of_birth = request.POST.get("date_of_birth")
             fathers_name = request.POST.get("fathers_name")
-            fathers_contact_number = request.POST.get("fathers_contact_number")
+            fathers_contact_number = request.POST.get("fathers_contact_number").strip()
             fathers_whatsapp_number = request.POST.get("fathers_whatsapp_number")
             mothers_name = request.POST.get("mothers_name")
-            mothers_contact_number = request.POST.get("mothers_contact_number")
-            mothers_whatsapp_number = request.POST.get("mothers_whatsapp_number")
-            resident_contact_number = request.POST.get("resident_contact_number")
+            mothers_contact_number = request.POST.get("mothers_contact_number").strip()
+            mothers_whatsapp_number = request.POST.get(
+                "mothers_whatsapp_number"
+            ).strip()
+            resident_contact_number = request.POST.get(
+                "resident_contact_number"
+            ).strip()
             address_line1 = request.POST.get("address_line1")
             address_line2 = request.POST.get("address_line2")
             address_line3 = request.POST.get("address_line3")
