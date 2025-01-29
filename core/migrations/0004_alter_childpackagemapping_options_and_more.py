@@ -4,18 +4,16 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
-    dependencies = [
-        ('core', '0003_alter_attendancelog_table_and_more'),
-    ]
-
     operations = [
         migrations.AlterModelOptions(
-            name='childpackagemapping',
-            options={'verbose_name': 'Child Package Mapping', 'verbose_name_plural': 'Child Package Mappings'},
+            name="childpackagemapping",
+            options={
+                "verbose_name": "Child Package Mapping",
+                "verbose_name_plural": "Child Package Mappings",
+            },
         ),
         migrations.AlterModelTable(
-            name='childpackagemapping',
-            table='dc_child_package_mapping',
+            name="childpackagemapping",
+            table="dc_child_package_mapping",
         ),
     ]
