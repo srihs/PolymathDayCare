@@ -10,22 +10,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterModelTable(
-            name="childenrollment",
-            table="dc_child_enrollment",
-        ),
-        migrations.AlterModelTable(
-            name="extrachargeshistory",
-            table="dc_extra_charges_history",
-        ),
-        migrations.AlterModelTable(
-            name="extrahoursafter530",
-            table="dc_extra_charge_after_530",
-        ),
-        migrations.AlterModelTable(
-            name="extrahoursupto530",
-            table="dc_extra_charges_till_530",
-        ),
         migrations.CreateModel(
             name="PackageChangerequest",
             fields=[
