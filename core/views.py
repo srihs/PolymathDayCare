@@ -1926,7 +1926,7 @@ def autoAttendanceRecorder(request, admission_no):
                     messages.success(request, "Attendance record saved.")
                 except Exception as e:
                     messages.error(request, e)
-        return HttpResponse(request, "Done")
+        return render(request, "../templates/suceess.html")
 
 
 @login_required
