@@ -2450,11 +2450,10 @@ def upload_csv(request):
                     return render(request, "../templates/utils/dataimporter.html")
 
                 (
+                    admission_number,
                     child_first_name,
                     child_last_name,
-                    admission_number,
                     date_of_birth,
-                    leave_date,
                     fathers_name,
                     fathers_contact_number,
                     fathers_whatsapp_number,
@@ -2468,6 +2467,7 @@ def upload_csv(request):
                     email_address,
                     is_polymath_student,
                     admission_date,
+                    leave_date,
                 ) = row
 
                 # Convert dates from string to date format
@@ -2506,7 +2506,9 @@ def upload_csv(request):
                         "email_address": nullify_empty(email_address) or " ",
                         "is_polymath_student": bool(is_polymath_student),
                         "admission_date": nullify_empty(admission_date, is_date=True),
-                        "qr_code": generateQR(admission_number, child_first_name, ""),
+                        "qr_code": generateQR(
+                            admission_number, child_first_name, child_last_name
+                        ),
                     },
                 )
 
