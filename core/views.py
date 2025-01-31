@@ -1505,6 +1505,7 @@ def getEnrollments(request):
     if request.method == "GET":
         try:
             # trying to retrive the next primaryKey
+            print("here")
             nextId = ChildEnrollment.objects.all().count()
             nextId += 1
         except:
@@ -1729,6 +1730,7 @@ def saveEnrollments(request):
 
 @login_required
 def getAllPendingEnrollmentsJS(request):
+    print("here")
     # Subqueries to get the package names from ChildPackageMapping
     normal_package_subquery = Subquery(
         ChildPackageMapping.objects.filter(child=OuterRef("child")).values(

@@ -145,7 +145,7 @@ class FixedPackage(BaseClass):
     no_days_week = models.IntegerField()
     no_days_months = models.IntegerField()
     package_total = models.DecimalField(max_digits=12, decimal_places=2)
-    is_holiday_package = models.BooleanField(default=False)
+    # is_holiday_package = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "fixed package"

@@ -2189,7 +2189,9 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
     )
 
     new_holiday_package = forms.ModelChoiceField(
-        queryset=FixedPackage.objects.filter(is_active=True, is_holiday_package=True),
+        queryset=FixedPackage.objects.filter(
+            is_active=True, package_type__is_holiday_package=True
+        ),
         empty_label="-Select holiday package-",
         required=False,
         widget=forms.Select(
