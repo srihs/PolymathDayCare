@@ -1907,28 +1907,38 @@ def saveAttendance(request):
 
 
 def autoAttendanceRecorder(request, admission_no):
-    if request.method == "GET":
-        if admission_no is not None:
-            objChild = Child.objects.get(admission_number=admission_no, is_active=True)
+    print(admission_no)
 
-            if objChild is not None:
-                try:
-                    objEnrollment = ChildEnrollment.objects.filter(
-                        is_active=True, child=objChild
-                    )
+    if admission_no is not None:
+        print("admission_no not null")
+        objChild = Child.objects.get(admission_number=admission_no, is_active=True)
+        print(objChild)
+        print(objChild.id)
+        print(objChild.is_enrolled)
+
+        if objChild is not None:
+            print("child not null")
+            try:
+                if objChild.is_enrolled:
+                    print("Child Enrolled")
                     objAttendance = AttendanceLog()
-                    objAttendance.date_logged = datetime.now().date
-                    objAttendance.time_logged = datetime.now().time
+                    objAttendance.date_logged = datetime.now().date()
+                    objAttendance.time_logged = datetime.now().time()
                     objAttendance.date_created = datetime.now()
                     objAttendance.user_created = "Scanned by the USER"
                     objAttendance.child = objChild
-                    objAttendance.branch = objEnrollment.branch
-                    objAttendance.day_care = objEnrollment.center
                     objAttendance.save()
                     messages.success(request, "Attendance record saved.")
-                except Exception as e:
-                    messages.error(request, e)
-        return render(request, "../templates/suceess.html")
+                else:
+                    print("Child is not enrolled")
+                    messages.error(request, "Child is not enrolled")
+            except Exception as e:
+                print(e)
+                messages.error(request, e)
+        else:
+            print("Child not found")
+            messages.error(request, "")
+    return render(request, "../templates/suceess.html")
 
 
 @login_required

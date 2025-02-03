@@ -431,8 +431,8 @@ class AttendanceLog(BaseClass):
     child = models.ForeignKey("Child", on_delete=models.CASCADE)
     date_logged = models.DateField()
     time_logged = models.TimeField()
-    branch = models.ForeignKey("Branch", on_delete=models.CASCADE)
-    day_care = models.ForeignKey("DayCare", on_delete=models.CASCADE)
+    # branch = models.ForeignKey("Branch", on_delete=models.CASCADE)
+    # day_care = models.ForeignKey("DayCare", on_delete=models.CASCADE)
 
     class Meta:
         verbose_name = "Attendance Log"
