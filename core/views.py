@@ -1928,16 +1928,14 @@ def autoAttendanceRecorder(request, admission_no):
                     objAttendance.user_created = "Scanned by the USER"
                     objAttendance.child = objChild
                     objAttendance.save()
-                    messages.success(request, "Attendance record saved.")
                 else:
-                    print("Child is not enrolled")
                     messages.error(request, "Child is not enrolled")
             except Exception as e:
                 print(e)
                 messages.error(request, e)
         else:
             print("Child not found")
-            messages.error(request, "")
+            messages.error(request, "Child not found")
     return render(request, "../templates/suceess.html")
 
 
