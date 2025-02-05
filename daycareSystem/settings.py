@@ -191,3 +191,5 @@ PROD_URL = config.get(
 QR_METHOD_NAME = config.get(
     "QR_METHOD_NAME"
 )  # this is the method that will stored in the QR URL for scanning
+USE_TZ = True
+TIME_ZONE = "Asia/Colombo"
