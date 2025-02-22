@@ -13,7 +13,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Case, CharField, F, OuterRef, Subquery, Value, When
+from django.db.models import Case, CharField, F, OuterRef, Q, Subquery, Value, When
 from django.db.models.functions import Coalesce, Concat
 from django.http import *
 from django.shortcuts import get_object_or_404, redirect, render
@@ -2016,19 +2016,26 @@ def getAttendanceReports(request):
 def attendanceReportsJS(request):
     # This method will be used to do the search and return the attendance records according to parameters
     if request.method == "GET":
+        print("In the method")
         childId = request.GET.get("child")
         from_date = request.GET.get("from_date")
         to_date = request.GET.get("to_date")
-        branchId = request.GET.get("branch")
-        centerID = request.GET.get("center")
-        # Prepare filters for AttendanceLogs
-        filters = Q(date_logged__range=[from_date, to_date])
+        # branchId = request.GET.get("branch")
+        # centerID = request.GET.get("center")
+        # # Prepare filters for AttendanceLogs
+        filters = Q()
         if childId:
-            filters &= Q(child=childId)
-        if branchId:
-            filters &= Q(branch=branchId)
-        if centerID:
-            filters &= Q(center=centerID)
+            filters &= Q(child__id=childId)
+
+        # Only apply date filtering if values are not None or empty
+        if from_date and to_date:
+            filters &= Q(date_logged__range=[str(from_date), str(to_date)])
+        elif from_date:
+            filters &= Q(date_logged__gte=str(from_date))
+        elif to_date:
+            filters &= Q(date_logged__lte=str(to_date))
+
+        print(filters)
         attendance_logs = list(
             (
                 AttendanceLog.objects.filter(filters)
@@ -2038,14 +2045,6 @@ def attendanceReportsJS(request):
                         Value(" "),
                         F("child__child_last_name"),
                     ),
-                    branch_name=Concat(
-                        F("branch__branch_code"), Value("-"), F("branch__branch_name")
-                    ),
-                    center_name=Concat(
-                        F("day_care__daycare_code"),
-                        Value("-"),
-                        F("day_care__daycare_name"),
-                    ),
                     admission_number=Concat(
                         F("child__admission_number"), Value(" "), Value(" ")
                     ),
@@ -2053,13 +2052,12 @@ def attendanceReportsJS(request):
                 .values(
                     "admission_number",
                     "child_name",
-                    "branch_name",
-                    "center_name",
                     "date_logged",
                     "time_logged",
                 )
             )
         )
+        print(attendance_logs)
     return JsonResponse(attendance_logs, safe=False)
 
 
