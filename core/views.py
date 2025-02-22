@@ -1907,8 +1907,6 @@ def saveAttendance(request):
 
 
 def autoAttendanceRecorder(request, admission_no):
-    print(admission_no)
-
     if admission_no is not None:
         print("admission_no not null")
         objChild = Child.objects.get(admission_number=admission_no, is_active=True)
@@ -1936,7 +1934,11 @@ def autoAttendanceRecorder(request, admission_no):
         else:
             print("Child not found")
             messages.error(request, "Child not found")
-    return render(request, "../templates/suceess.html")
+    return render(
+        request,
+        "../templates/suceess.html",
+        {"child": objChild, "time": objAttendance.time_logged},
+    )
 
 
 @login_required
