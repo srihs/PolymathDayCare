@@ -13,7 +13,18 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Case, CharField, F, OuterRef, Q, Subquery, Value, When
+from django.db.models import (
+    Case,
+    CharField,
+    F,
+    Max,
+    Min,
+    OuterRef,
+    Q,
+    Subquery,
+    Value,
+    When,
+)
 from django.db.models.functions import Coalesce, Concat
 from django.http import *
 from django.shortcuts import get_object_or_404, redirect, render
@@ -1947,6 +1958,7 @@ def getMissingAttendanceRecords(request, context=None):
     searchForm = SearchForm()
     if context is not None:
         list = context
+
     return render(
         request,
         "../templates/reports/missingtime.html",
@@ -1959,47 +1971,61 @@ def getMissingAttendanceRecords(request, context=None):
 
 
 @login_required
-def processMissingAttendanceRecords(request):
-    # Initialize a dictionary to hold dates with missing or incomplete attendance
-    incomplete_attendance_dates = list()
-    from_Date = None
-    if request.method == "POST":
-        from_date = request.POST.get("from_date")
-        to_date = request.POST.get("to_date")
-        # Dictionary to hold dates with missing or incomplete attendance != ''
-        if from_date == "":
-            # if dates are not provided, assign dates for a period of 30 days
-            from_date = datetime.today() + timedelta(days=-30)
-            from_Date = from_date.date()
-        else:
-            from_Date = datetime.strptime(from_date, "%Y-%m-%d").date()
-        if to_date == "":
-            to_date = datetime.today().date()
-        else:
-            to_date = datetime.strptime(to_date, "%Y-%m-%d").date()
-        attendenceList = AttendanceLog.objects.filter(
-            date_logged__range=(from_Date, to_date)
-        )
-        childList = Child.objects.filter(
-            is_active=True, enrollement_approved=True, is_enrolled=True
-        )
-        # Create a list of all dates within the range
-        date_range = [
-            from_Date + timedelta(days=x) for x in range((to_date - from_Date).days + 1)
-        ]
-        # Iterate through each child  in the enrollments
-        for child in childList:
-            # Iterate through each date in the range
-            for single_date in date_range:
-                # Filter attendance records for each date
-                daily_attendance_records = AttendanceLog.objects.filter(
-                    date_logged=single_date, child=child.id
-                )
-                # Check if the attendance records for the day are less than 2
-                if daily_attendance_records.count() < 2:
-                    # Add this date and records to the dictionary
-                    incomplete_attendance_dates.append(daily_attendance_records)
-    return getMissingAttendanceRecords(request, incomplete_attendance_dates)
+def processMissingAttendanceRecordsJS(request):
+    # Get date range from request
+    from_date = request.GET.get("from_date")
+    to_date = request.GET.get("to_date")
+
+    # Assign default date range if not provided
+    from_Date = (
+        datetime.strptime(from_date, "%Y-%m-%d").date()
+        if from_date
+        else (datetime.today() - timedelta(days=30)).date()
+    )
+    to_date = (
+        datetime.strptime(to_date, "%Y-%m-%d").date()
+        if to_date
+        else datetime.today().date()
+    )
+
+    # Generate list of all dates within the range
+    date_range = {
+        from_Date + timedelta(days=x) for x in range((to_date - from_Date).days + 1)
+    }
+
+    # Fetch all active and enrolled children
+    active_children = Child.objects.filter(
+        is_active=True, enrollement_approved=True, is_enrolled=True
+    ).values_list("id", flat=True)
+
+    # Fetch all attendance records in the given date range
+    attendance_records = AttendanceLog.objects.filter(
+        date_logged__range=(from_Date, to_date), child_id__in=active_children
+    ).values_list("child_id", "date_logged", "time_logged")
+
+    # Convert attendance records to a dictionary for quick lookup
+    attendance_dict = {}
+    for child_id, date_logged, time_logged in attendance_records:
+        # Store attendance record count for each child on a given day
+        attendance_dict.setdefault((child_id, date_logged), []).append(time_logged)
+
+    # Find children with less than 2 attendance records for a day
+    incomplete_attendance_dates = []
+    for (child_id, date_logged), time_logs in attendance_dict.items():
+        if len(time_logs) == 1:  # Only 1 record for that day
+            child = Child.objects.get(id=child_id)
+            formatted_times = [
+                time.strftime("%H:%M") for time in time_logs
+            ]  # Format time to "HH:MM"
+            incomplete_attendance_dates.append(
+                {
+                    "child_name": f"{child.admission_number} - {child.child_first_name} {child.child_last_name} ",
+                    "date_logged": date_logged,
+                    "time_logs": formatted_times,
+                }
+            )
+
+    return JsonResponse(incomplete_attendance_dates, safe=False)
 
 
 @login_required
@@ -2016,16 +2042,14 @@ def getAttendanceReports(request):
 def attendanceReportsJS(request):
     # This method will be used to do the search and return the attendance records according to parameters
     if request.method == "GET":
-        print("In the method")
         childId = request.GET.get("child")
         from_date = request.GET.get("from_date")
         to_date = request.GET.get("to_date")
-        # branchId = request.GET.get("branch")
-        # centerID = request.GET.get("center")
-        # # Prepare filters for AttendanceLogs
+
+        # Prepare filters for AttendanceLogs
         filters = Q()
         if childId:
-            filters &= Q(child__id=childId)
+            filters &= Q(child__admission_number=childId)
 
         # Only apply date filtering if values are not None or empty
         if from_date and to_date:
@@ -2035,29 +2059,28 @@ def attendanceReportsJS(request):
         elif to_date:
             filters &= Q(date_logged__lte=str(to_date))
 
-        print(filters)
         attendance_logs = list(
-            (
-                AttendanceLog.objects.filter(filters)
-                .annotate(
-                    child_name=Concat(
-                        F("child__child_first_name"),
-                        Value(" "),
-                        F("child__child_last_name"),
-                    ),
-                    admission_number=Concat(
-                        F("child__admission_number"), Value(" "), Value(" ")
-                    ),
-                )
-                .values(
-                    "admission_number",
-                    "child_name",
-                    "date_logged",
-                    "time_logged",
-                )
+            AttendanceLog.objects.filter(filters)
+            .values("child__id", "date_logged")
+            .annotate(
+                child_name=Concat(
+                    F("child__child_first_name"),
+                    Value(" "),
+                    F("child__child_last_name"),
+                ),
+                admission_number=F("child__admission_number"),
+                in_time=Min("time_logged"),  # First log of the day (IN time)
+                out_time=Max("time_logged"),  # Last log of the day (OUT time)
+            )
+            .values(
+                "admission_number",
+                "child_name",
+                "date_logged",
+                "in_time",
+                "out_time",
             )
         )
-        print(attendance_logs)
+
     return JsonResponse(attendance_logs, safe=False)
 
 

@@ -251,9 +251,9 @@ urlpatterns = [
         name="missingAttendenceReport",
     ),
     path(
-        "processmissingAttendence/",
-        views.processMissingAttendanceRecords,
-        name="processmissingAttendence",
+        "processmissingAttendenceJS/",
+        views.processMissingAttendanceRecordsJS,
+        name="processmissingAttendenceJS",
     ),
     path(
         "get_invoices/",

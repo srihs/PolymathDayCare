@@ -69,8 +69,6 @@
                                           <tr>
                                             <th>Child code</th>
                                             <th>Child name</th>
-                                            <th>Branch</th>
-                                            <th>Center</th>
                                             <th>Date</th>
                                             <th>In time</th>
                                             <th>Out time</th>
@@ -214,7 +212,7 @@
 //This function will retrive the data from the backend
   jQuery("#btnSubmit").click(function (e) {
         e.preventDefault(); // prevent the default behavior of the anchor tag
-        alert("here");
+        
         
 // Get the values of the date fields
     var fromDate = jQuery("#from_date").val();
@@ -244,8 +242,6 @@
         child: jQuery("input[name='child']").val(),
         from_date: fromDate,
         to_date: toDate,
-        branch: jQuery("select[name='branch']").val(),
-        center: jQuery("select[name='center']").val()
     };
 
     dataTable = $("#tblAttendanceRecords").DataTable();
@@ -263,10 +259,9 @@
                         [
                         response[i].admission_number,
                         response[i].child_name,
-                        response[i].branch_name,
-                        response[i].center_name,
                         response[i].date_logged,
-                        response[i].time_logged,
+                        response[i].in_time,
+                        response[i].out_time,
                                                 
                         ],)
                 });
