@@ -238,9 +238,9 @@ def getChild(request):
     try:
         # trying to retrive the next primaryKey
         nextId = Child.objects.all().count()
-        nextId += 1
+        nextId += 2
     except:
-        nextId = 1  # if the next ID is null define the record as the first
+        nextId = 2  # if the next ID is null define the record as the first
     child_form = CreateChildForm(
         initial={"admission_number": "D0" + str(nextId)}
     )  # creating the form with the admission ID
