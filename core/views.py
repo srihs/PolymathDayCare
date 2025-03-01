@@ -1921,7 +1921,6 @@ def saveAttendance(request):
 def autoAttendanceRecorder(request, admission_no):
     if admission_no is not None:
         objChild = Child.objects.get(admission_number=admission_no, is_active=True)
-        
 
         if objChild is not None:
             try:
@@ -2655,7 +2654,7 @@ def savePackageRequest(request):
             form = CreatePackageChangeRequestForm(request.POST)
             if form.is_valid():
                 objPackageChangeRequest = form.save(commit=False)
-               
+
                 if (
                     request.POST.get("old_fixed_package") is not None
                     and request.POST.get("old_fixed_package") != ""
@@ -2944,17 +2943,14 @@ def getAllChildDetailsByIdJS(request, pk):
     try:
         if pk is not None:
             child = get_object_or_404(Child, pk=pk)
-           
 
             # Retrieve enrollment details
             enrollments = ChildEnrollment.objects.get(child=child.id, is_active=True)
             if enrollments == None:
-
-
-            # Retrieve package mappings
-            package_mappings = ChildPackageMapping.objects.filter(
-                child=child.id, is_active=True
-            )
+                # Retrieve package mappings
+                package_mappings = ChildPackageMapping.objects.filter(
+                    child=child.id, is_active=True
+                )
 
             # Retrieve package change requests
             package_changes = PackageChangerequest.objects.filter(
@@ -2972,7 +2968,6 @@ def getAllChildDetailsByIdJS(request, pk):
 
             # Retrieve invoices for the current month
             invoices = Invoice.objects.filter(child=child)
-           
 
             # Prepare the data to return
             child_data = {
