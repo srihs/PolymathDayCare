@@ -16,6 +16,7 @@ from django.db import transaction
 from django.db.models import (
     Case,
     CharField,
+    Count,
     F,
     Max,
     Min,
@@ -1886,7 +1887,9 @@ def saveAttendance(request):
     if request.method == "POST":
         if request.POST.get("child") is not None:
             objChild = Child.objects.get(
-                admission_number=request.POST.get("child"), is_active=True
+                admission_number=request.POST.get("child"),
+                is_active=True,
+                enrollement_approved=True,  # to make sure the child is enrolled
             )
             if objChild is not None:
                 try:
@@ -2061,7 +2064,7 @@ def attendanceReportsJS(request):
 
         attendance_logs = list(
             AttendanceLog.objects.filter(filters)
-            .values("child__id", "date_logged")
+            .values("child__id", "date_logged")  # Grouping fields
             .annotate(
                 child_name=Concat(
                     F("child__child_first_name"),
@@ -2070,9 +2073,17 @@ def attendanceReportsJS(request):
                 ),
                 admission_number=F("child__admission_number"),
                 in_time=Min("time_logged"),  # First log of the day (IN time)
-                out_time=Max("time_logged"),  # Last log of the day (OUT time)
+                log_count=Count("id"),  # Count logs per child per day
             )
-            .values(
+            .annotate(
+                out_time=Case(
+                    When(
+                        log_count=1, then=Value(None)
+                    ),  # If only one log, set out_time to None
+                    default=Max("time_logged"),  # Otherwise, set to last log of the day
+                ),
+            )
+            .values(  # Structuring output
                 "admission_number",
                 "child_name",
                 "date_logged",
