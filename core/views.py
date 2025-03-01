@@ -1517,7 +1517,6 @@ def getEnrollments(request):
     if request.method == "GET":
         try:
             # trying to retrive the next primaryKey
-            print("here")
             nextId = ChildEnrollment.objects.all().count()
             nextId += 1
         except:
@@ -1742,7 +1741,6 @@ def saveEnrollments(request):
 
 @login_required
 def getAllPendingEnrollmentsJS(request):
-    print("here")
     # Subqueries to get the package names from ChildPackageMapping
     normal_package_subquery = Subquery(
         ChildPackageMapping.objects.filter(child=OuterRef("child")).values(
@@ -1922,17 +1920,12 @@ def saveAttendance(request):
 
 def autoAttendanceRecorder(request, admission_no):
     if admission_no is not None:
-        print("admission_no not null")
         objChild = Child.objects.get(admission_number=admission_no, is_active=True)
-        print(objChild)
-        print(objChild.id)
-        print(objChild.is_enrolled)
+        
 
         if objChild is not None:
-            print("child not null")
             try:
                 if objChild.is_enrolled:
-                    print("Child Enrolled")
                     objAttendance = AttendanceLog()
                     objAttendance.date_logged = datetime.now().date()
                     objAttendance.time_logged = datetime.now().time()
@@ -1943,10 +1936,8 @@ def autoAttendanceRecorder(request, admission_no):
                 else:
                     messages.error(request, "Child is not enrolled")
             except Exception as e:
-                print(e)
                 messages.error(request, e)
         else:
-            print("Child not found")
             messages.error(request, "Child not found")
     return render(
         request,
@@ -2654,10 +2645,6 @@ def getPackagesByChildIdJS(request):
 def savePackageRequest(request):
     try:
         if request.method == "POST":
-            print("In the method")
-            print(request.POST.get("old_fixed_package"))
-            print("ID NULL")
-
             user = User.objects.get(username=request.user.username)
             if user.groups.filter(name="Data Entry").exists():
                 messages.error(
@@ -2667,15 +2654,12 @@ def savePackageRequest(request):
                 return
             form = CreatePackageChangeRequestForm(request.POST)
             if form.is_valid():
-                print("from is valid")
                 objPackageChangeRequest = form.save(commit=False)
-                print(request.POST.get("old_fixed_package"))
-                print(objPackageChangeRequest.new_fixed_package)
+               
                 if (
                     request.POST.get("old_fixed_package") is not None
                     and request.POST.get("old_fixed_package") != ""
                 ):
-                    print("old_fixed_package not empty")
                     objOldFixedPcakage = FixedPackage.objects.filter(
                         pk=request.POST.get("old_fixed_package")
                     ).first()
@@ -2695,9 +2679,6 @@ def savePackageRequest(request):
                     request.POST.get("old_flexed_package") is not None
                     and request.POST.get("old_flexed_package") != ""
                 ):
-                    print("in the flex package")
-                    print("flex package id:" + request.POST.get("old_flexed_package"))
-
                     objOldFlexPackage = FlexPackages.objects.filter(
                         pk=request.POST.get("old_flexed_package")
                     ).filter()
@@ -2729,15 +2710,12 @@ def savePackageRequest(request):
                         request,
                         "You can only select one package: either a new fixed package or a new flex package.",
                     )
-                print(request.POST.get("old_holiday_package"))
                 if request.POST.get("old_holiday_package") is not None:
-                    print("old_holiday_package is not null")
                     objHolidayPackage = FixedPackage.objects.filter(
                         pk=request.POST.get("old_holiday_package")
                     ).first()
                     if objHolidayPackage is not None:
                         objPackageChangeRequest.old_holiday_package = objHolidayPackage
-                print(objPackageChangeRequest.old_holiday_package)
                 objPackageChangeRequest.save()
                 messages.success(request, "Package change request saved.")
             else:
@@ -2827,15 +2805,12 @@ def approvePackageChange(request):
             objPackageChangeRequest = PackageChangerequest.objects.get(
                 pk=request.GET.get("id")
             )
-            print("Id Not Null")
 
             with transaction.atomic():
-                print("in the transaction")
                 objPackageChangeRequest.status = "Approved"
                 objPackageChangeRequest.user_updated = request.user.username
                 objPackageChangeRequest.date_updated = datetime.now()
                 objPackageChangeRequest.save()
-                print("objPackageChangeRequest saved")
 
                 # Changing the package update the old mapping effective date
                 objChildPackageMapping = ChildPackageMapping.objects.get(
@@ -2848,7 +2823,6 @@ def approvePackageChange(request):
                     objChildPackageMapping.user_updated = request.user.username
                     objChildPackageMapping.is_active = False
                     objChildPackageMapping.save()
-                    print("old objChildPackageMapping updated")
 
                 else:
                     messages.error(
@@ -2877,7 +2851,6 @@ def approvePackageChange(request):
                 )
                 objChildPackageMapping.user_updated = request.user.username
                 objChildPackageMapping.save()
-                print("New objChildPackageMapping updated")
                 status = "Approved"
         else:
             messages.error(request, "Package request not found")
@@ -2970,31 +2943,23 @@ def getAllChildDetailsByIdJS(request, pk):
     child_data = None
     try:
         if pk is not None:
-            print(pk)
             child = get_object_or_404(Child, pk=pk)
-            print(child)
-            print(child.id)
-            print("child is not null")
-            print("------------------------")
+           
 
             # Retrieve enrollment details
             enrollments = ChildEnrollment.objects.get(child=child.id, is_active=True)
             if enrollments == None:
-                print("Null")
 
-            print(f"Enrollment: {enrollments}")
 
             # Retrieve package mappings
             package_mappings = ChildPackageMapping.objects.filter(
                 child=child.id, is_active=True
             )
-            print(f"Package Mapping: {package_mappings}")
 
             # Retrieve package change requests
             package_changes = PackageChangerequest.objects.filter(
                 child=child, is_active=True
             )
-            print(f"Package Change: {package_changes}")
 
             # Retrieve attendance logs for the current month
             current_month = datetime.now().month
@@ -3004,12 +2969,10 @@ def getAllChildDetailsByIdJS(request, pk):
                 date_logged__month=current_month,
                 date_logged__year=current_year,
             )
-            print(f"Attendance: {attendance_logs}")
 
             # Retrieve invoices for the current month
             invoices = Invoice.objects.filter(child=child)
-            print(f"Invoice: {invoices}")
-            print("ppppppppppppppppp")
+           
 
             # Prepare the data to return
             child_data = {
@@ -3088,7 +3051,6 @@ def getAllChildDetailsByIdJS(request, pk):
                     for invoice in invoices
                 ],
             }
-            print(child_data)
     except Exception as e:
         messages.error(request, e)
 
