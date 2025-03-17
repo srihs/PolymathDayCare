@@ -1732,6 +1732,7 @@ def saveEnrollments(request):
                                 pk=flex_package
                             )
                         objPackageMapping.effective_from = datetime.now()
+                        objPackageMapping.is_active = False
                         objPackageMapping.save()
                         messages.success(request, "Enrollment details saved.")
         except Exception as e:
@@ -1828,6 +1829,9 @@ def approveEnrollment(request):
         objChild.enrollement_approved = True
         objChild.is_enrolled = True
         objChild.save()
+        objChildMapping = ChildPackageMapping.objects.get(pk=request.GET.get("id"))
+        objChildMapping.is_active = True
+        objChildMapping.save()
     return JsonResponse("Enrollment approved", safe=False)
 
 

@@ -31,7 +31,7 @@
       {% endfor %} {% endif %}
       <!-- end row -->
     </div>
-
+    <div id="alert-container"></div>
    
     <table id="enrollmentList" class="table table-striped table-hover" cellspacing="0">
       <thead>
@@ -460,14 +460,16 @@
       data: { id: id },
       dataType: "html",
       success: function (data) {
+        alert("Enrollment approved successfully!", "success");
         window.parent.location = window.parent.location.href;
+        
       },
       error: function (xhr, textStatus, errorThrown) {
         console.log("Error: " + xhr.status + ", " + xhr.statusText);
+        alert("Failed to approve enrollment. Please try again.", "danger");
       },
     });
   });
-
 
   jQuery(document).on("click", ".link-danger", function (e) {
     e.preventDefault();
