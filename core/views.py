@@ -2944,6 +2944,7 @@ def getChildrenList(request):
 @login_required
 def getAllChildDetailsByIdJS(request, pk):
     child_data = None
+    print("In the method")
     try:
         if pk is not None:
             child = get_object_or_404(Child, pk=pk)
