@@ -2336,3 +2336,45 @@ class CreateCenterChangeRequestForm(forms.ModelForm):
             "new_branch",
             "effective_date",
         )
+
+class GenerateInvoiceForm(forms.Form):
+    child = forms.ModelChoiceField(
+        queryset=Child.objects.filter(is_active=True, is_enrolled=True).order_by("admission_number"),
+        empty_label="-Select Child -",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Child",
+                "id": "child",
+            }
+        ),
+    )
+
+    from_date = forms.DateField(
+        required=True,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "from_date",
+                "placeholder": "From",
+                "required": "required",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+            }
+        ),
+    )
+    to_date = forms.DateField(
+        required=True,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "to_date",
+                "placeholder": "To",
+                "required": "required",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+            }
+        ),
+    )
+
+    

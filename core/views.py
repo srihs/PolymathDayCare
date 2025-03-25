@@ -63,6 +63,7 @@ from .forms import (
     UpdatePackageTypeForm,
     UpdatePolymathHolidayForm,
     UpdatePublicHolidayForm,
+    GenerateInvoiceForm,
 )
 from .models import (
     AttendanceLog,
@@ -2940,11 +2941,20 @@ def getChildrenList(request):
         {"form": form, "UserName": request.user.username},
     )
 
+@login_required
+def getChildrenDetails(request):
+    form = ChildSearchForm()
+    return render(
+        request,
+        "../templates/childdet.html",
+        {"form": form, "UserName": request.user.username},
+    )
+
 
 @login_required
 def getAllChildDetailsByIdJS(request, pk):
     child_data = None
-    print("In the method")
+    
     try:
         if pk is not None:
             child = get_object_or_404(Child, pk=pk)
@@ -3057,6 +3067,28 @@ def getAllChildDetailsByIdJS(request, pk):
     return JsonResponse(child_data, safe=False)
 
 
+
+
 @login_required
-def getInvoices(request):
-    pass
+def generateInvoice(request):
+    try:
+        if request.method == "GET":
+            form = GenerateInvoiceForm()
+            return render(
+                request,
+                "../templates/invoice.html",
+                {"form": form, "UserName": request.user.username},
+            )
+        if request.method == "POST":
+            if form.is_valid():
+                form = GenerateInvoiceForm(request.POST)
+                objInvoice = form.save(commit=False)
+                objInvoice.user_created = request.user.username
+                objInvoice.save()
+                messages.success(request, "Invoice generated successfully.")
+            else:
+                messages.error(request, form.errors)
+    except Exception as e:
+        messages.error(request, e)
+
+    

@@ -257,8 +257,8 @@ urlpatterns = [
     ),
     path(
         "get_invoices/",
-        views.getInvoices,
-        name="get_invoices",
+        views.generateInvoice,
+        name="generateInvoice",
     ),
     path(
         "get_attendence_dataJs/",
@@ -293,6 +293,11 @@ urlpatterns = [
         "get_child_list/",
         views.getChildrenList,
         name="get_child_list",
+    ),
+    path(
+        "get_child_details/",
+        views.getChildrenDetails,
+        name="get_child_details",
     ),
     path(
         "package_change_approval/",
