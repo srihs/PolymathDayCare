@@ -472,6 +472,7 @@ class Invoice(BaseClass):
     invoice_date = models.DateField()
     invoice_no = models.CharField(max_length=10, null=True, blank=True)
     child = models.ForeignKey("Child", on_delete=models.CASCADE)
+    year = models.IntegerField()
     month = models.IntegerField()
     amount = models.DecimalField(max_digits=8, decimal_places=2)
     receipt_no = models.CharField(max_length=10, null=True, blank=True)
