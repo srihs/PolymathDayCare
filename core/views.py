@@ -52,6 +52,7 @@ from .forms import (
     CreatePackageTypeForm,
     CreatePolymathHolidayForm,
     CreatePublicHolidayForm,
+    GenerateInvoiceForm,
     SearchForm,
     UpdateBranchForm,
     UpdateChildForm,
@@ -63,7 +64,6 @@ from .forms import (
     UpdatePackageTypeForm,
     UpdatePolymathHolidayForm,
     UpdatePublicHolidayForm,
-    GenerateInvoiceForm,
 )
 from .models import (
     AttendanceLog,
@@ -2941,6 +2941,7 @@ def getChildrenList(request):
         {"form": form, "UserName": request.user.username},
     )
 
+
 @login_required
 def getChildrenDetails(request):
     form = ChildSearchForm()
@@ -2954,7 +2955,7 @@ def getChildrenDetails(request):
 @login_required
 def getAllChildDetailsByIdJS(request, pk):
     child_data = None
-    
+
     try:
         if pk is not None:
             child = get_object_or_404(Child, pk=pk)
@@ -3067,8 +3068,6 @@ def getAllChildDetailsByIdJS(request, pk):
     return JsonResponse(child_data, safe=False)
 
 
-
-
 @login_required
 def generateInvoice(request):
     try:
@@ -3080,15 +3079,22 @@ def generateInvoice(request):
                 {"form": form, "UserName": request.user.username},
             )
         if request.method == "POST":
-            if form.is_valid():
-                form = GenerateInvoiceForm(request.POST)
-                objInvoice = form.save(commit=False)
-                objInvoice.user_created = request.user.username
-                objInvoice.save()
-                messages.success(request, "Invoice generated successfully.")
-            else:
-                messages.error(request, form.errors)
+            child = request.POST.get("id")
+            # Get date range from request
+            from_date = request.GET.get("from_date")
+            to_date = request.GET.get("to_date")
+
+            # Assign default date range if not provided
+            from_Date = (
+                datetime.strptime(from_date, "%Y-%m-%d").date()
+                if from_date
+                else (datetime.today() - timedelta(days=30)).date()
+            )
+            to_date = (
+                datetime.strptime(to_date, "%Y-%m-%d").date()
+                if to_date
+                else datetime.today().date()
+            )
+
     except Exception as e:
         messages.error(request, e)
-
-    
