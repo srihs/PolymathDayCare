@@ -3069,11 +3069,9 @@ def getAllChildDetailsByIdJS(request, pk):
 
 @login_required
 def getInvoice(request):
-    if request.method == "POST":
-        form = GenerateInvoiceForm()
-        return render(
-                    request,
-                    "../templates/invoice.html",
+    form = GenerateInvoiceForm()
+    
+    return render(request,"../templates/invoice.html",
                     {"form": form, "UserName": request.user.username},
                 )
 
@@ -3135,10 +3133,12 @@ def generateInvoice(request):
             )
             )
 
-            
-
+        
   
 
 
     except Exception as e:
         messages.error(request, e)
+    
+    return HttpResponse(request,"test")  
+

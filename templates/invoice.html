@@ -118,6 +118,32 @@
             retrieve: true,
     });
 
+    function SearchData()
+    {
+        //e.preventDefault(); // prevent the default behavior of the anchor tag
+        alert("AA");
+        var $this = "";
+        jQuery.ajax({
+            type: "GET",
+            url: url,
+            dataType: "json",
+            success: function (data) {
+                // Open the second modal on success
+                jQuery("#secondmodal").modal("show");
+
+                // Optionally, you can also close the current modal
+                jQuery("#firstmodal").modal("hide");
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                alert("Error: " + xhr.status + ", " + xhr.statusText);
+            },
+        });
+    }
+
+    jQuery("secondButton").click(function () {
+        window.parent.location = window.parent.location.href;
+    });
+
     </script>
 
        <!-- App js -->
