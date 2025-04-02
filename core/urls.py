@@ -319,4 +319,16 @@ urlpatterns = [
         views.getCenterChangeRequestsJS,
         name="get_center_change_requestsJs",
     ),
+
+    path(
+        "get_invoices/",
+        views.getInvoice,
+        name="get_invoices",
+    ),
+
+   path(
+        "generate_invoices/",
+        views.generateInvoice,
+        name="generate_invoices",
+    ), 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

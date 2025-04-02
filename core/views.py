@@ -3067,19 +3067,23 @@ def getAllChildDetailsByIdJS(request, pk):
 
     return JsonResponse(child_data, safe=False)
 
+@login_required
+def getInvoice(request):
+    if request.method == "POST":
+        form = GenerateInvoiceForm()
+        return render(
+                    request,
+                    "../templates/invoice.html",
+                    {"form": form, "UserName": request.user.username},
+                )
+
 
 @login_required
 def generateInvoice(request):
     try:
-        if request.method == "GET":
-            form = GenerateInvoiceForm()
-            return render(
-                request,
-                "../templates/invoice.html",
-                {"form": form, "UserName": request.user.username},
-            )
+        
         if request.method == "POST":
-            child = request.POST.get("id")
+            child = request.POST.get("child")
             # Get date range from request
             from_date = request.GET.get("from_date")
             to_date = request.GET.get("to_date")
@@ -3095,6 +3099,46 @@ def generateInvoice(request):
                 if to_date
                 else datetime.today().date()
             )
+
+            filters = Q()
+            if childId:
+                filters &= Q(child__id=child)
+
+            # Only apply date filtering if values are not None or empty
+            if from_date and to_date:
+                filters &= Q(date_logged__range=[str(from_date), str(to_date)])
+            elif from_date:
+                filters &= Q(date_logged__gte=str(from_date))
+            elif to_date:
+                filters &= Q(date_logged__lte=str(to_date))
+
+            attendance_logs = list(
+            AttendanceLog.objects.filter(filters)
+            .values("child__id", "date_logged")  # Grouping fields
+            .annotate(
+                child_name=Concat(
+                    F("child__child_first_name"),
+                    Value(" "),
+                    F("child__child_last_name"),
+                ),
+                admission_number=F("child__admission_number"),
+                in_time=Min("time_logged"),  # First log of the day (IN time)
+                log_count=Count("id"),  # Count logs per child per day
+            )
+            .annotate(
+                out_time=Case(
+                    When(
+                        log_count=1, then=Value(None)
+                    ),  # If only one log, set out_time to None
+                    default=Max("time_logged"),  # Otherwise, set to last log of the day
+                ),
+            )
+            )
+
+            
+
+  
+
 
     except Exception as e:
         messages.error(request, e)
