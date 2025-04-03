@@ -255,11 +255,7 @@ urlpatterns = [
         views.processMissingAttendanceRecordsJS,
         name="processmissingAttendenceJS",
     ),
-    path(
-        "get_invoices/",
-        views.generateInvoice,
-        name="generateInvoice",
-    ),
+    
     path(
         "get_attendence_dataJs/",
         views.attendanceReportsJS,
@@ -319,7 +315,6 @@ urlpatterns = [
         views.getCenterChangeRequestsJS,
         name="get_center_change_requestsJs",
     ),
-
     path(
         "get_invoices/",
         views.getInvoice,

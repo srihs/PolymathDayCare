@@ -3070,7 +3070,6 @@ def getAllChildDetailsByIdJS(request, pk):
 @login_required
 def getInvoice(request):
     form = GenerateInvoiceForm()
-    
     return render(request,"../templates/invoice.html",
                     {"form": form, "UserName": request.user.username},
                 )
@@ -3110,28 +3109,10 @@ def generateInvoice(request):
             elif to_date:
                 filters &= Q(date_logged__lte=str(to_date))
 
-            attendance_logs = list(
-            AttendanceLog.objects.filter(filters)
-            .values("child__id", "date_logged")  # Grouping fields
-            .annotate(
-                child_name=Concat(
-                    F("child__child_first_name"),
-                    Value(" "),
-                    F("child__child_last_name"),
-                ),
-                admission_number=F("child__admission_number"),
-                in_time=Min("time_logged"),  # First log of the day (IN time)
-                log_count=Count("id"),  # Count logs per child per day
-            )
-            .annotate(
-                out_time=Case(
-                    When(
-                        log_count=1, then=Value(None)
-                    ),  # If only one log, set out_time to None
-                    default=Max("time_logged"),  # Otherwise, set to last log of the day
-                ),
-            )
-            )
+            attendance_logs = list(AttendanceLog.objects.filter(filters))
+
+            for attendance_log in attendance_logs:
+                print(attendance_log)
 
         
   
