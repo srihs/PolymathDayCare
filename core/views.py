@@ -3112,7 +3112,7 @@ def generateInvoice(request):
             attendance_logs = list(AttendanceLog.objects.filter(filters))
 
             for attendance_log in attendance_logs:
-                print(attendance_log)
+                print(attendance_log.child)
 
         
   

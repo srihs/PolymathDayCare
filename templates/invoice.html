@@ -125,8 +125,12 @@
         var $this = "";
         jQuery.ajax({
             type: "GET",
-            url: url,
-            dataType: "json",
+            url: "{% url 'core:generate_invoices' %}",
+            data: {
+                child: child,
+                date_from: from_date,
+                date_to: to_date
+                },
             success: function (data) {
                 // Open the second modal on success
                 jQuery("#secondmodal").modal("show");
