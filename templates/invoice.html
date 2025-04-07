@@ -122,7 +122,12 @@
     {
         //e.preventDefault(); // prevent the default behavior of the anchor tag
         alert("AA");
+        let child = document.getElementById("child").value;
+        let from_date = document.getElementById("from_date").value;
+        let to_date = document.getElementById("to_date").value;
         var $this = "";
+        
+        alert("Fetching data...");
         jQuery.ajax({
             type: "GET",
             url: "{% url 'core:generate_invoices' %}",
@@ -132,12 +137,8 @@
                 date_to: to_date
                 },
             success: function (data) {
-                // Open the second modal on success
-                jQuery("#secondmodal").modal("show");
-
-                // Optionally, you can also close the current modal
-                jQuery("#firstmodal").modal("hide");
-            },
+                alert("Success");
+                        },
             error: function (xhr, textStatus, errorThrown) {
                 alert("Error: " + xhr.status + ", " + xhr.statusText);
             },

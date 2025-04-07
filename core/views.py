@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import tempfile
+from collections import defaultdict
 from datetime import datetime, time, timedelta
 
 import qrcode
@@ -3067,59 +3068,91 @@ def getAllChildDetailsByIdJS(request, pk):
 
     return JsonResponse(child_data, safe=False)
 
+
 @login_required
 def getInvoice(request):
     form = GenerateInvoiceForm()
-    return render(request,"../templates/invoice.html",
-                    {"form": form, "UserName": request.user.username},
-                )
+    return render(
+        request,
+        "../templates/invoice.html",
+        {"form": form, "UserName": request.user.username},
+    )
 
 
 @login_required
 def generateInvoice(request):
     try:
-        
-        if request.method == "POST":
-            child = request.POST.get("child")
-            # Get date range from request
+        if request.method == "GET":
+            child = request.GET.get("child")
             from_date = request.GET.get("from_date")
             to_date = request.GET.get("to_date")
 
-            # Assign default date range if not provided
-            from_Date = (
-                datetime.strptime(from_date, "%Y-%m-%d").date()
-                if from_date
-                else (datetime.today() - timedelta(days=30)).date()
-            )
-            to_date = (
-                datetime.strptime(to_date, "%Y-%m-%d").date()
-                if to_date
-                else datetime.today().date()
-            )
+            # Set default date range if not provided
+            today = datetime.today().date()
+            if not from_date or not to_date:
+                first_day_of_prev_month = (
+                    today.replace(day=1) - timedelta(days=1)
+                ).replace(day=1)
+                last_day_of_prev_month = today.replace(day=1) - timedelta(days=1)
+                from_date = first_day_of_prev_month
+                to_date = last_day_of_prev_month
+            else:
+                # Convert provided dates to date objects
+                from_date = (
+                    datetime.strptime(from_date, "%Y-%m-%d").date()
+                    if from_date
+                    else today - timedelta(days=30)
+                )
+                to_date = (
+                    datetime.strptime(to_date, "%Y-%m-%d").date() if to_date else today
+                )
 
+            # Construct query filters
             filters = Q()
-            if childId:
+            if child:
                 filters &= Q(child__id=child)
 
-            # Only apply date filtering if values are not None or empty
-            if from_date and to_date:
-                filters &= Q(date_logged__range=[str(from_date), str(to_date)])
-            elif from_date:
-                filters &= Q(date_logged__gte=str(from_date))
-            elif to_date:
-                filters &= Q(date_logged__lte=str(to_date))
+            # Apply date filters
+            filters &= Q(date_logged__range=[from_date, to_date])
 
-            attendance_logs = list(AttendanceLog.objects.filter(filters))
+            # Fetch and group attendance logs by child
+            attendance_logs = AttendanceLog.objects.filter(filters).order_by(
+                "child", "date_logged", "time_logged"
+            )
 
-            for attendance_log in attendance_logs:
-                print(attendance_log.child)
+            # Group logs by child
+            logs_by_child = defaultdict(list)
+            for log in attendance_logs:
+                logs_by_child[log.child].append(log)
 
-        
-  
+            summary = []
 
+            # Evaluate logs per child
+            for child, logs in logs_by_child.items():
+                logs_sorted = sorted(
+                    logs, key=lambda x: (x.date_logged, x.time_logged)
+                )  # Sort logs by date and time
+
+                # Check if there is at least one "IN" and one "OUT" log
+                missing_entry = (
+                    len(logs_sorted) < 2
+                    or logs_sorted[0].time_logged >= logs_sorted[-1].time_logged
+                )
+
+                # Add result to summary
+                summary.append(
+                    {
+                        "child": f"{child.child_first_name} {child.child_last_name}",
+                        "can_generate_invoice": not missing_entry,
+                        "status": "🚨 Missing entry" if missing_entry else "✅ OK",
+                    }
+                )
+            print(summary)
+
+            # Return JSON response with the summary
+            return JsonResponse({"summary": summary})
 
     except Exception as e:
-        messages.error(request, e)
-    
-    return HttpResponse(request,"test")  
-
+        # Log the error and return a response
+        messages.error(request, f"Error generating invoice: {str(e)}")
+        return JsonResponse({"error": str(e)}, status=500)
