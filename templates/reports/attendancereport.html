@@ -163,7 +163,6 @@
       url: "{% url 'core:getChildWithEnrolementsJson' %}",
       beforeSend: function () { },
       success: function (response) {
-        console.log(response);
         for (var i in response) {
           child = response[i];
           jQuery("#children").append(`<option value="${child.admission_number}">${child.child_first_name + "  " + child.child_last_name}</option>`);
@@ -201,7 +200,6 @@
         success: function (response) {
           for (var i in response) {
             center = response[i];
-            console.log(center.daycare_code + " - " + center.daycare_name)
             jQuery("#center").append(`<option value="${center.id}">${center.daycare_code + " - " + center.daycare_name}</option>`);
           }
         },
@@ -260,8 +258,9 @@
                         response[i].admission_number,
                         response[i].child_name,
                         response[i].date_logged,
-                        response[i].in_time ? formatTime(response[i].in_time) : "No record found",
-                        response[i].out_time ? formatTime(response[i].out_time) : "No record found",
+                        response[i].in_time ? formatTime(response[i].in_time) :  '<span style="color:red;">No record found</span>',
+                        response[i].out_time ? formatTime(response[i].out_time)  : '<span style="color:red;">No record found</span>',
+                        
                                                 
                         ],)
                 });
