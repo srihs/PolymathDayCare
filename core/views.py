@@ -13,6 +13,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.db.models import TimeField
 from django.db import transaction
 from django.db.models import (
     Case,
@@ -1501,7 +1502,6 @@ def approveDiscount(request):
 
 @login_required
 def rejectDiscount(request):
-    prin(request.GET.get("id"))
     if request.GET.get("id") is not None:
         id = request.GET.get("id")
         objDiscount = Discount.objects.get(pk=id)
@@ -2058,9 +2058,10 @@ def attendanceReportsJS(request):
         elif to_date:
             filters &= Q(date_logged__lte=str(to_date))
 
+        # Fetch the attendance logs grouped by child and date
         attendance_logs = list(
             AttendanceLog.objects.filter(filters)
-            .values("child__id", "date_logged")  # Grouping fields
+            .values('child', 'date_logged')  # Group by child and date
             .annotate(
                 child_name=Concat(
                     F("child__child_first_name"),
@@ -2068,25 +2069,36 @@ def attendanceReportsJS(request):
                     F("child__child_last_name"),
                 ),
                 admission_number=F("child__admission_number"),
+                log_count=Count('id'),  # Count logs for the day
                 in_time=Min("time_logged"),  # First log of the day (IN time)
-                log_count=Count("id"),  # Count logs per child per day
-            )
-            .annotate(
                 out_time=Case(
-                    When(
-                        log_count=1, then=Value(None)
-                    ),  # If only one log, set out_time to None
-                    default=Max("time_logged"),  # Otherwise, set to last log of the day
+                    When(log_count=1, then=Value(None)),  # If only 1 log, set out_time to None
+                    default=Max("time_logged"),  # Otherwise, set to last log of the day (OUT time)
                 ),
             )
             .values(  # Structuring output
                 "admission_number",
                 "child_name",
                 "date_logged",
-                "in_time",
-                "out_time",
+                "in_time",  # Initially, the first log is considered "in_time"
+                "out_time",  # Initially, the last log is considered "out_time"
+                "log_count",  # Include log_count here to use it later in the code
             )
         )
+
+        # Now modify the records based on the scenario you described
+        for log in attendance_logs:
+            # If there is only one log, we check the time
+            if log['log_count'] == 1:
+                in_time = log['in_time']
+                # Check if the in_time is after 4:00 PM (16:00:00)
+                if in_time and in_time > datetime.strptime("16:00:00", "%H:%M:%S").time():
+                    # Set the in_time to None and treat this as an out_time
+                    log['in_time'] = None
+                    log['out_time'] = in_time
+                else:
+                    # If it's before 4:00 PM, we keep it as the in_time and set out_time to None
+                    log['out_time'] = None
 
     return JsonResponse(attendance_logs, safe=False)
 
