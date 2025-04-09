@@ -13,7 +13,6 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.db.models import TimeField
 from django.db import transaction
 from django.db.models import (
     Case,
@@ -1971,11 +1970,9 @@ def getMissingAttendanceRecords(request, context=None):
 
 @login_required
 def processMissingAttendanceRecordsJS(request):
-    # Get date range from request
     from_date = request.GET.get("from_date")
     to_date = request.GET.get("to_date")
 
-    # Assign default date range if not provided
     from_Date = (
         datetime.strptime(from_date, "%Y-%m-%d").date()
         if from_date
@@ -1987,40 +1984,45 @@ def processMissingAttendanceRecordsJS(request):
         else datetime.today().date()
     )
 
-    # Generate list of all dates within the range
-    date_range = {
-        from_Date + timedelta(days=x) for x in range((to_date - from_Date).days + 1)
-    }
-
-    # Fetch all active and enrolled children
     active_children = Child.objects.filter(
         is_active=True, enrollement_approved=True, is_enrolled=True
     ).values_list("id", flat=True)
 
-    # Fetch all attendance records in the given date range
     attendance_records = AttendanceLog.objects.filter(
         date_logged__range=(from_Date, to_date), child_id__in=active_children
     ).values_list("child_id", "date_logged", "time_logged")
 
-    # Convert attendance records to a dictionary for quick lookup
     attendance_dict = {}
     for child_id, date_logged, time_logged in attendance_records:
-        # Store attendance record count for each child on a given day
         attendance_dict.setdefault((child_id, date_logged), []).append(time_logged)
 
-    # Find children with less than 2 attendance records for a day
+    cutoff_time = time(15, 0)  # 3:00 PM
     incomplete_attendance_dates = []
+
     for (child_id, date_logged), time_logs in attendance_dict.items():
-        if len(time_logs) == 1:  # Only 1 record for that day
+        if len(time_logs) == 1:
+            single_time = time_logs[0]
+            formatted_time = single_time.strftime("%H:%M")
+            if single_time > cutoff_time:
+                # Logged time is OUT → IN is missing
+                in_time = "Missing"
+                out_time = formatted_time
+                missing_record = "IN"
+            else:
+                # Logged time is IN → OUT is missing
+                in_time = formatted_time
+                out_time = "Missing"
+                missing_record = "OUT"
+
             child = Child.objects.get(id=child_id)
-            formatted_times = [
-                time.strftime("%H:%M") for time in time_logs
-            ]  # Format time to "HH:MM"
+
             incomplete_attendance_dates.append(
                 {
-                    "child_name": f"{child.admission_number} - {child.child_first_name} {child.child_last_name} ",
+                    "child_name": f"{child.admission_number} - {child.child_first_name} {child.child_last_name}",
                     "date_logged": date_logged,
-                    "time_logs": formatted_times,
+                    "in_time": in_time,
+                    "out_time": out_time,
+                    "missing_record": missing_record,
                 }
             )
 
@@ -2061,7 +2063,7 @@ def attendanceReportsJS(request):
         # Fetch the attendance logs grouped by child and date
         attendance_logs = list(
             AttendanceLog.objects.filter(filters)
-            .values('child', 'date_logged')  # Group by child and date
+            .values("child", "date_logged")  # Group by child and date
             .annotate(
                 child_name=Concat(
                     F("child__child_first_name"),
@@ -2069,11 +2071,15 @@ def attendanceReportsJS(request):
                     F("child__child_last_name"),
                 ),
                 admission_number=F("child__admission_number"),
-                log_count=Count('id'),  # Count logs for the day
+                log_count=Count("id"),  # Count logs for the day
                 in_time=Min("time_logged"),  # First log of the day (IN time)
                 out_time=Case(
-                    When(log_count=1, then=Value(None)),  # If only 1 log, set out_time to None
-                    default=Max("time_logged"),  # Otherwise, set to last log of the day (OUT time)
+                    When(
+                        log_count=1, then=Value(None)
+                    ),  # If only 1 log, set out_time to None
+                    default=Max(
+                        "time_logged"
+                    ),  # Otherwise, set to last log of the day (OUT time)
                 ),
             )
             .values(  # Structuring output
@@ -2089,16 +2095,19 @@ def attendanceReportsJS(request):
         # Now modify the records based on the scenario you described
         for log in attendance_logs:
             # If there is only one log, we check the time
-            if log['log_count'] == 1:
-                in_time = log['in_time']
+            if log["log_count"] == 1:
+                in_time = log["in_time"]
                 # Check if the in_time is after 4:00 PM (16:00:00)
-                if in_time and in_time > datetime.strptime("16:00:00", "%H:%M:%S").time():
+                if (
+                    in_time
+                    and in_time > datetime.strptime("16:00:00", "%H:%M:%S").time()
+                ):
                     # Set the in_time to None and treat this as an out_time
-                    log['in_time'] = None
-                    log['out_time'] = in_time
+                    log["in_time"] = None
+                    log["out_time"] = in_time
                 else:
                     # If it's before 4:00 PM, we keep it as the in_time and set out_time to None
-                    log['out_time'] = None
+                    log["out_time"] = None
 
     return JsonResponse(attendance_logs, safe=False)
 

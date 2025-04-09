@@ -55,7 +55,8 @@
                               <tr>
                                 <th>Child Name</th>
                                 <th>Date</th>
-                                <th>Time</th>
+                                <th>In</th>
+                                <th>Out</th>
                               </tr>
                             </thead>
                           </table>
@@ -185,28 +186,39 @@ dataTable = $("#missingRecordsTable").DataTable();
 dataTable.clear();
 
 jQuery.ajax({
-        type: "GET",
-        url: "{% url 'core:processmissingAttendenceJS' %}",
-        dataType: "json",
-        data:data,
-        beforeSend: function () { },
-        success: function (response) {
-        // Clear the previous data  
-          jQuery.each(response, function (i, item) {
-            
-                dataTable.row.add(
-                    [
-                    item.child_name,
-                    item.date_logged,
-                    item.time_logs
-                    ],)
-            });
-            dataTable.draw();
-        },
-        error: function (xhr, textStatus, errorThrown) {
-            alert("Error: " + xhr.status + ", " + xhr.statusText);
-        },
-    });
+    type: "GET",
+    url: "{% url 'core:processmissingAttendenceJS' %}",
+    dataType: "json",
+    data: data,
+    beforeSend: function () {
+        dataTable.clear(); // Clear previous rows
+    },
+    success: function (response) {
+        jQuery.each(response, function (i, item) {
+            // Handle the 'in_time' and 'out_time' with color and boldness
+            let inTime = item.in_time === "Missing"
+                ? '<span style="color:red; ">Missing</span>'
+                : '<span style="color:green; font-weight:bold;">' + item.in_time + '</span>';
+
+            let outTime = item.out_time === "Missing"
+                ? '<span style="color:red; ">Missing</span>'
+                : '<span style="color:green; font-weight:bold;">' + item.out_time + '</span>';
+
+            // Add the row with formatted time logs
+            dataTable.row.add([
+                item.child_name,
+                item.date_logged,
+                inTime,
+                outTime,
+                item.missing_record
+            ]).draw(false); // Draw row without resetting the table
+        });
+    },
+    error: function (xhr, textStatus, errorThrown) {
+        alert("Error: " + xhr.status + ", " + xhr.statusText);
+    }
+});
+
 });
 
 </script>
