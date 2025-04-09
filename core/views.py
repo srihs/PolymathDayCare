@@ -3103,7 +3103,7 @@ def getInvoice(request):
 def generateInvoice(request):
     try:
         # Get parameters from the request
-        child_id = request.GET.get("child_id")
+        child_id = request.GET.get("child")
         from_date = request.GET.get("from_date")
         to_date = request.GET.get("to_date")
 
@@ -3129,7 +3129,7 @@ def generateInvoice(request):
         attendance_logs = AttendanceLog.objects.filter(date_range)
 
         if child_id:
-            attendance_logs = attendance_logs.filter(child_id=child_id)
+            attendance_logs = attendance_logs.filter(child=child_id)
 
         # Group attendance logs by child_id and date_logged
         attendance_dict = {}

@@ -124,6 +124,7 @@
         let child = document.getElementById("child").value;
         let from_date = document.getElementById("from_date").value;
         let to_date = document.getElementById("to_date").value;
+        alert(child);
 
         $.ajax({
             type: "GET",
@@ -135,10 +136,11 @@
             },
             success: function (response) {
                 alert("Success");
+                dataTable.clear();
                 const formattedData = response.children_status.map(item => ({
                     child: item.child_name,
                     status_html: item.status === "Eligible for Invoice"
-                        ? `<span class="badge bg-success">Generate Invoice</span>`
+                        ? `<button class="btn btn-success btn-sm">Generate Invoice</button>`
                         : `<span class="badge bg-danger">Missing time entry. Fix time entries for `+item.missing_dates+`</span>`
                 }));
 
