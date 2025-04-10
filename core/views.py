@@ -3100,7 +3100,7 @@ def getInvoice(request):
 
 
 @login_required
-def generateInvoice(request):
+def generateInvoiceEligibilityJS(request):
     try:
         # Get parameters from the request
         child_id = request.GET.get("child")
@@ -3159,6 +3159,7 @@ def generateInvoice(request):
             if has_missing_records:
                 children_status.append(
                     {
+                        "child_id": child.id,
                         "child_name": f"{child.admission_number} - {child.child_first_name} {child.child_last_name}",
                         "status": "Missing Records",
                         "missing_dates": missing_dates,
@@ -3167,8 +3168,13 @@ def generateInvoice(request):
             else:
                 children_status.append(
                     {
+                        "child_id": child.id,
                         "child_name": f"{child.admission_number} - {child.child_first_name} {child.child_last_name}",
                         "status": "Eligible for Invoice",
+                        "from_date":from_date,
+                        "to_date":to_date,
+
+
                     }
                 )
         print(children_status)
@@ -3178,6 +3184,35 @@ def generateInvoice(request):
                 "children_status": children_status,
             }
         )
+
+    except Exception as e:
+        # Log the error and return a response
+        messages.error(request, f"Error generating invoice: {str(e)}")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def generateInvoiceJS(request):
+    try:
+        child_id = request.GET.get("child")
+        from_date = request.GET.get("from_date")
+        to_date = request.GET.get("to_date")
+
+        #getting the Packages
+        child_package = ChildPackageMapping.objects.filter(Child = child_id, is_active=True).first()
+
+        if child_package is not None:
+            if child_package.normal_package is not None:
+                normal_package = child_package.normal_package
+            elif child_package.flex_package is not None:
+                flex_package = child_package.flex_package
+            elif child_package.holiday_package is not None:
+                holiday_package = child_package.holiday_package
+        else:
+            messages.error(request, "No package mappings found for the child.")
+            return JsonResponse({"error": "No package mappings found"}, status=404)
+
+
 
     except Exception as e:
         # Log the error and return a response

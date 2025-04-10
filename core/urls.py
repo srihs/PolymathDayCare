@@ -323,7 +323,7 @@ urlpatterns = [
 
    path(
         "generate_invoices/",
-        views.generateInvoice,
-        name="generate_invoices",
+        views.generateInvoiceEligibilityJS,
+        name="generate_invoices_eligibilityJS",
     ), 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
