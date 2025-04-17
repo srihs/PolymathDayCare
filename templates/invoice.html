@@ -154,32 +154,39 @@
 
 
     // Event listener for the "Generate Invoice" button click
-$(document).on('click', '.generate-invoice', function() {
-    // Capture the student ID and dates from the data attributes
+    $(document).on('click', '.generate-invoice', function() {
     let childId = $(this).data('child-id');
     let fromDate = $(this).data('from-date');
     let toDate = $(this).data('to-date');
-    alert("Child ID: " + childId);
-    alert("From Date: " + fromDate);
-    alert("To Date: " + toDate);
 
-    // Now you can send this child ID and dates to the server to generate the invoice
-    // $.ajax({
-    //     type: "POST",
-    //     url: "{% url 'core:generate_invoices_eligibilityJS ' %}",  // Make sure to create this URL in Django
-    //     data: {
-    //         child_id: childId,
-    //         from_date: fromDate,
-    //         to_date: toDate
-    //     },
-    //     success: function(response) {
-    //         alert("Invoice successfully generated for student ID: " + childId);
-    //         // Optionally, you can update the table to reflect the invoice status
-    //     },
-    //     error: function(xhr, status, error) {
-    //         alert("Error generating invoice: " + xhr.status + " - " + xhr.responseText);
-    //     }
-    // });
+
+    // Send the data to the backend using AJAX
+    $.ajax({
+        url: "{% url 'core:generateinvoicesJS' %}",
+        type: 'GET',
+        data: {
+            'child_id': childId,
+            'from_date': fromDate,
+            'to_date': toDate,
+            
+        },
+        success: function (response) {
+            if (response.error) {
+                // Handle the error returned by Django
+                alert("Error: " + response.error);
+            } else {
+                // Show invoice details
+                console.log(response);
+                alert("Total Invoice: LKR " + response.total_invoice);
+                // You can update the DOM here with invoice details
+            }
+        },
+        error: function (xhr, status, error) {
+            // Handle network/server-side errors
+            console.log(xhr.responseText);
+            alert("Something went wrong: " + xhr.statusText);
+        }
+    });
 });
     
 

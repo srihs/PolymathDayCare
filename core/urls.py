@@ -326,4 +326,9 @@ urlpatterns = [
         views.generateInvoiceEligibilityJS,
         name="generate_invoices_eligibilityJS",
     ), 
+    path(
+        "generateinvoicesJS/",
+        views.generateInvoiceJS,
+        name="generateinvoicesJS",
+    ), 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

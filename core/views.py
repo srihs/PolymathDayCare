@@ -13,6 +13,9 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
+from decimal import Decimal
+from collections import defaultdict
+
 from django.db.models import (
     Case,
     CharField,
@@ -3194,24 +3197,109 @@ def generateInvoiceEligibilityJS(request):
 @login_required
 def generateInvoiceJS(request):
     try:
-        child_id = request.GET.get("child")
-        from_date = request.GET.get("from_date")
-        to_date = request.GET.get("to_date")
+        child_id = request.GET.get("child_id")
+        from_date_str = request.GET.get("from_date")
+        to_date_str = request.GET.get("to_date")
 
-        #getting the Packages
-        child_package = ChildPackageMapping.objects.filter(Child = child_id, is_active=True).first()
+        if not all([child_id, from_date_str, to_date_str]):
+            return JsonResponse({"error": "Missing parameters"}, status=400)
 
-        if child_package is not None:
-            if child_package.normal_package is not None:
-                normal_package = child_package.normal_package
-            elif child_package.flex_package is not None:
-                flex_package = child_package.flex_package
-            elif child_package.holiday_package is not None:
-                holiday_package = child_package.holiday_package
-        else:
-            messages.error(request, "No package mappings found for the child.")
-            return JsonResponse({"error": "No package mappings found"}, status=404)
+        from_date = datetime.strptime(from_date_str, "%Y-%m-%d").date()
+        to_date = datetime.strptime(to_date_str, "%Y-%m-%d").date()
 
+        total_invoice = Decimal('0.00')
+
+        # Get child's package mapping for the period
+        package_mapping = ChildPackageMapping.objects.filter(
+            child_id=child_id, is_active=True
+        ).first()
+
+        if not package_mapping:
+            return JsonResponse({"error": "No package mapping found for the child."})
+
+        is_flex = package_mapping.flex_package is not None
+        is_holiday = package_mapping.is_holiday_package
+
+        package = (
+            package_mapping.flex_package
+            if is_flex
+            else (package_mapping.holiday_package if is_holiday else package_mapping.normal_package)
+        )
+
+        if not package:
+            return JsonResponse({"error": "No valid package assigned."}, status=404)
+
+        expected_days = package.no_days_months or 0
+        package_total = package.package_total or Decimal('0.00')
+
+        # Attendance logs in date range
+        attendance_logs = AttendanceLog.objects.filter(
+            child_id=child_id,
+            date_logged__range=(from_date, to_date)
+        ).order_by("date_logged", "time_logged")
+
+        # Holidays in this range
+        holidays = set(Holiday.objects.filter(
+            start_date__lte=to_date,
+            end_date__gte=from_date
+        ).values_list("start_date", flat=True))
+
+        logs_by_date = defaultdict(list)
+        for log in attendance_logs:
+            logs_by_date[log.date_logged].append(log)
+
+        present_days = 0
+        holiday_attendance = 0
+
+        extra_hour_mapping = PackageExtraHoursMapping.objects.filter(
+            fixed_package=package if not is_flex else None,
+            flex_package=package if is_flex else None,
+        ).first()
+
+        for log_date, logs in logs_by_date.items():
+            logs_sorted = sorted(logs, key=lambda x: x.time_logged or time(0, 0))
+            first_log = logs_sorted[0]
+            last_log = logs_sorted[-1]
+
+            present_days += 1
+            is_holiday = log_date in holidays
+
+            # Extra hours calculation
+            log_time_out = last_log.time_logged or time(0, 0)
+            extra_slots = ExtraHoursAfter530.objects.filter(
+                package_type=package.package_type,
+                from_time__lte=log_time_out,
+                to_time__gte=log_time_out,
+                effective_from__lte=log_date
+            ).filter(
+                Q(effective_to__gte=log_date) | Q(effective_to__isnull=True)
+            )
+
+            for slot in extra_slots:
+                total_invoice += slot.extra_rate
+
+            # Holiday attendance charge
+            if is_holiday and package_mapping.holiday_package:
+                holiday_attendance += 1
+                daily_holiday_rate = package_mapping.holiday_package.package_total / Decimal(expected_days or 1)
+                total_invoice += daily_holiday_rate
+
+        # Adjust package fee if attendance is less than 50%
+        if expected_days > 0 and (present_days / expected_days) < 0.5:
+            package_total = package_total / 2
+
+        total_invoice += package_total
+
+        return JsonResponse({
+            "child_id": child_id,
+            "from_date": str(from_date),
+            "to_date": str(to_date),
+            "present_days": present_days,
+            "holiday_attendance_days": holiday_attendance,
+            "base_package_charge": float(package_total),
+            "total_invoice": float(total_invoice)
+        })
+                    
 
 
     except Exception as e:
