@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta
 from decimal import Decimal
 
@@ -609,3 +610,31 @@ class CenterChangerequest(BaseClass):
         verbose_name = "Center Change Request"
         verbose_name_plural = "Center Change Requests"
         db_table = "dc_center_change_request"
+
+
+class EnrollmentForm(BaseClass):
+    """
+    Model to track generated enrollment forms
+    """
+
+    enrollment = models.ForeignKey("ChildEnrollment", on_delete=models.CASCADE)
+    pdf_filename = models.CharField(max_length=255)
+    pdf_path = models.CharField(max_length=500)
+    file_size = models.IntegerField(default=0)
+    generated_date = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Enrollment Form"
+        verbose_name_plural = "Enrollment Forms"
+        db_table = "dc_enrollment_forms"
+
+    def __str__(self):
+        return (
+            f"Forms for {self.enrollment.child.admission_number} - {self.pdf_filename}"
+        )
+
+    def get_download_url(self):
+        return f"/download-enrollment-forms/{self.enrollment.id}/"
+
+    def file_exists(self):
+        return os.path.exists(self.pdf_path)

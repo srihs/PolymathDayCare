@@ -453,7 +453,7 @@
     url = jQuery(this).attr("href");
     id = jQuery(this).attr("data-id");
  
-   // Load the form into the modal using AJAX
+    // Load the form into the modal using AJAX
     jQuery.ajax({
       type: "GET",
       url: url,
@@ -461,8 +461,23 @@
       dataType: "html",
       success: function (data) {
         alert("Enrollment approved successfully!", "success");
-        window.parent.location = window.parent.location.href;
         
+        // Automatically download the enrollment forms
+        var downloadUrl = "{% url 'core:download_enrollment_forms' 0 %}".replace('0', id);
+        
+        // Create a temporary link and trigger download
+        var link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = 'enrollment_forms_' + id + '.pdf';
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Refresh the page after a short delay
+        setTimeout(function() {
+          window.parent.location = window.parent.location.href;
+        }, 1000);
       },
       error: function (xhr, textStatus, errorThrown) {
         console.log("Error: " + xhr.status + ", " + xhr.statusText);
@@ -501,36 +516,7 @@
     jQuery(this).find("form").trigger("reset");
   });
 
-  jQuery("#branch").change(function () {
-    var branchID = jQuery(this).val();
-
-//////This section will reset the daycare option valuses to initial///////////
-    $('#dayCare')
-    .find('option')
-    .remove()
-    .end()
-    .append('<option value="">-Select daycare-</option>');
-//////////////////////////////////////////////////////////////////////////////
-    
-    if (branchID) {
-      jQuery.ajax({
-        url: "{% url 'core:get_daycares_by_branch_js' %}",
-        type: "GET",
-        data: { id: branchID },
-        beforeSend: function () {},
-        success: function (response) {
-          
-         
-
-          for (var i in response) {
-            center = response[i];
-            console.log(center.daycare_code + "-" + center.daycare_name)
-            jQuery("#branches").append(`<option value="${center.daycare_code}">${center.daycare_code + "-" + center.daycare_name}</option>`);
-          }
-        },
-      });
-    } 
-  });
+  
 
 
 </script>

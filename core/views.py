@@ -4,7 +4,9 @@ import json
 import os
 import shutil
 import tempfile
+from collections import defaultdict
 from datetime import datetime, time, timedelta
+from decimal import Decimal
 
 import qrcode
 from django.conf import settings
@@ -13,9 +15,6 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
-from decimal import Decimal
-from collections import defaultdict
-
 from django.db.models import (
     Case,
     CharField,
@@ -31,9 +30,12 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce, Concat
 from django.http import *
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from PIL import Image, ImageDraw, ImageFont
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
 
 from .forms import (
     AttendanceReportForm,
@@ -1835,7 +1837,283 @@ def approveEnrollment(request):
         objChildMapping = ChildPackageMapping.objects.get(pk=request.GET.get("id"))
         objChildMapping.is_active = True
         objChildMapping.save()
+
+        # Generate enrollment forms automatically
+        generate_enrollment_forms(objChild.id)
+
     return JsonResponse("Enrollment approved", safe=False)
+
+
+@login_required
+@transaction.atomic
+def approveEnrollment(request):
+    if request.GET.get("id") is not None:
+        objEnrollment = ChildEnrollment.objects.get(pk=request.GET.get("id"))
+        objEnrollment.status = "Approved"
+        objEnrollment.user_updated = request.user.username
+        objEnrollment.date_updated = datetime.now()
+        objEnrollment.save()
+
+        objChild = objEnrollment.child
+        objChild.enrollement_approved = True
+        objChild.is_enrolled = True
+        objChild.save()
+
+        objChildMapping = ChildPackageMapping.objects.get(child=objChild)
+        objChildMapping.is_active = True
+        objChildMapping.save()
+
+        # Generate enrollment forms
+        generate_enrollment_forms(objChild.id)
+
+    return JsonResponse("Enrollment approved", safe=False)
+
+
+def generate_enrollment_forms(child_id):
+    """
+    Generate all three enrollment forms on one A4 page using ReportLab
+    """
+    try:
+        # Get child and enrollment data (same as before)
+        child = Child.objects.get(pk=child_id)
+        enrollment = ChildEnrollment.objects.filter(
+            child=child, status="Approved", is_active=True
+        ).first()
+
+        # If no approved enrollment, get the most recent one
+        if not enrollment:
+            enrollment = (
+                ChildEnrollment.objects.filter(child=child, is_active=True)
+                .order_by("-date_created")
+                .first()
+            )
+
+        if not enrollment:
+            print(f"No enrollment found for child {child.admission_number}")
+            return None
+
+        # Get package information
+        package_mapping = ChildPackageMapping.objects.filter(
+            child=child, is_active=True
+        ).first()
+
+        package_name = "N/A"
+        if package_mapping:
+            if package_mapping.normal_package:
+                package_name = package_mapping.normal_package.package_name
+            elif package_mapping.flex_package:
+                package_name = package_mapping.flex_package.package_name
+            elif package_mapping.holiday_package:
+                package_name = package_mapping.holiday_package.package_name
+
+        # Create PDF
+        pdf_filename = f"enrollment_forms_{child.admission_number}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        pdf_path = os.path.join(settings.MEDIA_ROOT, "enrollment_forms", pdf_filename)
+
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
+
+        # Create PDF with ReportLab - Single Page
+        c = canvas.Canvas(pdf_path, pagesize=A4)
+        width, height = A4
+
+        # Data for the forms
+        data = {
+            "child_name": f"{child.child_first_name} {child.child_last_name}",
+            "date_of_birth": child.date_of_birth.strftime("%d.%m.%Y")
+            if child.date_of_birth
+            else "N/A",
+            "date_of_admission": enrollment.enrollment_date.strftime("%d.%m.%Y"),
+            "admission_no": child.admission_number,
+            "receipt_no": enrollment.recipt_number or "N/A",
+            "fathers_name": child.fathers_name,
+            "mothers_name": child.mothers_name,
+            "fathers_contact": child.fathers_contact_number or "N/A",
+            "mothers_contact": child.mothers_contact_number or "N/A",
+            "fathers_whatsapp": child.fathers_whatsapp_number or "N/A",
+            "mothers_whatsapp": child.mothers_whatsapp_number or "N/A",
+            "package_name": package_name,
+            "center_display": f"({enrollment.center.daycare_code} - {enrollment.center.daycare_name})",
+        }
+
+        # Draw all three forms on one page
+        draw_all_forms_single_page(c, data)
+
+        c.save()
+        print(f"Enrollment forms saved: {pdf_path}")
+        return pdf_path
+
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return None
+
+
+def draw_all_forms_single_page(c, data):
+    """Draw all three forms on a single A4 page"""
+    width, height = A4
+
+    # Calculate form dimensions (divide page into 3 sections)
+    form_height = (height - 60) / 3  # 60 for margins
+    margin = 20
+
+    # Form 1: Parent Copy (Top)
+    y_start_1 = height - 30
+    draw_single_form(
+        c, data, "Parent", y_start_1, form_height, width, is_office_copy=False
+    )
+
+    # Form 2: Day Care Copy (Middle)
+    y_start_2 = y_start_1 - form_height
+    draw_single_form(
+        c, data, "Office", y_start_2, form_height, width, is_office_copy=False
+    )
+
+    # Form 3: Office Copy (Bottom)
+    y_start_3 = y_start_2 - form_height
+    draw_single_form(
+        c, data, "Office Copy", y_start_3, form_height, width, is_office_copy=True
+    )
+
+
+def draw_single_form(
+    c, data, from_type, y_start, form_height, width, is_office_copy=False
+):
+    """Draw a single form with improved alignment"""
+
+    # Draw border
+    c.rect(20, y_start - form_height, width - 40, form_height - 10, stroke=1, fill=0)
+
+    # Current Y position
+    y = y_start - 30
+
+    # Header
+    c.setFont("Helvetica-Bold", 14)
+    text = "POLYMATH COLLEGE"
+    text_width = c.stringWidth(text, "Helvetica-Bold", 14)
+    c.drawString((width - text_width) / 2, y, text)
+    y -= 25
+
+    # Office Copy label (only for office copy)
+    if is_office_copy:
+        c.setFont("Helvetica-Bold", 12)
+        text = "Office Copy"
+        text_width = c.stringWidth(text, "Helvetica-Bold", 12)
+        c.drawString((width - text_width) / 2, y, text)
+        y -= 20
+
+    # To/From section (not for office copy)
+    if not is_office_copy:
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(30, y, "To")
+        c.drawString(80, y, f"Day Care Division {data['center_display']}")
+        y -= 15
+        c.drawString(30, y, "From")
+        c.drawString(80, y, from_type)
+        y -= 20
+
+    # Title
+    c.setFont("Helvetica-Bold", 11)
+    title = "New Admission - Day Care Division"
+    title_width = c.stringWidth(title, "Helvetica-Bold", 11)
+    c.drawString((width - title_width) / 2, y, title)
+    y -= 15
+
+    # Center code (only for office copy)
+    if is_office_copy:
+        c.setFont("Helvetica", 9)
+        center_text = data["center_display"]
+        center_width = c.stringWidth(center_text, "Helvetica", 9)
+        c.drawString((width - center_width) / 2, y, center_text)
+        y -= 20
+    else:
+        y -= 10
+
+    # Form fields
+    c.setFont("Helvetica-Bold", 9)
+    line_height = 12
+
+    # Basic info
+    c.drawString(30, y, "Name of the Child")
+    c.drawString(140, y, data["child_name"])
+    y -= line_height
+
+    c.drawString(30, y, "Date of Birth")
+    c.drawString(140, y, data["date_of_birth"])
+    y -= line_height
+
+    c.drawString(30, y, "Date of Admission")
+    c.drawString(140, y, data["date_of_admission"])
+    y -= line_height
+
+    c.drawString(30, y, "Admission No")
+    c.drawString(140, y, data["admission_no"])
+    y -= line_height
+
+    c.drawString(30, y, "Receipt No")
+    c.drawString(140, y, data["receipt_no"])
+    y -= line_height + 5
+
+    # Contact information with right alignment
+    c.drawString(30, y, "Father's Name")
+    c.drawString(140, y, data["fathers_name"])
+    c.drawRightString(width - 30, y, f"Contact Num: {data['fathers_contact']}")
+    y -= line_height
+
+    c.drawString(30, y, "Mother's Name")
+    c.drawString(140, y, data["mothers_name"])
+    c.drawRightString(width - 30, y, f"Contact Num: {data['mothers_contact']}")
+    y -= line_height
+
+    # WhatsApp number (right aligned)
+    c.drawRightString(width - 30, y, f"Whatsapp Num: {data['mothers_whatsapp']}")
+    y -= line_height + 5
+
+    # Package
+    c.drawString(30, y, "Package")
+    c.drawString(140, y, data["package_name"])
+    y -= line_height + 10
+
+    # Signature line
+    c.drawString(30, y, "Signature")
+    c.line(90, y, 250, y)  # Signature line
+
+
+# This function for downloading forms
+@login_required
+def download_enrollment_forms(request, enrollment_id):
+    """
+    Download enrollment forms by enrollment_id
+    """
+    try:
+        enrollment = ChildEnrollment.objects.get(pk=enrollment_id)
+        child = enrollment.child
+
+        # Look for existing PDF file
+        forms_directory = os.path.join(settings.MEDIA_ROOT, "enrollment_forms")
+        pdf_path = None
+
+        if os.path.exists(forms_directory):
+            for filename in os.listdir(forms_directory):
+                if filename.startswith(f"enrollment_forms_{child.admission_number}_"):
+                    pdf_path = os.path.join(forms_directory, filename)
+                    break
+
+        # If no file found, generate new one
+        if not pdf_path or not os.path.exists(pdf_path):
+            pdf_path = generate_enrollment_forms(child.id)
+
+        # Serve the file
+        if pdf_path and os.path.exists(pdf_path):
+            with open(pdf_path, "rb") as pdf_file:
+                response = HttpResponse(pdf_file.read(), content_type="application/pdf")
+                filename = f"enrollment_forms_{child.admission_number}.pdf"
+                response["Content-Disposition"] = f'attachment; filename="{filename}"'
+                return response
+        else:
+            return HttpResponse("Error: Could not generate PDF", status=404)
+
+    except Exception as e:
+        return HttpResponse(f"Error: {str(e)}", status=500)
 
 
 @login_required
@@ -3174,10 +3452,8 @@ def generateInvoiceEligibilityJS(request):
                         "child_id": child.id,
                         "child_name": f"{child.admission_number} - {child.child_first_name} {child.child_last_name}",
                         "status": "Eligible for Invoice",
-                        "from_date":from_date,
-                        "to_date":to_date,
-
-
+                        "from_date": from_date,
+                        "to_date": to_date,
                     }
                 )
         print(children_status)
@@ -3207,7 +3483,7 @@ def generateInvoiceJS(request):
         from_date = datetime.strptime(from_date_str, "%Y-%m-%d").date()
         to_date = datetime.strptime(to_date_str, "%Y-%m-%d").date()
 
-        total_invoice = Decimal('0.00')
+        total_invoice = Decimal("0.00")
 
         # Get child's package mapping for the period
         package_mapping = ChildPackageMapping.objects.filter(
@@ -3223,26 +3499,30 @@ def generateInvoiceJS(request):
         package = (
             package_mapping.flex_package
             if is_flex
-            else (package_mapping.holiday_package if is_holiday else package_mapping.normal_package)
+            else (
+                package_mapping.holiday_package
+                if is_holiday
+                else package_mapping.normal_package
+            )
         )
 
         if not package:
             return JsonResponse({"error": "No valid package assigned."}, status=404)
 
         expected_days = package.no_days_months or 0
-        package_total = package.package_total or Decimal('0.00')
+        package_total = package.package_total or Decimal("0.00")
 
         # Attendance logs in date range
         attendance_logs = AttendanceLog.objects.filter(
-            child_id=child_id,
-            date_logged__range=(from_date, to_date)
+            child_id=child_id, date_logged__range=(from_date, to_date)
         ).order_by("date_logged", "time_logged")
 
         # Holidays in this range
-        holidays = set(Holiday.objects.filter(
-            start_date__lte=to_date,
-            end_date__gte=from_date
-        ).values_list("start_date", flat=True))
+        holidays = set(
+            Holiday.objects.filter(
+                start_date__lte=to_date, end_date__gte=from_date
+            ).values_list("start_date", flat=True)
+        )
 
         logs_by_date = defaultdict(list)
         for log in attendance_logs:
@@ -3270,10 +3550,8 @@ def generateInvoiceJS(request):
                 package_type=package.package_type,
                 from_time__lte=log_time_out,
                 to_time__gte=log_time_out,
-                effective_from__lte=log_date
-            ).filter(
-                Q(effective_to__gte=log_date) | Q(effective_to__isnull=True)
-            )
+                effective_from__lte=log_date,
+            ).filter(Q(effective_to__gte=log_date) | Q(effective_to__isnull=True))
 
             for slot in extra_slots:
                 total_invoice += slot.extra_rate
@@ -3281,7 +3559,10 @@ def generateInvoiceJS(request):
             # Holiday attendance charge
             if is_holiday and package_mapping.holiday_package:
                 holiday_attendance += 1
-                daily_holiday_rate = package_mapping.holiday_package.package_total / Decimal(expected_days or 1)
+                daily_holiday_rate = (
+                    package_mapping.holiday_package.package_total
+                    / Decimal(expected_days or 1)
+                )
                 total_invoice += daily_holiday_rate
 
         # Adjust package fee if attendance is less than 50%
@@ -3290,17 +3571,17 @@ def generateInvoiceJS(request):
 
         total_invoice += package_total
 
-        return JsonResponse({
-            "child_id": child_id,
-            "from_date": str(from_date),
-            "to_date": str(to_date),
-            "present_days": present_days,
-            "holiday_attendance_days": holiday_attendance,
-            "base_package_charge": float(package_total),
-            "total_invoice": float(total_invoice)
-        })
-                    
-
+        return JsonResponse(
+            {
+                "child_id": child_id,
+                "from_date": str(from_date),
+                "to_date": str(to_date),
+                "present_days": present_days,
+                "holiday_attendance_days": holiday_attendance,
+                "base_package_charge": float(package_total),
+                "total_invoice": float(total_invoice),
+            }
+        )
 
     except Exception as e:
         # Log the error and return a response

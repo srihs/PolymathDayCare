@@ -11,21 +11,6 @@ urlpatterns = [
     path("", views.index, name="home"),
     path("login/", views.UserLogin, name="login"),
     path("logout/", views.UserLogOut, name="logout"),
-    # path(
-    #     "holiday_types/",
-    #     views.getHolidayTypes,
-    #     name="holiday_types",
-    # ),
-    # path(
-    #     "get_all_holiday_types_JS/",
-    #     views.getHolidayTypesJS,
-    #     name="get_all_holiday_types_JS",
-    # ),
-    # path(
-    #     "get_holiday_type_byID/<int:pk>/",
-    #     views.getHolidayTypesID,
-    #     name="get_holiday_type_byID",
-    # ),
     path(
         "public_holidays/",
         views.getPublicHolidays,
@@ -237,6 +222,11 @@ urlpatterns = [
     ),
     path("approve_enrollments/", views.approveEnrollment, name="approve_enrollments"),
     path("reject_enrollments/", views.rejectEnrollment, name="reject_enrollments"),
+    path(
+        "download-enrollment-forms/<int:enrollment_id>/",
+        views.download_enrollment_forms,
+        name="download_enrollment_forms",
+    ),
     path("check_ins/", views.getCheckIns, name="view_check_ins"),
     path("getAllAttendance/", views.getAllAttendanceJS, name="get_all_attendance_JS"),
     path("save_Attendance/", views.saveAttendance, name="save_Attendance"),
@@ -255,7 +245,6 @@ urlpatterns = [
         views.processMissingAttendanceRecordsJS,
         name="processmissingAttendenceJS",
     ),
-    
     path(
         "get_attendence_dataJs/",
         views.attendanceReportsJS,
@@ -320,15 +309,14 @@ urlpatterns = [
         views.getInvoice,
         name="get_invoices",
     ),
-
-   path(
+    path(
         "generate_invoices/",
         views.generateInvoiceEligibilityJS,
         name="generate_invoices_eligibilityJS",
-    ), 
+    ),
     path(
         "generateinvoicesJS/",
         views.generateInvoiceJS,
         name="generateinvoicesJS",
-    ), 
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

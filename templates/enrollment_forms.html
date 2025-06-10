@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Enrollment Forms</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .page {
+            border: 2px solid black;
+            margin: 20px;
+            padding: 20px;
+            page-break-after: always;
+            min-height: 600px;
+        }
+        
+        .page:last-child {
+            page-break-after: auto;
+        }
+        
+        .center {
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .bold {
+            font-weight: bold;
+        }
+        
+        .data-text {
+            font-family: "Arial Narrow", Arial, sans-serif;
+            font-weight: normal;
+        }
+        
+        .right {
+            text-align: right;
+        }
+        
+        .line {
+            border-bottom: 1px solid black;
+            display: inline-block;
+            width: 200px;
+            height: 15px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        td {
+            padding: 3px 0;
+            vertical-align: top;
+        }
+        
+        .label-col {
+            width: 140px;
+            font-weight: bold;
+        }
+        
+        .value-col {
+            width: auto;
+            font-family: "Arial Narrow", Arial, sans-serif;
+            font-weight: normal;
+        }
+        
+        .contact-col {
+            width: 200px;
+            text-align: right;
+            font-family: "Arial Narrow", Arial, sans-serif;
+            font-weight: normal;
+        }
+        
+        .contact-label {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Parent Copy -->
+    <div class="page">
+        <div class="center" style="font-size: 16px; margin-bottom: 20px;">POLYMATH COLLEGE</div>
+        
+        <table>
+            <tr>
+                <td class="label-col">To</td>
+                <td class="value-col">Day Care Division {{ center_display }}</td>
+            </tr>
+            <tr>
+                <td class="label-col">From</td>
+                <td class="value-col">Parent</td>
+            </tr>
+        </table>
+        
+        <div class="center bold" style="margin: 20px 0;">New Admission - Day Care Division</div>
+        
+        <table>
+            <tr>
+                <td class="label-col">Name of the Child</td>
+                <td class="value-col">{{ child_name }}</td>
+            </tr>
+            <tr>
+                <td class="label-col">Date of Birth</td>
+                <td class="value-col">{{ date_of_birth }}</td>
+            </tr>
+            <tr>
+                <td class="label-col">Date of Admission</td>
+                <td class="value-col">{{ date_of_admission }}</td>
+            </tr>
+            <tr>
+                <td class="label-col">Admission No</td>
+                <td class="value-col">{{ admission_no }}</td>
+            </tr>
+            <tr>
+                <td class="label-col">Receipt No</td>
+                <td class="value-col">{{ receipt_no }}</td>
+            </tr>
+        </table>
+        
+        <table style="margin-top: 15px;">
+            <tr>
+                <td class="label-col">Father's Name</td>
+                <td class="value-col">{{ fathers_name }}</td>
+                <td class="contact-col"><span class="contact-label">Contact Num:</span> {{ fathers_contact }}</td>
+            </tr>
+            <tr>
+                <td class="label-col">Mother's Name</td>
+                <td class="value-col">{{ mothers_name }}</td>
+                <td class="contact-col"><span class="contact-label">Contact Num:</span> {{ mothers_contact }}</td>
+            </tr>
+            <tr>
+                <td class="label-col"></td>
+                <td class="value-col"></td>
+                <td class="contact-col"><span class="contact-label">Whatsapp Num:</span> {{ fathers_whatsapp }}</td>
+            </tr>
+        </table>
+        
+        <table style="margin-top: 15px;">
+            <tr>
+                <td class="label-col">Package</td>
+                <td class="value-col">{{ package_name }}</td>
+            </tr>
+        </table>
+        
+        <table style="margin-top: 30px;">
+            <tr>
+                <td class="label-col">Signature</td>
+                <td class="value-col"><span class="line"></span></td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Day Care Copy -->
+    <div class="page">
+        <div class="center" style="font-size: 16px; margin-bottom: 20px;">POLYMATH COLLEGE</div>
+        
+        <table>
+            <tr>
+                <td class="label-col">To</td>
+                <td class="value-col">Day Care Division {{ center_display }}</td>
+            </tr>
+            <tr>
+                <td class="label-col">From</td>
+                <td class="value-col">Office</td>
+            </tr>
+        </table>
+        
+        <div class="center bold" style="margin: 20px 0;">New Admission - Day Care Division</div>
+        
+        <table>
+            <tr>
+                <td class="label-col">Name of the Child</td>
+                <td class="value-col">{{ child_name }}</td>
+            </tr>
+            <tr>
+                <td class="label-col">Date of Birth</td>
+                <td class="value-col">{{ date_of_birth }}</td>
+            </tr>
+            <tr>
+                <td class="label-col">Date of Admission</td>
+                <td class="value-col">{{ date_of_admission }}</td>
+            </tr>
+            <tr>
+                <td class="label-col">Admission No</td>
+                <td class="value-col">{{ admission_no }}</td>
+            </tr>
+            <tr>
+                <td class="label-col">Receipt No</td>
+                <td class="value-col">{{ receipt_no }}</td>
+            </tr>
+        </table>
+        
+        <table style="margin-top: 15px;">
+            <tr>
+                <td class="label-col">Father's Name</td>
+                <td class="value-col">{{ fathers_name }}</td>
+                <td class="contact-col"><span class="contact-label">Contact Num:</span> {{ fathers_contact }}</td>
+            </tr>
+            <tr>
+                <td class="label-col">Mother's Name</td>
+                <td class="value-col">{{ mothers_name }}</td>
+                <td class="contact-col"><span class="contact-label">Contact Num:</span> {{ mothers_contact }}</td>
+            </tr>
+            <tr>
+                <td class="label-col"></td>
+                <td class="value-col"></td>
+                <td class="contact-col"><span class="contact-label">Whatsapp Num:</span> {{ mothers_whatsapp }}</td>
+            </tr>
+        </table>
+        
+        <table style="margin-top: 15px;">
+            <tr>
+                <td class="label-col">Package</td>
+                <td class="value-col">{{ package_name }}</td>
+            </tr>
+        </table>
+        
+        <table style="margin-top: 30px;">
+            <tr>
+                <td class="label-col">Signature</td>
+                <td class="value-col"><span class="line"></span></td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Office Copy -->
+    <div class="page">
+        <div class="center" style="font-size: 16px; margin-bottom: 10px;">POLYMATH COLLEGE</div>
+        <div class="center bold" style="margin-bottom: 15px;">Office Copy</div>
+        
+        <div class="center bold" style="margin-bottom: 10px;">New Admission - Day Care Division</div>
+        <div class="center data-text" style="margin-bottom: 20px;">{{ center_display }}</div>
+        
+        <table>
+            <tr>
+                <td class="label-col">Name of the Child</td>
+                <td class="value-col">{{ child_name }}</td>
+            </tr>
+            <tr>
+                <td class="label-col">Date of Birth</td>
+                <td class="value-col">{{ date_of_birth }}</td>
+            </tr>
+            <tr>
+                <td class="label-col">Date of Admission</td>
+                <td class="value-col">{{ date_of_admission }}</td>
+            </tr>
+            <tr>
+                <td class="label-col">Admission No</td>
+                <td class="value-col">{{ admission_no }}</td>
+            </tr>
+            <tr>
+                <td class="label-col">Receipt No</td>
+                <td class="value-col">{{ receipt_no }}</td>
+            </tr>
+        </table>
+        
+        <table style="margin-top: 15px;">
+            <tr>
+                <td class="label-col">Father's Name</td>
+                <td class="value-col">{{ fathers_name }}</td>
+                <td class="contact-col"><span class="contact-label">Contact Num:</span> {{ fathers_contact }}</td>
+            </tr>
+            <tr>
+                <td class="label-col">Mother's Name</td>
+                <td class="value-col">{{ mothers_name }}</td>
+                <td class="contact-col"><span class="contact-label">Contact Num:</span> {{ mothers_contact }}</td>
+            </tr>
+            <tr>
+                <td class="label-col"></td>
+                <td class="value-col"></td>
+                <td class="contact-col"><span class="contact-label">Whatsapp Num:</span> {{ mothers_whatsapp }}</td>
+            </tr>
+        </table>
+        
+        <table style="margin-top: 15px;">
+            <tr>
+                <td class="label-col">Package</td>
+                <td class="value-col">{{ package_name }}</td>
+            </tr>
+        </table>
+        
+        <table style="margin-top: 30px;">
+            <tr>
+                <td class="label-col">Signature</td>
+                <td class="value-col"><span class="line"></span></td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>
