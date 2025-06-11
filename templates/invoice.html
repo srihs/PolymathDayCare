@@ -1,197 +1,1074 @@
-{% extends "base.html" %} {% load static %} {% block UserName %} {{ UserName}}
+{% extends "base.html" %} 
+{% load static %} 
+{% block UserName %} {{ UserName }}
 {% block PageTitle %}Invoices{% endblock %}
-{% endblock %} {% block Title %} INVOICES {% endblock %} {% block functionTitle%}INVOICE LIST{% endblock %} {% block content %}
+{% endblock %} 
+{% block Title %} INVOICES {% endblock %} 
+{% block functionTitle %}INVOICE MANAGEMENT{% endblock %} 
+{% block content %}
 
-
-    <div class="container-fluid">
-        <div class="row">
-            <div class="col-lg-12">
-                <div class="card" id="invoiceList">
-                    <div class="card-header border-0">
-                        <div class="d-flex align-items-center">
-                            <h5 class="card-title mb-0 flex-grow-1">Generate Invoices</h5>
-                            <div class="flex-shrink-0">
-                                
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body bg-light-subtle border border-dashed border-start-0 border-end-0">
-                        <form>
-                            <div class="row g-3">
-                                <div class="col-xxl-5 col-sm-12">
-                                    <div class="search-box">
-                                        
-                                        {{ form.child }}
-
-                                    </div>
-                                </div>
-                                <!--end col-->
-                                <div class="col-xxl-3 col-sm-4">
-                                    
-                                    {{form.from_date}}
-                                </div>
-                                <!--end col-->
-                                <div class="col-xxl-3 col-sm-4">
-                                    <div class="input-light">
-                                        {{form.to_date}}
-                                    </div>
-                                </div>
-                                <!--end col-->
-
-                                <div class="col-xxl-1 col-sm-4">
-                                    <button type="button" class="btn btn-primary w-100" onclick="SearchData();">
-                                        <i class="ri-search-line"></i> Search
-                                    </button>
-                                </div>
-                                <!--end col-->
-                            </div>
-                            <!--end row-->
-                        </form>
-                    </div>
-                    <div class="card-body">
-                        <div>
-                            <div>
-                                <table class="display" style="width: 100%" id="invoiceTable">
-                                    <thead class="text-muted">
-                                        <tr>
-                                            
-                                            <th>Child</th>
-                                            <th>Status</th>
-                                            
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-12">
+            <!-- Invoice Generation Section -->
+            <div class="card" id="invoiceGeneration">
+                <div class="card-header border-0">
+                    <div class="d-flex align-items-center">
+                        <h5 class="card-title mb-0 flex-grow-1">Generate Invoices</h5>
+                        <div class="flex-shrink-0">
+                            <button type="button" class="btn btn-primary" onclick="toggleView('list')">
+                                <i class="ri-list-check"></i> View Generated Invoices
+                            </button>
                         </div>
                     </div>
                 </div>
+                
+                <!-- Generation Parameters -->
+                <div class="card-body bg-light-subtle border border-dashed border-start-0 border-end-0">
+                    <form id="invoiceGenerationForm">
+                        <div class="row g-3">
+                            <div class="col-xxl-3 col-sm-6">
+                                <label for="month" class="form-label">Month</label>
+                                <select class="form-select" id="month" name="month" required>
+                                    <!-- Months will be populated by JavaScript -->
+                                </select>
+                            </div>
+                            
+                            <div class="col-xxl-2 col-sm-6">
+                                <label for="year" class="form-label">Year</label>
+                                <select class="form-select" id="year" name="year" required>
+                                    <!-- Years will be populated by JavaScript -->
+                                </select>
+                            </div>
+                            
+                            <div class="col-xxl-4 col-sm-8">
+                                <label for="child" class="form-label">Child (Optional)</label>
+                                <select class="form-select" id="child" name="child">
+                                    <option value="">All Children</option>
+                                    <!-- Children will be populated by JavaScript -->
+                                </select>
+                            </div>
 
+                            <div class="col-xxl-3 col-sm-4">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="button" class="btn btn-primary w-100" onclick="checkEligibility();">
+                                    <i class="ri-search-line"></i> Check Eligibility
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Results Section -->
+                <div class="card-body" id="resultsSection" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">Eligibility Results</h6>
+                        <div>
+                            <button id="generateSelected" class="btn btn-success btn-sm me-2" disabled>
+                                <i class="ri-file-text-line"></i> Generate Selected
+                            </button>
+                            <button id="generateAllEligible" class="btn btn-warning btn-sm" disabled>
+                                <i class="ri-file-list-3-line"></i> Generate All Eligible
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-nowrap table-striped-columns mb-0" id="eligibilityTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="selectAll">
+                                        </div>
+                                    </th>
+                                    <th scope="col">Child</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Details</th>
+                                    <th scope="col">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="eligibilityTableBody">
+                                <!-- Data will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Generation Results -->
+                <div class="card-body" id="generationResults" style="display: none;">
+                    <div class="alert alert-success" role="alert">
+                        <h6 class="alert-heading"><i class="ri-check-double-line"></i> Invoice Generation Complete</h6>
+                        <div id="generationSummary"></div>
+                    </div>
+                </div>
             </div>
-            <!--end col-->
-        </div>
-        <!--end row-->
 
-    </div><!-- container-fluid -->
+            <!-- Invoice List Section -->
+            <div class="card" id="invoiceList" style="display: none;">
+                <div class="card-header border-0">
+                    <div class="d-flex align-items-center">
+                        <h5 class="card-title mb-0 flex-grow-1">Generated Invoices</h5>
+                        <div class="flex-shrink-0">
+                            <button type="button" class="btn btn-primary" onclick="toggleView('generation')">
+                                <i class="ri-add-line"></i> Generate New Invoices
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Search Filters -->
+                <div class="card-body bg-light-subtle border border-dashed border-start-0 border-end-0">
+                    <form id="invoiceSearchForm">
+                        <div class="row g-3">
+                            <div class="col-xxl-3 col-sm-6">
+                                <select class="form-select" id="filterMonth" name="filterMonth">
+                                    <option value="">All Months</option>
+                                    <!-- Months will be populated by JavaScript -->
+                                </select>
+                            </div>
+                            
+                            <div class="col-xxl-2 col-sm-6">
+                                <select class="form-select" id="filterYear" name="filterYear">
+                                    <option value="">All Years</option>
+                                    <!-- Years will be populated by JavaScript -->
+                                </select>
+                            </div>
+                            
+                            <div class="col-xxl-3 col-sm-6">
+                                <select class="form-select" id="filterChild" name="filterChild">
+                                    <option value="">All Children</option>
+                                    <!-- Children will be populated by JavaScript -->
+                                </select>
+                            </div>
+
+                            <div class="col-xxl-2 col-sm-6">
+                                <select class="form-select" id="filterStatus" name="filterStatus">
+                                    <option value="">All Status</option>
+                                    <option value="GENERATED">Generated</option>
+                                    <option value="SENT">Sent</option>
+                                    <option value="PAID">Paid</option>
+                                    <option value="OVERDUE">Overdue</option>
+                                </select>
+                            </div>
+
+                            <div class="col-xxl-2 col-sm-12">
+                                <button type="button" class="btn btn-primary w-100" onclick="searchInvoices();">
+                                    <i class="ri-search-line"></i> Search
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Invoice List Table -->
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-nowrap align-middle" id="invoiceListTable">
+                            <thead class="text-muted">
+                                <tr>
+                                    <th scope="col">Invoice No</th>
+                                    <th scope="col">Child</th>
+                                    <th scope="col">Month/Year</th>
+                                    <th scope="col">Date</th>
+                                    <th scope="col">Amount</th>
+                                    <th scope="col">Paid</th>
+                                    <th scope="col">Balance</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoiceListTableBody">
+                                <!-- Data will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Missing Records Modal -->
+<div class="modal fade" id="missingRecordsModal" tabindex="-1" aria-labelledby="missingRecordsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="missingRecordsModalLabel">
+                    <i class="ri-alarm-warning-line text-warning"></i> Missing Attendance Records
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="missingRecordsContent">
+                    <!-- Content will be populated by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="paymentModalLabel">
+                    <i class="ri-money-dollar-circle-line text-success"></i> Record Payment
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="paymentForm">
+                    <input type="hidden" id="paymentInvoiceId">
+                    <div class="mb-3">
+                        <label for="paymentAmount" class="form-label">Payment Amount <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">Rs.</span>
+                            <input type="number" class="form-control" id="paymentAmount" step="0.01" required>
+                        </div>
+                        <div class="form-text">Available Balance: <span id="availableBalance"></span></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="paymentDate" class="form-label">Payment Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="paymentDate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="paymentMethod" class="form-label">Payment Method <span class="text-danger">*</span></label>
+                        <select class="form-select" id="paymentMethod" required>
+                            <option value="">Select Payment Method</option>
+                            <option value="CASH">Cash</option>
+                            <option value="BANK_TRANSFER">Bank Transfer</option>
+                            <option value="CHEQUE">Cheque</option>
+                            <option value="CARD">Card</option>
+                            <option value="ONLINE">Online Payment</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="paymentReference" class="form-label">Reference Number</label>
+                        <input type="text" class="form-control" id="paymentReference" placeholder="Receipt/Transaction number">
+                    </div>
+                    <div class="mb-3">
+                        <label for="paymentNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="paymentNotes" rows="3" placeholder="Additional notes (optional)"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="savePayment">
+                    <i class="ri-save-line"></i> Save Payment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Invoice Details Modal -->
+<div class="modal fade" id="invoiceDetailsModal" tabindex="-1" aria-labelledby="invoiceDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="invoiceDetailsModalLabel">
+                    <i class="ri-file-text-line"></i> Invoice Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="invoiceDetailsContent">
+                    <!-- Content will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
+
 {% block scripts %}
-    <!-- jQuery -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <!--datatable js-->
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
-    <script src="{% static 'assets/js/pages/datatables.init.js' %}"></script>
-    <script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
-    <script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
-    <!-- flatpickr -->
-    <script src="{% static 'assets/libs/flatpickr/flatpickr.min.js' %}"></script>
-    <script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
-    <script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<!-- jQuery -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<!--datatable js-->
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+<script src="{% static 'assets/js/pages/datatables.init.js' %}"></script>
+<script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
+<script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
+<!-- flatpickr -->
+<script src="{% static 'assets/libs/flatpickr/flatpickr.min.js' %}"></script>
+<script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-    <script>
-         var dataTable;
-        $(document).ready(function() {
-            $("#child").select2();  // Activate Select2
+<script>
+    // Global variables
+    var eligibilityDataTable;
+    var invoiceListDataTable;
+    var currentView = 'generation'; // 'generation' or 'list'
+
+    $(document).ready(function() {
+        initializePage();
+        bindEvents();
+    });
+
+    function initializePage() {
+        // Initialize select2
+        $("#child, #filterChild").select2();
         
+        // Populate dropdowns
+        populateMonthsAndYears();
+        loadChildren();
+        
+        // Set current month/year as default
+        const now = new Date();
+        $('#month').val(now.getMonth() + 1);
+        $('#year').val(now.getFullYear());
+        
+        // Set today as default payment date
+        $('#paymentDate').val(new Date().toISOString().split('T')[0]);
 
-        dataTable = $('#invoiceTable').DataTable({
+        // Initialize DataTables
+        initializeDataTables();
+    }
+
+    function populateMonthsAndYears() {
+        const months = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        
+        // Populate months for generation
+        months.forEach((month, index) => {
+            $('#month').append(`<option value="${index + 1}">${month}</option>`);
+            $('#filterMonth').append(`<option value="${index + 1}">${month}</option>`);
+        });
+
+        // Populate years (from 2020 to current year)
+        for (let year = 2020; year <= currentYear; year++) {
+            $('#year').append(`<option value="${year}">${year}</option>`);
+            $('#filterYear').append(`<option value="${year}">${year}</option>`);
+        }
+    }
+
+    function loadChildren() {
+        $.get('/core/children-for-invoice/', function(data) {
+            data.children.forEach(child => {
+                $('#child').append(`<option value="${child.id}">${child.display_name}</option>`);
+                $('#filterChild').append(`<option value="${child.id}">${child.display_name}</option>`);
+            });
+        }).fail(function() {
+            showError('Failed to load children list');
+        });
+    }
+
+    function initializeDataTables() {
+        // Eligibility table
+        eligibilityDataTable = $('#eligibilityTable').DataTable({
             responsive: true,
             paging: false,
             searching: false,
             ordering: false,
-            order: [[0, "asc"]],
-            retrieve: true,
-            columns: [
-                
-                { data: 'child' },
-                { data: 'status_html' }
-            ],
-            
-        })
-           
-    });
+            info: false,
+            columnDefs: [
+                { orderable: false, targets: [0, 4] }
+            ]
+        });
 
-    function SearchData() {
-        let child = document.getElementById("child").value;
-        let from_date = document.getElementById("from_date").value;
-        let to_date = document.getElementById("to_date").value;
-
-        $.ajax({
-            type: "GET",
-            url: "{% url 'core:generate_invoices_eligibilityJS' %}",
-            data: {
-                child: child,
-                from_date: from_date,
-                to_date: to_date
-            },
-            success: function (response) {
-                dataTable.clear();
-                const formattedData = response.children_status.map(item => ({
-                    child: item.child_name,
-                    status_html: item.status === "Eligible for Invoice"
-                    ? `<button id="generate-invoice-${item.child_id}" class="btn btn-success btn-sm generate-invoice" 
-                       data-child-id="${item.child_id}"
-                       data-from-date="${item.from_date}"
-                       data-to-date="${item.to_date}">Generate Invoice</button>`
-                        : `<span class="badge bg-danger">Missing time entry. Fix time entries for `+item.missing_dates+`</span>`
-                }));
-
-                dataTable.rows.add(formattedData).draw();
-            },
-            error: function (xhr, status, error) {
-                alert("Error: " + xhr.status + " - " + xhr.responseText);
-            }
+        // Invoice list table
+        invoiceListDataTable = $('#invoiceListTable').DataTable({
+            responsive: true,
+            paging: true,
+            pageLength: 25,
+            searching: false,
+            ordering: true,
+            order: [[3, 'desc']], // Order by date descending
+            columnDefs: [
+                { orderable: false, targets: [8] }
+            ]
         });
     }
 
+    function bindEvents() {
+        // Month/Year validation for future months
+        $('#month, #year').change(validateDateSelection);
+        
+        // Select all checkbox
+        $('#selectAll').change(function() {
+            $('.child-checkbox').prop('checked', $(this).is(':checked'));
+            updateGenerateButtons();
+        });
+        
+        // Child checkbox change
+        $(document).on('change', '.child-checkbox', updateGenerateButtons);
+        
+        // Generate buttons
+        $('#generateSelected').click(generateSelectedInvoices);
+        $('#generateAllEligible').click(generateAllEligibleInvoices);
+        
+        // Payment form
+        $('#savePayment').click(savePayment);
+        
+        // Dynamic events for buttons created via AJAX
+        $(document).on('click', '.generate-single', generateSingleInvoice);
+        $(document).on('click', '.show-missing', showMissingRecords);
+        $(document).on('click', '.view-invoice', viewInvoiceDetails);
+        $(document).on('click', '.record-payment', recordPayment);
+        $(document).on('click', '.download-pdf', downloadInvoicePDF);
+    }
 
-    // Event listener for the "Generate Invoice" button click
-    $(document).on('click', '.generate-invoice', function() {
-    let childId = $(this).data('child-id');
-    let fromDate = $(this).data('from-date');
-    let toDate = $(this).data('to-date');
-
-
-    // Send the data to the backend using AJAX
-    $.ajax({
-        url: "{% url 'core:generateinvoicesJS' %}",
-        type: 'GET',
-        data: {
-            'child_id': childId,
-            'from_date': fromDate,
-            'to_date': toDate,
-            
-        },
-        success: function (response) {
-            if (response.error) {
-                // Handle the error returned by Django
-                alert("Error: " + response.error);
-            } else {
-                // Show invoice details
-                console.log(response);
-                alert("Total Invoice: LKR " + response.total_invoice);
-                // You can update the DOM here with invoice details
-            }
-        },
-        error: function (xhr, status, error) {
-            // Handle network/server-side errors
-            console.log(xhr.responseText);
-            alert("Something went wrong: " + xhr.statusText);
+    function validateDateSelection() {
+        const selectedMonth = parseInt($('#month').val());
+        const selectedYear = parseInt($('#year').val());
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth() + 1;
+        const currentYear = currentDate.getFullYear();
+        
+        if (selectedYear > currentYear || (selectedYear === currentYear && selectedMonth > currentMonth)) {
+            showError('Cannot generate invoices for future months');
+            $('#month').val(currentMonth);
+            $('#year').val(currentYear);
         }
-    });
-});
-    
+    }
 
-    </script>
+    function toggleView(view) {
+        if (view === 'generation') {
+            $('#invoiceGeneration').show();
+            $('#invoiceList').hide();
+            currentView = 'generation';
+        } else {
+            $('#invoiceGeneration').hide();
+            $('#invoiceList').show();
+            currentView = 'list';
+            searchInvoices(); // Load invoices when switching to list view
+        }
+    }
 
-       <!-- App js -->
-       <script src="{% static 'assets/js/app.js' %}"></script>
-       {% endblock %}
+    function checkEligibility() {
+        const month = $('#month').val();
+        const year = $('#year').val();
+        const childId = $('#child').val();
+        
+        if (!month || !year) {
+            showError('Please select month and year');
+            return;
+        }
+
+        // Show loading state
+        showLoading(true);
+        
+        $.get('/core/invoice-eligibility-check/', {
+            month: month,
+            year: year,
+            child_id: childId
+        })
+        .done(function(data) {
+            displayEligibilityResults(data);
+            $('#resultsSection').show();
+        })
+        .fail(function(xhr) {
+            showError('Error checking eligibility: ' + (xhr.responseJSON?.error || 'Unknown error'));
+        })
+        .always(function() {
+            showLoading(false);
+        });
+    }
+
+    function displayEligibilityResults(data) {
+        eligibilityDataTable.clear();
+        
+        let eligibleCount = 0;
+        const rows = [];
+        
+        data.children_status.forEach(child => {
+            let statusHtml = '';
+            let actionsHtml = '';
+            let checkboxHtml = '';
+            
+            switch(child.status) {
+                case 'Ready for Invoice':
+                    statusHtml = '<span class="badge bg-success">Ready for Invoice</span>';
+                    checkboxHtml = `<div class="form-check">
+                        <input class="form-check-input child-checkbox" type="checkbox" value="${child.child_id}">
+                    </div>`;
+                    actionsHtml = `<button class="btn btn-sm btn-primary generate-single" 
+                        data-child-id="${child.child_id}">
+                        <i class="ri-file-text-line"></i> Generate
+                    </button>`;
+                    eligibleCount++;
+                    break;
+                    
+                case 'Missing Records':
+                    statusHtml = '<span class="badge bg-warning">Missing Records</span>';
+                    actionsHtml = `<button class="btn btn-sm btn-info show-missing" 
+                        data-missing='${JSON.stringify(child.missing_dates)}'>
+                        <i class="ri-eye-line"></i> View Missing
+                    </button>`;
+                    break;
+                    
+                case 'Already Generated':
+                    statusHtml = '<span class="badge bg-info">Already Generated</span>';
+                    actionsHtml = `<button class="btn btn-sm btn-outline-primary view-invoice" 
+                        data-invoice-id="${child.invoice_id || ''}">
+                        <i class="ri-eye-line"></i> View
+                    </button>`;
+                    break;
+            }
+            
+            rows.push([
+                checkboxHtml,
+                child.child_name,
+                statusHtml,
+                child.status === 'Ready for Invoice' ? 
+                    `Estimated: Rs. ${child.estimated_amount?.toFixed(2) || '0.00'}` :
+                    child.status === 'Missing Records' ?
+                    `Missing: ${child.missing_dates?.length || 0} days` :
+                    `Amount: Rs. ${child.amount?.toFixed(2) || '0.00'}`,
+                actionsHtml
+            ]);
+        });
+        
+        eligibilityDataTable.rows.add(rows).draw();
+        
+        // Update generate buttons
+        if (eligibleCount > 0) {
+            $('#generateAllEligible').prop('disabled', false);
+        }
+        
+        updateGenerateButtons();
+    }
+
+    function updateGenerateButtons() {
+        const checkedCount = $('.child-checkbox:checked').length;
+        $('#generateSelected').prop('disabled', checkedCount === 0);
+    }
+
+    function generateSingleInvoice() {
+        const childId = $(this).data('child-id');
+        const month = $('#month').val();
+        const year = $('#year').val();
+        
+        generateInvoices([childId], month, year);
+    }
+
+    function generateSelectedInvoices() {
+        const selectedIds = $('.child-checkbox:checked').map(function() {
+            return $(this).val();
+        }).get();
+        
+        if (selectedIds.length === 0) {
+            showError('Please select at least one child');
+            return;
+        }
+        
+        const month = $('#month').val();
+        const year = $('#year').val();
+        
+        generateInvoices(selectedIds, month, year);
+    }
+
+    function generateAllEligibleInvoices() {
+        const eligibleIds = $('.child-checkbox').map(function() {
+            return $(this).val();
+        }).get();
+        
+        if (eligibleIds.length === 0) {
+            showError('No eligible children found');
+            return;
+        }
+        
+        if (!confirm(`Generate invoices for ${eligibleIds.length} children?`)) {
+            return;
+        }
+        
+        const month = $('#month').val();
+        const year = $('#year').val();
+        
+        generateInvoices(eligibleIds, month, year);
+    }
+
+    function generateInvoices(childIds, month, year) {
+        showLoading(true);
+        
+        const url = childIds.length === 1 ? 
+            '/core/generate-single-invoice/' : 
+            '/core/generate-bulk-invoices/';
+        
+        const data = {
+            month: month,
+            year: year,
+            csrfmiddlewaretoken: getCsrfToken()
+        };
+        
+        if (childIds.length === 1) {
+            data.child_id = childIds[0];
+        } else {
+            data.child_ids = childIds;
+        }
+        
+        $.post(url, data)
+        .done(function(response) {
+            if (response.success) {
+                showGenerationResults(response);
+                checkEligibility(); // Refresh eligibility
+            } else {
+                showError('Generation failed: ' + (response.error || 'Unknown error'));
+            }
+        })
+        .fail(function(xhr) {
+            showError('Error generating invoices: ' + (xhr.responseJSON?.error || 'Unknown error'));
+        })
+        .always(function() {
+            showLoading(false);
+        });
+    }
+
+    function showGenerationResults(data) {
+        let html = `<div class="mb-3">
+            <strong>Generated ${data.generated_count || (data.invoice_id ? 1 : 0)} invoice(s) successfully</strong>
+        </div>`;
+        
+        if (data.generated_invoices) {
+            html += '<div class="table-responsive"><table class="table table-sm">';
+            html += '<thead><tr><th>Invoice No</th><th>Child</th><th>Amount</th><th>Actions</th></tr></thead><tbody>';
+            
+            data.generated_invoices.forEach(invoice => {
+                html += `<tr>
+                    <td>${invoice.invoice_no}</td>
+                    <td>${invoice.child_name}</td>
+                    <td>Rs. ${invoice.amount.toFixed(2)}</td>
+                    <td>
+                        <a href="/core/download-invoice-pdf/${invoice.invoice_id}/" 
+                           class="btn btn-sm btn-outline-primary" target="_blank">
+                            <i class="ri-download-line"></i> PDF
+                        </a>
+                    </td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table></div>';
+        } else if (data.invoice_id) {
+            // Single invoice
+            html += `<div class="d-flex justify-content-center">
+                <a href="/core/download-invoice-pdf/${data.invoice_id}/" 
+                   class="btn btn-primary" target="_blank">
+                    <i class="ri-download-line"></i> Download Invoice PDF
+                </a>
+            </div>`;
+        }
+        
+        if (data.errors && data.errors.length > 0) {
+            html += '<div class="alert alert-warning mt-3"><h6>Errors:</h6><ul>';
+            data.errors.forEach(error => {
+                html += `<li>${error}</li>`;
+            });
+            html += '</ul></div>';
+        }
+        
+        $('#generationSummary').html(html);
+        $('#generationResults').show();
+    }
+
+    function searchInvoices() {
+        const filters = {
+            month: $('#filterMonth').val(),
+            year: $('#filterYear').val(),
+            child_id: $('#filterChild').val(),
+            status: $('#filterStatus').val()
+        };
+        
+        showLoading(true);
+        
+        $.get('/core/invoices-list/', filters)
+        .done(function(data) {
+            displayInvoiceList(data.invoices);
+        })
+        .fail(function(xhr) {
+            showError('Error loading invoices: ' + (xhr.responseJSON?.error || 'Unknown error'));
+        })
+        .always(function() {
+            showLoading(false);
+        });
+    }
+
+    function displayInvoiceList(invoices) {
+        invoiceListDataTable.clear();
+        
+        const rows = invoices.map(invoice => {
+            const statusBadge = getStatusBadge(invoice.status);
+            const actionButtons = getInvoiceActionButtons(invoice);
+            
+            return [
+                invoice.invoice_no,
+                invoice.child_name,
+                invoice.month_year,
+                formatDate(invoice.invoice_date),
+                `Rs. ${invoice.amount.toFixed(2)}`,
+                `Rs. ${invoice.paid_amount.toFixed(2)}`,
+                `Rs. ${invoice.balance_amount.toFixed(2)}`,
+                statusBadge,
+                actionButtons
+            ];
+        });
+        
+        invoiceListDataTable.rows.add(rows).draw();
+    }
+
+    function getStatusBadge(status) {
+        const badges = {
+            'DRAFT': '<span class="badge bg-secondary">Draft</span>',
+            'GENERATED': '<span class="badge bg-primary">Generated</span>',
+            'SENT': '<span class="badge bg-info">Sent</span>',
+            'PAID': '<span class="badge bg-success">Paid</span>',
+            'OVERDUE': '<span class="badge bg-danger">Overdue</span>',
+            'CANCELLED': '<span class="badge bg-dark">Cancelled</span>'
+        };
+        return badges[status] || '<span class="badge bg-light text-dark">Unknown</span>';
+    }
+
+    function getInvoiceActionButtons(invoice) {
+        let buttons = `
+            <div class="btn-group btn-group-sm" role="group">
+                <button class="btn btn-outline-primary view-invoice" data-invoice-id="${invoice.id}" title="View Details">
+                    <i class="ri-eye-line"></i>
+                </button>
+                <a href="/core/download-invoice-pdf/${invoice.id}/" class="btn btn-outline-success download-pdf" target="_blank" title="Download PDF">
+                    <i class="ri-download-line"></i>
+                </a>
+        `;
+        
+        if (invoice.balance_amount > 0) {
+            buttons += `
+                <button class="btn btn-outline-warning record-payment" 
+                        data-invoice-id="${invoice.id}" 
+                        data-balance="${invoice.balance_amount}"
+                        title="Record Payment">
+                    <i class="ri-money-dollar-circle-line"></i>
+                </button>
+            `;
+        }
+        
+        buttons += '</div>';
+        return buttons;
+    }
+
+    function showMissingRecords() {
+        const missingDates = $(this).data('missing');
+        
+        let html = `
+            <div class="alert alert-warning" role="alert">
+                <h6 class="alert-heading">
+                    <i class="ri-alarm-warning-line"></i> Missing Attendance Records
+                </h6>
+                <p>The following dates have incomplete attendance records (missing IN or OUT time):</p>
+                <div class="row">
+        `;
+        
+        missingDates.forEach((date, index) => {
+            if (index % 3 === 0 && index > 0) html += '</div><div class="row">';
+            html += `<div class="col-md-4">
+                <span class="badge bg-light text-dark mb-1">${date}</span>
+            </div>`;
+        });
+        
+        html += `
+                </div>
+                <hr>
+                <p class="mb-0">
+                    <strong>Note:</strong> Please complete attendance records before generating invoice.
+                    You can fix attendance records in the Attendance Management section.
+                </p>
+            </div>
+        `;
+        
+        $('#missingRecordsContent').html(html);
+        $('#missingRecordsModal').modal('show');
+    }
+
+    function viewInvoiceDetails() {
+        const invoiceId = $(this).data('invoice-id');
+        
+        if (!invoiceId) {
+            showError('Invoice ID not found');
+            return;
+        }
+        
+        showLoading(true);
+        
+        $.get(`/core/invoice-details/${invoiceId}/`)
+        .done(function(data) {
+            displayInvoiceDetails(data);
+            $('#invoiceDetailsModal').modal('show');
+        })
+        .fail(function(xhr) {
+            showError('Error loading invoice details: ' + (xhr.responseJSON?.error || 'Unknown error'));
+        })
+        .always(function() {
+            showLoading(false);
+        });
+    }
+
+    function displayInvoiceDetails(invoice) {
+        const html = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Invoice Information</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Invoice No:</strong></td><td>${invoice.invoice_no}</td></tr>
+                        <tr><td><strong>Date:</strong></td><td>${formatDate(invoice.invoice_date)}</td></tr>
+                        <tr><td><strong>Period:</strong></td><td>${formatDate(invoice.period.from_date)} to ${formatDate(invoice.period.to_date)}</td></tr>
+                        <tr><td><strong>Month/Year:</strong></td><td>${invoice.period.month_name} ${invoice.period.year}</td></tr>
+                        <tr><td><strong>Status:</strong></td><td>${getStatusBadge(invoice.status)}</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6>Child Information</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Name:</strong></td><td>${invoice.child.name}</td></tr>
+                        <tr><td><strong>Admission No:</strong></td><td>${invoice.child.admission_number}</td></tr>
+                        <tr><td><strong>Father's Contact:</strong></td><td>${invoice.child.fathers_contact || 'N/A'}</td></tr>
+                        <tr><td><strong>Mother's Contact:</strong></td><td>${invoice.child.mothers_contact || 'N/A'}</td></tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <h6>Attendance Summary</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Days Attended:</strong></td><td>${invoice.attendance.total_days_attended}</td></tr>
+                        <tr><td><strong>Holiday Days:</strong></td><td>${invoice.attendance.holiday_attendance_days}</td></tr>
+                        <tr><td><strong>Extra Hours:</strong></td><td>${invoice.attendance.total_extra_hours}</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6>Financial Summary</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Package Amount:</strong></td><td>Rs. ${invoice.amounts.package_amount.toFixed(2)}</td></tr>
+                        <tr><td><strong>Extra Hours:</strong></td><td>Rs. ${invoice.amounts.extra_hours_amount.toFixed(2)}</td></tr>
+                        <tr><td><strong>Holiday Charges:</strong></td><td>Rs. ${invoice.amounts.holiday_charges.toFixed(2)}</td></tr>
+                        <tr><td><strong>Outstanding:</strong></td><td>Rs. ${invoice.amounts.outstanding_balance.toFixed(2)}</td></tr>
+                        <tr class="table-primary"><td><strong>Total Amount:</strong></td><td><strong>Rs. ${invoice.amounts.total_amount.toFixed(2)}</strong></td></tr>
+                        <tr><td><strong>Paid Amount:</strong></td><td>Rs. ${invoice.amounts.paid_amount.toFixed(2)}</td></tr>
+                        <tr class="table-warning"><td><strong>Balance:</strong></td><td><strong>Rs. ${invoice.amounts.balance_amount.toFixed(2)}</strong></td></tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="mt-3">
+                <h6>Line Items</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Description</th>
+                                <th>Quantity</th>
+                                <th>Unit Price</th>
+                                <th>Amount</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${invoice.line_items.map(item => `
+                                <tr>
+                                    <td>${item.description}</td>
+                                    <td>${item.quantity}</td>
+                                    <td>Rs. ${item.unit_price.toFixed(2)}</td>
+                                    <td>Rs. ${item.total_amount.toFixed(2)}</td>
+                                    <td><span class="badge bg-secondary">${item.item_type}</span></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            ${invoice.payments.length > 0 ? `
+                <div class="mt-3">
+                    <h6>Payment History</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Reference</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${invoice.payments.map(payment => `
+                                    <tr>
+                                        <td>${formatDate(payment.payment_date)}</td>
+                                        <td>Rs. ${payment.amount.toFixed(2)}</td>
+                                        <td>${payment.payment_method}</td>
+                                        <td>${payment.reference_number || '-'}</td>
+                                        <td>${payment.notes || '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ` : ''}
+            
+            <div class="mt-3 text-center">
+                <a href="/core/download-invoice-pdf/${invoice.id}/" class="btn btn-primary" target="_blank">
+                    <i class="ri-download-line"></i> Download PDF
+                </a>
+                ${invoice.amounts.balance_amount > 0 ? `
+                    <button class="btn btn-success record-payment" 
+                            data-invoice-id="${invoice.id}" 
+                            data-balance="${invoice.amounts.balance_amount}">
+                        <i class="ri-money-dollar-circle-line"></i> Record Payment
+                    </button>
+                ` : ''}
+            </div>
+        `;
+        
+        $('#invoiceDetailsContent').html(html);
+    }
+
+    function recordPayment() {
+        const invoiceId = $(this).data('invoice-id');
+        const balance = parseFloat($(this).data('balance'));
+        
+        $('#paymentInvoiceId').val(invoiceId);
+        $('#paymentAmount').attr('max', balance.toFixed(2));
+        $('#availableBalance').text(`Rs. ${balance.toFixed(2)}`);
+        
+        // Reset form
+        $('#paymentForm')[0].reset();
+        $('#paymentDate').val(new Date().toISOString().split('T')[0]);
+        
+        $('#paymentModal').modal('show');
+    }
+
+    function savePayment() {
+        const invoiceId = $('#paymentInvoiceId').val();
+        const amount = parseFloat($('#paymentAmount').val());
+        const paymentDate = $('#paymentDate').val();
+        const paymentMethod = $('#paymentMethod').val();
+        const reference = $('#paymentReference').val();
+        const notes = $('#paymentNotes').val();
+        
+        // Validation
+        if (!amount || !paymentDate || !paymentMethod) {
+            showError('Please fill in all required fields');
+            return;
+        }
+        
+        if (amount <= 0) {
+            showError('Payment amount must be greater than 0');
+            return;
+        }
+        
+        const maxAmount = parseFloat($('#paymentAmount').attr('max'));
+        if (amount > maxAmount) {
+            showError(`Payment amount cannot exceed Rs. ${maxAmount.toFixed(2)}`);
+            return;
+        }
+        
+        showLoading(true);
+        
+        $.post('/core/record-payment/', {
+            invoice_id: invoiceId,
+            amount: amount,
+            payment_date: paymentDate,
+            payment_method: paymentMethod,
+            reference_number: reference,
+            notes: notes,
+            csrfmiddlewaretoken: getCsrfToken()
+        })
+        .done(function(data) {
+            if (data.success) {
+                $('#paymentModal').modal('hide');
+                showSuccess('Payment recorded successfully');
+                
+                // Refresh current view
+                if (currentView === 'list') {
+                    searchInvoices();
+                } else {
+                    checkEligibility();
+                }
+            } else {
+                showError('Payment failed: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .fail(function(xhr) {
+            showError('Error recording payment: ' + (xhr.responseJSON?.error || 'Unknown error'));
+        })
+        .always(function() {
+            showLoading(false);
+        });
+    }
+
+    // Utility functions
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-GB'); // DD/MM/YYYY format
+    }
+
+    function getCsrfToken() {
+        return $('[name=csrfmiddlewaretoken]').val() || 
+               document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+               $('meta[name=csrf-token]').attr('content');
+    }
+
+    function showLoading(show) {
+        if (show) {
+            $('body').append('<div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style="background: rgba(0,0,0,0.5); z-index: 9999;"><div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading...</span></div></div>');
+        } else {
+            $('#loadingOverlay').remove();
+        }
+    }
+
+    function showError(message) {
+        const alert = `
+            <div class="alert alert-danger alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x" 
+                 style="z-index: 10000; margin-top: 20px;" role="alert">
+                <i class="ri-error-warning-line"></i> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        $('body').append(alert);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(function() {
+            $('.alert-danger').fadeOut();
+        }, 5000);
+    }
+
+    function showSuccess(message) {
+        const alert = `
+            <div class="alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x" 
+                 style="z-index: 10000; margin-top: 20px;" role="alert">
+                <i class="ri-check-double-line"></i> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        $('body').append(alert);
+        
+        // Auto-dismiss after 3 seconds
+        setTimeout(function() {
+            $('.alert-success').fadeOut();
+        }, 3000);
+    }
+</script>
+
+<!-- App js -->
+<script src="{% static 'assets/js/app.js' %}"></script>
+{% endblock %}

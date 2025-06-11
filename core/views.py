@@ -1,3 +1,4 @@
+import calendar
 import csv
 import datetime
 import json
@@ -5,8 +6,9 @@ import os
 import shutil
 import tempfile
 from collections import defaultdict
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
+from io import BytesIO
 
 import qrcode
 from django.conf import settings
@@ -34,8 +36,12 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from PIL import Image, ImageDraw, ImageFont
+from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .forms import (
     AttendanceReportForm,
@@ -86,10 +92,12 @@ from .models import (
     FlexPackages,
     Holiday,
     Invoice,
+    InvoiceLineItem,
     PackageChangerequest,
     # HolidayType,
     PackageExtraHoursMapping,
     PackageType,
+    Payment,
 )
 
 
@@ -3384,60 +3392,75 @@ def getInvoice(request):
 def generateInvoiceEligibilityJS(request):
     try:
         # Get parameters from the request
-        child_id = request.GET.get("child")
-        from_date = request.GET.get("from_date")
-        to_date = request.GET.get("to_date")
+        month = request.GET.get("month")
+        year = request.GET.get("year")
+        child_id = request.GET.get("child_id")
 
-        # If dates are not provided, default to last month's first and last date
-        if not from_date or not to_date:
-            today = datetime.today()
-            first_day_last_month = (today.replace(day=1) - timedelta(days=1)).replace(
-                day=1
+        if not month or not year:
+            return JsonResponse({"error": "Month and year are required"}, status=400)
+
+        month = int(month)
+        year = int(year)
+
+        # Prevent future month invoice generation
+        current_date = datetime.now()
+        if year > current_date.year or (
+            year == current_date.year and month > current_date.month
+        ):
+            return JsonResponse(
+                {"error": "Cannot generate invoices for future months"}, status=400
             )
-            last_day_last_month = today.replace(day=1) - timedelta(days=1)
 
-            from_date = first_day_last_month.date()
-            to_date = last_day_last_month.date()
-        else:
-            # Parse the provided dates
-            from_date = datetime.strptime(from_date, "%Y-%m-%d").date()
-            to_date = datetime.strptime(to_date, "%Y-%m-%d").date()
+        # Calculate date range for the month
+        from_date = date(year, month, 1)
+        last_day = calendar.monthrange(year, month)[1]
+        to_date = date(year, month, last_day)
 
-        # Create a date range to query attendance logs
-        date_range = Q(date_logged__range=(from_date, to_date))
-
-        # Filter attendance records based on the child_id and date range
-        attendance_logs = AttendanceLog.objects.filter(date_range)
-
+        # Get children to check
         if child_id:
-            attendance_logs = attendance_logs.filter(child=child_id)
+            children = Child.objects.filter(
+                id=child_id, is_active=True, enrollement_approved=True, is_enrolled=True
+            )
+        else:
+            children = Child.objects.filter(
+                is_active=True, enrollement_approved=True, is_enrolled=True
+            )
 
-        # Group attendance logs by child_id and date_logged
-        attendance_dict = {}
-        for log in attendance_logs:
-            child_id = log.child_id
-            date_logged = log.date_logged
-            if child_id not in attendance_dict:
-                attendance_dict[child_id] = {}
-            if date_logged not in attendance_dict[child_id]:
-                attendance_dict[child_id][date_logged] = []
-            attendance_dict[child_id][date_logged].append(log.time_logged)
-
-        # List to store children with status
         children_status = []
 
-        # Iterate through each child and check attendance
-        for child_id, attendance_dates in attendance_dict.items():
-            child = Child.objects.get(id=child_id)
-            has_missing_records = False
+        for child in children:
+            # Check if invoice already exists
+            existing_invoice = Invoice.objects.filter(
+                child=child, year=year, month=month
+            ).first()
+
+            if existing_invoice:
+                children_status.append(
+                    {
+                        "child_id": child.id,
+                        "child_name": f"{child.admission_number} - {child.child_first_name} {child.child_last_name}",
+                        "status": "Already Generated",
+                        "invoice_id": existing_invoice.id,
+                        "amount": float(existing_invoice.amount),
+                    }
+                )
+                continue
+
+            # Check for missing attendance records (incomplete IN/OUT pairs)
+            attendance_logs = (
+                AttendanceLog.objects.filter(
+                    child=child, date_logged__range=(from_date, to_date)
+                )
+                .values("date_logged")
+                .annotate(count=Count("id"))
+            )
+
             missing_dates = []
+            for log in attendance_logs:
+                if log["count"] == 1:  # Missing either IN or OUT
+                    missing_dates.append(str(log["date_logged"]))
 
-            for date_logged, time_logs in attendance_dates.items():
-                if len(time_logs) < 2:  # Check for missing IN or OUT logs
-                    has_missing_records = True
-                    missing_dates.append(str(date_logged))
-
-            if has_missing_records:
+            if missing_dates:
                 children_status.append(
                     {
                         "child_id": child.id,
@@ -3447,143 +3470,1758 @@ def generateInvoiceEligibilityJS(request):
                     }
                 )
             else:
+                # Calculate estimated amount for preview
+                estimated_amount = calculate_estimated_invoice_amount(
+                    child, year, month
+                )
                 children_status.append(
                     {
                         "child_id": child.id,
                         "child_name": f"{child.admission_number} - {child.child_first_name} {child.child_last_name}",
-                        "status": "Eligible for Invoice",
-                        "from_date": from_date,
-                        "to_date": to_date,
+                        "status": "Ready for Invoice",
+                        "estimated_amount": float(estimated_amount),
                     }
                 )
-        print(children_status)
-        # Return response with the combined list
-        return JsonResponse(
-            {
-                "children_status": children_status,
-            }
-        )
+
+        return JsonResponse({"children_status": children_status})
 
     except Exception as e:
-        # Log the error and return a response
-        messages.error(request, f"Error generating invoice: {str(e)}")
         return JsonResponse({"error": str(e)}, status=500)
+
+
+def calculate_estimated_invoice_amount(child, year, month):
+    """Calculate estimated invoice amount for preview"""
+    try:
+        from_date = date(year, month, 1)
+        last_day = calendar.monthrange(year, month)[1]
+        to_date = date(year, month, last_day)
+
+        # Get current package mapping
+        package_mapping = child.get_current_package_mapping(from_date)
+        if not package_mapping:
+            return Decimal("0.00")
+
+        total_amount = Decimal("0.00")
+
+        # Base package amount
+        if package_mapping.normal_package:
+            total_amount += package_mapping.normal_package.package_total
+        elif package_mapping.flex_package:
+            total_amount += package_mapping.flex_package.package_total
+
+        # Get attendance for extra hours and holiday calculation
+        attendance_logs = AttendanceLog.objects.filter(
+            child=child, date_logged__range=(from_date, to_date)
+        ).order_by("date_logged", "time_logged")
+
+        # Group attendance by date
+        attendance_by_date = defaultdict(list)
+        for log in attendance_logs:
+            attendance_by_date[log.date_logged].append(log)
+
+        # Get holidays in this period
+        holidays = Holiday.objects.filter(
+            start_date__lte=to_date, end_date__gte=from_date, is_active=True
+        )
+
+        holiday_dates = set()
+        for holiday in holidays:
+            current_date = holiday.start_date
+            while current_date <= holiday.end_date:
+                if from_date <= current_date <= to_date:
+                    holiday_dates.add(current_date)
+                current_date += timedelta(days=1)
+
+        # Calculate extra charges
+        for log_date, logs in attendance_by_date.items():
+            if len(logs) >= 2:
+                logs_sorted = sorted(logs, key=lambda x: x.time_logged)
+                out_time = logs_sorted[-1].time_logged
+
+                # Check for extra hours after package end time
+                package_end_time = None
+                if package_mapping.normal_package:
+                    package_end_time = package_mapping.normal_package.to_time
+
+                if package_end_time and out_time > package_end_time:
+                    # Calculate extra hours
+                    if out_time > time(17, 30):  # After 5:30 PM
+                        extra_charges = (
+                            ExtraHoursAfter530.objects.filter(
+                                package_type=package_mapping.normal_package.package_type
+                                if package_mapping.normal_package
+                                else package_mapping.flex_package.package_type,
+                                from_time__lte=out_time,
+                                to_time__gte=out_time,
+                                effective_from__lte=log_date,
+                            )
+                            .filter(
+                                Q(effective_to__gte=log_date)
+                                | Q(effective_to__isnull=True)
+                            )
+                            .first()
+                        )
+
+                        if extra_charges:
+                            total_amount += extra_charges.extra_rate
+
+                # Check for holiday/weekend attendance
+                is_weekend = log_date.weekday() >= 5  # Saturday = 5, Sunday = 6
+                is_holiday = log_date in holiday_dates
+
+                if (is_weekend or is_holiday) and package_mapping.holiday_package:
+                    # Calculate daily holiday rate
+                    expected_days = package_mapping.holiday_package.no_days_months or 22
+                    daily_rate = (
+                        package_mapping.holiday_package.package_total / expected_days
+                    )
+                    total_amount += daily_rate
+
+        # Add outstanding balance from previous invoices
+        outstanding = child.get_outstanding_balance()
+        total_amount += outstanding
+
+        return total_amount
+
+    except Exception:
+        return Decimal("0.00")
 
 
 @login_required
 def generateInvoiceJS(request):
     try:
-        child_id = request.GET.get("child_id")
-        from_date_str = request.GET.get("from_date")
-        to_date_str = request.GET.get("to_date")
+        if request.method == "POST":
+            child_id = request.POST.get("child_id")
+            month = request.POST.get("month")
+            year = request.POST.get("year")
+            child_ids = request.POST.getlist("child_ids")  # For bulk generation
 
-        if not all([child_id, from_date_str, to_date_str]):
-            return JsonResponse({"error": "Missing parameters"}, status=400)
-
-        from_date = datetime.strptime(from_date_str, "%Y-%m-%d").date()
-        to_date = datetime.strptime(to_date_str, "%Y-%m-%d").date()
-
-        total_invoice = Decimal("0.00")
-
-        # Get child's package mapping for the period
-        package_mapping = ChildPackageMapping.objects.filter(
-            child_id=child_id, is_active=True
-        ).first()
-
-        if not package_mapping:
-            return JsonResponse({"error": "No package mapping found for the child."})
-
-        is_flex = package_mapping.flex_package is not None
-        is_holiday = package_mapping.is_holiday_package
-
-        package = (
-            package_mapping.flex_package
-            if is_flex
-            else (
-                package_mapping.holiday_package
-                if is_holiday
-                else package_mapping.normal_package
-            )
-        )
-
-        if not package:
-            return JsonResponse({"error": "No valid package assigned."}, status=404)
-
-        expected_days = package.no_days_months or 0
-        package_total = package.package_total or Decimal("0.00")
-
-        # Attendance logs in date range
-        attendance_logs = AttendanceLog.objects.filter(
-            child_id=child_id, date_logged__range=(from_date, to_date)
-        ).order_by("date_logged", "time_logged")
-
-        # Holidays in this range
-        holidays = set(
-            Holiday.objects.filter(
-                start_date__lte=to_date, end_date__gte=from_date
-            ).values_list("start_date", flat=True)
-        )
-
-        logs_by_date = defaultdict(list)
-        for log in attendance_logs:
-            logs_by_date[log.date_logged].append(log)
-
-        present_days = 0
-        holiday_attendance = 0
-
-        extra_hour_mapping = PackageExtraHoursMapping.objects.filter(
-            fixed_package=package if not is_flex else None,
-            flex_package=package if is_flex else None,
-        ).first()
-
-        for log_date, logs in logs_by_date.items():
-            logs_sorted = sorted(logs, key=lambda x: x.time_logged or time(0, 0))
-            first_log = logs_sorted[0]
-            last_log = logs_sorted[-1]
-
-            present_days += 1
-            is_holiday = log_date in holidays
-
-            # Extra hours calculation
-            log_time_out = last_log.time_logged or time(0, 0)
-            extra_slots = ExtraHoursAfter530.objects.filter(
-                package_type=package.package_type,
-                from_time__lte=log_time_out,
-                to_time__gte=log_time_out,
-                effective_from__lte=log_date,
-            ).filter(Q(effective_to__gte=log_date) | Q(effective_to__isnull=True))
-
-            for slot in extra_slots:
-                total_invoice += slot.extra_rate
-
-            # Holiday attendance charge
-            if is_holiday and package_mapping.holiday_package:
-                holiday_attendance += 1
-                daily_holiday_rate = (
-                    package_mapping.holiday_package.package_total
-                    / Decimal(expected_days or 1)
+            if not month or not year:
+                return JsonResponse(
+                    {"error": "Month and year are required"}, status=400
                 )
-                total_invoice += daily_holiday_rate
 
-        # Adjust package fee if attendance is less than 50%
-        if expected_days > 0 and (present_days / expected_days) < 0.5:
-            package_total = package_total / 2
+            month = int(month)
+            year = int(year)
 
-        total_invoice += package_total
+            # Prevent future month invoice generation
+            current_date = datetime.now()
+            if year > current_date.year or (
+                year == current_date.year and month > current_date.month
+            ):
+                return JsonResponse(
+                    {"error": "Cannot generate invoices for future months"}, status=400
+                )
 
-        return JsonResponse(
-            {
-                "child_id": child_id,
-                "from_date": str(from_date),
-                "to_date": str(to_date),
-                "present_days": present_days,
-                "holiday_attendance_days": holiday_attendance,
-                "base_package_charge": float(package_total),
-                "total_invoice": float(total_invoice),
-            }
-        )
+            # Determine if single or bulk generation
+            if child_id:
+                # Single invoice generation
+                child = Child.objects.get(
+                    id=child_id, is_active=True, enrollement_approved=True
+                )
+                invoice = generate_single_child_invoice(
+                    child, month, year, request.user.username
+                )
+
+                if invoice:
+                    return JsonResponse(
+                        {
+                            "success": True,
+                            "invoice_id": invoice.id,
+                            "invoice_no": invoice.invoice_no,
+                            "amount": float(invoice.amount),
+                            "child_name": f"{child.child_first_name} {child.child_last_name}",
+                        }
+                    )
+                else:
+                    return JsonResponse(
+                        {"error": "Failed to generate invoice"}, status=500
+                    )
+
+            elif child_ids:
+                # Bulk invoice generation
+                generated_invoices = []
+                errors = []
+
+                for cid in child_ids:
+                    try:
+                        child = Child.objects.get(
+                            id=cid, is_active=True, enrollement_approved=True
+                        )
+                        invoice = generate_single_child_invoice(
+                            child, month, year, request.user.username
+                        )
+
+                        if invoice:
+                            generated_invoices.append(
+                                {
+                                    "invoice_id": invoice.id,
+                                    "invoice_no": invoice.invoice_no,
+                                    "child_name": f"{child.child_first_name} {child.child_last_name}",
+                                    "amount": float(invoice.amount),
+                                }
+                            )
+                        else:
+                            errors.append(
+                                f"Failed to generate invoice for {child.child_first_name} {child.child_last_name}"
+                            )
+
+                    except Child.DoesNotExist:
+                        errors.append(f"Child with ID {cid} not found")
+                    except Exception as e:
+                        errors.append(
+                            f"Error generating invoice for child ID {cid}: {str(e)}"
+                        )
+
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "generated_count": len(generated_invoices),
+                        "generated_invoices": generated_invoices,
+                        "errors": errors,
+                    }
+                )
+            else:
+                return JsonResponse({"error": "No child specified"}, status=400)
+
+        else:
+            return JsonResponse({"error": "Method not allowed"}, status=405)
 
     except Exception as e:
-        # Log the error and return a response
-        messages.error(request, f"Error generating invoice: {str(e)}")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+def generate_single_child_invoice(child, month, year, user_created):
+    """Generate invoice for a single child"""
+    try:
+        with transaction.atomic():
+            # Check if invoice already exists
+            existing_invoice = Invoice.objects.filter(
+                child=child, year=year, month=month
+            ).first()
+            if existing_invoice:
+                return existing_invoice
+
+            # Calculate date range
+            from_date = date(year, month, 1)
+            last_day = calendar.monthrange(year, month)[1]
+            to_date = date(year, month, last_day)
+
+            # Get package mapping
+            package_mapping = child.get_current_package_mapping(from_date)
+            if not package_mapping:
+                raise Exception(
+                    f"No package mapping found for {child.child_first_name}"
+                )
+
+            # Create invoice
+            invoice = Invoice.objects.create(
+                child=child,
+                invoice_date=datetime.now().date(),
+                from_date=from_date,
+                to_date=to_date,
+                year=year,
+                month=month,
+                status="GENERATED",
+                user_created=user_created,
+            )
+
+            # Get attendance data
+            attendance_logs = AttendanceLog.objects.filter(
+                child=child, date_logged__range=(from_date, to_date)
+            ).order_by("date_logged", "time_logged")
+
+            # Group attendance by date
+            attendance_by_date = defaultdict(list)
+            for log in attendance_logs:
+                attendance_by_date[log.date_logged].append(log)
+
+            # Get holidays in this period
+            holidays = Holiday.objects.filter(
+                start_date__lte=to_date, end_date__gte=from_date, is_active=True
+            )
+
+            holiday_dates = set()
+            for holiday in holidays:
+                current_date = holiday.start_date
+                while current_date <= holiday.end_date:
+                    if from_date <= current_date <= to_date:
+                        holiday_dates.add(current_date)
+                    current_date += timedelta(days=1)
+
+            # Calculate invoice components
+            total_days_attended = 0
+            total_extra_hours = Decimal("0.00")
+            holiday_attendance_days = 0
+            extra_hours_amount = Decimal("0.00")
+            holiday_charges = Decimal("0.00")
+
+            # Process each attendance day
+            for log_date, logs in attendance_by_date.items():
+                if len(logs) >= 2:  # Complete attendance (IN and OUT)
+                    logs_sorted = sorted(logs, key=lambda x: x.time_logged)
+                    in_time = logs_sorted[0].time_logged
+                    out_time = logs_sorted[-1].time_logged
+
+                    total_days_attended += 1
+
+                    # Check for weekend or holiday attendance
+                    is_weekend = log_date.weekday() >= 5
+                    is_holiday = log_date in holiday_dates
+
+                    if is_weekend or is_holiday:
+                        holiday_attendance_days += 1
+                        if package_mapping.holiday_package:
+                            expected_days = (
+                                package_mapping.holiday_package.no_days_months or 22
+                            )
+                            daily_rate = (
+                                package_mapping.holiday_package.package_total
+                                / expected_days
+                            )
+                            holiday_charges += daily_rate
+
+                    # Calculate extra hours
+                    if package_mapping.normal_package:
+                        package_end_time = package_mapping.normal_package.to_time
+
+                        if out_time > package_end_time:
+                            # Calculate extra hours beyond package time
+                            extra_time_delta = datetime.combine(
+                                date.today(), out_time
+                            ) - datetime.combine(date.today(), package_end_time)
+                            extra_hours = Decimal(
+                                extra_time_delta.total_seconds() / 3600
+                            )
+                            total_extra_hours += extra_hours
+
+                            # Check for extra charges after 5:30 PM
+                            if out_time > time(17, 30):
+                                extra_charges = (
+                                    ExtraHoursAfter530.objects.filter(
+                                        package_type=package_mapping.normal_package.package_type,
+                                        from_time__lte=out_time,
+                                        to_time__gte=out_time,
+                                        effective_from__lte=log_date,
+                                    )
+                                    .filter(
+                                        Q(effective_to__gte=log_date)
+                                        | Q(effective_to__isnull=True)
+                                    )
+                                    .first()
+                                )
+
+                                if extra_charges:
+                                    extra_hours_amount += extra_charges.extra_rate
+                            else:
+                                # Check for extra charges up to 5:30 PM
+                                hour_number = int(
+                                    extra_hours.quantize(
+                                        Decimal("1"), rounding="ROUND_UP"
+                                    )
+                                )
+                                if hour_number > 0:
+                                    extra_rate_upto530 = (
+                                        ExtraHoursUpTo530.objects.filter(
+                                            hour_number=hour_number,
+                                            effective_from__lte=log_date,
+                                        )
+                                        .filter(
+                                            Q(effective_to__gte=log_date)
+                                            | Q(effective_to__isnull=True)
+                                        )
+                                        .first()
+                                    )
+
+                                    if extra_rate_upto530:
+                                        extra_hours_amount += (
+                                            extra_rate_upto530.extra_rate
+                                        )
+
+            # Calculate package amount
+            package_amount = Decimal("0.00")
+            if package_mapping.normal_package:
+                package_amount = package_mapping.normal_package.package_total
+            elif package_mapping.flex_package:
+                package_amount = package_mapping.flex_package.package_total
+
+            # Adjust package fee if attendance is less than 50% (as per your business logic)
+            expected_days = (
+                package_mapping.normal_package.no_days_months
+                if package_mapping.normal_package
+                else 22
+            )
+            if expected_days > 0 and (total_days_attended / expected_days) < 0.5:
+                package_amount = package_amount / 2
+
+            # Get outstanding balance from previous months
+            outstanding_balance = child.get_outstanding_balance()
+
+            # Calculate discount if applicable
+            discount_amount = Decimal("0.00")
+            enrollment = ChildEnrollment.objects.filter(
+                child=child, is_active=True
+            ).first()
+            if (
+                enrollment
+                and enrollment.discount
+                and enrollment.discount.status == "APPROVED"
+            ):
+                discount_rate = enrollment.discount.discount_rate / 100
+                discount_amount = (
+                    package_amount + extra_hours_amount + holiday_charges
+                ) * discount_rate
+
+            # Calculate total amount
+            total_amount = (
+                package_amount
+                + extra_hours_amount
+                + holiday_charges
+                + outstanding_balance
+                - discount_amount
+            )
+
+            # Update invoice with calculated values
+            invoice.total_days_attended = total_days_attended
+            invoice.total_extra_hours = total_extra_hours
+            invoice.holiday_attendance_days = holiday_attendance_days
+            invoice.package_amount = package_amount
+            invoice.extra_hours_amount = extra_hours_amount
+            invoice.holiday_charges = holiday_charges
+            invoice.discount_amount = discount_amount
+            invoice.outstanding_balance = outstanding_balance
+            invoice.amount = total_amount
+            invoice.balance_amount = total_amount
+            invoice.save()
+
+            # Create line items
+            create_invoice_line_items(
+                invoice, package_mapping, outstanding_balance, discount_amount
+            )
+
+            return invoice
+
+    except Exception as e:
+        print(f"Error generating invoice for {child.child_first_name}: {str(e)}")
+        return None
+
+
+def create_invoice_line_items(
+    invoice, package_mapping, outstanding_balance, discount_amount
+):
+    """Create detailed line items for the invoice"""
+
+    # Outstanding balance line item
+    if outstanding_balance > 0:
+        InvoiceLineItem.objects.create(
+            invoice=invoice,
+            description=f"Outstanding as at {calendar.month_name[invoice.month - 1] if invoice.month > 1 else 'Previous Month'}",
+            quantity=1,
+            unit_price=outstanding_balance,
+            item_type="OUTSTANDING",
+            user_created=invoice.user_created,
+        )
+
+    # Package fee line item
+    if invoice.package_amount > 0:
+        package_name = ""
+        if package_mapping.normal_package:
+            package_name = package_mapping.normal_package.package_name
+        elif package_mapping.flex_package:
+            package_name = package_mapping.flex_package.package_name
+
+        description = f"Day Care Monthly fee - {calendar.month_name[invoice.month]}"
+        if invoice.total_days_attended > 0:
+            description += f" ({invoice.total_days_attended} Days Attend)"
+
+        InvoiceLineItem.objects.create(
+            invoice=invoice,
+            description=description,
+            quantity=1,
+            unit_price=invoice.package_amount,
+            item_type="PACKAGE",
+            user_created=invoice.user_created,
+        )
+
+    # Extra hours line item
+    if invoice.extra_hours_amount > 0:
+        InvoiceLineItem.objects.create(
+            invoice=invoice,
+            description="Extra Hours Charges",
+            quantity=invoice.total_extra_hours,
+            unit_price=invoice.extra_hours_amount / invoice.total_extra_hours
+            if invoice.total_extra_hours > 0
+            else invoice.extra_hours_amount,
+            item_type="EXTRA_HOURS",
+            user_created=invoice.user_created,
+        )
+
+    # Holiday charges line item
+    if invoice.holiday_charges > 0:
+        InvoiceLineItem.objects.create(
+            invoice=invoice,
+            description="Holiday Attendance Charges",
+            quantity=invoice.holiday_attendance_days,
+            unit_price=invoice.holiday_charges / invoice.holiday_attendance_days
+            if invoice.holiday_attendance_days > 0
+            else invoice.holiday_charges,
+            item_type="HOLIDAY",
+            user_created=invoice.user_created,
+        )
+
+    # Discount line item
+    if discount_amount > 0:
+        InvoiceLineItem.objects.create(
+            invoice=invoice,
+            description="Discount Applied",
+            quantity=1,
+            unit_price=-discount_amount,  # Negative amount for discount
+            item_type="DISCOUNT",
+            user_created=invoice.user_created,
+        )
+
+
+def calculate_estimated_invoice_amount(child, year, month):
+    """Calculate estimated invoice amount for preview"""
+    try:
+        from_date = date(year, month, 1)
+        last_day = calendar.monthrange(year, month)[1]
+        to_date = date(year, month, last_day)
+
+        # Get current package mapping
+        package_mapping = child.get_current_package_mapping(from_date)
+        if not package_mapping:
+            return Decimal("0.00")
+
+        total_amount = Decimal("0.00")
+
+        # Base package amount
+        if package_mapping.normal_package:
+            total_amount += package_mapping.normal_package.package_total
+        elif package_mapping.flex_package:
+            total_amount += package_mapping.flex_package.package_total
+
+        # Get attendance for extra hours and holiday calculation
+        attendance_logs = AttendanceLog.objects.filter(
+            child=child, date_logged__range=(from_date, to_date)
+        ).order_by("date_logged", "time_logged")
+
+        # Group attendance by date
+        attendance_by_date = defaultdict(list)
+        for log in attendance_logs:
+            attendance_by_date[log.date_logged].append(log)
+
+        # Get holidays in this period
+        holidays = Holiday.objects.filter(
+            start_date__lte=to_date, end_date__gte=from_date, is_active=True
+        )
+
+        holiday_dates = set()
+        for holiday in holidays:
+            current_date = holiday.start_date
+            while current_date <= holiday.end_date:
+                if from_date <= current_date <= to_date:
+                    holiday_dates.add(current_date)
+                current_date += timedelta(days=1)
+
+        # Calculate extra charges
+        for log_date, logs in attendance_by_date.items():
+            if len(logs) >= 2:
+                logs_sorted = sorted(logs, key=lambda x: x.time_logged)
+                out_time = logs_sorted[-1].time_logged
+
+                # Check for extra hours after package end time
+                package_end_time = None
+                if package_mapping.normal_package:
+                    package_end_time = package_mapping.normal_package.to_time
+
+                if package_end_time and out_time > package_end_time:
+                    # Calculate extra hours
+                    if out_time > time(17, 30):  # After 5:30 PM
+                        extra_charges = (
+                            ExtraHoursAfter530.objects.filter(
+                                package_type=package_mapping.normal_package.package_type
+                                if package_mapping.normal_package
+                                else package_mapping.flex_package.package_type,
+                                from_time__lte=out_time,
+                                to_time__gte=out_time,
+                                effective_from__lte=log_date,
+                            )
+                            .filter(
+                                Q(effective_to__gte=log_date)
+                                | Q(effective_to__isnull=True)
+                            )
+                            .first()
+                        )
+
+                        if extra_charges:
+                            total_amount += extra_charges.extra_rate
+
+                # Check for holiday/weekend attendance
+                is_weekend = log_date.weekday() >= 5  # Saturday = 5, Sunday = 6
+                is_holiday = log_date in holiday_dates
+
+                if (is_weekend or is_holiday) and package_mapping.holiday_package:
+                    # Calculate daily holiday rate
+                    expected_days = package_mapping.holiday_package.no_days_months or 22
+                    daily_rate = (
+                        package_mapping.holiday_package.package_total / expected_days
+                    )
+                    total_amount += daily_rate
+
+        # Add outstanding balance from previous invoices
+        outstanding = child.get_outstanding_balance()
+        total_amount += outstanding
+
+        return total_amount
+
+    except Exception:
+        return Decimal("0.00")
+
+
+def download_invoice_pdf(request, invoice_id):
+    """Generate and download PDF invoice matching the image format"""
+    try:
+        invoice = get_object_or_404(Invoice, id=invoice_id)
+
+        # Create the HttpResponse object with PDF headers
+        response = HttpResponse(content_type="application/pdf")
+        response["Content-Disposition"] = (
+            f'attachment; filename="Invoice_{invoice.invoice_no}.pdf"'
+        )
+
+        # Create PDF using canvas for exact control (half A4 page)
+        p = canvas.Canvas(response, pagesize=A4)
+        width, height = A4
+
+        # Use half page (as per your requirement)
+        page_height = height / 2
+
+        # Draw invoice content
+        draw_invoice_canvas(p, invoice, width, page_height)
+
+        p.save()
+        return response
+
+    except Exception as e:
+        return HttpResponse(f"Error generating PDF: {str(e)}", status=500)
+
+
+def draw_invoice_canvas(p, invoice, width, page_height):
+    """Draw invoice using canvas for exact control - matches your image format"""
+
+    # Start from top of half page
+    y = page_height - 30
+    left_margin = 50
+    right_margin = width - 50
+
+    # Draw border for the entire invoice
+    p.rect(left_margin - 20, 50, width - 60, page_height - 80, stroke=1, fill=0)
+
+    # Header Section
+    p.setFont("Helvetica-Bold", 12)
+    p.drawCentredText(width / 2, y, "POLYMATH COLLEGE")
+    y -= 15
+
+    p.setFont("Helvetica", 9)
+    p.drawCentredText(width / 2, y, "No 452/3 High Level Road, Nawinna, Maharagama")
+    y -= 12
+    p.drawCentredText(width / 2, y, "PV 63200")
+    y -= 12
+    p.drawCentredText(width / 2, y, "Phone 0112802554")
+    y -= 20
+
+    # Kids Division Section
+    p.setFont("Helvetica-Bold", 10)
+    p.drawCentredText(width / 2, y, "KIDS DIVISSION")
+    y -= 12
+    p.drawCentredText(width / 2, y, "MEMO")
+    y -= 20
+
+    # Child Information Table
+    table_top = y
+    row_height = 15
+    col1_width = 80
+
+    # Draw child info table borders and content
+    p.setFont("Helvetica", 9)
+
+    # Name row
+    p.rect(left_margin, y - row_height, col1_width, row_height, stroke=1, fill=0)
+    p.rect(
+        left_margin + col1_width,
+        y - row_height,
+        right_margin - left_margin - col1_width,
+        row_height,
+        stroke=1,
+        fill=0,
+    )
+    p.drawString(left_margin + 5, y - 10, "Name")
+    p.drawString(
+        left_margin + col1_width + 5,
+        y - 10,
+        f"{invoice.child.child_first_name} {invoice.child.child_last_name} ({invoice.child.admission_number})",
+    )
+    y -= row_height
+
+    # Month row
+    p.rect(left_margin, y - row_height, col1_width, row_height, stroke=1, fill=0)
+    p.rect(
+        left_margin + col1_width,
+        y - row_height,
+        right_margin - left_margin - col1_width,
+        row_height,
+        stroke=1,
+        fill=0,
+    )
+    p.drawString(left_margin + 5, y - 10, "Month")
+    p.drawString(
+        left_margin + col1_width + 5, y - 10, calendar.month_name[invoice.month]
+    )
+    y -= row_height
+
+    # Date row
+    p.rect(left_margin, y - row_height, col1_width, row_height, stroke=1, fill=0)
+    p.rect(
+        left_margin + col1_width,
+        y - row_height,
+        right_margin - left_margin - col1_width,
+        row_height,
+        stroke=1,
+        fill=0,
+    )
+    p.drawString(left_margin + 5, y - 10, "Date")
+    y -= row_height
+
+    # Package row
+    p.rect(left_margin, y - row_height, col1_width, row_height, stroke=1, fill=0)
+    p.rect(
+        left_margin + col1_width,
+        y - row_height,
+        right_margin - left_margin - col1_width,
+        row_height,
+        stroke=1,
+        fill=0,
+    )
+    p.drawString(left_margin + 5, y - 10, "Package")
+    p.drawString(left_margin + col1_width + 5, y - 10, get_package_name(invoice.child))
+    y -= row_height + 10
+
+    # Invoice Items Table
+    table_start_y = y
+    amount_col_x = right_margin - 80
+
+    # Table headers
+    p.setFont("Helvetica-Bold", 9)
+    p.rect(
+        left_margin,
+        y - row_height,
+        amount_col_x - left_margin,
+        row_height,
+        stroke=1,
+        fill=1,
+    )
+    p.rect(
+        amount_col_x,
+        y - row_height,
+        right_margin - amount_col_x,
+        row_height,
+        stroke=1,
+        fill=1,
+    )
+    p.drawString(left_margin + 5, y - 10, "Description")
+    p.drawString(amount_col_x + 5, y - 10, "Amount")
+    y -= row_height
+
+    # Second header row (Rs)
+    p.rect(
+        left_margin,
+        y - row_height,
+        amount_col_x - left_margin,
+        row_height,
+        stroke=1,
+        fill=1,
+    )
+    p.rect(
+        amount_col_x,
+        y - row_height,
+        right_margin - amount_col_x,
+        row_height,
+        stroke=1,
+        fill=1,
+    )
+    p.drawString(amount_col_x + 5, y - 10, "Rs")
+    y -= row_height
+
+    # Invoice line items
+    p.setFont("Helvetica", 8)
+
+    # Outstanding balance
+    if invoice.outstanding_balance > 0:
+        prev_month = (
+            calendar.month_name[invoice.month - 1] if invoice.month > 1 else "July"
+        )
+        p.rect(
+            left_margin,
+            y - row_height,
+            amount_col_x - left_margin,
+            row_height,
+            stroke=1,
+            fill=0,
+        )
+        p.rect(
+            amount_col_x,
+            y - row_height,
+            right_margin - amount_col_x,
+            row_height,
+            stroke=1,
+            fill=0,
+        )
+        p.drawString(left_margin + 5, y - 10, f"Outstanding as at {prev_month}")
+        p.drawRightString(
+            right_margin - 5, y - 10, f"{invoice.outstanding_balance:.2f}"
+        )
+        y -= row_height
+
+    # Payment settled from previous month (if any)
+    previous_payments = (
+        Payment.objects.filter(
+            invoice__child=invoice.child,
+            payment_date__year=invoice.year,
+            payment_date__month=invoice.month - 1 if invoice.month > 1 else 12,
+        ).aggregate(total=Sum("amount"))["total"]
+        or 0
+    )
+
+    if previous_payments > 0:
+        prev_month = (
+            calendar.month_name[invoice.month - 1] if invoice.month > 1 else "July"
+        )
+        p.rect(
+            left_margin,
+            y - row_height,
+            amount_col_x - left_margin,
+            row_height,
+            stroke=1,
+            fill=0,
+        )
+        p.rect(
+            amount_col_x,
+            y - row_height,
+            right_margin - amount_col_x,
+            row_height,
+            stroke=1,
+            fill=0,
+        )
+        p.drawString(left_margin + 5, y - 10, f"Payment Settled In {prev_month}")
+        p.drawString(left_margin + 350, y - 10, "PN 14010")  # Payment reference number
+        p.drawRightString(right_margin - 5, y - 10, f"({previous_payments:.2f})")
+        y -= row_height
+
+    # Remaining balance
+    remaining_balance = invoice.outstanding_balance - previous_payments
+    if remaining_balance != 0:
+        p.rect(
+            left_margin,
+            y - row_height,
+            amount_col_x - left_margin,
+            row_height,
+            stroke=1,
+            fill=0,
+        )
+        p.rect(
+            amount_col_x,
+            y - row_height,
+            right_margin - amount_col_x,
+            row_height,
+            stroke=1,
+            fill=0,
+        )
+        p.drawString(left_margin + 5, y - 10, "Remaining Balance")
+        p.drawRightString(right_margin - 5, y - 10, f"{remaining_balance:.2f}")
+        y -= row_height
+
+    # Current month package fee
+    if invoice.package_amount > 0:
+        description = f"Day Care Monthly fee - {calendar.month_name[invoice.month]}"
+        if invoice.total_days_attended > 0:
+            description += f" ({invoice.total_days_attended} Days Attend)"
+
+        p.rect(
+            left_margin,
+            y - row_height,
+            amount_col_x - left_margin,
+            row_height,
+            stroke=1,
+            fill=0,
+        )
+        p.rect(
+            amount_col_x,
+            y - row_height,
+            right_margin - amount_col_x,
+            row_height,
+            stroke=1,
+            fill=0,
+        )
+        p.drawString(left_margin + 5, y - 10, description)
+        p.drawRightString(right_margin - 5, y - 10, f"{invoice.package_amount:.2f}")
+        y -= row_height
+
+    # Payment settled for current month
+    current_payments = (
+        Payment.objects.filter(invoice=invoice).aggregate(total=Sum("amount"))["total"]
+        or 0
+    )
+    if current_payments > 0:
+        p.rect(
+            left_margin,
+            y - row_height,
+            amount_col_x - left_margin,
+            row_height,
+            stroke=1,
+            fill=0,
+        )
+        p.rect(
+            amount_col_x,
+            y - row_height,
+            right_margin - amount_col_x,
+            row_height,
+            stroke=1,
+            fill=0,
+        )
+        p.drawString(
+            left_margin + 5,
+            y - 10,
+            f"Payment Settled - {calendar.month_name[invoice.month]}",
+        )
+        y -= row_height
+
+    # Extra hours charges
+    if invoice.extra_hours_amount > 0:
+        p.rect(
+            left_margin,
+            y - row_height,
+            amount_col_x - left_margin,
+            row_height,
+            stroke=1,
+            fill=0,
+        )
+        p.rect(
+            amount_col_x,
+            y - row_height,
+            right_margin - amount_col_x,
+            row_height,
+            stroke=1,
+            fill=0,
+        )
+        p.drawString(left_margin + 5, y - 10, "Extra Hours Charges")
+        p.drawRightString(right_margin - 5, y - 10, f"{invoice.extra_hours_amount:.2f}")
+        y -= row_height
+
+    # Holiday charges
+    if invoice.holiday_charges > 0:
+        p.rect(
+            left_margin,
+            y - row_height,
+            amount_col_x - left_margin,
+            row_height,
+            stroke=1,
+            fill=0,
+        )
+        p.rect(
+            amount_col_x,
+            y - row_height,
+            right_margin - amount_col_x,
+            row_height,
+            stroke=1,
+            fill=0,
+        )
+        p.drawString(left_margin + 5, y - 10, "Holiday Attendance Charges")
+        p.drawRightString(right_margin - 5, y - 10, f"{invoice.holiday_charges:.2f}")
+        y -= row_height
+
+    # Discount
+    if invoice.discount_amount > 0:
+        p.rect(
+            left_margin,
+            y - row_height,
+            amount_col_x - left_margin,
+            row_height,
+            stroke=1,
+            fill=0,
+        )
+        p.rect(
+            amount_col_x,
+            y - row_height,
+            right_margin - amount_col_x,
+            row_height,
+            stroke=1,
+            fill=0,
+        )
+        p.drawString(left_margin + 5, y - 10, "Discount Applied")
+        p.drawRightString(right_margin - 5, y - 10, f"({invoice.discount_amount:.2f})")
+        y -= row_height
+
+    # Total line
+    p.setFont("Helvetica-Bold", 9)
+    p.rect(
+        left_margin,
+        y - row_height,
+        amount_col_x - left_margin,
+        row_height,
+        stroke=1,
+        fill=0,
+    )
+    p.rect(
+        amount_col_x,
+        y - row_height,
+        right_margin - amount_col_x,
+        row_height,
+        stroke=1,
+        fill=0,
+    )
+    p.drawString(left_margin + 5, y - 10, "Total")
+    p.drawRightString(right_margin - 5, y - 10, f"{invoice.balance_amount:.2f}")
+    y -= row_height + 15
+
+    # Footer notes
+    p.setFont("Helvetica", 8)
+    p.drawString(left_margin, y, "Please note that,")
+    y -= 10
+
+    note_text = "Only the payments made before the invoice date is indicated. If there"
+    p.drawString(left_margin, y, note_text)
+    y -= 8
+    note_text2 = "is any outstanding amount please settle on or before 2024. Ignore"
+    p.drawString(left_margin, y, note_text2)
+    y -= 8
+    note_text3 = "this message if you have already settled that outstanding."
+    p.drawString(left_margin, y, note_text3)
+    y -= 15
+
+    p.drawString(left_margin, y, "Thank you,")
+    y -= 10
+    p.drawString(left_margin, y, "The Management.")
+    y -= 20
+
+    # Account details
+    p.setFont("Helvetica-Bold", 8)
+    p.drawString(left_margin, y, "Account Details")
+    y -= 10
+    p.setFont("Helvetica", 7)
+    p.drawString(left_margin, y, "Account Name - Polymath College (PVT) Ltd")
+    y -= 8
+    p.drawString(left_margin, y, "Bank - Peoples Bank")
+    y -= 8
+    p.drawString(left_margin, y, "Branch - Gangodawila")
+    y -= 8
+    p.drawString(left_margin, y, "Account Number - 097100130026495")
+    y -= 12
+    p.drawString(left_margin, y, "Whatsapp - 0705585858")
+
+
+def get_package_name(child):
+    """Get the package name for the child"""
+    try:
+        package_mapping = child.get_current_package_mapping()
+        if package_mapping:
+            if package_mapping.normal_package:
+                return package_mapping.normal_package.package_name
+            elif package_mapping.flex_package:
+                return package_mapping.flex_package.package_name
+            elif package_mapping.holiday_package:
+                return package_mapping.holiday_package.package_name
+        return "No Package Assigned"
+    except:
+        return "Package Not Found"
+
+
+# Alternative ReportLab Table-based PDF generation (if you prefer structured approach)
+@login_required
+def download_invoice_pdf_table(request, invoice_id):
+    """Generate PDF using ReportLab tables for structured layout"""
+    try:
+        invoice = get_object_or_404(Invoice, id=invoice_id)
+
+        response = HttpResponse(content_type="application/pdf")
+        response["Content-Disposition"] = (
+            f'attachment; filename="Invoice_{invoice.invoice_no}.pdf"'
+        )
+
+        # Create PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=(A4[0], A4[1] / 2),  # Half A4 page
+            rightMargin=0.5 * inch,
+            leftMargin=0.5 * inch,
+            topMargin=0.3 * inch,
+            bottomMargin=0.3 * inch,
+        )
+
+        # Build the PDF content
+        story = []
+        story = build_invoice_content_table(invoice, story)
+
+        # Build PDF
+        doc.build(story)
+
+        # Get PDF data
+        pdf = buffer.getvalue()
+        buffer.close()
+        response.write(pdf)
+
+        return response
+
+    except Exception as e:
+        return HttpResponse(f"Error generating PDF: {str(e)}", status=500)
+
+
+def build_invoice_content_table(invoice, story):
+    """Build the invoice content using ReportLab tables"""
+
+    # Get styles
+    styles = getSampleStyleSheet()
+
+    # Custom styles
+    header_style = ParagraphStyle(
+        "HeaderStyle",
+        parent=styles["Normal"],
+        fontSize=12,
+        alignment=1,  # Center alignment
+        fontName="Helvetica-Bold",
+    )
+
+    address_style = ParagraphStyle(
+        "AddressStyle",
+        parent=styles["Normal"],
+        fontSize=9,
+        alignment=1,  # Center alignment
+        fontName="Helvetica",
+    )
+
+    # Header Section
+    story.append(Paragraph("POLYMATH COLLEGE", header_style))
+    story.append(
+        Paragraph("No 452/3 High Level Road, Nawinna, Maharagama", address_style)
+    )
+    story.append(Paragraph("PV 63200", address_style))
+    story.append(Paragraph("Phone 0112802554", address_style))
+    story.append(Spacer(1, 10))
+
+    # Kids Division
+    story.append(Paragraph("KIDS DIVISSION", header_style))
+    story.append(Paragraph("MEMO", header_style))
+    story.append(Spacer(1, 10))
+
+    # Child Information Table
+    child_info_data = [
+        [
+            "Name",
+            f"{invoice.child.child_first_name} {invoice.child.child_last_name} ({invoice.child.admission_number})",
+        ],
+        ["Month", calendar.month_name[invoice.month]],
+        ["Date", ""],
+        ["Package", get_package_name(invoice.child)],
+    ]
+
+    child_info_table = Table(child_info_data, colWidths=[1 * inch, 3.5 * inch])
+    child_info_table.setStyle(
+        TableStyle(
+            [
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]
+        )
+    )
+
+    story.append(child_info_table)
+    story.append(Spacer(1, 10))
+
+    # Invoice Items Table
+    invoice_data = [["Description", "Amount"], ["", "Rs"]]
+
+    # Outstanding balance
+    if invoice.outstanding_balance > 0:
+        prev_month = (
+            calendar.month_name[invoice.month - 1] if invoice.month > 1 else "July"
+        )
+        invoice_data.append(
+            [f"Outstanding as at {prev_month}", f"{invoice.outstanding_balance:.2f}"]
+        )
+
+    # Payment settled from previous month
+    previous_payments = (
+        Payment.objects.filter(
+            invoice__child=invoice.child,
+            payment_date__year=invoice.year,
+            payment_date__month=invoice.month - 1 if invoice.month > 1 else 12,
+        ).aggregate(total=Sum("amount"))["total"]
+        or 0
+    )
+
+    if previous_payments > 0:
+        prev_month = (
+            calendar.month_name[invoice.month - 1] if invoice.month > 1 else "July"
+        )
+        invoice_data.append(
+            [
+                f"Payment Settled In {prev_month}     PN 14010",
+                f"({previous_payments:.2f})",
+            ]
+        )
+
+    # Remaining balance
+    remaining_balance = invoice.outstanding_balance - previous_payments
+    if remaining_balance != 0:
+        invoice_data.append(["Remaining Balance", f"{remaining_balance:.2f}"])
+
+    # Current month package fee
+    if invoice.package_amount > 0:
+        description = f"Day Care Monthly fee - {calendar.month_name[invoice.month]}"
+        if invoice.total_days_attended > 0:
+            description += f" ({invoice.total_days_attended} Days Attend)"
+        invoice_data.append([description, f"{invoice.package_amount:.2f}"])
+
+    # Current month payment
+    current_payments = (
+        Payment.objects.filter(invoice=invoice).aggregate(total=Sum("amount"))["total"]
+        or 0
+    )
+    if current_payments > 0:
+        invoice_data.append(
+            [f"Payment Settled - {calendar.month_name[invoice.month]}", ""]
+        )
+
+    # Extra hours
+    if invoice.extra_hours_amount > 0:
+        invoice_data.append(
+            ["Extra Hours Charges", f"{invoice.extra_hours_amount:.2f}"]
+        )
+
+    # Holiday charges
+    if invoice.holiday_charges > 0:
+        invoice_data.append(
+            ["Holiday Attendance Charges", f"{invoice.holiday_charges:.2f}"]
+        )
+
+    # Total
+    invoice_data.append(["Total", f"{invoice.balance_amount:.2f}"])
+
+    # Create invoice table
+    invoice_table = Table(invoice_data, colWidths=[3 * inch, 1.5 * inch])
+    invoice_table.setStyle(
+        TableStyle(
+            [
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+                ("FONTNAME", (0, 0), (-1, 1), "Helvetica-Bold"),
+                ("FONTNAME", (0, 2), (-1, -2), "Helvetica"),
+                ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("BACKGROUND", (0, 0), (-1, 1), colors.lightgrey),
+                ("BACKGROUND", (0, -1), (-1, -1), colors.lightgrey),
+            ]
+        )
+    )
+
+    story.append(invoice_table)
+    story.append(Spacer(1, 10))
+
+    # Footer
+    note_style = ParagraphStyle(
+        "NoteStyle", parent=styles["Normal"], fontSize=7, fontName="Helvetica"
+    )
+
+    story.append(Paragraph("Please note that,", note_style))
+    story.append(
+        Paragraph(
+            "Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before 2024. Ignore this message if you have already settled that outstanding.",
+            note_style,
+        )
+    )
+    story.append(Spacer(1, 8))
+    story.append(Paragraph("Thank you,", note_style))
+    story.append(Paragraph("The Management.", note_style))
+    story.append(Spacer(1, 10))
+
+    # Account Details
+    story.append(
+        Paragraph(
+            "Account Details",
+            ParagraphStyle(
+                "AccountHeader", parent=note_style, fontName="Helvetica-Bold"
+            ),
+        )
+    )
+    story.append(Paragraph("Account Name - Polymath College (PVT) Ltd", note_style))
+    story.append(Paragraph("Bank - Peoples Bank", note_style))
+    story.append(Paragraph("Branch - Gangodawila", note_style))
+    story.append(Paragraph("Account Number - 097100130026495", note_style))
+    story.append(Paragraph("Whatsapp - 0705585858", note_style))
+
+    return story
+
+
+def children_for_invoice(request):
+    """Get all enrolled children for invoice generation dropdown"""
+    try:
+        children = (
+            Child.objects.filter(
+                is_active=True, enrollement_approved=True, is_enrolled=True
+            )
+            .values("id", "admission_number", "child_first_name", "child_last_name")
+            .order_by("admission_number")
+        )
+
+        children_list = []
+        for child in children:
+            display_name = f"{child['admission_number']} - {child['child_first_name']} {child['child_last_name']}"
+            children_list.append({"id": child["id"], "display_name": display_name})
+
+        return JsonResponse({"children": children_list})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def invoice_eligibility_check(request):
+    """Check which children are eligible for invoice generation (Enhanced version)"""
+    try:
+        month = request.GET.get("month")
+        year = request.GET.get("year")
+        child_id = request.GET.get("child_id")
+
+        if not month or not year:
+            return JsonResponse({"error": "Month and year are required"}, status=400)
+
+        month = int(month)
+        year = int(year)
+
+        # Prevent future month invoice generation
+        current_date = datetime.now()
+        if year > current_date.year or (
+            year == current_date.year and month > current_date.month
+        ):
+            return JsonResponse(
+                {"error": "Cannot generate invoices for future months"}, status=400
+            )
+
+        # Calculate date range for the month
+        from_date = date(year, month, 1)
+        last_day = calendar.monthrange(year, month)[1]
+        to_date = date(year, month, last_day)
+
+        # Get children to check
+        if child_id:
+            children = Child.objects.filter(
+                id=child_id, is_active=True, enrollement_approved=True, is_enrolled=True
+            )
+        else:
+            children = Child.objects.filter(
+                is_active=True, enrollement_approved=True, is_enrolled=True
+            )
+
+        children_status = []
+
+        for child in children:
+            # Check if invoice already exists
+            existing_invoice = Invoice.objects.filter(
+                child=child, year=year, month=month
+            ).first()
+
+            if existing_invoice:
+                children_status.append(
+                    {
+                        "child_id": child.id,
+                        "child_name": f"{child.admission_number} - {child.child_first_name} {child.child_last_name}",
+                        "status": "Already Generated",
+                        "invoice_id": existing_invoice.id,
+                        "amount": float(existing_invoice.amount),
+                    }
+                )
+                continue
+
+            # Check for missing attendance records (incomplete IN/OUT pairs)
+            attendance_logs = (
+                AttendanceLog.objects.filter(
+                    child=child, date_logged__range=(from_date, to_date)
+                )
+                .values("date_logged")
+                .annotate(count=Count("id"))
+            )
+
+            missing_dates = []
+            for log in attendance_logs:
+                if log["count"] == 1:  # Missing either IN or OUT
+                    missing_dates.append(str(log["date_logged"]))
+
+            if missing_dates:
+                children_status.append(
+                    {
+                        "child_id": child.id,
+                        "child_name": f"{child.admission_number} - {child.child_first_name} {child.child_last_name}",
+                        "status": "Missing Records",
+                        "missing_dates": missing_dates,
+                    }
+                )
+            else:
+                # Calculate estimated amount for preview
+                estimated_amount = calculate_estimated_invoice_amount(
+                    child, year, month
+                )
+                children_status.append(
+                    {
+                        "child_id": child.id,
+                        "child_name": f"{child.admission_number} - {child.child_first_name} {child.child_last_name}",
+                        "status": "Ready for Invoice",
+                        "estimated_amount": float(estimated_amount),
+                    }
+                )
+
+        return JsonResponse({"children_status": children_status})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def generate_single_invoice(request):
+    """Generate invoice for a single child"""
+    try:
+        if request.method == "POST":
+            child_id = request.POST.get("child_id")
+            month = request.POST.get("month")
+            year = request.POST.get("year")
+
+            if not all([child_id, month, year]):
+                return JsonResponse(
+                    {"error": "Missing required parameters"}, status=400
+                )
+
+            month = int(month)
+            year = int(year)
+
+            # Prevent future month invoice generation
+            current_date = datetime.now()
+            if year > current_date.year or (
+                year == current_date.year and month > current_date.month
+            ):
+                return JsonResponse(
+                    {"error": "Cannot generate invoices for future months"}, status=400
+                )
+
+            child = Child.objects.get(
+                id=child_id, is_active=True, enrollement_approved=True
+            )
+            invoice = generate_single_child_invoice(
+                child, month, year, request.user.username
+            )
+
+            if invoice:
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "invoice_id": invoice.id,
+                        "invoice_no": invoice.invoice_no,
+                        "amount": float(invoice.amount),
+                        "child_name": f"{child.child_first_name} {child.child_last_name}",
+                    }
+                )
+            else:
+                return JsonResponse({"error": "Failed to generate invoice"}, status=500)
+
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    except Child.DoesNotExist:
+        return JsonResponse({"error": "Child not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def generate_bulk_invoices(request):
+    """Generate invoices for multiple children"""
+    try:
+        if request.method == "POST":
+            child_ids = request.POST.getlist("child_ids")
+            month = request.POST.get("month")
+            year = request.POST.get("year")
+
+            if not all([child_ids, month, year]):
+                return JsonResponse(
+                    {"error": "Missing required parameters"}, status=400
+                )
+
+            month = int(month)
+            year = int(year)
+
+            # Prevent future month invoice generation
+            current_date = datetime.now()
+            if year > current_date.year or (
+                year == current_date.year and month > current_date.month
+            ):
+                return JsonResponse(
+                    {"error": "Cannot generate invoices for future months"}, status=400
+                )
+
+            generated_invoices = []
+            errors = []
+
+            for child_id in child_ids:
+                try:
+                    child = Child.objects.get(
+                        id=child_id, is_active=True, enrollement_approved=True
+                    )
+                    invoice = generate_single_child_invoice(
+                        child, month, year, request.user.username
+                    )
+
+                    if invoice:
+                        generated_invoices.append(
+                            {
+                                "invoice_id": invoice.id,
+                                "invoice_no": invoice.invoice_no,
+                                "child_name": f"{child.child_first_name} {child.child_last_name}",
+                                "amount": float(invoice.amount),
+                            }
+                        )
+                    else:
+                        errors.append(
+                            f"Failed to generate invoice for {child.child_first_name} {child.child_last_name}"
+                        )
+
+                except Child.DoesNotExist:
+                    errors.append(f"Child with ID {child_id} not found")
+                except Exception as e:
+                    errors.append(
+                        f"Error generating invoice for child ID {child_id}: {str(e)}"
+                    )
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "generated_count": len(generated_invoices),
+                    "generated_invoices": generated_invoices,
+                    "errors": errors,
+                }
+            )
+
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def invoices_list(request):
+    """Get list of invoices with filters"""
+    try:
+        # Get filter parameters
+        month = request.GET.get("month")
+        year = request.GET.get("year")
+        child_id = request.GET.get("child_id")
+        status = request.GET.get("status")
+
+        # Build query
+        invoices = Invoice.objects.filter(is_active=True)
+
+        if month:
+            invoices = invoices.filter(month=int(month))
+        if year:
+            invoices = invoices.filter(year=int(year))
+        if child_id:
+            invoices = invoices.filter(child_id=child_id)
+        if status:
+            invoices = invoices.filter(status=status)
+
+        # Get invoice data with child information
+        invoice_list = []
+        for invoice in invoices.select_related("child").order_by("-invoice_date"):
+            invoice_list.append(
+                {
+                    "id": invoice.id,
+                    "invoice_no": invoice.invoice_no,
+                    "child_name": f"{invoice.child.admission_number} - {invoice.child.child_first_name} {invoice.child.child_last_name}",
+                    "month_year": f"{calendar.month_name[invoice.month]} {invoice.year}",
+                    "invoice_date": invoice.invoice_date.strftime("%Y-%m-%d"),
+                    "amount": float(invoice.amount),
+                    "paid_amount": float(invoice.paid_amount),
+                    "balance_amount": float(invoice.balance_amount),
+                    "status": invoice.status,
+                }
+            )
+
+        return JsonResponse({"invoices": invoice_list})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def invoice_details(request, invoice_id):
+    """Get detailed invoice information"""
+    try:
+        invoice = get_object_or_404(Invoice, id=invoice_id)
+
+        # Get line items
+        line_items = InvoiceLineItem.objects.filter(invoice=invoice).order_by("id")
+        line_items_data = []
+        for item in line_items:
+            line_items_data.append(
+                {
+                    "description": item.description,
+                    "quantity": float(item.quantity),
+                    "unit_price": float(item.unit_price),
+                    "total_amount": float(item.total_amount),
+                    "item_type": item.item_type,
+                }
+            )
+
+        # Get payments
+        payments = Payment.objects.filter(invoice=invoice).order_by("-payment_date")
+        payments_data = []
+        for payment in payments:
+            payments_data.append(
+                {
+                    "payment_date": payment.payment_date.strftime("%Y-%m-%d"),
+                    "amount": float(payment.amount),
+                    "payment_method": payment.payment_method,
+                    "reference_number": payment.reference_number or "",
+                    "notes": payment.notes or "",
+                }
+            )
+
+        # Prepare response data
+        invoice_data = {
+            "id": invoice.id,
+            "invoice_no": invoice.invoice_no,
+            "invoice_date": invoice.invoice_date.strftime("%Y-%m-%d"),
+            "status": invoice.status,
+            "period": {
+                "from_date": invoice.from_date.strftime("%Y-%m-%d"),
+                "to_date": invoice.to_date.strftime("%Y-%m-%d"),
+                "month_name": calendar.month_name[invoice.month],
+                "year": invoice.year,
+            },
+            "child": {
+                "name": f"{invoice.child.child_first_name} {invoice.child.child_last_name}",
+                "admission_number": invoice.child.admission_number,
+                "fathers_contact": invoice.child.fathers_contact_number,
+                "mothers_contact": invoice.child.mothers_contact_number,
+            },
+            "attendance": {
+                "total_days_attended": invoice.total_days_attended,
+                "holiday_attendance_days": invoice.holiday_attendance_days,
+                "total_extra_hours": float(invoice.total_extra_hours),
+            },
+            "amounts": {
+                "package_amount": float(invoice.package_amount),
+                "extra_hours_amount": float(invoice.extra_hours_amount),
+                "holiday_charges": float(invoice.holiday_charges),
+                "outstanding_balance": float(invoice.outstanding_balance),
+                "discount_amount": float(invoice.discount_amount),
+                "total_amount": float(invoice.amount),
+                "paid_amount": float(invoice.paid_amount),
+                "balance_amount": float(invoice.balance_amount),
+            },
+            "line_items": line_items_data,
+            "payments": payments_data,
+        }
+
+        return JsonResponse(invoice_data)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def record_payment(request):
+    """Record a payment against an invoice"""
+    try:
+        if request.method == "POST":
+            invoice_id = request.POST.get("invoice_id")
+            amount = request.POST.get("amount")
+            payment_date = request.POST.get("payment_date")
+            payment_method = request.POST.get("payment_method")
+            reference_number = request.POST.get("reference_number", "")
+            notes = request.POST.get("notes", "")
+
+            if not all([invoice_id, amount, payment_date, payment_method]):
+                return JsonResponse({"error": "Missing required fields"}, status=400)
+
+            invoice = get_object_or_404(Invoice, id=invoice_id)
+            amount = Decimal(amount)
+
+            # Validate payment amount
+            if amount <= 0:
+                return JsonResponse(
+                    {"error": "Payment amount must be greater than 0"}, status=400
+                )
+
+            if amount > invoice.balance_amount:
+                return JsonResponse(
+                    {"error": "Payment amount cannot exceed balance amount"}, status=400
+                )
+
+            # Create payment record
+            with transaction.atomic():
+                payment = Payment.objects.create(
+                    invoice=invoice,
+                    payment_date=datetime.strptime(payment_date, "%Y-%m-%d").date(),
+                    amount=amount,
+                    payment_method=payment_method,
+                    reference_number=reference_number,
+                    notes=notes,
+                    user_created=request.user.username,
+                )
+
+                # Update invoice amounts (this is handled in Payment.save() method)
+                # But let's make sure it's updated
+                total_payments = Payment.objects.filter(invoice=invoice).aggregate(
+                    total=Sum("amount")
+                )["total"] or Decimal("0.00")
+
+                invoice.paid_amount = total_payments
+                invoice.balance_amount = invoice.amount - total_payments
+
+                # Update status based on payment
+                if invoice.balance_amount <= 0:
+                    invoice.status = "PAID"
+                elif invoice.paid_amount > 0:
+                    invoice.status = "SENT"
+
+                invoice.save()
+
+                # Create payment line item
+                InvoiceLineItem.objects.create(
+                    invoice=invoice,
+                    description=f"Payment Received - {payment_method}",
+                    quantity=1,
+                    unit_price=-amount,  # Negative for payment
+                    item_type="PAYMENT",
+                    reference_number=reference_number,
+                    user_created=request.user.username,
+                )
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "payment_id": payment.id,
+                    "new_balance": float(invoice.balance_amount),
+                    "new_status": invoice.status,
+                }
+            )
+
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    except Invoice.DoesNotExist:
+        return JsonResponse({"error": "Invoice not found"}, status=404)
+    except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)

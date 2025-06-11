@@ -1,18 +1,14 @@
 {
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Django Debug",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/manage.py",
-      "args": ["runserver", "--noreload"],
-      "django": true,
-      "justMyCode": true,
-      "console": "integratedTerminal",
-      "env": {
-        "PYTHONUNBUFFERED": "1"
-      }
-    }
-  ]
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Django Debug",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/manage.py",
+            "args": ["runserver", "8000"],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
 }

@@ -119,6 +119,27 @@ class Child(BaseClass):
             + self.child_last_name
         )
 
+    def get_current_package_mapping(self, date=None):
+        """Get the active package mapping for a specific date"""
+        if date is None:
+            date = timezone.now().date()
+
+        return (
+            ChildPackageMapping.objects.filter(
+                child=self, is_active=True, effective_from__lte=date
+            )
+            .filter(
+                models.Q(effective_to__gte=date) | models.Q(effective_to__isnull=True)
+            )
+            .first()
+        )
+
+    def get_outstanding_balance(self):
+        """Get total outstanding balance for this child"""
+        return Invoice.objects.filter(
+            child=self, status__in=["GENERATED", "SENT", "OVERDUE"]
+        ).aggregate(total=models.Sum("balance_amount"))["total"] or Decimal("0.00")
+
 
 class PackageTerm(BaseClass):
     package_type_code = models.CharField(max_length=10)
@@ -469,25 +490,158 @@ class ExtraChargesHistory(BaseClass):
         db_table = "dc_extra_charges_history"
 
 
-class Invoice(BaseClass):
-    invoice_date = models.DateField()
-    invoice_no = models.CharField(max_length=10, null=True, blank=True)
-    child = models.ForeignKey("Child", on_delete=models.CASCADE)
-    year = models.IntegerField()
-    month = models.IntegerField()
-    amount = models.DecimalField(max_digits=8, decimal_places=2)
-    receipt_no = models.CharField(max_length=10, null=True, blank=True)
-    paid_amount = models.DecimalField(
-        max_digits=8, decimal_places=2, null=True, blank=True
-    )
-    balance_amount = models.DecimalField(
-        max_digits=8, decimal_places=2, null=True, blank=True
+class InvoiceLineItem(BaseClass):
+    """Model to store detailed invoice line items"""
+
+    ITEM_TYPES = (
+        ("PACKAGE", "Package Fee"),
+        ("EXTRA_HOURS", "Extra Hours"),
+        ("HOLIDAY", "Holiday Attendance"),
+        ("DISCOUNT", "Discount"),
+        ("OUTSTANDING", "Outstanding Balance"),
+        ("PAYMENT", "Payment"),
+        ("ADJUSTMENT", "Adjustment"),
     )
 
+    invoice = models.ForeignKey(
+        "Invoice", on_delete=models.CASCADE, related_name="line_items"
+    )
+    description = models.CharField(max_length=200)
+    quantity = models.DecimalField(max_digits=8, decimal_places=2, default=1)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    item_type = models.CharField(max_length=20, choices=ITEM_TYPES)
+    reference_number = models.CharField(
+        max_length=50, blank=True, null=True
+    )  # For payment references
+
     class Meta:
-        verbose_name = "Invoices"
+        verbose_name = "Invoice Line Item"
+        verbose_name_plural = "Invoice Line Items"
+        db_table = "dc_invoice_line_items"
+
+    def save(self, *args, **kwargs):
+        # Auto-calculate total_amount
+        self.total_amount = self.quantity * self.unit_price
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.description} - {self.total_amount}"
+
+
+# Enhanced Invoice model (modify existing)
+class Invoice(BaseClass):
+    STATUS_CHOICES = (
+        ("DRAFT", "Draft"),
+        ("GENERATED", "Generated"),
+        ("SENT", "Sent"),
+        ("PAID", "Paid"),
+        ("OVERDUE", "Overdue"),
+        ("CANCELLED", "Cancelled"),
+    )
+
+    invoice_date = models.DateField()
+    invoice_no = models.CharField(max_length=20, unique=True)
+    child = models.ForeignKey("Child", on_delete=models.CASCADE)
+    from_date = models.DateField(null=True)  # Invoice period start
+    to_date = models.DateField(null=True)  # Invoice period end
+    year = models.IntegerField(null=True)
+    month = models.IntegerField(null=True)
+
+    # Attendance summary
+    total_days_attended = models.IntegerField(default=0)
+    total_extra_hours = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    holiday_attendance_days = models.IntegerField(default=0)
+
+    # Financial details
+    package_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    extra_hours_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    holiday_charges = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    outstanding_balance = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0
+    )
+
+    amount = models.DecimalField(max_digits=10, decimal_places=2)  # Total amount
+    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    balance_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="DRAFT")
+    receipt_no = models.CharField(max_length=50, null=True, blank=True)
+
+    # Notes and references
+    notes = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Invoice"
         verbose_name_plural = "Invoices"
         db_table = "dc_invoices"
+        unique_together = ("child", "year", "month")  # One invoice per child per month
+
+    def save(self, *args, **kwargs):
+        # Auto-generate invoice number if not set
+        if not self.invoice_no:
+            # Format: INV-YYYYMM-001
+            year_month = f"{self.year:04d}{self.month:02d}"
+            last_invoice = (
+                Invoice.objects.filter(invoice_no__startswith=f"INV-{year_month}")
+                .order_by("-invoice_no")
+                .first()
+            )
+
+            if last_invoice:
+                last_num = int(last_invoice.invoice_no.split("-")[-1])
+                new_num = last_num + 1
+            else:
+                new_num = 1
+
+            self.invoice_no = f"INV-{year_month}-{new_num:03d}"
+
+        # Calculate balance
+        self.balance_amount = self.amount - self.paid_amount
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.invoice_no} - {self.child.admission_number}"
+
+
+class Payment(BaseClass):
+    """Model to track payments against invoices"""
+
+    PAYMENT_METHODS = (
+        ("CASH", "Cash"),
+        ("BANK_TRANSFER", "Bank Transfer"),
+        ("CHEQUE", "Cheque"),
+        ("CARD", "Card"),
+        ("ONLINE", "Online Payment"),
+    )
+
+    invoice = models.ForeignKey(
+        Invoice, on_delete=models.CASCADE, related_name="payments"
+    )
+    payment_date = models.DateField()
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS)
+    reference_number = models.CharField(max_length=100, blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Payment"
+        verbose_name_plural = "Payments"
+        db_table = "dc_payments"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Update invoice paid amount
+        self.invoice.paid_amount = (
+            self.invoice.payments.aggregate(total=models.Sum("amount"))["total"] or 0
+        )
+        self.invoice.balance_amount = self.invoice.amount - self.invoice.paid_amount
+        self.invoice.save()
+
+    def __str__(self):
+        return f"Payment {self.reference_number} - {self.amount}"
 
 
 class PackageChangerequest(BaseClass):
