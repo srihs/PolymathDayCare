@@ -311,38 +311,12 @@ urlpatterns = [
     ),
     path(
         "generate_invoices/",
-        views.invoice_eligibility_check,
+        views.generateInvoiceEligibilityJS,
         name="generate_invoices_eligibilityJS",
     ),
-    path("generateinvoicesJS/", views.generateInvoiceJS, name="generateinvoicesJS"),
     path(
-        "children-for-invoice/", views.children_for_invoice, name="children_for_invoice"
-    ),
-    path(
-        "invoice-eligibility-check/",
-        views.invoice_eligibility_check,
-        name="invoice_eligibility_check",
-    ),
-    path(
-        "generate-single-invoice/",
-        views.generate_single_invoice,
-        name="generate_single_invoice",
-    ),
-    path(
-        "generate-bulk-invoices/",
-        views.generate_bulk_invoices,
-        name="generate_bulk_invoices",
-    ),
-    path("invoices-list/", views.invoices_list, name="invoices_list"),
-    path(
-        "invoice-details/<int:invoice_id>/",
-        views.invoice_details,
-        name="invoice_details",
-    ),
-    path("record-payment/", views.record_payment, name="record_payment"),
-    path(
-        "download-invoice-pdf/<int:invoice_id>/",
-        views.download_invoice_pdf,
-        name="download_invoice_pdf",
+        "generateinvoicesJS/",
+        views.generateInvoiceJS,
+        name="generateinvoicesJS",
     ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
