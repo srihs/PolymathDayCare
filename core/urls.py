@@ -319,4 +319,14 @@ urlpatterns = [
         views.generateInvoiceJS,
         name="generateinvoicesJS",
     ),
+    path(
+        "generate_invoice_pdf/",
+        views.generate_invoice_pdf,
+        name="generate_invoice_pdf",
+    ),
+    path(
+        "generate-clean-minimal-pdf/",
+        views.generate_clean_minimal_pdf,
+        name="generate_clean_minimal_pdf",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
