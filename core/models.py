@@ -469,27 +469,6 @@ class ExtraChargesHistory(BaseClass):
         db_table = "dc_extra_charges_history"
 
 
-class Invoice(BaseClass):
-    invoice_date = models.DateField()
-    invoice_no = models.CharField(max_length=10, null=True, blank=True)
-    child = models.ForeignKey("Child", on_delete=models.CASCADE)
-    year = models.IntegerField()
-    month = models.IntegerField()
-    amount = models.DecimalField(max_digits=8, decimal_places=2)
-    receipt_no = models.CharField(max_length=10, null=True, blank=True)
-    paid_amount = models.DecimalField(
-        max_digits=8, decimal_places=2, null=True, blank=True
-    )
-    balance_amount = models.DecimalField(
-        max_digits=8, decimal_places=2, null=True, blank=True
-    )
-
-    class Meta:
-        verbose_name = "Invoices"
-        verbose_name_plural = "Invoices"
-        db_table = "dc_invoices"
-
-
 class PackageChangerequest(BaseClass):
     STATUS_CHOICES = (
         ("PENDING_APPROVAL", "Pending Approval"),
@@ -638,3 +617,135 @@ class EnrollmentForm(BaseClass):
 
     def file_exists(self):
         return os.path.exists(self.pdf_path)
+
+
+# Add this model to your models.py file
+
+
+class InvoiceMemo(BaseClass):
+    # Basic memo information
+    memo_date = models.DateField()
+    memo_code = models.CharField(max_length=20, unique=True)  # MO001, MO002, etc.
+    child = models.ForeignKey("Child", on_delete=models.CASCADE)
+    year = models.IntegerField()
+    month = models.IntegerField()
+
+    # From your memo format - Outstanding from previous month
+    previous_month_outstanding = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0
+    )
+    previous_month_payment_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0
+    )
+    previous_month_payment_receipt = models.CharField(
+        max_length=50, blank=True, null=True
+    )
+    remaining_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    # Current month package and attendance details
+    package_name = models.CharField(max_length=200)
+    package_base_fee = models.DecimalField(max_digits=10, decimal_places=2)
+    days_attended = models.IntegerField(default=0)
+    expected_days = models.IntegerField(default=22)
+    attendance_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0
+    )
+    is_half_charge_applied = models.BooleanField(default=False)
+    current_month_package_fee = models.DecimalField(max_digits=10, decimal_places=2)
+
+    # Extra charges (holiday and extra hours)
+    extra_hours_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    holiday_attendance_days = models.IntegerField(default=0)
+    holiday_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    # Current month payment details
+    current_month_payment_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0
+    )
+    current_month_payment_receipt = models.CharField(
+        max_length=50, blank=True, null=True
+    )
+
+    # Discount and totals
+    discount_applied = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+
+    # Final totals
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+    # Status tracking
+    STATUS_CHOICES = (
+        ("GENERATED", "Generated"),
+        ("SENT", "Sent to Parent"),
+    )
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default="GENERATED"
+    )
+
+    # Additional details
+    branch_name = models.CharField(max_length=200)
+    center_name = models.CharField(max_length=200)
+    notes = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Invoice Memo"
+        verbose_name_plural = "Invoice Memos"
+        db_table = "dc_invoice_memos"
+        unique_together = (
+            "child",
+            "year",
+            "month",
+        )  # Prevent duplicate memos for same child/month
+        ordering = ["-year", "-month", "-memo_date"]
+
+    def __str__(self):
+        return f"{self.memo_code} - {self.child.admission_number}"
+
+    # No auto-generation in save() - will be handled in views.py
+
+    @property
+    def month_name(self):
+        """Get month name like in your memo (September, August, etc.)"""
+        import calendar
+
+        return calendar.month_name[self.month]
+
+    @property
+    def previous_month_name(self):
+        """Get previous month name for memo display"""
+        import calendar
+
+        prev_month = self.month - 1 if self.month > 1 else 12
+        return calendar.month_name[prev_month]
+
+
+# Model for tracking individual payments against memos (for invoice details)
+class MemoPayment(BaseClass):
+    memo = models.ForeignKey(
+        InvoiceMemo, on_delete=models.CASCADE, related_name="payments"
+    )
+    payment_date = models.DateField()
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    receipt_number = models.CharField(max_length=50)
+    payment_method = models.CharField(
+        max_length=20,
+        choices=[
+            ("CASH", "Cash"),
+            ("BANK_TRANSFER", "Bank Transfer"),
+            ("CHEQUE", "Cheque"),
+            ("CARD", "Card"),
+            ("OTHER", "Other"),
+        ],
+        default="CASH",
+    )
+    notes = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Memo Payment"
+        verbose_name_plural = "Memo Payments"
+        db_table = "dc_memo_payments"
+        ordering = ["-payment_date"]
+
+    def __str__(self):
+        return f"{self.memo.memo_code} - Rs.{self.amount} - {self.receipt_number}"

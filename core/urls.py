@@ -319,4 +319,24 @@ urlpatterns = [
         views.generateInvoiceJS,
         name="generateinvoicesJS",
     ),
+    path("invoice_memos/", views.getInvoiceMemos, name="view_invoice_memos"),
+    path("get_invoice_memos_js/", views.getInvoiceMemosJS, name="get_invoice_memos_js"),
+    path(
+        "generate_save_invoice_memo/",
+        views.generateAndSaveInvoiceMemo,
+        name="generate_save_invoice_memo",
+    ),
+    path(
+        "preview_invoice_memo/", views.previewInvoiceMemo, name="preview_invoice_memo"
+    ),
+    path(
+        "get_invoice_memo_by_id/<int:pk>/",
+        views.getInvoiceMemoByID,
+        name="get_invoice_memo_by_id",
+    ),
+    path(
+        "delete_invoice_memo/<int:pk>/",
+        views.deleteInvoiceMemo,
+        name="delete_invoice_memo",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
