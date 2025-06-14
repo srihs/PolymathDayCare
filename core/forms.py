@@ -1,4 +1,3 @@
-from datetime import datetime
 from decimal import *
 
 from django import forms
@@ -2338,37 +2337,10 @@ class CreateCenterChangeRequestForm(forms.ModelForm):
             "effective_date",
         )
 
-
 class GenerateInvoiceForm(forms.Form):
-    MONTH_CHOICES = [
-        ("", "-Select Month-"),
-        ("1", "January"),
-        ("2", "February"),
-        ("3", "March"),
-        ("4", "April"),
-        ("5", "May"),
-        ("6", "June"),
-        ("7", "July"),
-        ("8", "August"),
-        ("9", "September"),
-        ("10", "October"),
-        ("11", "November"),
-        ("12", "December"),
-    ]
-
-    # Get current year and previous years for selection
-
-    current_year = datetime.now().year
-    YEAR_CHOICES = [("", "-Select Year-")] + [
-        (str(year), str(year)) for year in range(current_year - 2, current_year + 1)
-    ]
-
     child = forms.ModelChoiceField(
-        queryset=Child.objects.filter(is_active=True, is_enrolled=True).order_by(
-            "admission_number"
-        ),
-        empty_label="-Select Child (Leave empty for all children)-",
-        required=False,
+        queryset=Child.objects.filter(is_active=True, is_enrolled=True).order_by("admission_number"),
+        empty_label="-Select Child -",
         widget=forms.Select(
             attrs={
                 "class": "form-control",
@@ -2378,28 +2350,31 @@ class GenerateInvoiceForm(forms.Form):
         ),
     )
 
-    month = forms.ChoiceField(
-        choices=MONTH_CHOICES,
+    from_date = forms.DateField(
         required=True,
-        widget=forms.Select(
+        widget=MyDateInput(
             attrs={
                 "class": "form-control",
-                "id": "month",
-                "placeholder": "Month",
+                "id": "from_date",
+                "placeholder": "From",
                 "required": "required",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+            }
+        ),
+    )
+    to_date = forms.DateField(
+        required=True,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "to_date",
+                "placeholder": "To",
+                "required": "required",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
             }
         ),
     )
 
-    year = forms.ChoiceField(
-        choices=YEAR_CHOICES,
-        required=True,
-        widget=forms.Select(
-            attrs={
-                "class": "form-control",
-                "id": "year",
-                "placeholder": "Year",
-                "required": "required",
-            }
-        ),
-    )
+    

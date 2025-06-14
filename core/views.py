@@ -1,4 +1,3 @@
-import calendar
 import csv
 import datetime
 import json
@@ -8,7 +7,6 @@ import tempfile
 from collections import defaultdict
 from datetime import datetime, time, timedelta
 from decimal import Decimal
-from io import BytesIO
 
 import qrcode
 from django.conf import settings
@@ -3476,917 +3474,116 @@ def generateInvoiceEligibilityJS(request):
 def generateInvoiceJS(request):
     try:
         child_id = request.GET.get("child_id")
-        month = request.GET.get("month")
-        year = request.GET.get("year")
+        from_date_str = request.GET.get("from_date")
+        to_date_str = request.GET.get("to_date")
 
-        if not all([child_id, month, year]):
+        if not all([child_id, from_date_str, to_date_str]):
             return JsonResponse({"error": "Missing parameters"}, status=400)
 
-        # Validate that we're not generating future invoices
-        current_date = datetime.now()
-        requested_date = datetime(int(year), int(month), 1)
+        from_date = datetime.strptime(from_date_str, "%Y-%m-%d").date()
+        to_date = datetime.strptime(to_date_str, "%Y-%m-%d").date()
 
-        if requested_date > current_date:
-            return JsonResponse(
-                {"error": "Cannot generate invoices for future months"}, status=400
-            )
+        total_invoice = Decimal("0.00")
 
-        # Get the date range for the month
-        first_day = datetime(int(year), int(month), 1).date()
-        last_day = datetime(
-            int(year), int(month), calendar.monthrange(int(year), int(month))[1]
-        ).date()
-
-        # Get child details
-        child = Child.objects.get(id=child_id)
-
-        # Get package mapping for the period
-        package_mapping = (
-            ChildPackageMapping.objects.filter(
-                child_id=child_id, effective_from__lte=last_day, is_active=True
-            )
-            .filter(Q(effective_to__gte=first_day) | Q(effective_to__isnull=True))
-            .first()
-        )
+        # Get child's package mapping for the period
+        package_mapping = ChildPackageMapping.objects.filter(
+            child_id=child_id, is_active=True
+        ).first()
 
         if not package_mapping:
             return JsonResponse({"error": "No package mapping found for the child."})
 
-        # Get enrollment details
-        enrollment = ChildEnrollment.objects.filter(
-            child=child, status="Approved", is_active=True
+        is_flex = package_mapping.flex_package is not None
+        is_holiday = package_mapping.is_holiday_package
+
+        package = (
+            package_mapping.flex_package
+            if is_flex
+            else (
+                package_mapping.holiday_package
+                if is_holiday
+                else package_mapping.normal_package
+            )
+        )
+
+        if not package:
+            return JsonResponse({"error": "No valid package assigned."}, status=404)
+
+        expected_days = package.no_days_months or 0
+        package_total = package.package_total or Decimal("0.00")
+
+        # Attendance logs in date range
+        attendance_logs = AttendanceLog.objects.filter(
+            child_id=child_id, date_logged__range=(from_date, to_date)
+        ).order_by("date_logged", "time_logged")
+
+        # Holidays in this range
+        holidays = set(
+            Holiday.objects.filter(
+                start_date__lte=to_date, end_date__gte=from_date
+            ).values_list("start_date", flat=True)
+        )
+
+        logs_by_date = defaultdict(list)
+        for log in attendance_logs:
+            logs_by_date[log.date_logged].append(log)
+
+        present_days = 0
+        holiday_attendance = 0
+
+        extra_hour_mapping = PackageExtraHoursMapping.objects.filter(
+            fixed_package=package if not is_flex else None,
+            flex_package=package if is_flex else None,
         ).first()
 
-        if not enrollment:
-            return JsonResponse({"error": "No enrollment found for the child."})
-
-        # Calculate invoice details
-        invoice_data = calculate_detailed_invoice(
-            child, package_mapping, enrollment, first_day, last_day, month, year
-        )
-
-        return JsonResponse(invoice_data)
-
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
-
-
-def calculate_extra_hours_charge(
-    package_end_time, checkout_time, package_type, log_date
-):
-    """Calculate extra hours charge based on package end time and checkout time"""
-
-    # Convert times to datetime for calculation
-    package_end_dt = datetime.combine(log_date, package_end_time)
-    checkout_dt = datetime.combine(log_date, checkout_time)
-
-    if checkout_dt <= package_end_dt:
-        return Decimal("0.00")
-
-    # Calculate extra minutes
-    extra_minutes = (checkout_dt - package_end_dt).total_seconds() / 60
-
-    # Determine which extra hours rates apply
-    total_charge = Decimal("0.00")
-
-    # Check if it's before or after 5:30 PM
-    cutoff_time = time(17, 30)  # 5:30 PM
-
-    if package_end_time < cutoff_time and checkout_time > cutoff_time:
-        # Split into two parts: before 5:30 and after 5:30
-        before_530_minutes = (
-            datetime.combine(log_date, cutoff_time) - package_end_dt
-        ).total_seconds() / 60
-        after_530_minutes = extra_minutes - before_530_minutes
-
-        # Calculate before 5:30 charges
-        if before_530_minutes > 0:
-            hours_before_530 = int(before_530_minutes / 60) + (
-                1 if before_530_minutes % 60 > 0 else 0
-            )
-            for hour in range(1, hours_before_530 + 1):
-                rate = (
-                    ExtraHoursUpTo530.objects.filter(
-                        hour_number=hour, effective_from__lte=log_date, is_active=True
-                    )
-                    .filter(
-                        Q(effective_to__gte=log_date) | Q(effective_to__isnull=True)
-                    )
-                    .first()
-                )
-
-                if rate:
-                    total_charge += rate.extra_rate
-
-        # Calculate after 5:30 charges
-        if after_530_minutes > 0:
-            after_530_charge = get_after_530_charge(
-                cutoff_time, checkout_time, package_type, log_date
-            )
-            total_charge += after_530_charge
-
-    elif package_end_time >= cutoff_time:
-        # All extra time is after 5:30
-        total_charge = get_after_530_charge(
-            package_end_time, checkout_time, package_type, log_date
-        )
-    else:
-        # All extra time is before 5:30
-        extra_hours = int(extra_minutes / 60) + (1 if extra_minutes % 60 > 0 else 0)
-        for hour in range(1, extra_hours + 1):
-            rate = (
-                ExtraHoursUpTo530.objects.filter(
-                    hour_number=hour, effective_from__lte=log_date, is_active=True
-                )
-                .filter(Q(effective_to__gte=log_date) | Q(effective_to__isnull=True))
-                .first()
-            )
-
-            if rate:
-                total_charge += rate.extra_rate
-
-    return total_charge
-
-
-def get_after_530_charge(start_time, end_time, package_type, log_date):
-    """Get charges for time after 5:30 PM"""
-
-    extra_slots = ExtraHoursAfter530.objects.filter(
-        package_type=package_type,
-        from_time__lte=end_time,
-        to_time__gte=start_time,
-        effective_from__lte=log_date,
-        is_active=True,
-    ).filter(Q(effective_to__gte=log_date) | Q(effective_to__isnull=True))
-
-    total_charge = Decimal("0.00")
-    for slot in extra_slots:
-        total_charge += slot.extra_rate
-
-    return total_charge
-
-
-def get_previous_month_name(current_month_name):
-    """Get previous month name"""
-    months = list(calendar.month_name)[1:]  # Skip empty first element
-    try:
-        current_index = months.index(current_month_name)
-        if current_index == 0:
-            return months[11]  # December if current is January
-        else:
-            return months[current_index - 1]
-    except ValueError:
-        return "Previous Month"
-
-
-def calculate_detailed_invoice(
-    child, package_mapping, enrollment, from_date, to_date, month, year
-):
-    """Enhanced invoice calculation with detailed breakdown"""
-
-    # Get the active packages
-    normal_package = package_mapping.normal_package
-    holiday_package = package_mapping.holiday_package
-    flex_package = package_mapping.flex_package
-
-    # Determine primary package
-    is_flex = flex_package is not None
-    primary_package = flex_package if is_flex else normal_package
-
-    if not primary_package:
-        raise Exception("No valid package assigned.")
-
-    # Get attendance logs for the month
-    attendance_logs = AttendanceLog.objects.filter(
-        child=child, date_logged__range=(from_date, to_date)
-    ).order_by("date_logged", "time_logged")
-
-    # Group logs by date
-    logs_by_date = defaultdict(list)
-    for log in attendance_logs:
-        logs_by_date[log.date_logged].append(log)
-
-    # Get holidays in this range (weekends + defined holidays)
-    defined_holidays = set(
-        Holiday.objects.filter(
-            start_date__lte=to_date, end_date__gte=from_date, is_active=True
-        ).values_list("start_date", flat=True)
-    )
-
-    # Calculate attendance and charges
-    total_present_days = 0
-    holiday_attendance_days = 0
-    total_extra_hours_charge = Decimal("0.00")
-    total_holiday_charge = Decimal("0.00")
-
-    # Package details
-    package_total = primary_package.package_total
-    expected_days = primary_package.no_days_months or 22  # Default to 22 working days
-
-    # Process each day with attendance
-    for log_date, logs in logs_by_date.items():
-        if not logs:
-            continue
-
-        # Sort logs by time
-        logs_sorted = sorted(logs, key=lambda x: x.time_logged or time(0, 0))
-
-        # Count as present day if there's at least one attendance log
-        total_present_days += 1
-
-        # Check if it's a weekend or holiday
-        is_weekend = log_date.weekday() >= 5  # Saturday = 5, Sunday = 6
-        is_defined_holiday = log_date in defined_holidays
-        is_holiday = is_weekend or is_defined_holiday
-
-        if is_holiday:
-            holiday_attendance_days += 1
-            # Calculate holiday charge
-            if holiday_package:
-                daily_holiday_rate = holiday_package.package_total / Decimal(
-                    expected_days
-                )
-                total_holiday_charge += daily_holiday_rate
-
-        # Calculate extra hours only if we have both IN and OUT times
-        # and only for non-flex packages
-        if not is_flex and primary_package.to_time and len(logs_sorted) >= 2:
+        for log_date, logs in logs_by_date.items():
+            logs_sorted = sorted(logs, key=lambda x: x.time_logged or time(0, 0))
             first_log = logs_sorted[0]
             last_log = logs_sorted[-1]
 
-            checkout_time = last_log.time_logged
-            package_end_time = primary_package.to_time
+            present_days += 1
+            is_holiday = log_date in holidays
 
-            if checkout_time and checkout_time > package_end_time:
-                # Calculate extra hours charge
-                extra_charge = calculate_extra_hours_charge(
-                    package_end_time,
-                    checkout_time,
-                    primary_package.package_type,
-                    log_date,
+            # Extra hours calculation
+            log_time_out = last_log.time_logged or time(0, 0)
+            extra_slots = ExtraHoursAfter530.objects.filter(
+                package_type=package.package_type,
+                from_time__lte=log_time_out,
+                to_time__gte=log_time_out,
+                effective_from__lte=log_date,
+            ).filter(Q(effective_to__gte=log_date) | Q(effective_to__isnull=True))
+
+            for slot in extra_slots:
+                total_invoice += slot.extra_rate
+
+            # Holiday attendance charge
+            if is_holiday and package_mapping.holiday_package:
+                holiday_attendance += 1
+                daily_holiday_rate = (
+                    package_mapping.holiday_package.package_total
+                    / Decimal(expected_days or 1)
                 )
-                total_extra_hours_charge += extra_charge
+                total_invoice += daily_holiday_rate
 
-    # Calculate base package charge with 50% rule
-    base_package_charge = package_total
+        # Adjust package fee if attendance is less than 50%
+        if expected_days > 0 and (present_days / expected_days) < 0.5:
+            package_total = package_total / 2
 
-    # Apply 50% rule: If attendance is less than 50% of expected days, charge half
-    attendance_percentage = (
-        (total_present_days / expected_days) if expected_days > 0 else 0
-    )
+        total_invoice += package_total
 
-    if attendance_percentage < 0.5:
-        base_package_charge = package_total / 2
-
-    # Calculate total
-    total_invoice = (
-        base_package_charge + total_extra_hours_charge + total_holiday_charge
-    )
-
-    # Outstanding balance set to 0 for now (until we fix Invoice table)
-    outstanding_balance = Decimal("0.00")
-
-    # Calculate discount if applicable
-    discount_amount = Decimal("0.00")
-    if enrollment.discount:
-        discount_rate = enrollment.discount.discount_rate / 100
-        discount_amount = total_invoice * discount_rate
-        total_invoice -= discount_amount
-
-    # Final total including outstanding
-    final_total = total_invoice + outstanding_balance
-
-    return {
-        "child_id": child.id,
-        "child_name": f"{child.child_first_name} {child.child_last_name}",
-        "admission_number": child.admission_number,
-        "month": calendar.month_name[int(month)],
-        "year": year,
-        "package_name": primary_package.package_name,
-        "package_total": float(package_total),
-        "present_days": total_present_days,
-        "expected_days": expected_days,
-        "attendance_percentage": round(attendance_percentage * 100, 1),
-        "holiday_attendance_days": holiday_attendance_days,
-        "base_package_charge": float(base_package_charge),
-        "extra_hours_charge": float(total_extra_hours_charge),
-        "holiday_charge": float(total_holiday_charge),
-        "discount_amount": float(discount_amount),
-        "outstanding_balance": float(outstanding_balance),
-        "total_invoice": float(total_invoice),
-        "final_total": float(final_total),
-        "branch_name": enrollment.branch.branch_name,
-        "center_name": enrollment.center.daycare_name,
-        "is_half_charge": attendance_percentage < 0.5,
-    }
-
-
-def draw_invoice_template_full_a4(c, invoice_data, width, height):
-    """Draw the clean minimal invoice template with proper alignments matching HTML"""
-    from reportlab.lib.colors import Color, black
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-
-    # Try to register system fonts - fallback to Helvetica if not available
-    try:
-        pdfmetrics.registerFont(TTFont("SystemFont", "Arial.ttf"))
-        pdfmetrics.registerFont(TTFont("SystemFont-Medium", "Arial-Bold.ttf"))
-        base_font = "SystemFont"
-        medium_font = "SystemFont-Medium"
-    except:
-        base_font = "Helvetica"
-        medium_font = "Helvetica"
-
-    # Brand colors exactly matching HTML template
-    brand_purple = Color(139 / 255, 74 / 255, 156 / 255)  # #8B4A9C
-    text_gray = Color(102 / 255, 102 / 255, 102 / 255)  # #666666
-    light_gray = Color(248 / 255, 249 / 255, 250 / 255)  # #f8f9fa
-    border_gray = Color(233 / 255, 236 / 255, 239 / 255)  # #e9ecef
-    danger_red = Color(211 / 255, 47 / 255, 47 / 255)  # #d32f2f
-
-    # Margins matching HTML padding: 40px 50px
-    left_margin = 50
-    right_margin = 50
-    top_margin = 40
-
-    # Header Section
-    current_y = height - top_margin
-
-    # Company name - font-size: 32px, font-weight: 500, color: #8B4A9C
-    c.setFont(medium_font, 24)  # 32px converted
-    c.setFillColor(brand_purple)
-    c.drawString(left_margin, current_y - 32, "POLYMATH COLLEGE")
-
-    # Tagline
-    c.setFont(medium_font, 11)  # 14px converted
-    c.setFillColor(text_gray)
-    c.drawString(left_margin, current_y - 55, "DAYCARE CENTER")
-
-    # Address
-    c.setFont(medium_font, 11)
-    c.drawString(
-        left_margin, current_y - 75, "No 452/3 High Level Road, Nawinna, Maharagama"
-    )
-    c.drawString(left_margin, current_y - 90, "PV 63200 | Phone 0112802554")
-
-    # MEMO title - RIGHT ALIGNED
-    c.setFont(medium_font, 36)  # 48px converted
-    c.setFillColor(brand_purple)
-    memo_text = "MEMO"
-    memo_width = c.stringWidth(memo_text, medium_font, 36)
-    c.drawString(width - right_margin - memo_width, current_y - 48, memo_text)
-
-    # Header bottom border
-    header_bottom_y = current_y - 120
-    c.setStrokeColor(border_gray)
-    c.setLineWidth(1)
-    c.line(left_margin, header_bottom_y, width - right_margin, header_bottom_y)
-    c.setStrokeColor(black)
-
-    # Invoice Details Grid
-    details_y = header_bottom_y - 30
-
-    # Left column - Child Details
-    c.setFont(medium_font, 9)
-    c.setFillColor(brand_purple)
-    c.drawString(left_margin, details_y, "CHILD DETAILS")
-
-    # Purple underline
-    c.setStrokeColor(brand_purple)
-    c.setLineWidth(2)
-    c.line(left_margin, details_y - 8, left_margin + 120, details_y - 8)
-    c.setStrokeColor(black)
-
-    # Child name
-    c.setFont(medium_font, 15)
-    c.setFillColor(black)
-    c.drawString(left_margin, details_y - 30, invoice_data["child_name"])
-
-    # Admission number
-    c.setFont(medium_font, 11)
-    c.setFillColor(text_gray)
-    c.drawString(
-        left_margin, details_y - 50, f"Admission No: {invoice_data['admission_number']}"
-    )
-
-    # Package
-    c.drawString(
-        left_margin, details_y - 70, f"Package: {invoice_data['package_name']}"
-    )
-
-    # Right column - Memo Details (PROPERLY ALIGNED)
-    right_col_start = width - right_margin - 180  # Adjusted for better spacing
-
-    c.setFont(medium_font, 9)
-    c.setFillColor(brand_purple)
-    c.drawString(right_col_start, details_y, "MEMO DETAILS")
-
-    # Purple underline
-    c.setStrokeColor(brand_purple)
-    c.setLineWidth(2)
-    c.line(right_col_start, details_y - 8, right_col_start + 120, details_y - 8)
-    c.setStrokeColor(black)
-
-    # Info rows with PROPER ALIGNMENT
-    c.setFont(medium_font, 11)
-    detail_y = details_y - 30
-    label_x = right_col_start
-    value_x = width - right_margin  # Right edge for values
-
-    # Memo Date
-    c.setFillColor(text_gray)
-    c.drawString(label_x, detail_y, "Memo Date:")
-    c.setFillColor(black)
-    c.drawRightString(
-        value_x, detail_y, invoice_data["generated_date"].strftime("%d.%m.%Y")
-    )
-
-    # Memo Month
-    c.setFillColor(text_gray)
-    c.drawString(label_x, detail_y - 18, "Memo Month:")
-    c.setFillColor(black)
-    c.drawRightString(
-        value_x, detail_y - 18, f"{invoice_data['month']} {invoice_data['year']}"
-    )
-
-    # Due Date
-    c.setFillColor(text_gray)
-    c.drawString(label_x, detail_y - 36, "Due Date:")
-    c.setFillColor(danger_red)
-    c.drawRightString(
-        value_x, detail_y - 36, invoice_data["payment_due_date"].strftime("%d.%m.%Y")
-    )
-
-    c.setFillColor(black)
-
-    # Content section
-    content_y = details_y - 100
-
-    # Invoice Table with PROPER COLUMN ALIGNMENT
-    table_y = content_y
-
-    # Table headers
-    c.setFont(medium_font, 9)
-    c.setFillColor(black)
-
-    # Description header - left aligned
-    c.drawString(left_margin + 20, table_y - 15, "DESCRIPTION")
-
-    # Amount header - right aligned
-    c.drawRightString(width - right_margin - 20, table_y - 15, "AMOUNT")
-
-    # Purple bottom border
-    c.setStrokeColor(brand_purple)
-    c.setLineWidth(2)
-    c.line(left_margin, table_y - 26, width - right_margin, table_y - 26)
-    c.setStrokeColor(black)
-
-    # Table rows with CONSISTENT ALIGNMENT
-    current_y = table_y - 26
-    row_height = 26
-    prev_month = get_previous_month_name(invoice_data["month"])
-
-    c.setFont(medium_font, 11)
-    desc_x = left_margin + 20
-    amount_x = width - right_margin - 20
-
-    # Outstanding row
-    current_y -= row_height
-    c.drawString(desc_x, current_y + 13, f"Outstanding as at {prev_month}")
-    c.drawRightString(
-        amount_x, current_y + 13, f"Rs. {invoice_data['outstanding_balance']:,.2f}"
-    )
-
-    # Light border
-    c.setStrokeColor(Color(0.945, 0.953, 0.957))
-    c.setLineWidth(1)
-    c.line(left_margin, current_y, width - right_margin, current_y)
-    c.setStrokeColor(black)
-
-    # Payment settled row
-    current_y -= row_height
-    c.drawString(desc_x, current_y + 13, f"Payment Settled In {prev_month}")
-    amount_settled = (
-        invoice_data["outstanding_balance"]
-        if invoice_data["outstanding_balance"] > 0
-        else 0
-    )
-    c.drawRightString(amount_x, current_y + 13, f"Rs. {amount_settled:,.2f}")
-    c.line(left_margin, current_y, width - right_margin, current_y)
-
-    # Remaining balance
-    current_y -= row_height
-    c.drawString(desc_x, current_y + 13, "Remaining Balance")
-    c.drawRightString(amount_x, current_y + 13, "Rs. 0.00")
-    c.line(left_margin, current_y, width - right_margin, current_y)
-
-    # Monthly fee
-    current_y -= row_height
-    c.drawString(
-        desc_x, current_y + 16, f"Day Care Monthly fee - {invoice_data['month']}"
-    )
-
-    # Attendance note
-    if invoice_data["present_days"] < invoice_data["expected_days"]:
-        c.setFont("Helvetica-Oblique", 9)
-        c.setFillColor(brand_purple)
-        c.drawString(
-            desc_x, current_y + 4, f"({invoice_data['present_days']} days attendance)"
+        return JsonResponse(
+            {
+                "child_id": child_id,
+                "from_date": str(from_date),
+                "to_date": str(to_date),
+                "present_days": present_days,
+                "holiday_attendance_days": holiday_attendance,
+                "base_package_charge": float(package_total),
+                "total_invoice": float(total_invoice),
+            }
         )
-        c.setFillColor(black)
-        c.setFont(medium_font, 11)
-
-    c.drawRightString(
-        amount_x, current_y + 13, f"Rs. {invoice_data['base_package_charge']:,.2f}"
-    )
-    c.line(left_margin, current_y, width - right_margin, current_y)
-
-    # Extra charges if any
-    if invoice_data.get("extra_hours_charge", 0) > 0:
-        current_y -= row_height
-        c.drawString(desc_x, current_y + 13, "Extra Hours Charges")
-        c.drawRightString(
-            amount_x, current_y + 13, f"Rs. {invoice_data['extra_hours_charge']:,.2f}"
-        )
-        c.line(left_margin, current_y, width - right_margin, current_y)
-
-    if invoice_data.get("holiday_charge", 0) > 0:
-        current_y -= row_height
-        c.drawString(desc_x, current_y + 13, "Holiday Attendance Charges")
-        c.drawRightString(
-            amount_x, current_y + 13, f"Rs. {invoice_data['holiday_charge']:,.2f}"
-        )
-        c.line(left_margin, current_y, width - right_margin, current_y)
-
-    if invoice_data.get("discount_amount", 0) > 0:
-        current_y -= row_height
-        c.drawString(desc_x, current_y + 13, "Discount Applied")
-        c.setFillColor(Color(0, 0.6, 0))
-        c.drawRightString(
-            amount_x, current_y + 13, f"Rs. -{invoice_data['discount_amount']:,.2f}"
-        )
-        c.setFillColor(black)
-        c.line(left_margin, current_y, width - right_margin, current_y)
-
-    # Payment settled current month
-    current_y -= row_height
-    c.drawString(desc_x, current_y + 16, f"Payment Settled - {invoice_data['month']}")
-
-    # RN note
-    c.setFont("Helvetica-Oblique", 9)
-    c.setFillColor(brand_purple)
-    c.drawString(desc_x, current_y + 4, "(RN: _______)")
-    c.setFillColor(black)
-    c.setFont(medium_font, 11)
-
-    c.drawRightString(amount_x, current_y + 13, "-")
-    c.line(left_margin, current_y, width - right_margin, current_y)
-
-    # Total row
-    current_y -= row_height + 5
-    c.setStrokeColor(brand_purple)
-    c.setLineWidth(2)
-    c.line(
-        left_margin,
-        current_y + row_height,
-        width - right_margin,
-        current_y + row_height,
-    )
-    c.setStrokeColor(black)
-
-    c.setFont(medium_font, 12)
-    c.drawString(desc_x, current_y + 15, "TOTAL AMOUNT")
-    c.drawRightString(
-        amount_x, current_y + 15, f"Rs. {invoice_data['final_total']:,.2f}"
-    )
-
-    # Notes Section
-    notes_y = current_y - 40
-
-    # Light background with purple left border
-    c.setFillColor(light_gray)
-    c.rect(
-        left_margin,
-        notes_y - 45,
-        width - left_margin - right_margin,
-        45,
-        fill=1,
-        stroke=0,
-    )
-    c.setFillColor(brand_purple)
-    c.rect(left_margin, notes_y - 45, 3, 45, fill=1, stroke=0)
-
-    # Section title
-    c.setFont(medium_font, 11)
-    c.setFillColor(brand_purple)
-    c.drawString(left_margin + 20, notes_y - 12, "PAYMENT INSTRUCTIONS")
-
-    # Note text with proper wrapping
-    c.setFont(medium_font, 11)
-    c.setFillColor(text_gray)
-
-    # First line
-    note_line1 = "Please note that only the payments made before the invoice date is indicated. If there is any"
-    c.drawString(left_margin + 20, notes_y - 25, note_line1)
-
-    # Second line with highlighted date
-    note_line2_part1 = "outstanding amount please settle on or before "
-    note_line2_part2 = ". Ignore this message if you have already"
-
-    x_pos = left_margin + 20
-    c.drawString(x_pos, notes_y - 37, note_line2_part1)
-    x_pos += c.stringWidth(note_line2_part1, medium_font, 11)
-
-    # Highlighted date
-    c.setFillColor(danger_red)
-    date_text = invoice_data["payment_due_date"].strftime("%d.%m.%Y")
-    c.drawString(x_pos, notes_y - 37, date_text)
-    x_pos += c.stringWidth(date_text, medium_font, 11)
-
-    # Continue text
-    c.setFillColor(text_gray)
-    c.drawString(x_pos, notes_y - 37, note_line2_part2)
-
-    c.setFillColor(black)
-
-    # Footer Section with PROPER ALIGNMENT
-    footer_y = notes_y - 80
-
-    c.setStrokeColor(border_gray)
-    c.setLineWidth(1)
-    c.line(left_margin, footer_y + 20, width - right_margin, footer_y + 20)
-    c.setStrokeColor(black)
-
-    # Thank you section (LEFT SIDE)
-    c.setFont(medium_font, 14)
-    c.setFillColor(brand_purple)
-    c.drawString(left_margin, footer_y, "Thank You!")
-
-    c.setFont(medium_font, 11)
-    c.setFillColor(text_gray)
-    c.drawString(
-        left_margin,
-        footer_y - 15,
-        "We appreciate your trust in Polymath College Daycare Center.",
-    )
-    c.drawString(
-        left_margin,
-        footer_y - 30,
-        "For any queries regarding this invoice, please contact us.",
-    )
-
-    c.setFont(medium_font, 11)
-    c.setFillColor(black)
-    c.drawString(left_margin, footer_y - 50, "The Management")
-
-    # Payment details (RIGHT SIDE) - FIXED ALIGNMENT WITH PROPER SPACING
-    payment_start_x = width - 300  # Move further left for more space
-
-    c.setFont(medium_font, 11)
-    c.setFillColor(brand_purple)
-    c.drawString(payment_start_x, footer_y, "PAYMENT DETAILS")
-
-    # Detail rows with EXTRA SPACING
-    c.setFont(medium_font, 10)
-    detail_y = footer_y - 15
-    spacing = 12
-
-    # Two-column layout with fixed positions
-    label_x = payment_start_x
-    value_x = width - right_margin
-
-    # Account Name
-    c.setFillColor(text_gray)
-    c.drawString(label_x, detail_y, "Account Name:")
-    c.setFillColor(black)
-    c.drawRightString(value_x, detail_y, "Polymath College (PVT) Ltd")
-
-    # Bank
-    detail_y -= spacing
-    c.setFillColor(text_gray)
-    c.drawString(label_x, detail_y, "Bank:")
-    c.setFillColor(black)
-    c.drawRightString(value_x, detail_y, "Peoples Bank")
-
-    # Branch
-    detail_y -= spacing
-    c.setFillColor(text_gray)
-    c.drawString(label_x, detail_y, "Branch:")
-    c.setFillColor(black)
-    c.drawRightString(value_x, detail_y, "Gangodawila")
-
-    # Account Number
-    detail_y -= spacing
-    c.setFillColor(text_gray)
-    c.drawString(label_x, detail_y, "Account Number:")
-    c.setFillColor(black)
-    c.drawRightString(value_x, detail_y, "097100130026495")
-
-    # WhatsApp
-    detail_y -= spacing
-    c.setFillColor(text_gray)
-    c.drawString(label_x, detail_y, "WhatsApp:")
-    c.setFillColor(black)
-    c.drawRightString(value_x, detail_y, "0705585858")
-
-
-@login_required
-def generate_invoice_pdf(request):
-    """Generate PDF invoice with clean minimal design - updated from your existing function"""
-    try:
-        child_id = request.GET.get("child_id")
-        month = request.GET.get("month")
-        year = request.GET.get("year")
-
-        if not all([child_id, month, year]):
-            return JsonResponse({"error": "Missing parameters"}, status=400)
-
-        # Validate that we're not generating future invoices
-        current_date = datetime.now()
-        requested_date = datetime(int(year), int(month), 1)
-
-        if requested_date > current_date:
-            return JsonResponse(
-                {"error": "Cannot generate invoices for future months"}, status=400
-            )
-
-        # Get the date range for the month
-        first_day = datetime(int(year), int(month), 1).date()
-        last_day = datetime(
-            int(year), int(month), calendar.monthrange(int(year), int(month))[1]
-        ).date()
-
-        # Get child details
-        child = Child.objects.get(id=child_id)
-
-        # Get package mapping for the period
-        package_mapping = (
-            ChildPackageMapping.objects.filter(
-                child_id=child_id, effective_from__lte=last_day, is_active=True
-            )
-            .filter(Q(effective_to__gte=first_day) | Q(effective_to__isnull=True))
-            .first()
-        )
-
-        if not package_mapping:
-            return JsonResponse({"error": "No package mapping found for the child."})
-
-        # Get enrollment details
-        enrollment = ChildEnrollment.objects.filter(
-            child=child, status="Approved", is_active=True
-        ).first()
-
-        if not enrollment:
-            return JsonResponse({"error": "No enrollment found for the child."})
-
-        # Calculate invoice details
-        invoice_data = calculate_detailed_invoice(
-            child, package_mapping, enrollment, first_day, last_day, month, year
-        )
-
-        # Add date information
-        today = datetime.now().date()
-        payment_due_date = today + timedelta(days=10)  # Add 10 days for payment
-
-        invoice_data["generated_date"] = today
-        invoice_data["payment_due_date"] = payment_due_date
-
-        # Create PDF
-        pdf_filename = f"clean_invoice_{child.admission_number}_{month}_{year}.pdf"
-
-        # Create PDF with ReportLab - Full A4 size
-        buffer = BytesIO()
-        c = canvas.Canvas(buffer, pagesize=A4)  # Full A4 page
-        width, height = A4
-
-        # Draw the clean minimal invoice
-        draw_invoice_template_full_a4(c, invoice_data, width, height)
-
-        c.save()
-
-        # Return file response
-        buffer.seek(0)
-        response = FileResponse(
-            buffer,
-            as_attachment=True,
-            filename=pdf_filename,
-            content_type="application/pdf",
-        )
-        return response
 
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
-
-
-# ADD this helper function if not already present in your code
-def get_previous_month_name(current_month):
-    """Get previous month name"""
-    months = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-    ]
-    try:
-        current_index = months.index(current_month)
-        return months[current_index - 1] if current_index > 0 else "December"
-    except ValueError:
-        return "Previous Month"
-
-
-@login_required
-def generate_clean_minimal_pdf(request):
-    """Generate clean minimal PDF - this can be the same as your updated generate_invoice_pdf"""
-    try:
-        child_id = request.GET.get("child_id")
-        month = request.GET.get("month")
-        year = request.GET.get("year")
-
-        if not all([child_id, month, year]):
-            return JsonResponse({"error": "Missing parameters"}, status=400)
-
-        # Validate that we're not generating future invoices
-        current_date = datetime.now()
-        requested_date = datetime(int(year), int(month), 1)
-
-        if requested_date > current_date:
-            return JsonResponse(
-                {"error": "Cannot generate invoices for future months"}, status=400
-            )
-
-        # Get the date range for the month
-        first_day = datetime(int(year), int(month), 1).date()
-        last_day = datetime(
-            int(year), int(month), calendar.monthrange(int(year), int(month))[1]
-        ).date()
-
-        # Get child details
-        child = Child.objects.get(id=child_id)
-
-        # Get package mapping for the period
-        package_mapping = (
-            ChildPackageMapping.objects.filter(
-                child_id=child_id, effective_from__lte=last_day, is_active=True
-            )
-            .filter(Q(effective_to__gte=first_day) | Q(effective_to__isnull=True))
-            .first()
-        )
-
-        if not package_mapping:
-            return JsonResponse({"error": "No package mapping found for the child."})
-
-        # Get enrollment details
-        enrollment = ChildEnrollment.objects.filter(
-            child=child, status="Approved", is_active=True
-        ).first()
-
-        if not enrollment:
-            return JsonResponse({"error": "No enrollment found for the child."})
-
-        # Calculate invoice details
-        invoice_data = calculate_detailed_invoice(
-            child, package_mapping, enrollment, first_day, last_day, month, year
-        )
-
-        # Add date information
-        today = datetime.now().date()
-        payment_due_date = today + timedelta(days=10)
-
-        invoice_data["generated_date"] = today
-        invoice_data["payment_due_date"] = payment_due_date
-
-        # Create PDF
-        pdf_filename = (
-            f"clean_minimal_invoice_{child.admission_number}_{month}_{year}.pdf"
-        )
-
-        # Create PDF with ReportLab - Full A4 size
-        buffer = BytesIO()
-        c = canvas.Canvas(buffer, pagesize=A4)
-        width, height = A4
-
-        # Draw the clean minimal invoice using your updated function
-        draw_invoice_template_full_a4(c, invoice_data, width, height)
-
-        c.save()
-
-        # Return file response
-        buffer.seek(0)
-        response = FileResponse(
-            buffer,
-            as_attachment=True,
-            filename=pdf_filename,
-            content_type="application/pdf",
-        )
-        return response
-
-    except Exception as e:
+        # Log the error and return a response
+        messages.error(request, f"Error generating invoice: {str(e)}")
         return JsonResponse({"error": str(e)}, status=500)

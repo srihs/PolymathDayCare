@@ -1,6 +1,7 @@
 {% extends "base.html" %} {% load static %} {% block UserName %} {{ UserName}}
 {% block PageTitle %}Invoices{% endblock %}
-{% endblock %} {% block Title %} INVOICES {% endblock %} {% block functionTitle%}INVOICE GENERATION{% endblock %} {% block content %}
+{% endblock %} {% block Title %} INVOICES {% endblock %} {% block functionTitle%}INVOICE LIST{% endblock %} {% block content %}
+
 
     <div class="container-fluid">
         <div class="row">
@@ -10,35 +11,36 @@
                         <div class="d-flex align-items-center">
                             <h5 class="card-title mb-0 flex-grow-1">Generate Invoices</h5>
                             <div class="flex-shrink-0">
-                                <button type="button" class="btn btn-info" onclick="generateAllInvoices()">
-                                    <i class="ri-file-list-3-line"></i> Generate All for Month
-                                </button>
+                                
                             </div>
                         </div>
                     </div>
                     <div class="card-body bg-light-subtle border border-dashed border-start-0 border-end-0">
                         <form>
                             <div class="row g-3">
-                                <div class="col-xxl-4 col-sm-12">
+                                <div class="col-xxl-5 col-sm-12">
                                     <div class="search-box">
+                                        
                                         {{ form.child }}
+
                                     </div>
                                 </div>
                                 <!--end col-->
                                 <div class="col-xxl-3 col-sm-4">
-                                    {{form.month}}
+                                    
+                                    {{form.from_date}}
                                 </div>
                                 <!--end col-->
                                 <div class="col-xxl-3 col-sm-4">
                                     <div class="input-light">
-                                        {{form.year}}
+                                        {{form.to_date}}
                                     </div>
                                 </div>
                                 <!--end col-->
 
-                                <div class="col-xxl-2 col-sm-4">
+                                <div class="col-xxl-1 col-sm-4">
                                     <button type="button" class="btn btn-primary w-100" onclick="SearchData();">
-                                        <i class="ri-search-line"></i> Check Eligibility
+                                        <i class="ri-search-line"></i> Search
                                     </button>
                                 </div>
                                 <!--end col-->
@@ -52,46 +54,22 @@
                                 <table class="display" style="width: 100%" id="invoiceTable">
                                     <thead class="text-muted">
                                         <tr>
+                                            
                                             <th>Child</th>
-                                            <th>Month/Year</th>
                                             <th>Status</th>
-                                            <th>Actions</th>
+                                            
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
                                 </table>
-                            </div>
                         </div>
                     </div>
                 </div>
+
             </div>
             <!--end col-->
         </div>
         <!--end row-->
-         <div class="modal fade" id="invoiceModal" tabindex="-1" role="dialog" aria-labelledby="invoiceModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="invoiceModalLabel">Invoice Details</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div id="invoiceDetails">
-                            <!-- Invoice details will be loaded here -->
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <div class="btn-group">
-                            <button type="button" class="btn btn-primary" id="generateCleanInvoiceFromModal">
-                                <i class="ri-file-text-line"></i> Clean Minimal PDF
-                            </button>
-                           
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
     </div><!-- container-fluid -->
 
@@ -118,87 +96,53 @@
     <script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-   <script>
-    var dataTable;
-    var currentInvoiceData = null;
-    
-    $(document).ready(function() {
-        $("#child").select2();  // Activate Select2
+    <script>
+         var dataTable;
+        $(document).ready(function() {
+            $("#child").select2();  // Activate Select2
         
+
         dataTable = $('#invoiceTable').DataTable({
             responsive: true,
-            paging: true,
-            searching: true,
-            ordering: true,
+            paging: false,
+            searching: false,
+            ordering: false,
             order: [[0, "asc"]],
             retrieve: true,
             columns: [
-                { data: 'child_name' },
-                { data: 'month_year' },
-                { data: 'status' },
-                { data: 'actions' }
+                
+                { data: 'child' },
+                { data: 'status_html' }
             ],
-        });
+            
+        })
+           
     });
 
     function SearchData() {
         let child = document.getElementById("child").value;
-        let month = document.getElementById("month").value;
-        let year = document.getElementById("year").value;
+        let from_date = document.getElementById("from_date").value;
+        let to_date = document.getElementById("to_date").value;
 
-        if (!month || !year) {
-            alert("Please select month and year");
-            return;
-        }
-
-        // Check if future month
-        let currentDate = new Date();
-        let selectedDate = new Date(year, month - 1, 1);
-        
-        if (selectedDate > currentDate) {
-            alert("Cannot generate invoices for future months");
-            return;
-        }
-
-        dataTable.clear();
-
-        if (child) {
-            // Generate for specific child
-            generateSingleChildInvoice(child, month, year);
-        } else {
-            alert("Please select a child or use 'Generate All for Month' button");
-        }
-    }
-
-    function generateSingleChildInvoice(childId, month, year) {
         $.ajax({
             type: "GET",
-            url: "{% url 'core:generateinvoicesJS' %}",
+            url: "{% url 'core:generate_invoices_eligibilityJS' %}",
             data: {
-                child_id: childId,
-                month: month,
-                year: year
+                child: child,
+                from_date: from_date,
+                to_date: to_date
             },
             success: function (response) {
-                if (response.error) {
-                    alert("Error: " + response.error);
-                    return;
-                }
-                
-                const formattedData = [{
-                    child_name: response.child_name,
-                    month_year: response.month + " " + response.year,
-                    status: '<span class="badge bg-success">Ready for Invoice</span>',
-                    actions: `<button class="btn btn-info btn-sm me-2" onclick="viewInvoiceDetails(${JSON.stringify(response).replace(/"/g, '&quot;')})">
-                                <i class="ri-eye-line"></i> View Details
-                              </button>
-                              <div class="btn-group">
-                                <button class="btn btn-primary btn-sm me-1" onclick="generateCleanInvoice('${childId}', '${month}', '${year}')" title="Download Pdf">
-                                    <i class="ri-file-text-line"></i> Download PDF
-                                </button>
-                               
-                              </div>`
-                }];
+                dataTable.clear();
+                const formattedData = response.children_status.map(item => ({
+                    child: item.child_name,
+                    status_html: item.status === "Eligible for Invoice"
+                    ? `<button id="generate-invoice-${item.child_id}" class="btn btn-success btn-sm generate-invoice" 
+                       data-child-id="${item.child_id}"
+                       data-from-date="${item.from_date}"
+                       data-to-date="${item.to_date}">Generate Invoice</button>`
+                        : `<span class="badge bg-danger">Missing time entry. Fix time entries for `+item.missing_dates+`</span>`
+                }));
 
                 dataTable.rows.add(formattedData).draw();
             },
@@ -208,264 +152,46 @@
         });
     }
 
-    function generateAllInvoices() {
-        let month = document.getElementById("month").value;
-        let year = document.getElementById("year").value;
 
-        if (!month || !year) {
-            alert("Please select month and year first");
-            return;
+    // Event listener for the "Generate Invoice" button click
+    $(document).on('click', '.generate-invoice', function() {
+    let childId = $(this).data('child-id');
+    let fromDate = $(this).data('from-date');
+    let toDate = $(this).data('to-date');
+
+
+    // Send the data to the backend using AJAX
+    $.ajax({
+        url: "{% url 'core:generateinvoicesJS' %}",
+        type: 'GET',
+        data: {
+            'child_id': childId,
+            'from_date': fromDate,
+            'to_date': toDate,
+            
+        },
+        success: function (response) {
+            if (response.error) {
+                // Handle the error returned by Django
+                alert("Error: " + response.error);
+            } else {
+                // Show invoice details
+                console.log(response);
+                alert("Total Invoice: LKR " + response.total_invoice);
+                // You can update the DOM here with invoice details
+            }
+        },
+        error: function (xhr, status, error) {
+            // Handle network/server-side errors
+            console.log(xhr.responseText);
+            alert("Something went wrong: " + xhr.statusText);
         }
-
-        // Check if future month
-        let currentDate = new Date();
-        let selectedDate = new Date(year, month - 1, 1);
-        
-        if (selectedDate > currentDate) {
-            alert("Cannot generate invoices for future months");
-            return;
-        }
-
-        // Clear child selection and generate for all
-        document.getElementById("child").value = "";
-        $("#child").trigger('change');
-        
-        // Show loading message
-        dataTable.clear();
-        dataTable.row.add({
-            child_name: 'Loading...',
-            month_year: 'Processing all children',
-            status: '<span class="badge bg-info">Please wait...</span>',
-            actions: ''
-        }).draw();
-
-        // Here you would call a function to generate all invoices
-        // For now, let's just show a message
-        setTimeout(function() {
-            alert("Bulk invoice generation will be implemented in the next step!");
-            dataTable.clear().draw();
-        }, 2000);
-    }
-
-     function formatNumber(num) {
-        return num.toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-    }
-
-    function viewInvoiceDetails(invoiceData) {
-        currentInvoiceData = invoiceData;
-        
-        // Calculate some additional info
-        let packageRuleStatus = invoiceData.is_half_charge ? 
-            `<span class="badge bg-warning">Half Charge Applied (${invoiceData.attendance_percentage}% attendance)</span>` :
-            `<span class="badge bg-success">Full Charge Applied (${invoiceData.attendance_percentage}% attendance)</span>`;
-        
-        let detailsHtml = `
-            <div class="row">
-                <div class="col-md-6">
-                    <h6 class="text-primary">Child Information</h6>
-                    <table class="table table-sm table-borderless">
-                        <tr>
-                            <td><strong>Name:</strong></td>
-                            <td>${invoiceData.child_name}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Admission No:</strong></td>
-                            <td>${invoiceData.admission_number}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Package:</strong></td>
-                            <td>${invoiceData.package_name}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Package Total:</strong></td>
-                            <td>Rs. ${formatNumber(invoiceData.package_total)}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Branch:</strong></td>
-                            <td>${invoiceData.branch_name}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Center:</strong></td>
-                            <td>${invoiceData.center_name}</td>
-                        </tr>
-                    </table>
-                </div>
-                <div class="col-md-6">
-                    <h6 class="text-primary">Attendance Summary</h6>
-                    <table class="table table-sm table-borderless">
-                        <tr>
-                            <td><strong>Month/Year:</strong></td>
-                            <td>${invoiceData.month} ${invoiceData.year}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Expected Days:</strong></td>
-                            <td>${invoiceData.expected_days} days</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Present Days:</strong></td>
-                            <td>${invoiceData.present_days} days</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Attendance %:</strong></td>
-                            <td>${invoiceData.attendance_percentage}%</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Holiday Days:</strong></td>
-                            <td>${invoiceData.holiday_attendance_days} days</td>
-                        </tr>
-                        <tr>
-                            <td colspan="2">${packageRuleStatus}</td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
-            <hr>
-            <div class="row">
-                <div class="col-12">
-                    <h6 class="text-primary">Charges Breakdown</h6>
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Description</th>
-                                <th class="text-end">Amount (Rs.)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Package Total (Original)</td>
-                                <td class="text-end">${formatNumber(invoiceData.package_total)}</td>
-                            </tr>
-                            <tr ${invoiceData.is_half_charge ? 'class="table-warning"' : ''}>
-                                <td>Base Package Charge ${invoiceData.is_half_charge ? '(50% Applied)' : '(Full Charge)'}</td>
-                                <td class="text-end">${formatNumber(invoiceData.base_package_charge)}</td>
-                            </tr>
-                            ${invoiceData.extra_hours_charge > 0 ? 
-                                `<tr><td>Extra Hours Charge</td><td class="text-end">${formatNumber(invoiceData.extra_hours_charge)}</td></tr>` : ''}
-                            ${invoiceData.holiday_charge > 0 ? 
-                                `<tr><td>Holiday Attendance Charge (${invoiceData.holiday_attendance_days} days)</td><td class="text-end">${formatNumber(invoiceData.holiday_charge)}</td></tr>` : ''}
-                            ${invoiceData.outstanding_balance > 0 ? 
-                                `<tr><td>Outstanding Balance</td><td class="text-end">${formatNumber(invoiceData.outstanding_balance)}</td></tr>` : ''}
-                            ${invoiceData.discount_amount > 0 ? 
-                                `<tr class="text-success"><td>Discount Applied</td><td class="text-end">-${formatNumber(invoiceData.discount_amount)}</td></tr>` : ''}
-                        </tbody>
-                        <tfoot>
-                            <tr class="table-primary">
-                                <th>Total Amount</th>
-                                <th class="text-end">Rs. ${formatNumber(invoiceData.final_total)}</th>
-                            </tr>
-                        </tfoot>
-                    </table>
-                    
-                    ${invoiceData.present_days === 0 ? 
-                        `<div class="alert alert-danger">
-                            <i class="ri-error-warning-line"></i> 
-                            <strong>No Attendance Found:</strong> No attendance records found for ${invoiceData.month} ${invoiceData.year}. Please check if attendance was logged for this child during this period.
-                        </div>` :
-                        invoiceData.present_days < (invoiceData.expected_days * 0.5) ? 
-                        `<div class="alert alert-info">
-                            <i class="ri-information-line"></i> 
-                            <strong>50% Rule Applied:</strong> Since attendance (${invoiceData.present_days} days) is less than 50% of expected days (${invoiceData.expected_days} days), only 50% of the package amount is charged.
-                        </div>` : 
-                        `<div class="alert alert-success">
-                            <i class="ri-check-line"></i> 
-                            <strong>Full Charge Applied:</strong> Attendance (${invoiceData.present_days} days) meets the minimum requirement of 50% of expected days (${invoiceData.expected_days} days).
-                        </div>`}
-                </div>
-            </div>
-        `;
-        
-        document.getElementById('invoiceDetails').innerHTML = detailsHtml;
-        $('#invoiceModal').modal('show');
-    }
-
-    function generateCleanInvoice(childId, month, year) {
-    // Show loading message
-    let button = event.target;
-    let originalText = button.innerHTML;
-    button.innerHTML = '<i class="ri-loader-2-line"></i> Generating...';
-    button.disabled = true;
-    
-    // Generate Clean Minimal PDF using your main invoice function
-    window.open(`{% url 'core:generate_invoice_pdf' %}?child_id=${childId}&month=${month}&year=${year}`, '_blank');
-    
-    // Reset button after a short delay
-    setTimeout(function() {
-        button.innerHTML = originalText;
-        button.disabled = false;
-    }, 2000);
-}
-
-// MODERN PDF GENERATION - Uses your generate-clean-minimal-pdf URL for now
-function generateModernInvoice(childId, month, year) {
-    // Show loading message
-    let button = event.target;
-    let originalText = button.innerHTML;
-    button.innerHTML = '<i class="ri-loader-2-line"></i> Generating...';
-    button.disabled = true;
-    
-    // Generate Modern PDF using your clean minimal function for now
-    window.open(`{% url 'core:generate_clean_minimal_pdf' %}?child_id=${childId}&month=${month}&year=${year}`, '_blank');
-    
-    // Reset button after a short delay
-    setTimeout(function() {
-        button.innerHTML = originalText;
-        button.disabled = false;
-    }, 2000);
-}
-
-// MODAL BUTTON EVENT LISTENERS
-document.getElementById('generateCleanInvoiceFromModal').addEventListener('click', function() {
-    if (currentInvoiceData) {
-        // Convert month name back to number for the function call
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                           'July', 'August', 'September', 'October', 'November', 'December'];
-        const monthNumber = monthNames.indexOf(currentInvoiceData.month) + 1;
-        
-        // Show loading state
-        this.innerHTML = '<i class="ri-loader-2-line"></i> Generating Clean PDF...';
-        this.disabled = true;
-        
-        // Generate Clean Minimal PDF
-        window.open(`{% url 'core:generate_invoice_pdf' %}?child_id=${currentInvoiceData.child_id}&month=${monthNumber}&year=${currentInvoiceData.year}`, '_blank');
-        
-        // Reset button and close modal after delay
-        let button = this;
-        setTimeout(function() {
-            button.innerHTML = '<i class="ri-file-text-line"></i> Clean Minimal PDF';
-            button.disabled = false;
-            $('#invoiceModal').modal('hide');
-        }, 2000);
-    }
+    });
 });
+    
 
-document.getElementById('generateModernInvoiceFromModal').addEventListener('click', function() {
-    if (currentInvoiceData) {
-        // Convert month name back to number for the function call
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                           'July', 'August', 'September', 'October', 'November', 'December'];
-        const monthNumber = monthNames.indexOf(currentInvoiceData.month) + 1;
-        
-        // Show loading state
-        this.innerHTML = '<i class="ri-loader-2-line"></i> Generating Modern PDF...';
-        this.disabled = true;
-        
-        // Generate Modern PDF using clean minimal for now
-        window.open(`{% url 'core:generate_clean_minimal_pdf' %}?child_id=${currentInvoiceData.child_id}&month=${monthNumber}&year=${currentInvoiceData.year}`, '_blank');
-        
-        // Reset button and close modal after delay
-        let button = this;
-        setTimeout(function() {
-            button.innerHTML = '<i class="ri-file-chart-line"></i> Modern PDF';
-            button.disabled = false;
-            $('#invoiceModal').modal('hide');
-        }, 2000);
-    }
-});
-</script>
+    </script>
 
-    <!-- App js -->
-    <script src="{% static 'assets/js/app.js' %}"></script>
-{% endblock %}
+       <!-- App js -->
+       <script src="{% static 'assets/js/app.js' %}"></script>
+       {% endblock %}
