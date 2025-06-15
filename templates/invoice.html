@@ -188,6 +188,124 @@ function formatCurrency(amount) {
     });
 }
 
+// Populate month and year dropdowns based on current date
+function populateMonthYearDropdowns() {
+    console.log('Populating month/year dropdowns...');
+    
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // JavaScript months are 0-based
+    
+    console.log('Current year:', currentYear, 'Current month:', currentMonth);
+    
+    const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    // Populate Year dropdown (current year + previous year)
+    const yearSelect = $('#year');
+    yearSelect.empty().append('<option value="">-- Select Year --</option>');
+    
+    const previousYear = currentYear - 1;
+    yearSelect.append(`<option value="${previousYear}">${previousYear}</option>`);
+    yearSelect.append(`<option value="${currentYear}">${currentYear}</option>`);
+    
+    console.log('Year options added:', previousYear, currentYear);
+    
+    // Populate Month dropdown based on selected year
+    function updateMonthOptions(selectedYear) {
+        console.log('Updating month options for year:', selectedYear);
+        
+        const monthSelect = $('#month');
+        monthSelect.empty().append('<option value="">-- Select Month --</option>');
+        
+        if (!selectedYear) {
+            console.log('No year selected, clearing months');
+            return;
+        }
+        
+        const year = parseInt(selectedYear);
+        
+        if (year === currentYear) {
+            // Current year: ALL months available (past, current, and future)
+            console.log('Current year selected, showing ALL months 1 to 12');
+            for (let month = 1; month <= 12; month++) {
+                monthSelect.append(`<option value="${month}">${monthNames[month - 1]}</option>`);
+                console.log('Added month:', month, monthNames[month - 1]);
+            }
+        } else if (year === previousYear) {
+            // Previous year: all months available
+            console.log('Previous year selected, showing all months');
+            for (let month = 1; month <= 12; month++) {
+                monthSelect.append(`<option value="${month}">${monthNames[month - 1]}</option>`);
+            }
+        }
+    }
+    
+    // Update months when year changes
+    $('#year').off('change.monthyear').on('change.monthyear', function() {
+        console.log('Year changed to:', $(this).val());
+        updateMonthOptions($(this).val());
+        $('#month').val(''); // Reset month selection
+    });
+    
+    // Add month validation when month changes
+    $('#month').off('change.futurevalidation').on('change.futurevalidation', function() {
+        validateFutureMonth();
+    });
+    
+    // Initialize with current year selected
+    console.log('Setting default year to:', currentYear);
+    $('#year').val(currentYear);
+    updateMonthOptions(currentYear);
+}
+
+// Validate if selected month is in the future
+function validateFutureMonth() {
+    const selectedYear = parseInt($('#year').val());
+    const selectedMonth = parseInt($('#month').val());
+    
+    if (!selectedYear || !selectedMonth) return;
+    
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    
+    // Clear any existing warnings
+    $('#futureMonthWarning').remove();
+    
+    // Check if selected date is in the future
+    const isFuture = (selectedYear === currentYear && selectedMonth > currentMonth) || 
+                     (selectedYear > currentYear);
+    
+    if (isFuture) {
+        const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        
+        const warningHtml = `
+            <div class="alert alert-warning mt-2" id="futureMonthWarning">
+                <i class="ri-alert-line"></i> 
+                <strong>Future Month Selected:</strong> You're generating an invoice for 
+                <strong>${monthNames[selectedMonth - 1]} ${selectedYear}</strong> which is in the future. 
+                Please ensure this is correct before proceeding.
+            </div>
+        `;
+        
+        $('#month').closest('.col-md-4').after(`<div class="col-12">${warningHtml}</div>`);
+        
+        // Auto-scroll to warning
+        setTimeout(() => {
+            document.getElementById('futureMonthWarning').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+        }, 100);
+    }
+}
+
 var dataTable;
 $(document).ready(function() {
     // Initialize Select2 for child selection
@@ -291,6 +409,12 @@ $(document).ready(function() {
     // Clear modal data when closed
     $('#generateMemoModal').on('hidden.bs.modal', function() {
         clearModalData();
+    });
+
+    // Initialize dropdowns when modal is shown
+    $('#generateMemoModal').on('shown.bs.modal', function() {
+        console.log('Modal shown, initializing dropdowns...');
+        populateMonthYearDropdowns();
     });
 });
 
@@ -401,19 +525,19 @@ function previewMemo() {
                         <div class="col-md-6">
                             <h6><i class="ri-file-history-line"></i> Previous Month (${preview.previous_month_name})</h6>
                             <table class="table table-sm">
-                                <tr><td>Outstanding Amount:</td><td class="text-end">Rs. ${preview.previous_outstanding.toFixed(2)}</td></tr>
-                                <tr><td>Payment Settled:</td><td class="text-end">Rs. ${preview.previous_payment.toFixed(2)}</td></tr>
-                                <tr class="table-warning"><td><strong>Remaining Balance:</strong></td><td class="text-end"><strong>Rs. ${preview.remaining_balance.toFixed(2)}</strong></td></tr>
+                                <tr><td>Outstanding Amount:</td><td class="text-end">Rs. ${formatCurrency(preview.previous_outstanding)}</td></tr>
+                                <tr><td>Payment Settled:</td><td class="text-end">Rs. ${formatCurrency(preview.previous_payment)}</td></tr>
+                                <tr class="table-warning"><td><strong>Remaining Balance:</strong></td><td class="text-end"><strong>Rs. ${formatCurrency(preview.remaining_balance)}</strong></td></tr>
                             </table>
                         </div>
                         <div class="col-md-6">
                             <h6><i class="ri-money-dollar-circle-line"></i> Current Month Charges</h6>
                             <table class="table table-sm">
-                                <tr><td>Package Fee:</td><td class="text-end">Rs. ${preview.base_package_charge.toFixed(2)}</td></tr>
-                                ${preview.extra_hours_charge > 0 ? `<tr><td>Extra Hours:</td><td class="text-end">Rs. ${preview.extra_hours_charge.toFixed(2)}</td></tr>` : ''}
-                                ${preview.holiday_charge > 0 ? `<tr><td>Holiday Attendance:</td><td class="text-end">Rs. ${preview.holiday_charge.toFixed(2)}</td></tr>` : ''}
-                                ${preview.discount_amount > 0 ? `<tr class="text-success"><td>Discount Applied:</td><td class="text-end">-Rs. ${preview.discount_amount.toFixed(2)}</td></tr>` : ''}
-                                <tr><td>Current Month Total:</td><td class="text-end">Rs. ${preview.current_month_total.toFixed(2)}</td></tr>
+                                <tr><td>Package Fee:</td><td class="text-end">Rs. ${formatCurrency(preview.base_package_charge)}</td></tr>
+                                ${preview.extra_hours_charge > 0 ? `<tr><td>Extra Hours:</td><td class="text-end">Rs. ${formatCurrency(preview.extra_hours_charge)}</td></tr>` : ''}
+                                ${preview.holiday_charge > 0 ? `<tr><td>Holiday Attendance:</td><td class="text-end">Rs. ${formatCurrency(preview.holiday_charge)}</td></tr>` : ''}
+                                ${preview.discount_amount > 0 ? `<tr class="text-success"><td>Discount Applied:</td><td class="text-end">-Rs. ${formatCurrency(preview.discount_amount)}</td></tr>` : ''}
+                                <tr><td>Current Month Total:</td><td class="text-end">Rs. ${formatCurrency(preview.current_month_total)}</td></tr>
                             </table>
                         </div>
                     </div>
@@ -422,7 +546,7 @@ function previewMemo() {
                         <h6><i class="ri-calculator-line"></i> Grand Total for Memo</h6>
                         <div class="d-flex justify-content-between">
                             <span>Remaining Balance + Current Month:</span>
-                            <strong>Rs. ${preview.grand_total.toFixed(2)}</strong>
+                            <strong>Rs. ${formatCurrency(preview.grand_total.toFixed(2))}</strong>
                         </div>
                     </div>
                 `);
@@ -575,18 +699,22 @@ function printMemo(memoId) {
 function clearModalData() {
     // Clear form fields
     $('#child').val('').trigger('change');
-    $('#month').val('');
-    $('#year').val('');
     
     // Hide and clear preview
     $('#memoPreview').hide();
     $('#previewContent').html('');
+    
+    // Remove any future month warnings
+    $('#futureMonthWarning').remove();
     
     // Disable generate button
     $('#generateMemoBtn').prop('disabled', true);
     
     // Reset form validation states if any
     $('.form-control').removeClass('is-invalid is-valid');
+    
+    // Re-populate month/year dropdowns with smart logic
+    populateMonthYearDropdowns();
 }
 </script>
 
