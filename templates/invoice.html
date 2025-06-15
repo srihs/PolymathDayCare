@@ -562,9 +562,31 @@ function previewMemo() {
             }
         },
         error: function(xhr, status, error) {
+            console.error('Preview error:', xhr.responseText);
+            
+            // Try to parse JSON error response
+            let errorMessage = 'Error loading preview: ' + error;
+            
+            if (xhr.responseText) {
+                try {
+                    const errorData = JSON.parse(xhr.responseText);
+                    if (errorData.error) {
+                        errorMessage = errorData.error;
+                        
+                        // If there's an existing memo code, show it
+                        if (errorData.existing_memo_code) {
+                            errorMessage += ` (Existing memo: ${errorData.existing_memo_code})`;
+                        }
+                    }
+                } catch (e) {
+                    // If JSON parsing fails, use the raw response
+                    errorMessage = xhr.responseText;
+                }
+            }
+            
             $('#previewContent').html(`
                 <div class="alert alert-danger">
-                    <i class="ri-error-warning-line"></i> Error loading preview: ${error}
+                    <i class="ri-error-warning-line"></i> ${errorMessage}
                 </div>
             `);
             $('#generateMemoBtn').prop('disabled', true);
@@ -682,9 +704,26 @@ function viewMemo(memoId) {
             `);
         },
         error: function(xhr, status, error) {
+            console.error('View memo error:', xhr.responseText);
+            
+            // Try to parse JSON error response
+            let errorMessage = 'Error loading memo details: ' + error;
+            
+            if (xhr.responseText) {
+                try {
+                    const errorData = JSON.parse(xhr.responseText);
+                    if (errorData.error) {
+                        errorMessage = errorData.error;
+                    }
+                } catch (e) {
+                    // If JSON parsing fails, use the raw response
+                    errorMessage = xhr.responseText;
+                }
+            }
+            
             $('#memoViewContent').html(`
                 <div class="alert alert-danger">
-                    <i class="ri-error-warning-line"></i> Error loading memo details: ${error}
+                    <i class="ri-error-warning-line"></i> ${errorMessage}
                 </div>
             `);
         }

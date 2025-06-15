@@ -3758,11 +3758,11 @@ def getInvoiceMemosJS(request):
     )
 
     # Add month name to each memo and format date
-    for memo in memoList:
-        memo["month_name"] = calendar.month_name[memo["month"]]
-        # Convert date to string format for JSON serialization
-        if isinstance(memo["memo_date"], datetime.date):
-            memo["memo_date"] = memo["memo_date"].strftime("%Y-%m-%d")
+    # for memo in memoList:
+    #     memo["month_name"] = calendar.month_name[memo["month"]]
+    #     # Convert date to string format for JSON serialization
+    #     if isinstance(memo["memo_date"], date):
+    #         memo["memo_date"] = memo["memo_date"].strftime("%Y-%m-%d")
 
     return JsonResponse(memoList, safe=False)
 
