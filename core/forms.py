@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import *
 
 from django import forms
@@ -2337,44 +2338,183 @@ class CreateCenterChangeRequestForm(forms.ModelForm):
             "effective_date",
         )
 
-class GenerateInvoiceForm(forms.Form):
+
+class RecordPaymentForm(forms.Form):
+    """Form for recording payments"""
+
     child = forms.ModelChoiceField(
-        queryset=Child.objects.filter(is_active=True, is_enrolled=True).order_by("admission_number"),
+        queryset=Child.objects.filter(is_active=True, is_enrolled=True).order_by(
+            "admission_number"
+        ),
+        empty_label="-Select Child -",
+        widget=forms.Select(
+            attrs={"class": "form-control", "id": "id_child", "required": "required"}
+        ),
+    )
+
+    payment_amount = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=0.01,
+        label="Payment Amount",
+        widget=forms.NumberInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "0.00",
+                "step": "0.01",
+                "required": "required",
+            }
+        ),
+    )
+
+    receipt_number = forms.CharField(
+        max_length=50,
+        required=False,
+        label="Receipt Number",
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "placeholder": "Receipt Number (Optional)"}
+        ),
+    )
+
+    payment_date = forms.DateField(
+        required=True,
+        label="Payment Date",
+        initial=datetime.now().date(),
+        widget=forms.DateInput(
+            attrs={"class": "form-control", "type": "date", "required": "required"}
+        ),
+    )
+
+    payment_method = forms.ChoiceField(
+        label="Payment Method",
+        choices=[
+            ("CASH", "Cash"),
+            ("BANK_TRANSFER", "Bank Transfer"),
+            ("CHEQUE", "Cheque"),
+            ("CARD", "Card"),
+            ("OTHER", "Other"),
+        ],
+        initial="CASH",
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
+    notes = forms.CharField(
+        required=False,
+        label="Notes",
+        widget=forms.Textarea(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Payment Notes (Optional)",
+                "rows": "3",
+            }
+        ),
+    )
+
+
+class GenerateInvoiceForm(forms.Form):
+    """Simplified form for invoice generation"""
+
+    child = forms.ModelChoiceField(
+        queryset=Child.objects.filter(
+            is_active=True, enrollement_approved=True
+        ).order_by("admission_number"),
         empty_label="-Select Child -",
         widget=forms.Select(
             attrs={
                 "class": "form-control",
-                "placeholder": "Child",
+                "placeholder": "Old fixed package",
+                "id": "child",
+            }
+        ),
+    )
+
+    month = forms.ChoiceField(
+        choices=[
+            ("1", "January"),
+            ("2", "February"),
+            ("3", "March"),
+            ("4", "April"),
+            ("5", "May"),
+            ("6", "June"),
+            ("7", "July"),
+            ("8", "August"),
+            ("9", "September"),
+            ("10", "October"),
+            ("11", "November"),
+            ("12", "December"),
+        ],
+        initial=datetime.now().month,
+        widget=forms.Select(
+            attrs={"class": "form-control", "id": "month", "required": "required"}
+        ),
+    )
+
+    year = forms.ChoiceField(
+        choices=[(i, i) for i in range(2020, 2030)],
+        initial=datetime.now().year,
+        widget=forms.Select(
+            attrs={"class": "form-control", "id": "year", "required": "required"}
+        ),
+    )
+
+
+class InvoiceSearchForm(forms.Form):
+    """Form for searching invoices"""
+
+    child = forms.ModelChoiceField(
+        queryset=Child.objects.filter(
+            is_active=True, enrollement_approved=True
+        ).order_by("admission_number"),
+        empty_label="-Select Child -",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Old fixed package",
                 "id": "child",
             }
         ),
     )
 
     from_date = forms.DateField(
-        required=True,
-        widget=MyDateInput(
+        required=False,
+        widget=forms.DateInput(
             attrs={
                 "class": "form-control",
-                "id": "from_date",
-                "placeholder": "From",
-                "required": "required",
-                "data-provider": "flatpickr",
-                "data-date-format": "Y-m-d",
-            }
-        ),
-    )
-    to_date = forms.DateField(
-        required=True,
-        widget=MyDateInput(
-            attrs={
-                "class": "form-control",
-                "id": "to_date",
-                "placeholder": "To",
-                "required": "required",
-                "data-provider": "flatpickr",
-                "data-date-format": "Y-m-d",
+                "id": "search_from_date",
+                "type": "date",
+                "placeholder": "From Date",
             }
         ),
     )
 
-    
+    to_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(
+            attrs={
+                "class": "form-control",
+                "id": "search_to_date",
+                "type": "date",
+                "placeholder": "To Date",
+            }
+        ),
+    )
+
+    status = forms.ChoiceField(
+        choices=[
+            ("", "-All Status-"),
+            ("GENERATED", "Generated"),
+            ("SENT", "Sent to Parent"),
+            ("PAID", "Fully Paid"),
+            ("PARTIAL", "Partially Paid"),
+            ("CREDIT", "Has Credit Balance"),
+        ],
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control", "id": "search_status"}),
+    )
+
+    branch = forms.ModelChoiceField(
+        queryset=Branch.objects.filter(is_active=True).order_by("branch_code"),
+        empty_label="-All Branches-",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control", "id": "search_branch"}),
+    )

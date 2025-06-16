@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+            <h4 class="mb-sm-0">Record Payment</h4>
+            <div class="page-title-right">
+                <ol class="breadcrumb m-0">
+                    <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Record Payment</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Record Payment Section -->
+<div class="row">
+    <div class="col-xl-12">
+        <div class="card">
+            <div class="card-header align-items-center d-flex">
+                <h4 class="card-title mb-0 flex-grow-1">Record Payment</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'core:record_payment' %}">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="memo_number" class="form-label">Memo Number *</label>
+                            <input type="text" class="form-control" name="memo_number" id="memo_number" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="payment_amount" class="form-label">Payment Amount *</label>
+                            <input type="number" class="form-control" name="payment_amount" id="payment_amount" 
+                                   step="0.01" min="0.01" required placeholder="0.00">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="receipt_number" class="form-label">Receipt Number</label>
+                            <input type="text" class="form-control" name="receipt_number" id="receipt_number" 
+                                   placeholder="Receipt Number (Optional)">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="payment_date" class="form-label">Payment Date *</label>
+                            <input type="date" class="form-control" name="payment_date" id="payment_date" 
+                                   value="{% now 'Y-m-d' %}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="payment_method" class="form-label">Payment Method</label>
+                            <select class="form-control" name="payment_method" id="payment_method">
+                                <option value="CASH">Cash</option>
+                                <option value="BANK_TRANSFER">Bank Transfer</option>
+                                <option value="CHEQUE">Cheque</option>
+                                <option value="CARD">Card</option>
+                                <option value="OTHER">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="notes" class="form-label">Notes</label>
+                            <textarea class="form-control" name="notes" id="notes" rows="2" 
+                                      placeholder="Payment notes (optional)"></textarea>
+                        </div>
+                        <div class="col-md-12">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="ri-money-dollar-circle-line"></i> Record Payment
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

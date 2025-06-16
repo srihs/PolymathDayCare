@@ -339,4 +339,16 @@ urlpatterns = [
         views.deleteInvoiceMemo,
         name="delete_invoice_memo",
     ),
+    path(
+        "preview_three_month_invoice/",
+        views.previewThreeMonthInvoice,
+        name="preview_three_month_invoice",
+    ),
+    path("record_payment/", views.recordPayment, name="record_payment"),
+    path(
+        "get_child_outstanding_summary/",
+        views.getChildOutstandingSummary,
+        name="get_child_outstanding_summary",
+    ),
+    path("get_record_payment/", views.get_record_payment, name="get_record_payment"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
