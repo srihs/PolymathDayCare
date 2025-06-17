@@ -351,4 +351,9 @@ urlpatterns = [
         name="get_child_outstanding_summary",
     ),
     path("get_record_payment/", views.get_record_payment, name="get_record_payment"),
+    path(
+        "preview_three_month_invoice_updated/",
+        views.previewThreeMonthInvoiceUpdated,
+        name="preview_three_month_invoice_updated",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

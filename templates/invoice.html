@@ -72,9 +72,9 @@
                         <!-- Action Buttons -->
                         <div class="col-md-12">
                             <div class="d-flex gap-2">
-                                <button type="button" class="btn btn-info" onclick="previewInvoice()">
-                                    <i class="ri-eye-line"></i> Preview 3-Month Invoice
-                                </button>
+                                <button type="button" class="btn btn-info" onclick="previewInvoiceUpdated()">
+    <i class="ri-eye-line"></i> Preview Memo
+</button>
                                 <button type="submit" class="btn btn-success">
                                     <i class="ri-file-add-line"></i> Generate & Save Memo
                                 </button>
@@ -215,7 +215,7 @@
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">3-Month Invoice Preview</h5>
+                <h5 class="modal-title">Memo Preview</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -454,6 +454,354 @@ function previewInvoice() {
     });
 }
 
+// NEW UPDATED PREVIEW FUNCTION
+function previewInvoiceUpdated() {
+    let childId = $('#child').val();
+    let month = $('#month').val();
+    let year = $('#year').val();
+    
+    console.log('Updated preview called with:', {childId, month, year});
+    
+    if (!childId || !month || !year) {
+        alert('Please select child, month and year');
+        return;
+    }
+    
+    // Show loading indicator
+    $('#invoicePreviewContent').html(`
+        <div class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <br><br>
+            <p>Calculating 3-month invoice data...</p>
+            <small class="text-muted">Please wait while we process attendance and calculate charges for all three months.</small>
+        </div>
+    `);
+    
+    $.ajax({
+        url: "{% url 'core:preview_three_month_invoice_updated' %}",
+        type: 'GET',
+        data: {
+            'child': childId,
+            'month': month,
+            'year': year
+        },
+        success: function(response) {
+            console.log('Updated preview response:', response);
+            
+            if (response.success) {
+                displayThreeMonthPreviewUpdated(response);
+                $('#invoicePreviewModal').modal('show');
+            } else {
+                console.error('Preview error:', response.error);
+                alert('Error: ' + response.error);
+                $('#invoicePreviewContent').html('<div class="alert alert-danger">Error: ' + response.error + '</div>');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('AJAX Error:', {xhr, status, error});
+            console.error('Response Text:', xhr.responseText);
+            
+            let errorMsg = 'Unknown error';
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            } else if (xhr.status === 404) {
+                errorMsg = 'Preview endpoint not found. Please check URL configuration.';
+            } else if (xhr.responseText) {
+                try {
+                    const parsed = JSON.parse(xhr.responseText);
+                    errorMsg = parsed.error || xhr.responseText;
+                } catch (e) {
+                    errorMsg = xhr.responseText;
+                }
+            }
+            
+            alert('Error loading preview: ' + errorMsg);
+            $('#invoicePreviewContent').html('<div class="alert alert-danger">Error loading preview: ' + errorMsg + '</div>');
+        }
+    });
+}
+
+// COMPLETE UPDATED displayThreeMonthPreviewUpdated() FUNCTION
+function displayThreeMonthPreviewUpdated(data) {
+    console.log('Displaying updated 3-month preview:', data);
+    
+    // Safe number formatting function with thousand separators
+    function safeFixed(value, decimals = 2) {
+        if (value === null || value === undefined || isNaN(value)) {
+            return '0.00';
+        }
+        const num = parseFloat(value).toFixed(decimals);
+        return parseFloat(num).toLocaleString('en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+    
+    // Safe value extraction
+    function safeValue(obj, path, defaultValue = 0) {
+        try {
+            const keys = path.split('.');
+            let result = obj;
+            for (const key of keys) {
+                result = result?.[key];
+            }
+            return result !== null && result !== undefined ? result : defaultValue;
+        } catch (e) {
+            return defaultValue;
+        }
+    }
+    
+    // Extract data safely
+    const childName = safeValue(data, 'child_name', 'Unknown Child');
+    const childAdmission = safeValue(data, 'child_admission', 'N/A');
+    
+    const month1 = {
+        name: safeValue(data, 'month1.name', ''),
+        year: safeValue(data, 'month1.year', 0),
+        charge: safeValue(data, 'month1.charge', 0),
+        payments: safeValue(data, 'month1.payments', 0),
+        balance: safeValue(data, 'month1.balance', 0),
+        credit: safeValue(data, 'month1.credit', 0),
+        status: safeValue(data, 'month1.status', 'No Record')
+    };
+    
+    const month2 = {
+        name: safeValue(data, 'month2.name', ''),
+        year: safeValue(data, 'month2.year', 0),
+        package_name: safeValue(data, 'month2.package_name', 'Unknown Package'),
+        charge: safeValue(data, 'month2.charge', 0),
+        package_fee: safeValue(data, 'month2.package_fee', 0),
+        extra_charges: safeValue(data, 'month2.extra_charges', 0),
+        holiday_charges: safeValue(data, 'month2.holiday_charges', 0),
+        discount: safeValue(data, 'month2.discount', 0),
+        days_attended: safeValue(data, 'month2.days_attended', 0),
+        expected_days: safeValue(data, 'month2.expected_days', 22),
+        attendance_percentage: safeValue(data, 'month2.attendance_percentage', 0),
+        is_half_charge: safeValue(data, 'month2.is_half_charge', false),
+        payments: safeValue(data, 'month2.payments', 0),
+        balance: safeValue(data, 'month2.balance', 0)
+    };
+    
+    const month3 = {
+        name: safeValue(data, 'month3.name', ''),
+        year: safeValue(data, 'month3.year', 0),
+        package_name: safeValue(data, 'month3.package_name', 'Unknown Package'),
+        charge: safeValue(data, 'month3.charge', 0),
+        package_fee: safeValue(data, 'month3.package_fee', 0),
+        extra_charges: safeValue(data, 'month3.extra_charges', 0),
+        holiday_charges: safeValue(data, 'month3.holiday_charges', 0),
+        discount: safeValue(data, 'month3.discount', 0),
+        expected_days: safeValue(data, 'month3.expected_days', 22),
+        payments: safeValue(data, 'month3.payments', 0),
+        balance: safeValue(data, 'month3.balance', 0)
+    };
+    
+    const summary = {
+        total_outstanding: safeValue(data, 'summary.total_outstanding', 0),
+        current_month_charge: safeValue(data, 'summary.current_month_charge', 0),
+        next_month_charge: safeValue(data, 'summary.next_month_charge', 0),
+        grand_total: safeValue(data, 'summary.grand_total', 0)
+    };
+
+    let content = `
+        <div class="invoice-preview">
+            <!-- Header -->
+            <div class="text-center mb-4">
+                <h3>POLYMATH COLLEGE</h3>
+                <p>No 452/3 High Level Road, Nawinna, Maharagama<br>  PV 63200 |  Phone 0112802554</p>
+                <h4>KIDS DIVISION - MEMO</h4>
+            </div>
+            
+            <!-- Child Information -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <strong>Name:</strong> ${childName}
+                </div>
+                <div class="col-md-6">
+                    <strong>Child ID:</strong> ${childAdmission}
+                </div>
+                <div class="col-md-12 mt-2">
+                    <strong>Package:</strong> ${month2.package_name}
+                </div>
+            </div>
+
+            <!-- Invoice Table -->
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Description</th>
+                            <th class="text-end">Amount (Rs.)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+
+    // Month 1 (Outstanding/Credits) - Always show details
+    if (month1.status !== 'No Record') {
+        // Show the breakdown for Month 1
+        content += `
+            <tr>
+                <td colspan="2" class="table-secondary">
+                    <strong>${month1.name} ${month1.year} Details:</strong>
+                </td>
+            </tr>
+        `;
+        
+        if (month1.charge > 0) {
+            content += `
+                <tr>
+                    <td style="padding-left: 20px;">Month Charges</td>
+                    <td class="text-end">${safeFixed(month1.charge)}</td>
+                </tr>
+            `;
+        }
+        
+        if (month1.payments > 0) {
+            content += `
+                <tr>
+                    <td style="padding-left: 20px;">Payments Received</td>
+                    <td class="text-end text-success">(${safeFixed(month1.payments)})</td>
+                </tr>
+            `;
+        }
+        
+        if (month1.balance > 0) {
+            content += `
+                <tr>
+                    <td style="padding-left: 20px;"><strong>Outstanding as at ${month1.name} ${month1.year}</strong></td>
+                    <td class="text-end text-danger"><strong>${safeFixed(month1.balance)}</strong></td>
+                </tr>
+            `;
+        } else if (month1.credit > 0) {
+            content += `
+                <tr class="table-success">
+                    <td style="padding-left: 20px;"><strong>Credit Available from ${month1.name} ${month1.year}</strong></td>
+                    <td class="text-end text-success"><strong>(${safeFixed(month1.credit)})</strong></td>
+                </tr>
+            `;
+        } else if (month1.balance === 0) {
+            content += `
+                <tr>
+                    <td style="padding-left: 20px;">Balance as at ${month1.name} ${month1.year}</td>
+                    <td class="text-end text-muted">0.00</td>
+                </tr>
+            `;
+        }
+    } else {
+        // No record exists for Month 1
+        content += `
+           
+            <tr>
+                <td style="padding-left: 20px;">Outstanding as at ${month1.name}</td>
+                <td class="text-end text-muted">0.00</td>
+            </tr>
+        `;
+    }
+
+    // Month 2 (Calculated with attendance)
+    if (month2.charge > 0) {
+        content += `
+            <tr>
+                <td>Day Care Monthly fee - ${month2.name} ${month2.year} (${month2.days_attended}/${month2.expected_days} days attended)
+                    ${month2.is_half_charge ? '<br><small class="text-warning">Half charge applied (attendance < 50%)</small>' : ''}
+                </td>
+                <td class="text-end">${safeFixed(month2.charge)}</td>
+            </tr>
+        `;
+        
+        // Show breakdown if there are extra charges
+        if (month2.extra_charges > 0 || month2.holiday_charges > 0 || month2.discount > 0) {
+            content += `
+                <tr>
+                    <td colspan="2" class="table-light">
+                        <small>
+                            <strong>Breakdown for ${month2.name}:</strong><br>
+                            Package Fee: Rs. ${safeFixed(month2.package_fee)}
+                            ${month2.extra_charges > 0 ? `<br>Extra Hours: Rs. ${safeFixed(month2.extra_charges)}` : ''}
+                            ${month2.holiday_charges > 0 ? `<br>Holiday Charges: Rs. ${safeFixed(month2.holiday_charges)}` : ''}
+                            ${month2.discount > 0 ? `<br>Discount Applied: Rs. (${safeFixed(month2.discount)})` : ''}
+                        </small>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    // Month 3 (Full package - future month)
+    content += `
+        <tr>
+            <td>Day Care Monthly fee - ${month3.name} ${month3.year} (Full Package)
+                <br><small class="text-info">Advance charge for upcoming month</small>
+            </td>
+            <td class="text-end">${safeFixed(month3.charge)}</td>
+        </tr>
+    `;
+
+    // Show breakdown for month 3 if there are discounts
+    if (month3.discount > 0) {
+        content += `
+            <tr>
+                <td colspan="2" class="table-light">
+                    <small>
+                        <strong>Breakdown for ${month3.name}:</strong><br>
+                        Package Fee: Rs. ${safeFixed(month3.package_fee)}
+                        <br>Discount Applied: Rs. (${safeFixed(month3.discount)})
+                    </small>
+                </td>
+            </tr>
+        `;
+    }
+
+    // Grand total
+    content += `
+        <tr class="table-warning">
+            <td><strong>Total Amount to Pay</strong></td>
+            <td class="text-end"><strong>Rs. ${safeFixed(summary.grand_total)}</strong></td>
+        </tr>
+    </tbody>
+                </table>
+            </div>
+
+            <!-- Notes and Account Details -->
+            <div class="mt-4">
+                <p><strong>Please note that,</strong></p>
+                <p>Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before <span style="color: red; font-weight: bold;" id="dueDate"></span>. Ignore this message if you have already settled that outstanding.</p>
+                
+                <p class="mt-3">Thank you,<br>The Management.</p>
+                
+                <!-- Account Details -->
+                <div class="mt-4 p-3 border rounded">
+                    <h6><strong>Account Details</strong></h6>
+                    <p class="mb-1"><strong>Account Name</strong> - Polymath College (PVT) Ltd</p>
+                    <p class="mb-1"><strong>Bank</strong> - Peoples Bank</p>
+                    <p class="mb-1"><strong>Branch</strong> - Gangodawila</p>
+                    <p class="mb-1"><strong>Account Number</strong> - 097100130026495</p>
+                    <br>
+                    <p class="mb-0"><strong>Whatsapp</strong> - 0705585858</p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Display the content in the modal
+    $('#invoicePreviewContent').html(content);
+    
+    // Set the due date (10 days from today)
+    const today = new Date();
+    const dueDate = new Date(today);
+    dueDate.setDate(today.getDate() + 10);
+    const formattedDueDate = dueDate.toLocaleDateString('en-GB', {
+        year: 'numeric',
+        month: '2-digit', 
+        day: '2-digit'
+    }).replace(/\//g, '/');
+    $('#dueDate').text(formattedDueDate);
+}
+
+
 // Alternative: If the 3-month endpoint doesn't exist yet, use this fallback function
 function previewInvoiceFallback() {
     let childId = $('#child').val();
@@ -495,6 +843,14 @@ function previewInvoiceFallback() {
         }
     });
 }
+
+
+
+
+
+
+
+
 
 // Function to convert single month data to 3-month format (temporary solution)
 function convertToThreeMonthFormat(singleMonthData) {
@@ -653,9 +1009,7 @@ function displayThreeMonthPreview(data) {
             <!-- Header -->
             <div class="text-center mb-4">
                 <h3>POLYMATH COLLEGE</h3>
-                <p>No 452/3 High Level Road, Nawinna, Maharagama<br>
-                PV 63200<br>
-                Phone 0112802554</p>
+                <p>No 452/3 High Level Road, Nawinna, Maharagama<br> | PV 63200 | Phone 0112802554</p>
                 <h4>KIDS DIVISION - MEMO</h4>
             </div>
             

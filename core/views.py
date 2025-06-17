@@ -3724,117 +3724,6 @@ def calculate_detailed_invoice(
         raise Exception(f"Error calculating invoice details: {str(e)}")
 
 
-# @login_required
-# def getInvoiceMemos(request):
-#     """Display invoice memo management page"""
-#     from datetime import datetime
-
-#     try:
-#         # Get children for dropdown
-#         children = Child.objects.filter(is_active=True, is_enrolled=True).order_by(
-#             "admission_number"
-#         )
-
-#         # Generate year range (current year and 2 previous years)
-#         current_year = datetime.now().year
-#         year_range = [current_year - 2, current_year - 1, current_year]
-
-#         # Get statistics
-#         total_memos_this_month = InvoiceMemo.objects.filter(
-#             created_at__month=datetime.now().month, created_at__year=datetime.now().year
-#         ).count()
-
-#         total_children_enrolled = children.count()
-
-#         # Get recent memos
-#         recent_memos = InvoiceMemo.objects.select_related("child").order_by(
-#             "-created_at"
-#         )[:5]
-
-#         # Calculate pending generations (children without memo for current month)
-#         current_month = datetime.now().month
-#         current_year = datetime.now().year
-
-#         children_with_memos = InvoiceMemo.objects.filter(
-#             month=current_month, year=current_year
-#         ).values_list("child_id", flat=True)
-
-#         pending_generations = children.exclude(id__in=children_with_memos).count()
-
-#         context = {
-#             "children": children,
-#             "year_range": year_range,
-#             "total_memos_this_month": total_memos_this_month,
-#             "pending_generations": pending_generations,
-#             "total_children_enrolled": total_children_enrolled,
-#             "recent_memos": recent_memos,
-#             "UserName": request.user.username,
-#         }
-
-#         return render(request, "invoice.html", context)
-
-#     except Exception as e:
-#         print(f"Error in getInvoiceMemos: {e}")
-#         messages.error(request, f"Error loading invoice page: {str(e)}")
-#         return render(
-#             request,
-#             "invoice.html",
-#             {"children": [], "year_range": [], "UserName": request.user.username},
-#         )
-
-
-@login_required
-def getInvoiceMemos(request):  # Use your actual function name
-    """Display invoice memo management page"""
-    from datetime import datetime
-
-    print("=== DEBUG: Invoice view called ===")
-
-    try:
-        # Get children for dropdown
-        children = Child.objects.filter(is_active=True, is_enrolled=True).order_by(
-            "admission_number"
-        )
-
-        print(f"DEBUG: Found {children.count()} children")
-
-        # Generate year range (current year and 2 previous years)
-        current_year = datetime.now().year
-        year_range = [current_year - 2, current_year - 1, current_year]
-
-        print(f"DEBUG: Year range: {year_range}")
-
-        context = {
-            "children": children,
-            "year_range": year_range,
-            "total_memos_this_month": 0,
-            "pending_generations": 0,
-            "total_children_enrolled": children.count(),
-            "recent_memos": [],
-            "UserName": request.user.username,
-        }
-
-        print(f"DEBUG: Context keys: {list(context.keys())}")
-
-        return render(request, "invoice.html", context)
-
-    except Exception as e:
-        print(f"DEBUG ERROR: {e}")
-        import traceback
-
-        traceback.print_exc()
-
-        return render(
-            request,
-            "invoice.html",
-            {
-                "children": [],
-                "year_range": [2023, 2024, 2025],  # Fallback years
-                "UserName": request.user.username,
-            },
-        )
-
-
 @login_required
 def getInvoiceMemos(request):
     """Display invoice memo management page"""
@@ -3863,11 +3752,7 @@ def getInvoiceMemos(request):
         return render(
             request,
             "invoice.html",
-            {
-                "children": [],
-                "year_range": [2023, 2024, 2025],
-                "UserName": request.user.username,
-            },
+            {context},
         )
 
 
@@ -4718,10 +4603,6 @@ def get_record_payment(request):
 @login_required
 def getInvoiceMemosJS(request):
     """Return invoice memos data as JSON for DataTable"""
-    import calendar
-
-    from django.http import JsonResponse
-
     try:
         print("=== DEBUG: getInvoiceMemosJS called ===")
 
@@ -4793,3 +4674,385 @@ def getInvoiceMemosJS(request):
         traceback.print_exc()
 
         return JsonResponse({"error": str(e), "data": []}, status=500)
+
+
+def calculate_three_month_invoice_data(child, target_month, target_year):
+    """
+    Calculate 3-month invoice data:
+    - Month 1 (2 months before target): Outstanding/Credits only
+    - Month 2 (1 month before target): Full calculation with attendance
+    - Month 3 (target month): Full package amount without attendance logic
+
+    Example: If generating for May, show April dues/credits + May calculated + June full amount
+    """
+    try:
+        import calendar
+        from decimal import Decimal
+
+        target_month_int = int(target_month)
+        target_year_int = int(target_year)
+
+        # Calculate the three months
+        # Month 1: 2 months before target (April if target is May)
+        if target_month_int > 2:
+            month1 = target_month_int - 2
+            year1 = target_year_int
+        elif target_month_int == 2:
+            month1 = 12
+            year1 = target_year_int - 1
+        else:  # target_month_int == 1
+            month1 = 11
+            year1 = target_year_int - 1
+
+        # Month 2: 1 month before target (May if target is June)
+        if target_month_int > 1:
+            month2 = target_month_int - 1
+            year2 = target_year_int
+        else:
+            month2 = 12
+            year2 = target_year_int - 1
+
+        # Month 3: Target month (June if target is June)
+        month3 = target_month_int
+        year3 = target_year_int
+
+        # Get month names
+        month1_name = calendar.month_name[month1]
+        month2_name = calendar.month_name[month2]
+        month3_name = calendar.month_name[month3]
+
+        # Get child details
+        package_mapping = ChildPackageMapping.objects.filter(
+            child=child, is_active=True
+        ).first()
+
+        enrollment = ChildEnrollment.objects.filter(
+            child=child, status="Approved", is_active=True
+        ).first()
+
+        if not package_mapping or not enrollment:
+            raise Exception("No package mapping or enrollment found")
+
+        # Get package details
+        is_flex = package_mapping.flex_package is not None
+        package = (
+            package_mapping.flex_package if is_flex else package_mapping.normal_package
+        )
+
+        if not package:
+            raise Exception("No valid package assigned")
+
+        # Month 1: Check for existing memo or calculate outstanding/credits
+        month1_data = get_month_outstanding_credits(child, month1, year1)
+
+        # Month 2: Full calculation with attendance rules
+        month2_data = calculate_month_with_attendance(
+            child, package_mapping, enrollment, month2, year2
+        )
+
+        # Month 3: Full package amount without attendance logic
+        month3_data = calculate_month_full_package(
+            child, package_mapping, enrollment, month3, year3
+        )
+
+        # Calculate summary
+        total_outstanding = month1_data["balance"]
+        current_month_charge = month2_data["total_charge"]
+        next_month_charge = month3_data["total_charge"]
+        grand_total = total_outstanding + current_month_charge + next_month_charge
+
+        return {
+            "child_name": f"{child.child_first_name} {child.child_last_name}",
+            "child_admission": child.admission_number,
+            "month1": {
+                "name": month1_name,
+                "year": year1,
+                "charge": month1_data["charge"],
+                "payments": month1_data["payments"],
+                "balance": month1_data["balance"],
+                "credit": month1_data["credit"],
+                "status": month1_data["status"],
+            },
+            "month2": {
+                "name": month2_name,
+                "year": year2,
+                "package_name": month2_data["package_name"],
+                "charge": month2_data["total_charge"],
+                "package_fee": month2_data["package_fee"],
+                "extra_charges": month2_data["extra_charges"],
+                "holiday_charges": month2_data["holiday_charges"],
+                "discount": month2_data["discount"],
+                "days_attended": month2_data["days_attended"],
+                "expected_days": month2_data["expected_days"],
+                "attendance_percentage": month2_data["attendance_percentage"],
+                "is_half_charge": month2_data["is_half_charge"],
+                "payments": Decimal("0.00"),  # No payments yet for this month
+                "balance": month2_data["total_charge"],
+            },
+            "month3": {
+                "name": month3_name,
+                "year": year3,
+                "package_name": month3_data["package_name"],
+                "charge": month3_data["total_charge"],
+                "package_fee": month3_data["package_fee"],
+                "extra_charges": month3_data["extra_charges"],
+                "holiday_charges": month3_data["holiday_charges"],
+                "discount": month3_data["discount"],
+                "expected_days": month3_data["expected_days"],
+                "payments": Decimal("0.00"),  # No payments yet for this month
+                "balance": month3_data["total_charge"],
+            },
+            "summary": {
+                "total_outstanding": total_outstanding,
+                "current_month_charge": current_month_charge,
+                "next_month_charge": next_month_charge,
+                "grand_total": grand_total,
+            },
+        }
+
+    except Exception as e:
+        raise Exception(f"Error calculating 3-month invoice: {str(e)}")
+
+
+def get_month_outstanding_credits(child, month, year):
+    """Get outstanding balance or credits for a specific month"""
+    try:
+        from decimal import Decimal
+
+        # Check if there's an existing memo for this month
+        existing_memo = InvoiceMemo.objects.filter(
+            child=child, month=month, year=year, is_active=True
+        ).first()
+
+        if existing_memo:
+            return {
+                "charge": existing_memo.month_total_charge,
+                "payments": existing_memo.total_payments_received,
+                "balance": existing_memo.month_net_balance,
+                "credit": max(
+                    Decimal("0.00"), -existing_memo.month_net_balance
+                ),  # Credits are negative balances
+                "status": existing_memo.status,
+            }
+        else:
+            # No record exists for this month
+            return {
+                "charge": Decimal("0.00"),
+                "payments": Decimal("0.00"),
+                "balance": Decimal("0.00"),
+                "credit": Decimal("0.00"),
+                "status": "No Record",
+            }
+
+    except Exception:
+        return {
+            "charge": Decimal("0.00"),
+            "payments": Decimal("0.00"),
+            "balance": Decimal("0.00"),
+            "credit": Decimal("0.00"),
+            "status": "Error",
+        }
+
+
+def calculate_month_with_attendance(child, package_mapping, enrollment, month, year):
+    """Calculate month charges with full attendance logic"""
+    try:
+        import calendar
+        from collections import defaultdict
+        from datetime import datetime, time
+        from decimal import Decimal
+
+        from django.db.models import Q
+
+        # Get the date range for the month
+        first_day = datetime(year, month, 1).date()
+        last_day = datetime(year, month, calendar.monthrange(year, month)[1]).date()
+
+        # Get package details
+        is_flex = package_mapping.flex_package is not None
+        package = (
+            package_mapping.flex_package if is_flex else package_mapping.normal_package
+        )
+
+        expected_days = package.no_days_months or 22
+        package_total = package.package_total or Decimal("0.00")
+
+        # Get attendance logs for the month
+        attendance_logs = AttendanceLog.objects.filter(
+            child=child, date_logged__range=(first_day, last_day)
+        ).order_by("date_logged", "time_logged")
+
+        # Get holidays in this month
+        holidays = set(
+            Holiday.objects.filter(
+                start_date__lte=last_day, end_date__gte=first_day
+            ).values_list("start_date", flat=True)
+        )
+
+        # Group logs by date
+        logs_by_date = defaultdict(list)
+        for log in attendance_logs:
+            logs_by_date[log.date_logged].append(log)
+
+        present_days = 0
+        holiday_attendance_days = 0
+        extra_hours_charge = Decimal("0.00")
+        holiday_charge = Decimal("0.00")
+
+        # Process each attendance day
+        for log_date, logs in logs_by_date.items():
+            logs_sorted = sorted(logs, key=lambda x: x.time_logged or time(0, 0))
+
+            if len(logs_sorted) >= 2:  # Complete attendance (in and out)
+                present_days += 1
+                last_log = logs_sorted[-1]
+
+                is_holiday_day = log_date in holidays
+
+                # Calculate extra hours charges
+                log_time_out = last_log.time_logged or time(0, 0)
+                extra_slots = ExtraHoursAfter530.objects.filter(
+                    package_type=package.package_type,
+                    from_time__lte=log_time_out,
+                    to_time__gte=log_time_out,
+                    effective_from__lte=log_date,
+                ).filter(Q(effective_to__gte=log_date) | Q(effective_to__isnull=True))
+
+                for slot in extra_slots:
+                    extra_hours_charge += slot.extra_rate
+
+                # Holiday attendance charge
+                if is_holiday_day and package_mapping.holiday_package:
+                    holiday_attendance_days += 1
+                    daily_holiday_rate = (
+                        package_mapping.holiday_package.package_total
+                        / Decimal(expected_days)
+                    )
+                    holiday_charge += daily_holiday_rate
+
+        # Calculate attendance percentage
+        attendance_percentage = (
+            (present_days / expected_days * 100) if expected_days > 0 else 0
+        )
+
+        # Apply attendance-based charging rules
+        is_half_charge = False
+
+        if attendance_percentage == 0:
+            package_fee = Decimal("0.00")  # No attendance = no charge
+        elif attendance_percentage < 50:
+            package_fee = package_total / 2  # Less than 50% = half charge
+            is_half_charge = True
+        else:
+            package_fee = package_total  # 50% or more = full charge
+
+        # Calculate subtotal
+        subtotal = package_fee + extra_hours_charge + holiday_charge
+
+        # Apply discount
+        discount_amount = Decimal("0.00")
+        if enrollment.discount and enrollment.discount.status == "Approved":
+            discount_amount = subtotal * (enrollment.discount.discount_rate / 100)
+
+        total_charge = subtotal - discount_amount
+
+        return {
+            "package_name": package.package_name,
+            "package_base_fee": package_total,
+            "days_attended": present_days,
+            "expected_days": expected_days,
+            "attendance_percentage": round(attendance_percentage, 2),
+            "is_half_charge": is_half_charge,
+            "package_fee": package_fee,
+            "extra_charges": extra_hours_charge,
+            "holiday_attendance_days": holiday_attendance_days,
+            "holiday_charges": holiday_charge,
+            "discount": discount_amount,
+            "total_charge": total_charge,
+        }
+
+    except Exception as e:
+        raise Exception(f"Error calculating month with attendance: {str(e)}")
+
+
+def calculate_month_full_package(child, package_mapping, enrollment, month, year):
+    """Calculate month charges with full package amount (no attendance logic)"""
+    try:
+        from decimal import Decimal
+
+        # Get package details
+        is_flex = package_mapping.flex_package is not None
+        package = (
+            package_mapping.flex_package if is_flex else package_mapping.normal_package
+        )
+
+        expected_days = package.no_days_months or 22
+        package_total = package.package_total or Decimal("0.00")
+
+        # For future months, charge full package amount
+        package_fee = package_total
+
+        # No extra hours or holiday charges for future months
+        extra_hours_charge = Decimal("0.00")
+        holiday_charge = Decimal("0.00")
+
+        # Calculate subtotal
+        subtotal = package_fee + extra_hours_charge + holiday_charge
+
+        # Apply discount
+        discount_amount = Decimal("0.00")
+        if enrollment.discount and enrollment.discount.status == "Approved":
+            discount_amount = subtotal * (enrollment.discount.discount_rate / 100)
+
+        total_charge = subtotal - discount_amount
+
+        return {
+            "package_name": package.package_name,
+            "package_base_fee": package_total,
+            "expected_days": expected_days,
+            "package_fee": package_fee,
+            "extra_charges": extra_hours_charge,
+            "holiday_attendance_days": 0,
+            "holiday_charges": holiday_charge,
+            "discount": discount_amount,
+            "total_charge": total_charge,
+        }
+
+    except Exception as e:
+        raise Exception(f"Error calculating full package month: {str(e)}")
+
+
+@login_required
+def previewThreeMonthInvoiceUpdated(request):
+    """Updated 3-month invoice preview with proper month calculations"""
+    try:
+        child_id = request.GET.get("child")
+        month = request.GET.get("month")
+        year = request.GET.get("year")
+
+        if not all([child_id, month, year]):
+            return JsonResponse({"error": "Missing required parameters"}, status=400)
+
+        child = Child.objects.get(id=child_id)
+
+        # Check if memo already exists for this month
+        existing_memo = InvoiceMemo.objects.filter(
+            child_id=child_id, year=int(year), month=int(month)
+        ).first()
+
+        if existing_memo:
+            return JsonResponse(
+                {
+                    "error": f"Invoice memo already exists for {calendar.month_name[int(month)]} {year}",
+                    "existing_memo_code": existing_memo.memo_code,
+                },
+                status=400,
+            )
+
+        # Calculate 3-month data
+        three_month_data = calculate_three_month_invoice_data(child, month, year)
+
+        return JsonResponse({"success": True, **three_month_data})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
