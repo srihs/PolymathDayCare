@@ -661,6 +661,20 @@ class InvoiceMemo(BaseClass):
     # NET BALANCE FOR THIS MONTH (charge - payments)
     month_net_balance = models.DecimalField(max_digits=10, decimal_places=2)
 
+    # NEW: ADD THESE TWO FIELDS HERE
+    total_outstanding = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Total outstanding from previous months",
+    )
+    grand_total = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Final amount to pay (all 3 months combined)",
+    )
+
     # Status tracking
     STATUS_CHOICES = (
         ("GENERATED", "Generated"),
@@ -765,3 +779,45 @@ class PaymentTransaction(BaseClass):
 
     def __str__(self):
         return f"{self.memo.memo_code} - Rs.{self.amount} - {self.receipt_number}"
+
+
+class InvoiceMemoDetail(BaseClass):
+    """
+    Stores detailed breakdown for each month in a 3-month invoice memo
+    Each InvoiceMemo will have exactly 3 InvoiceMemoDetail records
+    """
+
+    MONTH_TYPE_CHOICES = (
+        ("OUTSTANDING", "Outstanding/Credits from Previous Month"),
+        ("CALCULATED", "Calculated with Attendance"),
+        ("ADVANCE", "Advance Payment (Full Package)"),
+    )
+
+    memo = models.ForeignKey(
+        InvoiceMemo, on_delete=models.CASCADE, related_name="details"
+    )
+
+    # Month identification
+    month_sequence = models.IntegerField()  # 1, 2, or 3
+    month = models.IntegerField()  # 1-12
+    year = models.IntegerField()
+    month_name = models.CharField(max_length=20)
+    month_type = models.CharField(max_length=20, choices=MONTH_TYPE_CHOICES)
+
+    # Financial amounts
+    charge_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    payment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    balance_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    # Store additional details as JSON
+    calculation_details = models.JSONField(default=dict)
+
+    class Meta:
+        verbose_name = "Invoice Memo Detail"
+        verbose_name_plural = "Invoice Memo Details"
+        db_table = "dc_invoice_memo_details"
+        ordering = ["memo", "month_sequence"]
+        unique_together = ("memo", "month_sequence")
+
+    def __str__(self):
+        return f"{self.memo.memo_code} - {self.month_name} {self.year}"

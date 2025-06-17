@@ -3759,7 +3759,7 @@ def getInvoiceMemos(request):
 @login_required
 @transaction.atomic
 def generateAndSaveInvoiceMemo(request):
-    """Generate and save invoice memo for current month only"""
+    """Generate and save invoice memo with 3-month data"""
     try:
         if request.method == "POST":
             child_id = request.POST.get("child")
@@ -3807,12 +3807,21 @@ def generateAndSaveInvoiceMemo(request):
                 )
                 return redirect("core:view_invoice_memos")
 
-            # Calculate current month charges
+            # Calculate 3-month data using existing function
+            three_month_data = calculate_three_month_invoice_data(child, month, year)
+
+            # Get current month data for backward compatibility
             current_month_data = calculate_current_month_charges(
                 child, package_mapping, enrollment, int(month), int(year)
             )
 
-            # Save invoice memo (current month only)
+            # Helper function to convert Decimal to float for JSON storage
+            def decimal_to_float(value):
+                if isinstance(value, Decimal):
+                    return float(value)
+                return value
+
+            # Save invoice memo with 3-month summary
             with transaction.atomic():
                 memo = InvoiceMemo.objects.create(
                     # Basic info
@@ -3821,7 +3830,7 @@ def generateAndSaveInvoiceMemo(request):
                     child=child,
                     year=int(year),
                     month=int(month),
-                    # Current month details
+                    # Current month details (for backward compatibility)
                     package_name=current_month_data["package_name"],
                     package_base_fee=current_month_data["package_base_fee"],
                     days_attended=current_month_data["days_attended"],
@@ -3830,15 +3839,18 @@ def generateAndSaveInvoiceMemo(request):
                     is_half_charge_applied=current_month_data["is_half_charge"],
                     current_month_package_fee=current_month_data["package_fee"],
                     extra_hours_charge=current_month_data["extra_charges"],
-                    holiday_attendance_days=current_month_data[
-                        "holiday_attendance_days"
-                    ],
+                    holiday_attendance_days=current_month_data.get(
+                        "holiday_attendance_days", 0
+                    ),
                     holiday_charge=current_month_data["holiday_charges"],
                     discount_applied=current_month_data["discount"],
                     # Month totals
                     month_total_charge=current_month_data["total_charge"],
                     total_payments_received=Decimal("0.00"),
                     month_net_balance=current_month_data["total_charge"],
+                    # NEW: 3-month summary
+                    total_outstanding=three_month_data["summary"]["total_outstanding"],
+                    grand_total=three_month_data["summary"]["grand_total"],
                     # Status and details
                     status="GENERATED",
                     branch_name=enrollment.branch.branch_name,
@@ -3848,12 +3860,137 @@ def generateAndSaveInvoiceMemo(request):
                     user_created=request.user.username,
                 )
 
+                # Create 3 detail records - one for each month
+                from .models import InvoiceMemoDetail
+
+                # Month 1 - Outstanding/Credits
+                try:
+                    month1_month_num = 1
+                    if three_month_data["month1"]["name"]:
+                        month1_month_num = list(calendar.month_name).index(
+                            three_month_data["month1"]["name"]
+                        )
+                except:
+                    month1_month_num = 1
+
+                detail1 = InvoiceMemoDetail.objects.create(
+                    memo=memo,
+                    month_sequence=1,
+                    month=month1_month_num,
+                    year=three_month_data["month1"]["year"] or int(year),
+                    month_name=three_month_data["month1"]["name"] or "Unknown",
+                    month_type="OUTSTANDING",
+                    charge_amount=three_month_data["month1"]["charge"],
+                    payment_amount=three_month_data["month1"]["payments"],
+                    balance_amount=three_month_data["month1"]["balance"],
+                    calculation_details={
+                        "status": three_month_data["month1"]["status"],
+                        "credit": decimal_to_float(
+                            three_month_data["month1"]["credit"]
+                        ),
+                    },
+                    user_created=request.user.username,
+                )
+
+                # Month 2 - Calculated with attendance
+                try:
+                    month2_month_num = int(month)
+                    if three_month_data["month2"]["name"]:
+                        month2_month_num = list(calendar.month_name).index(
+                            three_month_data["month2"]["name"]
+                        )
+                except:
+                    month2_month_num = int(month)
+
+                detail2 = InvoiceMemoDetail.objects.create(
+                    memo=memo,
+                    month_sequence=2,
+                    month=month2_month_num,
+                    year=three_month_data["month2"]["year"] or int(year),
+                    month_name=three_month_data["month2"]["name"]
+                    or calendar.month_name[int(month)],
+                    month_type="CALCULATED",
+                    charge_amount=three_month_data["month2"]["charge"],
+                    payment_amount=three_month_data["month2"]["payments"],
+                    balance_amount=three_month_data["month2"]["balance"],
+                    calculation_details={
+                        "package_name": three_month_data["month2"]["package_name"],
+                        "package_fee": decimal_to_float(
+                            three_month_data["month2"]["package_fee"]
+                        ),
+                        "extra_charges": decimal_to_float(
+                            three_month_data["month2"]["extra_charges"]
+                        ),
+                        "holiday_charges": decimal_to_float(
+                            three_month_data["month2"]["holiday_charges"]
+                        ),
+                        "discount": decimal_to_float(
+                            three_month_data["month2"]["discount"]
+                        ),
+                        "days_attended": three_month_data["month2"]["days_attended"],
+                        "expected_days": three_month_data["month2"]["expected_days"],
+                        "attendance_percentage": decimal_to_float(
+                            three_month_data["month2"]["attendance_percentage"]
+                        ),
+                        "is_half_charge": three_month_data["month2"]["is_half_charge"],
+                    },
+                    user_created=request.user.username,
+                )
+
+                # Month 3 - Advance payment
+                try:
+                    month3_month_num = int(month) + 1
+                    if month3_month_num > 12:
+                        month3_month_num = 1
+                    if three_month_data["month3"]["name"]:
+                        month3_month_num = list(calendar.month_name).index(
+                            three_month_data["month3"]["name"]
+                        )
+                except:
+                    month3_month_num = int(month) + 1
+                    if month3_month_num > 12:
+                        month3_month_num = 1
+
+                detail3 = InvoiceMemoDetail.objects.create(
+                    memo=memo,
+                    month_sequence=3,
+                    month=month3_month_num,
+                    year=three_month_data["month3"]["year"] or int(year),
+                    month_name=three_month_data["month3"]["name"]
+                    or calendar.month_name[month3_month_num],
+                    month_type="ADVANCE",
+                    charge_amount=three_month_data["month3"]["charge"],
+                    payment_amount=three_month_data["month3"]["payments"],
+                    balance_amount=three_month_data["month3"]["balance"],
+                    calculation_details={
+                        "package_name": three_month_data["month3"]["package_name"],
+                        "package_fee": decimal_to_float(
+                            three_month_data["month3"]["package_fee"]
+                        ),
+                        "extra_charges": decimal_to_float(
+                            three_month_data["month3"]["extra_charges"]
+                        ),
+                        "holiday_charges": decimal_to_float(
+                            three_month_data["month3"]["holiday_charges"]
+                        ),
+                        "discount": decimal_to_float(
+                            three_month_data["month3"]["discount"]
+                        ),
+                        "expected_days": three_month_data["month3"]["expected_days"],
+                    },
+                    user_created=request.user.username,
+                )
+
             messages.success(
                 request,
                 f"Invoice memo {memo.memo_code} generated successfully for {calendar.month_name[int(month)]} {year}",
             )
 
     except Exception as e:
+        import traceback
+
+        print(f"DEBUG: Exception occurred: {str(e)}")
+        print(f"DEBUG: Traceback: {traceback.format_exc()}")
         messages.error(request, f"Error generating invoice memo: {str(e)}")
 
     return redirect("core:view_invoice_memos")
@@ -3861,51 +3998,103 @@ def generateAndSaveInvoiceMemo(request):
 
 @login_required
 def getInvoiceMemoByID(request, pk):
-    """Get detailed invoice memo for preview-style viewing"""
+    """Get detailed invoice memo with 3-month data for display"""
     try:
         memo = get_object_or_404(InvoiceMemo, pk=pk)
-        memo_data = {
-            # Basic memo info
-            "id": memo.id,
-            "memo_code": memo.memo_code,
-            "memo_date": memo.memo_date.strftime("%Y-%m-%d"),
-            "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}",
-            "child_admission": memo.child.admission_number,
-            "month_name": memo.month_name,
-            "year": memo.year,
-            "status": memo.status,
-            # Package and attendance details
-            "package_name": memo.package_name,
-            "days_attended": memo.days_attended,
-            "expected_days": memo.expected_days,
-            "attendance_percentage": float(memo.attendance_percentage),
-            "is_half_charge_applied": memo.is_half_charge_applied,
-            # Previous month details
-            "previous_outstanding": float(memo.previous_month_outstanding),
-            "previous_payment": float(memo.previous_month_payment_amount),
-            "previous_receipt": memo.previous_month_payment_receipt or "",
-            "remaining_balance": float(memo.remaining_balance),
-            # Current month charges
-            "current_month_fee": float(memo.current_month_package_fee),
-            "extra_hours_charge": float(memo.extra_hours_charge),
-            "holiday_charge": float(memo.holiday_charge),
-            "holiday_attendance_days": memo.holiday_attendance_days,
-            "current_month_total": float(
-                memo.current_month_package_fee
-                + memo.extra_hours_charge
-                + memo.holiday_charge
-            ),
-            # Discount and totals
-            "discount_applied": float(memo.discount_applied),
-            "discount_percentage": float(memo.discount_percentage),
-            "subtotal": float(memo.subtotal),
-            "total_amount": float(memo.total_amount),
-            # Location details
-            "branch_name": memo.branch_name,
-            "center_name": memo.center_name,
-            "notes": memo.notes or "",
-        }
+
+        # Get the 3 detail records
+        details = memo.details.all().order_by("month_sequence")
+
+        if details.count() == 3:
+            # New format - return 3-month data from stored details
+            month1_detail = details[0]  # Outstanding
+            month2_detail = details[1]  # Calculated
+            month3_detail = details[2]  # Advance
+
+            memo_data = {
+                # Basic memo info
+                "id": memo.id,
+                "memo_code": memo.memo_code,
+                "memo_date": memo.memo_date.strftime("%Y-%m-%d"),
+                "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}",
+                "child_admission": memo.child.admission_number,
+                "year": memo.year,
+                "status": memo.status,
+                "branch_name": memo.branch_name,
+                "center_name": memo.center_name,
+                "notes": memo.notes or "",
+                # 3-month breakdown
+                "month1": {
+                    "name": month1_detail.month_name,
+                    "year": month1_detail.year,
+                    "type": month1_detail.month_type,
+                    "charge": float(month1_detail.charge_amount),
+                    "payments": float(month1_detail.payment_amount),
+                    "balance": float(month1_detail.balance_amount),
+                    "details": month1_detail.calculation_details,
+                },
+                "month2": {
+                    "name": month2_detail.month_name,
+                    "year": month2_detail.year,
+                    "type": month2_detail.month_type,
+                    "charge": float(month2_detail.charge_amount),
+                    "payments": float(month2_detail.payment_amount),
+                    "balance": float(month2_detail.balance_amount),
+                    "details": month2_detail.calculation_details,
+                },
+                "month3": {
+                    "name": month3_detail.month_name,
+                    "year": month3_detail.year,
+                    "type": month3_detail.month_type,
+                    "charge": float(month3_detail.charge_amount),
+                    "payments": float(month3_detail.payment_amount),
+                    "balance": float(month3_detail.balance_amount),
+                    "details": month3_detail.calculation_details,
+                },
+                # Summary
+                "summary": {
+                    "total_outstanding": float(memo.total_outstanding),
+                    "grand_total": float(memo.grand_total),
+                },
+                # Flag to indicate this is 3-month data
+                "is_three_month_format": True,
+            }
+
+        else:
+            # Fallback for old single-month format (backward compatibility)
+            memo_data = {
+                # Basic memo info
+                "id": memo.id,
+                "memo_code": memo.memo_code,
+                "memo_date": memo.memo_date.strftime("%Y-%m-%d"),
+                "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}",
+                "child_admission": memo.child.admission_number,
+                "month_name": memo.get_month_name(),
+                "year": memo.year,
+                "status": memo.status,
+                # Single month data (old format)
+                "package_name": memo.package_name,
+                "days_attended": memo.days_attended,
+                "expected_days": memo.expected_days,
+                "attendance_percentage": float(memo.attendance_percentage),
+                "is_half_charge_applied": memo.is_half_charge_applied,
+                "current_month_fee": float(memo.current_month_package_fee),
+                "extra_hours_charge": float(memo.extra_hours_charge),
+                "holiday_charge": float(memo.holiday_charge),
+                "holiday_attendance_days": memo.holiday_attendance_days,
+                "discount_applied": float(memo.discount_applied),
+                "month_total_charge": float(memo.month_total_charge),
+                "total_payments_received": float(memo.total_payments_received),
+                "month_net_balance": float(memo.month_net_balance),
+                "branch_name": memo.branch_name,
+                "center_name": memo.center_name,
+                "notes": memo.notes or "",
+                # Flag to indicate this is old single-month format
+                "is_three_month_format": False,
+            }
+
         return JsonResponse(memo_data)
+
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
@@ -4602,7 +4791,7 @@ def get_record_payment(request):
 
 @login_required
 def getInvoiceMemosJS(request):
-    """Return invoice memos data as JSON for DataTable"""
+    """Return invoice memos data as JSON for DataTable with 3-month support"""
     try:
         print("=== DEBUG: getInvoiceMemosJS called ===")
 
@@ -4611,7 +4800,7 @@ def getInvoiceMemosJS(request):
             InvoiceMemo.objects.select_related("child")
             .filter(is_active=True)
             .order_by("-date_created")
-        )  # Changed from created_at to date_created
+        )
 
         print(f"DEBUG: Found {memos.count()} memos")
 
@@ -4626,34 +4815,95 @@ def getInvoiceMemosJS(request):
                     else "Unknown"
                 )
 
-                memo_item = {
-                    "id": memo.id,
-                    "memo_code": memo.memo_code or f"MEMO-{memo.id}",
-                    "child_admission": memo.child.admission_number
-                    if memo.child
-                    else "N/A",
-                    "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}"
-                    if memo.child
-                    else "N/A",
-                    "month": memo.month or 0,
-                    "year": memo.year or 0,
-                    "month_name": month_name,
-                    "month_charge": float(
-                        memo.month_total_charge or 0
-                    ),  # Using month_total_charge
-                    "payments_received": float(
-                        memo.total_payments_received or 0
-                    ),  # Using total_payments_received
-                    "month_balance": float(
-                        memo.month_net_balance or 0
-                    ),  # Using month_net_balance
-                    "total_outstanding": 0.00,  # Will calculate this later
-                    "grand_total": float(memo.month_total_charge or 0),
-                    "status": memo.status or "GENERATED",  # Using the status field
-                    "created_at": memo.date_created.strftime("%Y-%m-%d")
-                    if memo.date_created
-                    else "",  # Using date_created
-                }
+                # Check if this memo has 3-month detail records
+                details = memo.details.all().order_by("month_sequence")
+
+                if details.count() == 3:
+                    # NEW FORMAT: Return 3-month data
+                    month1_detail = details[0]  # Outstanding
+                    month2_detail = details[1]  # Calculated
+                    month3_detail = details[2]  # Advance
+
+                    memo_item = {
+                        "id": memo.id,
+                        "memo_code": memo.memo_code or f"MEMO-{memo.id}",
+                        "child_admission": memo.child.admission_number
+                        if memo.child
+                        else "N/A",
+                        "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}"
+                        if memo.child
+                        else "N/A",
+                        "month": memo.month or 0,
+                        "year": memo.year or 0,
+                        "month_name": f"{month2_detail.month_name} {month2_detail.year}",  # Show the calculated month
+                        "month_charge": float(
+                            memo.grand_total or 0
+                        ),  # Show grand total instead of single month
+                        "payments_received": float(memo.total_payments_received or 0),
+                        "month_balance": float(memo.grand_total or 0)
+                        - float(memo.total_payments_received or 0),
+                        "total_outstanding": float(memo.total_outstanding or 0),
+                        "grand_total": float(memo.grand_total or 0),
+                        "status": memo.status or "GENERATED",
+                        "created_at": memo.date_created.strftime("%Y-%m-%d")
+                        if memo.date_created
+                        else "",
+                        # Flag to indicate this is 3-month format
+                        "is_three_month_format": True,
+                        # 3-month breakdown for detailed display
+                        "month_breakdown": {
+                            "month1": {
+                                "name": month1_detail.month_name,
+                                "year": month1_detail.year,
+                                "type": month1_detail.month_type,
+                                "charge": float(month1_detail.charge_amount),
+                                "payments": float(month1_detail.payment_amount),
+                                "balance": float(month1_detail.balance_amount),
+                            },
+                            "month2": {
+                                "name": month2_detail.month_name,
+                                "year": month2_detail.year,
+                                "type": month2_detail.month_type,
+                                "charge": float(month2_detail.charge_amount),
+                                "payments": float(month2_detail.payment_amount),
+                                "balance": float(month2_detail.balance_amount),
+                            },
+                            "month3": {
+                                "name": month3_detail.month_name,
+                                "year": month3_detail.year,
+                                "type": month3_detail.month_type,
+                                "charge": float(month3_detail.charge_amount),
+                                "payments": float(month3_detail.payment_amount),
+                                "balance": float(month3_detail.balance_amount),
+                            },
+                        },
+                    }
+                else:
+                    # OLD FORMAT: Single month data (backward compatibility)
+                    memo_item = {
+                        "id": memo.id,
+                        "memo_code": memo.memo_code or f"MEMO-{memo.id}",
+                        "child_admission": memo.child.admission_number
+                        if memo.child
+                        else "N/A",
+                        "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}"
+                        if memo.child
+                        else "N/A",
+                        "month": memo.month or 0,
+                        "year": memo.year or 0,
+                        "month_name": month_name,
+                        "month_charge": float(memo.month_total_charge or 0),
+                        "payments_received": float(memo.total_payments_received or 0),
+                        "month_balance": float(memo.month_net_balance or 0),
+                        "total_outstanding": 0.00,
+                        "grand_total": float(memo.month_total_charge or 0),
+                        "status": memo.status or "GENERATED",
+                        "created_at": memo.date_created.strftime("%Y-%m-%d")
+                        if memo.date_created
+                        else "",
+                        # Flag to indicate this is old single-month format
+                        "is_three_month_format": False,
+                    }
 
                 memo_data.append(memo_item)
 

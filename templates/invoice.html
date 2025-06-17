@@ -73,8 +73,8 @@
                         <div class="col-md-12">
                             <div class="d-flex gap-2">
                                 <button type="button" class="btn btn-info" onclick="previewInvoiceUpdated()">
-    <i class="ri-eye-line"></i> Preview Memo
-</button>
+                                    <i class="ri-eye-line"></i> Preview Memo
+                                </button>
                                 <button type="submit" class="btn btn-success">
                                     <i class="ri-file-add-line"></i> Generate & Save Memo
                                 </button>
@@ -185,19 +185,17 @@
                 </div>
 
                 <div class="table-responsive">
-                    <table id="invoiceMemosTable" class="table table-bordered dt-responsive nowrap table-striped align-middle" style="width:100%">
-                        <thead>
+                    <table id="invoiceMemosTable" class="table table-bordered table-striped align-middle" style="width:100%">
+                        <thead class="table-light">
                             <tr>
-                                <th>Memo Code</th>
-                                <th>Child</th>
-                                <th>Month/Year</th>
-                                <th>Month Charge</th>
-                                <th>Payments</th>
-                                <th>Balance</th>
-                                <th>Outstanding</th>
-                                <th>Grand Total</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th style="width: 10%">Memo Code</th>
+                                <th style="width: 20%">Child</th>
+                                <th style="width: 30%">Monthly Breakdown</th>
+                                <th style="width: 12%">Total Amount</th>
+                                <th style="width: 10%">Payments</th>
+                                <th style="width: 8%">Balance</th>
+                                <th style="width: 6%">Status</th>
+                                <th style="width: 4%">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -240,6 +238,73 @@
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
+<!-- Enhanced Table Styling -->
+<style>
+.month-breakdown .col-4 {
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+}
+
+.bg-light-warning {
+    background-color: #fff3cd !important;
+    border-color: #ffeaa7 !important;
+}
+
+.bg-light-success {
+    background-color: #d1edff !important;
+    border-color: #bee5eb !important;
+}
+
+.bg-light-primary {
+    background-color: #cfe2ff !important;
+    border-color: #b6d7ff !important;
+}
+
+.bg-light-info {
+    background-color: #d1ecf1 !important;
+    border-color: #bee5eb !important;
+}
+
+.month-breakdown small {
+    font-size: 0.75rem;
+    line-height: 1.1;
+}
+
+.month-breakdown .border {
+    min-height: 70px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+#invoiceMemosTable tbody tr {
+    height: auto !important;
+}
+
+#invoiceMemosTable tbody td {
+    vertical-align: middle !important;
+    padding: 12px 8px !important;
+}
+
+.memo-actions .btn {
+    margin: 1px;
+    padding: 3px 6px;
+    font-size: 11px;
+}
+
+.memo-actions .gap-1 {
+    gap: 2px !important;
+}
+
+.three-month-row {
+    border-left: 3px solid #0d6efd !important;
+}
+
+.three-month-row td {
+    background-color: #f8f9ff !important;
+}
+</style>
+
 <script>
 let invoiceTable;
 
@@ -257,7 +322,7 @@ $(document).ready(function() {
     console.log('Child options count:', $('#child option').length);
     console.log('Year options count:', $('#year option').length);
     
-    // Initialize DataTable
+    // Initialize DataTable with enhanced monthly breakdown
     invoiceTable = $('#invoiceMemosTable').DataTable({
         "ajax": {
             "url": "{% url 'core:get_invoice_memos_js' %}",
@@ -272,50 +337,139 @@ $(document).ready(function() {
             }
         },
         "columns": [
-            { "data": "memo_code" },
             { 
-                "data": null,
+                "data": "memo_code",
                 "render": function(data, type, row) {
-                    return row.child_admission + " - " + row.child_name;
+                    let formatType = row.is_three_month_format ? 
+                        '<small class="badge bg-info">3-Month</small>' : 
+                        '<small class="badge bg-secondary">Single</small>';
+                    return `<strong>${data}</strong><br>${formatType}`;
                 }
             },
             { 
                 "data": null,
                 "render": function(data, type, row) {
-                    return row.month_name + " " + row.year;
+                    return `
+                        <div>
+                            <strong>${row.child_admission}</strong>
+                            <br>
+                            <span class="text-muted" style="font-size: 0.85rem;">${row.child_name}</span>
+                        </div>
+                    `;
                 }
             },
             { 
-                "data": "month_charge",
+                "data": null,
                 "render": function(data, type, row) {
-                    return "Rs. " + parseFloat(data).toFixed(2);
+                    if (row.is_three_month_format && row.month_breakdown) {
+                        let breakdown = row.month_breakdown;
+                        return `
+                            <div class="month-breakdown">
+                                <div class="row g-1">
+                                    <div class="col-4">
+                                        <div class="border rounded p-1 text-center ${breakdown.month1.balance > 0 ? 'bg-light-warning' : 'bg-light-success'}" style="min-height: 60px;">
+                                            <div class="fw-bold" style="font-size: 0.7rem;">${breakdown.month1.name}</div>
+                                            <div class="text-muted" style="font-size: 0.65rem;">${breakdown.month1.year}</div>
+                                            <div class="mt-1">
+                                                <div style="font-size: 0.65rem;">${breakdown.month1.type === 'OUTSTANDING' ? 'Outstanding' : 'No Record'}</div>
+                                                <strong class="text-${breakdown.month1.balance > 0 ? 'danger' : 'success'}" style="font-size: 0.75rem;">
+                                                    Rs. ${parseFloat(breakdown.month1.balance || 0).toLocaleString()}
+                                                </strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="border rounded p-1 text-center bg-light-primary" style="min-height: 60px;">
+                                            <div class="fw-bold" style="font-size: 0.7rem;">${breakdown.month2.name}</div>
+                                            <div class="text-muted" style="font-size: 0.65rem;">${breakdown.month2.year}</div>
+                                            <div class="mt-1">
+                                                <div style="font-size: 0.65rem;">Calculated</div>
+                                                <strong class="text-primary" style="font-size: 0.75rem;">Rs. ${parseFloat(breakdown.month2.charge || 0).toLocaleString()}</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="border rounded p-1 text-center bg-light-info" style="min-height: 60px;">
+                                            <div class="fw-bold" style="font-size: 0.7rem;">${breakdown.month3.name}</div>
+                                            <div class="text-muted" style="font-size: 0.65rem;">${breakdown.month3.year}</div>
+                                            <div class="mt-1">
+                                                <div style="font-size: 0.65rem;">Advance</div>
+                                                <strong class="text-info" style="font-size: 0.75rem;">Rs. ${parseFloat(breakdown.month3.charge || 0).toLocaleString()}</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // Show single month format
+                        return `
+                            <div class="text-center">
+                                <strong>${row.month_name}</strong>
+                                <br>
+                                <small class="text-muted">${row.year}</small>
+                            </div>
+                        `;
+                    }
+                }
+            },
+            { 
+                "data": null,
+                "render": function(data, type, row) {
+                    if (row.is_three_month_format) {
+                        return `
+                            <div class="text-center">
+                                <div class="badge bg-success fs-6 px-2 py-2">
+                                    Rs. ${parseFloat(row.grand_total).toLocaleString()}
+                                </div>
+                                <div class="mt-1">
+                                    <small class="text-muted">3-Month Total</small>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        return `
+                            <div class="text-center">
+                                <strong>Rs. ${parseFloat(row.month_charge).toLocaleString()}</strong>
+                                <br>
+                                <small class="text-muted">Month Charge</small>
+                            </div>
+                        `;
+                    }
                 }
             },
             { 
                 "data": "payments_received",
                 "render": function(data, type, row) {
-                    return "Rs. " + parseFloat(data).toFixed(2);
+                    let payments = parseFloat(data);
+                    let color = payments > 0 ? 'text-success' : 'text-muted';
+                    return `
+                        <div class="text-center">
+                            <span class="${color}">Rs. ${payments.toLocaleString()}</span>
+                        </div>
+                    `;
                 }
             },
             { 
-                "data": "month_balance",
+                "data": null,
                 "render": function(data, type, row) {
-                    let balance = parseFloat(data);
+                    let balance;
+                    if (row.is_three_month_format) {
+                        balance = parseFloat(row.grand_total) - parseFloat(row.payments_received);
+                    } else {
+                        balance = parseFloat(row.month_balance);
+                    }
+                    
                     let color = balance > 0 ? 'text-danger' : (balance < 0 ? 'text-success' : 'text-muted');
-                    return '<span class="' + color + '">Rs. ' + balance.toFixed(2) + '</span>';
-                }
-            },
-            { 
-                "data": "total_outstanding",
-                "render": function(data, type, row) {
-                    let outstanding = parseFloat(data);
-                    return outstanding > 0 ? '<span class="text-warning">Rs. ' + outstanding.toFixed(2) + '</span>' : '-';
-                }
-            },
-            { 
-                "data": "grand_total",
-                "render": function(data, type, row) {
-                    return '<strong>Rs. ' + parseFloat(data).toFixed(2) + '</strong>';
+                    let icon = balance > 0 ? 'ri-arrow-up-circle-fill' : (balance < 0 ? 'ri-arrow-down-circle-fill' : 'ri-checkbox-circle-fill');
+                    
+                    return `
+                        <div class="text-center">
+                            <i class="${icon} ${color}"></i>
+                            <br>
+                            <span class="${color} fw-bold">Rs. ${Math.abs(balance).toLocaleString()}</span>
+                        </div>
+                    `;
                 }
             },
             { 
@@ -329,7 +483,7 @@ $(document).ready(function() {
                         case 'SENT': badgeClass = 'bg-primary'; break;
                         default: badgeClass = 'bg-secondary';
                     }
-                    return '<span class="badge ' + badgeClass + '">' + data + '</span>';
+                    return `<div class="text-center"><span class="badge ${badgeClass}">${data}</span></div>`;
                 }
             },
             {
@@ -337,29 +491,41 @@ $(document).ready(function() {
                 "orderable": false,
                 "render": function(data, type, row) {
                     return `
-                        <div class="btn-group btn-group-sm">
-                            <button type="button" class="btn btn-outline-info" onclick="preview3MonthInvoice('${row.child_admission}', ${row.month}, ${row.year})" title="3-Month View">
-                                <i class="ri-file-list-3-line"></i>
-                            </button>
-                            <button type="button" class="btn btn-outline-primary" onclick="printMemo(${row.id})" title="Print Memo">
-                                <i class="ri-printer-line"></i>
-                            </button>
-                            <button type="button" class="btn btn-outline-danger" onclick="deleteInvoice(${row.id})" title="Delete">
-                                <i class="ri-delete-bin-line"></i>
-                            </button>
+                        <div class="memo-actions text-center">
+                            <div class="d-flex justify-content-center gap-1">
+                                <button type="button" class="btn btn-outline-info btn-sm" onclick="viewMemoDetails(${row.id})" title="View Details">
+                                    <i class="ri-eye-line"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="printMemo(${row.id})" title="Print">
+                                    <i class="ri-printer-line"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-success btn-sm" onclick="recordPayment('${row.memo_code}')" title="Payment">
+                                    <i class="ri-money-dollar-circle-line"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteInvoice(${row.id})" title="Delete">
+                                    <i class="ri-delete-bin-line"></i>
+                                </button>
+                            </div>
                         </div>
                     `;
                 }
             }
         ],
         "order": [[0, "desc"]],
-        "pageLength": 25,
+        "pageLength": 15,
         "responsive": true,
+        "scrollX": false,
         "language": {
             "search": "Search memos:",
             "lengthMenu": "Show _MENU_ memos per page",
             "info": "Showing _START_ to _END_ of _TOTAL_ memos",
             "emptyTable": "No invoice memos found"
+        },
+        "createdRow": function(row, data, dataIndex) {
+            // Add extra styling for 3-month format rows
+            if (data.is_three_month_format) {
+                $(row).addClass('three-month-row');
+            }
         }
     });
 
@@ -393,68 +559,286 @@ function formatChildSelection(child) {
     }
     return child.text;
 }
- 
 
-function previewInvoice() {
-    let childId = $('#child').val();
-    let month = $('#month').val();
-    let year = $('#year').val();
-    
-    console.log('Preview called with:', {childId, month, year}); // Debug log
-    
-    if (!childId || !month || !year) {
-        alert('Please select child, month and year');
-        return;
-    }
-    
+// Enhanced function to view memo details
+function viewMemoDetails(memoId) {
     // Show loading indicator
-    $('#invoicePreviewContent').html('<div class="text-center p-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><br><br>Loading 3-month invoice data...</div>');
+    $('#invoicePreviewContent').html(`
+        <div class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <br><br>
+            <p>Loading memo details...</p>
+        </div>
+    `);
     
     $.ajax({
-        url: "{% url 'core:preview_three_month_invoice' %}", // Make sure this URL exists
+        url: "{% url 'core:get_invoice_memo_by_id' 0 %}".replace('0', memoId),
         type: 'GET',
-        data: {
-            'child': childId,
-            'month': month,
-            'year': year
-        },
         success: function(response) {
-            console.log('Preview response received:', response); // Debug log
-            
-            if (response.success) {
-                displayThreeMonthPreview(response);
-                $('#invoicePreviewModal').modal('show');
+            console.log('Memo details response:', response);
+            if (response.is_three_month_format) {
+                displayThreeMonthMemoDetails(response);
             } else {
-                console.error('Preview error:', response.error);
-                alert('Error: ' + response.error);
-                $('#invoicePreviewContent').html('<div class="alert alert-danger">Error: ' + response.error + '</div>');
+                displaySingleMonthMemoDetails(response);
             }
+            $('#invoicePreviewModal').modal('show');
         },
-        error: function(xhr, status, error) {
-            console.error('AJAX Error:', {xhr, status, error}); // Debug log
-            console.error('Response Text:', xhr.responseText);
-            
-            let errorMsg = 'Unknown error';
-            if (xhr.responseJSON && xhr.responseJSON.error) {
-                errorMsg = xhr.responseJSON.error;
-            } else if (xhr.status === 404) {
-                errorMsg = 'Preview endpoint not found. Please check URL configuration.';
-            } else if (xhr.responseText) {
-                try {
-                    const parsed = JSON.parse(xhr.responseText);
-                    errorMsg = parsed.error || xhr.responseText;
-                } catch (e) {
-                    errorMsg = xhr.responseText;
-                }
-            }
-            
-            alert('Error loading preview: ' + errorMsg);
-            $('#invoicePreviewContent').html('<div class="alert alert-danger">Error loading preview: ' + errorMsg + '</div>');
+        error: function(xhr) {
+            console.error('Error loading memo details:', xhr);
+            $('#invoicePreviewContent').html('<div class="alert alert-danger">Error loading memo details: ' + (xhr.responseJSON?.error || 'Unknown error') + '</div>');
+            $('#invoicePreviewModal').modal('show');
         }
     });
 }
 
-// NEW UPDATED PREVIEW FUNCTION
+// Function to display 3-month memo details
+function displayThreeMonthMemoDetails(data) {
+    console.log('Displaying 3-month memo details:', data);
+    
+    function safeFixed(value, decimals = 2) {
+        if (value === null || value === undefined || isNaN(value)) {
+            return '0.00';
+        }
+        return parseFloat(value).toLocaleString('en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+    
+    let content = `
+        <div class="invoice-preview">
+            <!-- Header -->
+            <div class="text-center mb-4">
+                <h3>POLYMATH COLLEGE</h3>
+                <p>No 452/3 High Level Road, Nawinna, Maharagama<br>PV 63200 | Phone 0112802554</p>
+                <h4>KIDS DIVISION - MEMO</h4>
+                <div class="alert alert-info">
+                    <strong>Memo Code:</strong> ${data.memo_code} | <strong>Generated:</strong> ${data.memo_date}
+                </div>
+            </div>
+            
+            <!-- Child Information -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <strong>Name:</strong> ${data.child_name}
+                </div>
+                <div class="col-md-6">
+                    <strong>Child ID:</strong> ${data.child_admission}
+                </div>
+            </div>
+
+            <!-- 3-Month Breakdown Table -->
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Description</th>
+                            <th class="text-end">Amount (Rs.)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Month 1 -->
+                        <tr class="table-secondary">
+                            <td colspan="2"><strong>${data.month1.name} ${data.month1.year} - ${data.month1.type}</strong></td>
+                        </tr>
+    `;
+    
+    if (data.month1.details && data.month1.details.status !== 'No Record') {
+        if (data.month1.charge > 0) {
+            content += `
+                <tr>
+                    <td style="padding-left: 20px;">Outstanding from ${data.month1.name}</td>
+                    <td class="text-end">${safeFixed(data.month1.balance)}</td>
+                </tr>
+            `;
+        } else {
+            content += `
+                <tr>
+                    <td style="padding-left: 20px;">No outstanding from ${data.month1.name}</td>
+                    <td class="text-end">0.00</td>
+                </tr>
+            `;
+        }
+    } else {
+        content += `
+            <tr>
+                <td style="padding-left: 20px;">No record for ${data.month1.name}</td>
+                <td class="text-end">0.00</td>
+            </tr>
+        `;
+    }
+    
+    // Month 2
+    content += `
+        <tr class="table-primary">
+            <td colspan="2"><strong>${data.month2.name} ${data.month2.year} - ${data.month2.type}</strong></td>
+        </tr>
+        <tr>
+            <td style="padding-left: 20px;">Day Care Monthly fee - ${data.month2.name} 
+                ${data.month2.details && data.month2.details.days_attended ? 
+                    `(${data.month2.details.days_attended}/${data.month2.details.expected_days} days attended)` : 
+                    ''}
+                ${data.month2.details && data.month2.details.is_half_charge ? 
+                    '<br><small class="text-warning">Half charge applied (attendance < 50%)</small>' : 
+                    ''}
+            </td>
+            <td class="text-end">${safeFixed(data.month2.charge)}</td>
+        </tr>
+    `;
+    
+    // Month 3
+    content += `
+        <tr class="table-info">
+            <td colspan="2"><strong>${data.month3.name} ${data.month3.year} - ${data.month3.type}</strong></td>
+        </tr>
+        <tr>
+            <td style="padding-left: 20px;">Day Care Monthly fee - ${data.month3.name} (Full Package Advance)</td>
+            <td class="text-end">${safeFixed(data.month3.charge)}</td>
+        </tr>
+    `;
+    
+    // Grand Total
+    content += `
+                        <tr class="table-warning">
+                            <td><strong>Total Amount to Pay</strong></td>
+                            <td class="text-end"><strong>Rs. ${safeFixed(data.summary.grand_total)}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="row mt-4">
+                <div class="col-md-4">
+                    <div class="card border-warning">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">Outstanding</h6>
+                            <h4 class="text-warning">Rs. ${safeFixed(data.summary.total_outstanding)}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-primary">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">Current Month</h6>
+                            <h4 class="text-primary">Rs. ${safeFixed(data.month2.charge)}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-info">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">Advance</h6>
+                            <h4 class="text-info">Rs. ${safeFixed(data.month3.charge)}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="mt-4">
+                <p><strong>Please note that,</strong></p>
+                <p>This invoice reflects a 3-month summary including any outstanding amounts and advance payment. Only payments made before the invoice date are indicated. If there is any outstanding amount, please settle on or before next month. Ignore this message if you have already settled the outstanding.</p>
+                <p>Thank you,<br>The Management.</p>
+            </div>
+        </div>
+    `;
+    
+    $('#invoicePreviewContent').html(content);
+}
+
+// Function to display single month memo details (backward compatibility)
+function displaySingleMonthMemoDetails(data) {
+    console.log('Displaying single month memo details:', data);
+    
+    function safeFixed(value, decimals = 2) {
+        if (value === null || value === undefined || isNaN(value)) {
+            return '0.00';
+        }
+        return parseFloat(value).toLocaleString('en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+    
+    let content = `
+        <div class="invoice-preview">
+            <!-- Header -->
+            <div class="text-center mb-4">
+                <h3>POLYMATH COLLEGE</h3>
+                <p>No 452/3 High Level Road, Nawinna, Maharagama<br>PV 63200 | Phone 0112802554</p>
+                <h4>KIDS DIVISION - MEMO</h4>
+                <div class="alert alert-secondary">
+                    <strong>Memo Code:</strong> ${data.memo_code} | <strong>Generated:</strong> ${data.memo_date}
+                    <br><small>Single Month Format</small>
+                </div>
+            </div>
+            
+            <!-- Child Information -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <strong>Name:</strong> ${data.child_name}
+                </div>
+                <div class="col-md-6">
+                    <strong>Month:</strong> ${data.month_name} ${data.year}
+                </div>
+                <div class="col-md-12 mt-2">
+                    <strong>Package:</strong> ${data.package_name || 'N/A'}
+                </div>
+            </div>
+
+            <!-- Single Month Table -->
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Description</th>
+                            <th class="text-end">Amount (Rs.)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Day Care Monthly fee - ${data.month_name} (${data.days_attended || 0}/${data.expected_days || 22} days attended)
+                                ${data.is_half_charge_applied ? '<br><small class="text-warning">Half charge applied (attendance < 50%)</small>' : ''}
+                            </td>
+                            <td class="text-end">${safeFixed(data.month_total_charge)}</td>
+                        </tr>
+                        <tr class="table-warning">
+                            <td><strong>Total</strong></td>
+                            <td class="text-end"><strong>Rs. ${safeFixed(data.month_total_charge)}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Attendance Info -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <h6>Attendance Details:</h6>
+                    <p>
+                        Days Attended: ${data.days_attended || 0}/${data.expected_days || 22}<br>
+                        Attendance: ${safeFixed(data.attendance_percentage, 1)}%
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Charge Breakdown:</h6>
+                    <p>
+                        Package Fee: Rs. ${safeFixed(data.current_month_fee)}<br>
+                        Extra Hours: Rs. ${safeFixed(data.extra_hours_charge)}<br>
+                        Holiday Charges: Rs. ${safeFixed(data.holiday_charge)}<br>
+                        Discount: Rs. ${safeFixed(data.discount_applied)}
+                    </p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    $('#invoicePreviewContent').html(content);
+}
+
+// Preview function for new memo generation
 function previewInvoiceUpdated() {
     let childId = $('#child').val();
     let month = $('#month').val();
@@ -523,7 +907,7 @@ function previewInvoiceUpdated() {
     });
 }
 
-// COMPLETE UPDATED displayThreeMonthPreviewUpdated() FUNCTION
+// COMPLETE displayThreeMonthPreviewUpdated() FUNCTION
 function displayThreeMonthPreviewUpdated(data) {
     console.log('Displaying updated 3-month preview:', data);
     
@@ -693,7 +1077,6 @@ function displayThreeMonthPreviewUpdated(data) {
     } else {
         // No record exists for Month 1
         content += `
-           
             <tr>
                 <td style="padding-left: 20px;">Outstanding as at ${month1.name}</td>
                 <td class="text-end text-muted">0.00</td>
@@ -768,7 +1151,7 @@ function displayThreeMonthPreviewUpdated(data) {
             <!-- Notes and Account Details -->
             <div class="mt-4">
                 <p><strong>Please note that,</strong></p>
-                <p>Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before <span style="color: red; font-weight: bold;" id="dueDate"></span>. Ignore this message if you have already settled that outstanding.</p>
+                <p>This invoice reflects a 3-month summary including any outstanding amounts and available credits. Credits from under-utilization and overpayments are automatically applied. Only payments made before the invoice date are indicated. If there is any outstanding amount, please settle on or before <span style="color: red; font-weight: bold;" id="dueDate"></span>. Ignore this message if you have already settled that outstanding.</p>
                 
                 <p class="mt-3">Thank you,<br>The Management.</p>
                 
@@ -801,122 +1184,14 @@ function displayThreeMonthPreviewUpdated(data) {
     $('#dueDate').text(formattedDueDate);
 }
 
-
-// Alternative: If the 3-month endpoint doesn't exist yet, use this fallback function
-function previewInvoiceFallback() {
-    let childId = $('#child').val();
-    let month = $('#month').val();
-    let year = $('#year').val();
-    
-    if (!childId || !month || !year) {
-        alert('Please select child, month and year');
-        return;
-    }
-    
-    // Show loading indicator
-    $('#invoicePreviewContent').html('<div class="text-center p-4">Loading invoice data...</div>');
-    
-    // Use the existing preview endpoint temporarily
-    $.ajax({
-        url: "{% url 'core:preview_invoice_memo' %}", // Your existing endpoint
-        type: 'GET',
-        data: {
-            'child': childId,
-            'month': month,
-            'year': year
-        },
-        success: function(response) {
-            console.log('Fallback response:', response);
-            
-            if (response.success || response.preview) {
-                // Convert single month data to 3-month format
-                const threeMonthData = convertToThreeMonthFormat(response);
-                displayThreeMonthPreview(threeMonthData);
-                $('#invoicePreviewModal').modal('show');
-            } else {
-                alert('Error: ' + (response.error || 'Unknown error'));
-            }
-        },
-        error: function(xhr) {
-            console.error('Fallback error:', xhr);
-            alert('Error loading preview: ' + (xhr.responseJSON?.error || 'Unknown error'));
-        }
-    });
+// Function to record payment
+function recordPayment(memoCode) {
+    alert(`Record payment for memo: ${memoCode}\n\nThis will redirect to payment recording page.`);
+    // You can implement payment recording logic here
+    // window.location.href = `/record_payment/${memoCode}/`;
 }
 
-
-
-
-
-
-
-
-
-// Function to convert single month data to 3-month format (temporary solution)
-function convertToThreeMonthFormat(singleMonthData) {
-    const data = singleMonthData.preview || singleMonthData;
-    
-    return {
-        success: true,
-        child_name: data.child_name,
-        child_admission: data.child_admission,
-        
-        // Empty previous months for now
-        month_before_previous: {
-            name: '',
-            year: 0,
-            charge: 0,
-            payments: 0,
-            balance: 0,
-            credit: 0,
-            status: 'No Record'
-        },
-        
-        previous_month: {
-            name: data.previous_month_name || '',
-            year: 0,
-            charge: data.previous_outstanding || 0,
-            payments: data.previous_payment || 0,
-            balance: data.remaining_balance || 0,
-            credit: 0,
-            status: 'No Record',
-            package_fee: 0,
-            extra_charges: 0,
-            holiday_charges: 0,
-            days_attended: 0,
-            attendance_percentage: 0
-        },
-        
-        current_month: {
-            name: data.month_name,
-            year: data.year,
-            package_name: data.package_name,
-            package_fee: data.base_package_charge || data.current_month_total || 0,
-            extra_charges: data.extra_hours_charge || 0,
-            holiday_charges: data.holiday_charge || 0,
-            discount: data.discount_amount || 0,
-            original_charge: data.current_month_total || 0,
-            credits_applied: 0,
-            final_charge: data.current_month_total || 0,
-            days_attended: data.days_attended || 0,
-            expected_days: data.expected_days || 22,
-            attendance_percentage: data.attendance_percentage || 0,
-            is_half_charge: data.is_half_charge || false
-        },
-        
-        summary: {
-            total_outstanding: data.remaining_balance || 0,
-            total_credits_available: 0,
-            credits_applied: 0,
-            remaining_credits: 0,
-            current_month_charge: data.current_month_total || 0,
-            final_current_charge: data.current_month_total || 0,
-            grand_total: data.grand_total || 0
-        }
-    };
-}
-
-// Updated function for generating after preview
+// Function to generate after preview
 function generateAfterPreview() {
     // Close the preview modal
     $('#invoicePreviewModal').modal('hide');
@@ -928,327 +1203,9 @@ function generateAfterPreview() {
     }
 }
 
-// Function to preview 3-month invoice from the table (existing function enhanced)
-function preview3MonthInvoice(admissionNumber, month, year) {
-    // Find child ID by admission number and set Select2 value
-    let childId = null;
-    $('#child option').each(function() {
-        if ($(this).text().includes(admissionNumber)) {
-            childId = $(this).val();
-            return false;
-        }
-    });
-    
-    if (childId) {
-        $('#child').val(childId).trigger('change');  // Trigger change for Select2
-        $('#month').val(month);
-        $('#year').val(year);
-        previewInvoice();
-    } else {
-        alert('Child not found in dropdown. Please refresh the page and try again.');
-    }
-}
-
-function displayThreeMonthPreview(data) {
-    console.log('Displaying preview with data:', data); // Debug log
-    
-    // Safe number formatting function
-    function safeFixed(value, decimals = 2) {
-        if (value === null || value === undefined || isNaN(value)) {
-            return '0.00';
-        }
-        return parseFloat(value).toFixed(decimals);
-    }
-    
-    // Safe value extraction with defaults
-    function safeValue(obj, path, defaultValue = 0) {
-        try {
-            const keys = path.split('.');
-            let result = obj;
-            for (const key of keys) {
-                result = result?.[key];
-            }
-            return result !== null && result !== undefined ? result : defaultValue;
-        } catch (e) {
-            return defaultValue;
-        }
-    }
-    
-    // Extract data safely
-    const childName = safeValue(data, 'child_name', 'Unknown Child');
-    
-    const currentMonth = {
-        name: safeValue(data, 'current_month.name', 'Unknown'),
-        year: safeValue(data, 'current_month.year', new Date().getFullYear()),
-        package_name: safeValue(data, 'current_month.package_name', 'Unknown Package'),
-        days_attended: safeValue(data, 'current_month.days_attended', 0),
-        expected_days: safeValue(data, 'current_month.expected_days', 22),
-        attendance_percentage: safeValue(data, 'current_month.attendance_percentage', 0),
-        is_half_charge: safeValue(data, 'current_month.is_half_charge', false),
-        package_fee: safeValue(data, 'current_month.package_fee', 0),
-        extra_charges: safeValue(data, 'current_month.extra_charges', 0),
-        holiday_charges: safeValue(data, 'current_month.holiday_charges', 0),
-        discount: safeValue(data, 'current_month.discount', 0),
-        original_charge: safeValue(data, 'current_month.original_charge', 0),
-        credits_applied: safeValue(data, 'current_month.credits_applied', 0),
-        final_charge: safeValue(data, 'current_month.final_charge', 0)
-    };
-    
-    const summary = {
-        total_outstanding: safeValue(data, 'summary.total_outstanding', 0),
-        total_credits_available: safeValue(data, 'summary.total_credits_available', 0),
-        credits_applied: safeValue(data, 'summary.credits_applied', 0),
-        remaining_credits: safeValue(data, 'summary.remaining_credits', 0),
-        current_month_charge: safeValue(data, 'summary.current_month_charge', 0),
-        final_current_charge: safeValue(data, 'summary.final_current_charge', 0),
-        grand_total: safeValue(data, 'summary.grand_total', 0)
-    };
-
-    let content = `
-        <div class="invoice-preview">
-            <!-- Header -->
-            <div class="text-center mb-4">
-                <h3>POLYMATH COLLEGE</h3>
-                <p>No 452/3 High Level Road, Nawinna, Maharagama<br> | PV 63200 | Phone 0112802554</p>
-                <h4>KIDS DIVISION - MEMO</h4>
-            </div>
-            
-            <!-- Child Information -->
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <strong>Name:</strong> ${childName}
-                </div>
-                <div class="col-md-6">
-                    <strong>Month:</strong> ${currentMonth.name} ${currentMonth.year}
-                </div>
-                <div class="col-md-12 mt-2">
-                    <strong>Package:</strong> ${currentMonth.package_name}
-                </div>
-            </div>
-
-            <!-- Invoice Table -->
-            <div class="table-responsive">
-                <table class="table table-bordered">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Description</th>
-                            <th class="text-end">Amount (Rs.)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-    `;
-
-    // Month before previous (if exists and has data)
-    if (data.month_before_previous) {
-        const mbpBalance = safeValue(data, 'month_before_previous.balance', 0);
-        const mbpCredit = safeValue(data, 'month_before_previous.credit', 0);
-        const mbpName = safeValue(data, 'month_before_previous.name', '');
-        const mbpYear = safeValue(data, 'month_before_previous.year', 0);
-        
-        if (mbpBalance > 0) {
-            content += `
-                <tr>
-                    <td>Outstanding as at ${mbpName} ${mbpYear}</td>
-                    <td class="text-end">${safeFixed(mbpBalance)}</td>
-                </tr>
-            `;
-        }
-        if (mbpCredit > 0) {
-            content += `
-                <tr class="table-success">
-                    <td>Credit Available from ${mbpName} ${mbpYear}</td>
-                    <td class="text-end">(${safeFixed(mbpCredit)})</td>
-                </tr>
-            `;
-        }
-    }
-
-    // Previous month (if exists and has data)
-    if (data.previous_month) {
-        const prevCharge = safeValue(data, 'previous_month.charge', 0);
-        const prevPayments = safeValue(data, 'previous_month.payments', 0);
-        const prevBalance = safeValue(data, 'previous_month.balance', 0);
-        const prevCredit = safeValue(data, 'previous_month.credit', 0);
-        const prevName = safeValue(data, 'previous_month.name', '');
-        const prevDaysAttended = safeValue(data, 'previous_month.days_attended', 0);
-        
-        if (prevCharge > 0) {
-            content += `
-                <tr>
-                    <td>Day Care Monthly fee - ${prevName} (${prevDaysAttended} days attended)</td>
-                    <td class="text-end">${safeFixed(prevCharge)}</td>
-                </tr>
-            `;
-            
-            if (prevPayments > 0) {
-                content += `
-                    <tr>
-                        <td>Payment Settled - ${prevName}</td>
-                        <td class="text-end">(${safeFixed(prevPayments)})</td>
-                    </tr>
-                `;
-            }
-            
-            if (prevBalance > 0) {
-                content += `
-                    <tr>
-                        <td>Remaining Balance - ${prevName}</td>
-                        <td class="text-end">${safeFixed(prevBalance)}</td>
-                    </tr>
-                `;
-            }
-            
-            if (prevCredit > 0) {
-                content += `
-                    <tr class="table-success">
-                        <td>Credit Available from ${prevName}</td>
-                        <td class="text-end">(${safeFixed(prevCredit)})</td>
-                    </tr>
-                `;
-            }
-        }
-    }
-
-    // Current month charges
-    content += `
-        <tr>
-            <td>Day Care Monthly fee - ${currentMonth.name} (${currentMonth.days_attended} days attended)</td>
-            <td class="text-end">${safeFixed(currentMonth.original_charge)}</td>
-        </tr>
-    `;
-
-    // Show credit application if any
-    if (currentMonth.credits_applied > 0) {
-        content += `
-            <tr class="table-success">
-                <td>Credits Applied to ${currentMonth.name}</td>
-                <td class="text-end">(${safeFixed(currentMonth.credits_applied)})</td>
-            </tr>
-        `;
-    }
-
-    // Grand total
-    content += `
-        <tr class="table-warning">
-            <td><strong>Total</strong></td>
-            <td class="text-end"><strong>${safeFixed(summary.grand_total)}</strong></td>
-        </tr>
-    </tbody>
-                </table>
-            </div>
-
-            <!-- Attendance and Breakdown -->
-            <div class="row mt-4">
-                <div class="col-md-6">
-                    <h6>Current Month Attendance:</h6>
-                    <p>Days Attended: ${currentMonth.days_attended}/${currentMonth.expected_days}<br>
-                    Attendance: ${safeFixed(currentMonth.attendance_percentage, 1)}%
-                    ${currentMonth.is_half_charge ? '<br><span class="text-warning">Half charge applied (attendance < 50%)</span>' : ''}</p>
-                </div>
-                <div class="col-md-6">
-                    <h6>Charge Breakdown:</h6>
-                    <p>Package Fee: Rs. ${safeFixed(currentMonth.package_fee)}<br>
-                    Extra Hours: Rs. ${safeFixed(currentMonth.extra_charges)}<br>
-                    Holiday Charges: Rs. ${safeFixed(currentMonth.holiday_charges)}<br>
-                    Discount: Rs. ${safeFixed(currentMonth.discount)}</p>
-                </div>
-            </div>
-    `;
-
-    // Credits Summary (only if there are credits)
-    if (summary.total_credits_available > 0) {
-        content += `
-            <div class="row mt-3">
-                <div class="col-12">
-                    <div class="alert alert-info">
-                        <h6><i class="fas fa-gift"></i> Credits Summary:</h6>
-                        <div class="row">
-                            <div class="col-md-4">
-                                <small>Total Credits Available:</small><br>
-                                <strong>Rs. ${safeFixed(summary.total_credits_available)}</strong>
-                            </div>
-                            <div class="col-md-4">
-                                <small>Credits Applied This Month:</small><br>
-                                <strong class="text-success">Rs. ${safeFixed(summary.credits_applied)}</strong>
-                            </div>
-                            <div class="col-md-4">
-                                <small>Remaining Credits:</small><br>
-                                <strong class="text-primary">Rs. ${safeFixed(summary.remaining_credits)}</strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    // Outstanding Summary (only if there are outstanding amounts)
-    if (summary.total_outstanding > 0) {
-        content += `
-            <div class="row mt-3">
-                <div class="col-12">
-                    <div class="alert alert-warning">
-                        <h6><i class="fas fa-exclamation-triangle"></i> Outstanding Summary:</h6>
-                        <p class="mb-1">Total Outstanding from Previous Months: <strong>Rs. ${safeFixed(summary.total_outstanding)}</strong></p>
-                        <p class="mb-0">Please settle outstanding amounts to avoid service interruption.</p>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    // Payment Summary
-    content += `
-        <div class="row mt-3">
-            <div class="col-12">
-                <div class="card border-primary">
-                    <div class="card-body">
-                        <h6 class="card-title text-primary">Payment Summary</h6>
-                        <div class="row">
-                            <div class="col-md-3">
-                                <small class="text-muted">Outstanding:</small><br>
-                                <span class="h6">Rs. ${safeFixed(summary.total_outstanding)}</span>
-                            </div>
-                            <div class="col-md-3">
-                                <small class="text-muted">Current Month:</small><br>
-                                <span class="h6">Rs. ${safeFixed(summary.current_month_charge)}</span>
-                            </div>
-                            <div class="col-md-3">
-                                <small class="text-muted">Credits Applied:</small><br>
-                                <span class="h6 text-success">Rs. ${safeFixed(summary.credits_applied)}</span>
-                            </div>
-                            <div class="col-md-3">
-                                <small class="text-muted">Amount to Pay:</small><br>
-                                <span class="h5 text-primary"><strong>Rs. ${safeFixed(summary.grand_total)}</strong></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    // Notes
-    content += `
-            <div class="mt-4">
-                <p><strong>Please note that,</strong></p>
-                <p>This invoice reflects a 3-month summary including any outstanding amounts and available credits. Credits from under-utilization and overpayments are automatically applied. Only payments made before the invoice date are indicated. If there is any outstanding amount, please settle on or before next month. Ignore this message if you have already settled the outstanding.</p>
-                <p>Thank you,<br>The Management.</p>
-            </div>
-        </div>
-    `;
-    
-    $('#invoicePreviewContent').html(content);
-}
-
-function generateAfterPreview() {
-    // Submit the form after preview
-    $('#invoicePreviewModal').modal('hide');
-    $('form').submit();
-}
-
+// Other utility functions
 function clearForm() {
-    $('#child').val('');
+    $('#child').val('').trigger('change');
     $('#month').val('');
     $('#year').val('');
 }
@@ -1265,24 +1222,6 @@ function applyFilters() {
     
     // You can extend this to apply actual filters
     invoiceTable.ajax.reload();
-}
-
-function preview3MonthInvoice(admissionNumber, month, year) {
-    // Find child ID by admission number and set Select2 value
-    let childId = null;
-    $('#child option').each(function() {
-        if ($(this).text().includes(admissionNumber)) {
-            childId = $(this).val();
-            return false;
-        }
-    });
-    
-    if (childId) {
-        $('#child').val(childId).trigger('change');  // Trigger change for Select2
-        $('#month').val(month);
-        $('#year').val(year);
-        previewInvoice();
-    }
 }
 
 function printMemo(memoId) {
