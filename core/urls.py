@@ -356,4 +356,9 @@ urlpatterns = [
         views.previewThreeMonthInvoiceUpdated,
         name="preview_three_month_invoice_updated",
     ),
+    path(
+        "download_invoice_pdf/<int:memo_id>/",
+        views.generate_invoice_pdf,
+        name="download_invoice_pdf",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

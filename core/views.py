@@ -35,8 +35,13 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from PIL import Image, ImageDraw, ImageFont
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
+from reportlab.platypus import Paragraph
 
 from .forms import (
     AttendanceReportForm,
@@ -5306,3 +5311,750 @@ def previewThreeMonthInvoiceUpdated(request):
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+# Helper function to safely get values from dictionaries/objects
+def safe_get(obj, path, default_value=0):
+    keys = path.split(".")
+    result = obj
+    for key in keys:
+        if isinstance(result, dict):
+            result = result.get(key)
+        else:
+            result = getattr(result, key, None)
+        if result is None:
+            # Attempt to convert default_value to Decimal if it's a numeric context
+            if isinstance(default_value, (int, float)):
+                return Decimal(default_value)
+            return default_value
+
+    # If the result itself is a number, ensure it's Decimal for consistency
+    if isinstance(result, (int, float)):
+        return Decimal(result)
+
+    # If it's a string, try converting to Decimal if it looks like a number
+    if isinstance(result, str):
+        try:
+            # Handle potential comma as decimal separator in string, or just clean it
+            # This is a defensive check, as DecimalField should already be Decimal
+            clean_result = result.replace(
+                ",", ""
+            )  # Remove thousands comma if present in string
+            if "." in clean_result:  # Check for decimal point
+                return Decimal(clean_result)
+            elif clean_result.isdigit():  # Check if it's an integer string
+                return Decimal(clean_result)
+        except Exception:
+            pass  # Fallback to original string if conversion fails
+
+    return result if result is not None else default_value
+
+
+# Helper for decimal formatting
+def format_currency(value):
+    if value is None:
+        value = Decimal(0)
+    # Ensure value is Decimal before formatting
+    try:
+        value = Decimal(value)
+    except Exception:
+        value = Decimal(0)  # Fallback if conversion fails
+    return f"{value:,.2f}"
+
+
+# Function to draw wrapped text
+def draw_wrapped_text(
+    canvas_obj,
+    text,
+    x,
+    y,
+    max_width,
+    font_name,
+    font_size,
+    line_height,
+    alignment="left",
+):
+    styles = getSampleStyleSheet()
+    style = styles["Normal"]
+    style.fontName = font_name
+    style.fontSize = font_size
+    style.leading = line_height
+
+    if alignment == "center":
+        style.alignment = TA_CENTER
+    elif alignment == "right":
+        style.alignment = TA_RIGHT
+    else:
+        style.alignment = TA_LEFT
+
+    # Create a Paragraph object
+    p = Paragraph(text, style)
+
+    # Wrap the text to the max_width. The height is adjusted by wrapOn.
+    width, height = p.wrapOn(
+        canvas_obj, max_width, 1000
+    )  # 1000 is a dummy height, it will calculate actual needed height
+
+    # Draw the paragraph at the calculated position.
+    # We subtract height from y to draw downwards from the top of the paragraph area.
+    p.drawOn(canvas_obj, x, y - height)
+
+    # Return the actual height used by the paragraph for precise y_position adjustments
+    return height
+
+
+@login_required
+def generate_invoice_pdf(request, memo_id):
+    try:
+        invoice_memo = get_object_or_404(InvoiceMemo, id=memo_id)
+        # Get details and order them for consistent processing
+        details = invoice_memo.details.order_by("month_sequence")
+
+        # Initialize overall financial sums from InvoiceMemoDetail
+        overall_grand_total = Decimal(0)
+        overall_payments_received = Decimal(0)
+
+        # invoice_data dictionary will be populated with aggregated data
+        invoice_data = {
+            "memo_code": invoice_memo.memo_code,
+            "memo_date": invoice_memo.date_created.strftime("%d %B %Y"),
+            "child_name": f"{invoice_memo.child.child_first_name} {invoice_memo.child.child_last_name}",
+            "child_admission": invoice_memo.child.admission_number,
+            "month_details": [],  # To store processed details
+            "summary": {
+                "total_outstanding": Decimal(0),
+                "current_month_charge": Decimal(0),
+                "next_month_charge": Decimal(0),
+                "grand_total": Decimal(0),  # Will be calculated
+            },
+            "payment_status": "PENDING",  # Default status
+        }
+
+        # Populate month_details and summary, and accumulate overall totals
+        for detail in details:
+            calc_details = detail.calculation_details or {}
+
+            # Accumulate overall totals from InvoiceMemoDetail
+            overall_grand_total += detail.charge_amount
+            overall_payments_received += detail.payment_amount
+
+            month_data = {
+                "month_sequence": detail.month_sequence,
+                "name": detail.month_name,
+                "year": detail.year,
+                "type": detail.month_type,
+                "charge": detail.charge_amount,
+                "payment_amount": detail.payment_amount,
+                "balance_amount": detail.balance_amount,  # This is balance for *this specific month's transaction*
+                **calc_details,
+            }
+            invoice_data["month_details"].append(month_data)
+
+            if detail.month_sequence == 1:  # Outstanding/Credits
+                invoice_data["month1"] = {
+                    "name": detail.month_name,
+                    "year": detail.year,
+                    "type": detail.month_type,
+                    "charge": safe_get(calc_details, "charge", Decimal(0)),
+                    "payments": safe_get(calc_details, "payments", Decimal(0)),
+                    "balance": detail.balance_amount,
+                    "credit": safe_get(calc_details, "credit", Decimal(0)),
+                    "status": safe_get(calc_details, "status", "No Record"),
+                }
+                invoice_data["summary"]["total_outstanding"] = detail.balance_amount
+
+            elif detail.month_sequence == 2:  # Current calculated month
+                invoice_data["month2"] = {
+                    "name": detail.month_name,
+                    "year": detail.year,
+                    "type": detail.month_type,
+                    "package_name": safe_get(calc_details, "package_name", "N/A"),
+                    "charge": detail.charge_amount,
+                    "package_fee": safe_get(calc_details, "package_fee", Decimal(0)),
+                    "extra_charges": safe_get(
+                        calc_details, "extra_charges", Decimal(0)
+                    ),
+                    "holiday_charges": safe_get(
+                        calc_details, "holiday_charges", Decimal(0)
+                    ),
+                    "discount": safe_get(calc_details, "discount", Decimal(0)),
+                    "days_attended": safe_get(calc_details, "days_attended", 0),
+                    "expected_days": safe_get(calc_details, "expected_days", 0),
+                    "attendance_percentage": safe_get(
+                        calc_details, "attendance_percentage", 0
+                    ),
+                    "is_half_charge": safe_get(calc_details, "is_half_charge", False),
+                    "payments": safe_get(calc_details, "payments", Decimal(0)),
+                    "balance": detail.balance_amount,
+                }
+                invoice_data["summary"]["current_month_charge"] = detail.charge_amount
+
+            elif detail.month_sequence == 3:  # Advance
+                invoice_data["month3"] = {
+                    "name": detail.month_name,
+                    "year": detail.year,
+                    "type": detail.month_type,
+                    "package_name": safe_get(calc_details, "package_name", "N/A"),
+                    "charge": detail.charge_amount,
+                    "package_fee": safe_get(calc_details, "package_fee", Decimal(0)),
+                    "extra_charges": safe_get(
+                        calc_details, "extra_charges", Decimal(0)
+                    ),
+                    "holiday_charges": safe_get(
+                        calc_details, "holiday_charges", Decimal(0)
+                    ),
+                    "discount": safe_get(calc_details, "discount", Decimal(0)),
+                    "payments": safe_get(calc_details, "payments", Decimal(0)),
+                    "balance": detail.balance_amount,
+                }
+                invoice_data["summary"]["next_month_charge"] = detail.charge_amount
+
+        # Final calculation of overall invoice amounts
+        invoice_data["grand_total"] = overall_grand_total
+        invoice_data["payments_received"] = overall_payments_received
+        invoice_data["balance_amount"] = (
+            overall_grand_total - overall_payments_received
+        )  # Overall balance for the memo
+
+        # Determine overall payment status based on derived totals
+        if invoice_data["balance_amount"] <= 0:
+            if invoice_data["payments_received"] >= invoice_data["grand_total"]:
+                invoice_data["payment_status"] = "FULLY_PAID"
+            else:  # balance is negative or zero with credit
+                invoice_data["payment_status"] = "HAS_CREDIT"
+        elif invoice_data["payments_received"] > 0:
+            invoice_data["payment_status"] = "PARTIAL_PAID"
+        else:
+            invoice_data["payment_status"] = "PENDING"
+
+        # Create the HttpResponse object with the appropriate PDF headers.
+        response = HttpResponse(content_type="application/pdf")
+        response["Content-Disposition"] = (
+            f'attachment; filename="invoice_memo_{invoice_data["memo_code"]}.pdf"'
+        )
+
+        # Create the PDF object, using the response object as its file.
+        p = canvas.Canvas(response, pagesize=A4)
+        width, height = A4  # A4 is 595.27 x 841.89 points (approx 210 x 297 mm)
+
+        # Set up fonts and colors - all black by default
+        p.setFont("Helvetica", 10)
+        p.setFillColor(colors.black)
+
+        # Define margins
+        left_margin = 0.8 * inch
+        right_margin = width - 0.8 * inch
+        top_margin = height - 0.8 * inch
+        bottom_margin = 0.8 * inch
+
+        # --- Header ---
+        p.setFont("Helvetica-Bold", 16)
+        p.drawCentredString(width / 2.0, top_margin - 0.5 * inch, "POLYMATH COLLEGE")
+        p.setFont("Helvetica", 9)
+        p.drawCentredString(
+            width / 2.0,
+            top_margin - 0.7 * inch,
+            "No 452/3 High Level Road, Nawinna, Maharagama",
+        )
+        p.drawCentredString(
+            width / 2.0, top_margin - 0.85 * inch, "PV 63200 | Phone 0112802554"
+        )
+        p.setFont("Helvetica-Bold", 14)
+        p.drawCentredString(
+            width / 2.0, top_margin - 1.2 * inch, "KIDS DIVISION - MEMO"
+        )
+
+        # Invoice Info Bar (no color background, just lines and text)
+        p.setFont("Helvetica-Bold", 10)
+        p.line(
+            left_margin, top_margin - 1.5 * inch, right_margin, top_margin - 1.5 * inch
+        )  # Top line
+        p.drawString(
+            left_margin + 0.1 * inch,
+            top_margin - 1.4 * inch,
+            f"Memo Code: {invoice_data['memo_code']}",
+        )
+        p.drawRightString(
+            right_margin - 0.1 * inch,
+            top_margin - 1.4 * inch,
+            f"Generated: {invoice_data['memo_date']}",
+        )
+        p.line(
+            left_margin, top_margin - 1.7 * inch, right_margin, top_margin - 1.7 * inch
+        )  # Bottom line
+        p.setFillColor(
+            colors.black
+        )  # Ensure color is black after any potential previous color changes
+
+        y_position = top_margin - 2.0 * inch
+
+        # --- Child Information ---
+        p.setFont("Helvetica", 10)
+        p.drawString(left_margin, y_position, f"Name: {invoice_data['child_name']}")
+        p.drawString(
+            width / 2.0, y_position, f"Child ID: {invoice_data['child_admission']}"
+        )
+        y_position -= 0.25 * inch
+        p.drawString(
+            left_margin,
+            y_position,
+            f"Package: {safe_get(invoice_data, 'month2.package_name', 'N/A')}",
+        )
+        y_position -= 0.4 * inch  # Space after child info
+
+        # --- Invoice Table Header ---
+        p.setFont("Helvetica-Bold", 10)
+        p.line(left_margin, y_position, right_margin, y_position)
+        p.drawString(left_margin + 0.1 * inch, y_position - 0.2 * inch, "Description")
+        p.drawRightString(
+            right_margin - 0.1 * inch, y_position - 0.2 * inch, "Amount (Rs.)"
+        )
+        y_position -= 0.3 * inch
+        p.line(left_margin, y_position, right_margin, y_position)
+
+        # --- Table Content ---
+        p.setFont("Helvetica", 9)
+        line_height = 0.2 * inch  # Approximately 14.4 points for 9pt font
+
+        # Month 1 (Outstanding/Credits)
+        month1 = invoice_data.get("month1", {})
+        if month1:
+            # Removed background color for section header
+            p.setFont("Helvetica-Bold", 9)
+            p.drawString(
+                left_margin + 0.1 * inch,
+                y_position - line_height,
+                f"{month1['name']} {month1['year']} Details:",
+            )
+            y_position -= line_height * 1.2
+            p.setFont("Helvetica", 9)
+
+            if month1.get("status") != "No Record":
+                if safe_get(month1, "charge") > 0:
+                    p.drawString(
+                        left_margin + 0.3 * inch,
+                        y_position - line_height,
+                        "Month Charges",
+                    )
+                    p.drawRightString(
+                        right_margin - 0.1 * inch,
+                        y_position - line_height,
+                        format_currency(month1.get("charge")),
+                    )
+                    y_position -= line_height
+
+                if safe_get(month1, "payments") > 0:
+                    p.drawString(
+                        left_margin + 0.3 * inch,
+                        y_position - line_height,
+                        "Payments Received",
+                    )
+                    p.drawRightString(
+                        right_margin - 0.1 * inch,
+                        y_position - line_height,
+                        f"({format_currency(month1.get('payments'))})",
+                    )
+                    y_position -= line_height
+
+                if safe_get(month1, "balance") > 0:
+                    p.setFont("Helvetica-Bold", 9)
+                    # No red color for outstanding
+                    p.drawString(
+                        left_margin + 0.3 * inch,
+                        y_position - line_height,
+                        f"Outstanding as at {month1['name']} {month1['year']}",
+                    )
+                    p.drawRightString(
+                        right_margin - 0.1 * inch,
+                        y_position - line_height,
+                        format_currency(month1.get("balance")),
+                    )
+                    p.setFont("Helvetica", 9)  # Reset font after bold
+                    y_position -= line_height
+                elif safe_get(month1, "credit") > 0:
+                    p.setFont("Helvetica-Bold", 9)
+                    # No darkgreen color for credits
+                    p.drawString(
+                        left_margin + 0.3 * inch,
+                        y_position - line_height,
+                        f"Credit Available from {month1['name']} {month1['year']}",
+                    )
+                    p.drawRightString(
+                        right_margin - 0.1 * inch,
+                        y_position - line_height,
+                        f"({format_currency(month1.get('credit'))})",
+                    )
+                    p.setFont("Helvetica", 9)  # Reset font after bold
+                    y_position -= line_height
+                elif (
+                    safe_get(month1, "balance") == 0
+                    and safe_get(month1, "status") != "No Record"
+                ):
+                    p.drawString(
+                        left_margin + 0.3 * inch,
+                        y_position - line_height,
+                        f"Balance as at {month1['name']} {month1['year']}",
+                    )
+                    p.drawRightString(
+                        right_margin - 0.1 * inch, y_position - line_height, "0.00"
+                    )
+                    y_position -= line_height
+            else:
+                p.drawString(
+                    left_margin + 0.3 * inch,
+                    y_position - line_height,
+                    f"No record for {month1['name']}",
+                )
+                p.drawRightString(
+                    right_margin - 0.1 * inch, y_position - line_height, "0.00"
+                )
+                y_position -= line_height
+
+        # Check for page overflow
+        if y_position < bottom_margin + 3.5 * inch:  # Leave space for total and notes
+            p.showPage()
+            p.setFont("Helvetica", 10)
+            y_position = top_margin - inch  # Reset y_position for new page
+            p.drawString(left_margin, y_position, "Continued...")
+            y_position -= 0.5 * inch
+
+        # Month 2 (Calculated)
+        month2 = invoice_data.get("month2", {})
+        if month2 and safe_get(month2, "charge") > 0:
+            desc_text = f"Day Care Monthly fee - {month2['name']} {month2['year']} ({month2.get('days_attended', 0)}/{month2.get('expected_days', 22)} days attended)"
+            if month2.get("is_half_charge"):
+                desc_text += "\n(Half charge applied (attendance < 50%))"
+
+            p.setFont("Helvetica-Bold", 9)
+            # Removed background color
+            p.drawString(
+                left_margin + 0.1 * inch,
+                y_position - line_height,
+                f"{month2['name']} {month2['year']} - Calculated Charge",
+            )
+            y_position -= line_height * 1.5
+            p.setFont("Helvetica", 9)
+
+            # Draw wrapped text for description
+            text_height = draw_wrapped_text(
+                p,
+                desc_text,
+                left_margin + 0.3 * inch,
+                y_position - 0.1 * inch,
+                width / 2.0,
+                "Helvetica",
+                9,
+                10,
+            )
+            p.drawRightString(
+                right_margin - 0.1 * inch,
+                y_position - line_height,
+                format_currency(month2.get("charge")),
+            )  # This draws the amount
+            y_position -= (
+                text_height + 0.05 * inch
+            )  # Adjust y_position based on actual text height
+
+            # Show breakdown if there are extra charges/discounts
+            if (
+                safe_get(month2, "extra_charges") > 0
+                or safe_get(month2, "holiday_charges") > 0
+                or safe_get(month2, "discount") > 0
+            ):
+                breakdown_text = (
+                    f"Package Fee: Rs. {format_currency(month2.get('package_fee'))}"
+                )
+                if safe_get(month2, "extra_charges") > 0:
+                    breakdown_text += f"\nExtra Hours: Rs. {format_currency(month2.get('extra_charges'))}"
+                if safe_get(month2, "holiday_charges") > 0:
+                    breakdown_text += f"\nHoliday Charges: Rs. {format_currency(month2.get('holiday_charges'))}"
+                if safe_get(month2, "discount") > 0:
+                    breakdown_text += f"\nDiscount Applied: Rs. ({format_currency(month2.get('discount'))})"
+
+                breakdown_height = draw_wrapped_text(
+                    p,
+                    f"Breakdown for {month2['name']}:\n" + breakdown_text,
+                    left_margin + 0.5 * inch,
+                    y_position - 0.1 * inch,
+                    width / 2.5,
+                    "Helvetica",
+                    8,
+                    9,
+                )
+                y_position -= breakdown_height + 0.05 * inch
+
+            if safe_get(month2, "payments") > 0:
+                p.drawString(
+                    left_margin + 0.3 * inch,
+                    y_position - line_height,
+                    "Payments Received",
+                )
+                p.drawRightString(
+                    right_margin - 0.1 * inch,
+                    y_position - line_height,
+                    f"({format_currency(month2.get('payments'))})",
+                )
+                y_position -= line_height
+
+            p.setFont("Helvetica-Bold", 9)
+            p.drawString(
+                left_margin + 0.3 * inch,
+                y_position - line_height,
+                f"Balance for {month2['name']} {month2['year']}",
+            )
+            p.drawRightString(
+                right_margin - 0.1 * inch,
+                y_position - line_height,
+                format_currency(month2.get("balance")),
+            )
+            p.setFont("Helvetica", 9)
+            y_position -= line_height
+
+        # Check for page overflow
+        if y_position < bottom_margin + 3.5 * inch:
+            p.showPage()
+            p.setFont("Helvetica", 10)
+            y_position = top_margin - inch
+            p.drawString(left_margin, y_position, "Continued...")
+            y_position -= 0.5 * inch
+
+        # Month 3 (Advance)
+        month3 = invoice_data.get("month3", {})
+        if month3 and safe_get(month3, "charge") > 0:
+            p.setFont("Helvetica-Bold", 9)
+            # Removed background color
+            p.drawString(
+                left_margin + 0.1 * inch,
+                y_position - line_height,
+                f"{month3['name']} {month3['year']} - Advance Payment",
+            )
+            y_position -= line_height * 1.2
+            p.setFont("Helvetica", 9)
+
+            # This is the line for Package Fee - June
+            p.drawString(
+                left_margin + 0.3 * inch,
+                y_position - line_height,
+                f"Package Fee - {month3['name']} {month3['year']}",
+            )
+            p.drawRightString(
+                right_margin - 0.1 * inch,
+                y_position - line_height,
+                format_currency(month3.get("charge")),
+            )
+            y_position -= line_height  # Move down after this line
+
+            # Show breakdown if there are extra charges/discounts
+            if (
+                safe_get(month3, "extra_charges") > 0
+                or safe_get(month3, "holiday_charges") > 0
+                or safe_get(month3, "discount") > 0
+            ):
+                breakdown_text = (
+                    f"Package Fee: Rs. {format_currency(month3.get('package_fee'))}"
+                )
+                if safe_get(month3, "extra_charges") > 0:
+                    breakdown_text += f"\nExtra Hours: Rs. {format_currency(month3.get('extra_charges'))}"
+                if safe_get(month3, "holiday_charges") > 0:
+                    breakdown_text += f"\nHoliday Charges: Rs. {format_currency(month3.get('holiday_charges'))}"
+                if safe_get(month3, "discount") > 0:
+                    breakdown_text += f"\nDiscount Applied: Rs. ({format_currency(month3.get('discount'))})"
+
+                breakdown_height = draw_wrapped_text(
+                    p,
+                    f"Breakdown for {month3['name']}:\n" + breakdown_text,
+                    left_margin + 0.5 * inch,
+                    y_position - 0.1 * inch,
+                    width / 2.5,
+                    "Helvetica",
+                    8,
+                    9,
+                )
+                y_position -= breakdown_height + 0.05 * inch
+
+            if safe_get(month3, "payments") > 0:
+                p.drawString(
+                    left_margin + 0.3 * inch,
+                    y_position - line_height,
+                    "Payments Received",
+                )
+                p.drawRightString(
+                    right_margin - 0.1 * inch,
+                    y_position - line_height,
+                    f"({format_currency(month3.get('payments'))})",
+                )
+                y_position -= line_height
+
+            p.setFont("Helvetica-Bold", 9)
+            # This is the line for Balance for June
+            p.drawString(
+                left_margin + 0.3 * inch,
+                y_position - line_height,
+                f"Balance for {month3['name']} {month3['year']}",
+            )
+            p.drawRightString(
+                right_margin - 0.1 * inch,
+                y_position - line_height,
+                format_currency(month3.get("balance")),
+            )
+            p.setFont("Helvetica", 9)
+            y_position -= line_height
+
+        # --- Total Summary ---
+        y_position -= 0.2 * inch
+        p.line(
+            left_margin, y_position, right_margin, y_position
+        )  # Top line for total box
+        y_position -= 0.1 * inch
+        p.setFont("Helvetica-Bold", 11)
+        p.drawString(
+            left_margin + 0.1 * inch, y_position - line_height, "Total Amount Due:"
+        )
+        p.drawRightString(
+            right_margin - 0.1 * inch,
+            y_position - line_height,
+            f"Rs. {format_currency(invoice_data['grand_total'])}",
+        )
+        y_position -= line_height
+        p.setFont("Helvetica", 10)
+        p.drawString(
+            left_margin + 0.1 * inch,
+            y_position - line_height,
+            "Less Payments Received:",
+        )
+        p.drawRightString(
+            right_margin - 0.1 * inch,
+            y_position - line_height,
+            f"Rs. ({format_currency(invoice_data['payments_received'])})",
+        )
+        y_position -= line_height
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(
+            left_margin + 0.1 * inch, y_position - line_height, "Balance to Pay:"
+        )
+        # No red color for balance to pay
+        p.drawRightString(
+            right_margin - 0.1 * inch,
+            y_position - line_height,
+            f"Rs. {format_currency(invoice_data['balance_amount'])}",
+        )
+        p.setFont("Helvetica", 10)  # Reset font after bold
+        y_position -= line_height + 0.1 * inch
+        p.line(
+            left_margin, y_position, right_margin, y_position
+        )  # Bottom line for total box
+
+        # Payment Status
+        y_position -= 0.2 * inch
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(left_margin, y_position, "Payment Status:")  # Draw the label
+
+        # Calculate x-position for the actual status string
+        status_label_width = p.stringWidth("Payment Status:", "Helvetica-Bold", 10)
+        status_text_x = (
+            left_margin + status_label_width + 0.1 * inch
+        )  # Add a small buffer
+
+        # No color for status text
+        p.drawString(
+            status_text_x,
+            y_position,
+            invoice_data["payment_status"].replace("_", " ").title(),
+        )
+
+        y_position -= 0.4 * inch  # More space after status
+
+        # --- Summary Cards (Textual) ---
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(left_margin, y_position, "Summary:")
+        y_position -= 0.2 * inch
+        p.setFont("Helvetica", 9)
+        p.drawString(
+            left_margin + 0.2 * inch,
+            y_position - line_height,
+            f"Total Outstanding from Previous: Rs. {format_currency(invoice_data['summary']['total_outstanding'])}",
+        )
+        y_position -= line_height
+        p.drawString(
+            left_margin + 0.2 * inch,
+            y_position - line_height,
+            f"Current Month Charges: Rs. {format_currency(invoice_data['summary']['current_month_charge'])}",
+        )
+        y_position -= line_height
+        p.drawString(
+            left_margin + 0.2 * inch,
+            y_position - line_height,
+            f"Next Month Charges (Advance): Rs. {format_currency(invoice_data['summary']['next_month_charge'])}",
+        )
+        y_position -= line_height
+        p.drawString(
+            left_margin + 0.2 * inch,
+            y_position - line_height,
+            f"Overall Grand Total: Rs. {format_currency(invoice_data['grand_total'])}",
+        )  # Use calculated grand_total
+        y_position -= 0.4 * inch
+
+        # --- Notes ---
+        p.setFont("Helvetica", 9)
+        notes = [
+            "Please note that extra hours after 5:30 PM, public holiday charges, and extra charges are calculated separately.",
+            "Any pending discounts or special considerations will be applied upon review and verification.",
+            "This is an electronically generated memo and does not require a signature.",
+        ]
+        p.drawString(left_margin, y_position, "Notes:")
+        y_position -= 0.2 * inch
+        for note in notes:
+            # Use draw_wrapped_text to handle multi-line notes gracefully
+            note_height = draw_wrapped_text(
+                p,
+                f"• {note}",
+                left_margin + 0.1 * inch,
+                y_position - 0.1 * inch,
+                width - 2 * left_margin - 0.2 * inch,
+                "Helvetica",
+                9,
+                10,
+            )
+            y_position -= (
+                note_height + 0.05 * inch
+            )  # Adjust y_position by actual height used by wrapped text
+
+        y_position -= 0.2 * inch
+        p.drawString(left_margin, y_position, "Thank you for your prompt payment!")
+        y_position -= 0.5 * inch
+
+        # --- Bank Details ---
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(left_margin, y_position, "Bank Details:")
+        y_position -= 0.2 * inch
+        p.setFont("Helvetica", 9)
+        p.drawString(
+            left_margin + 0.1 * inch, y_position - line_height, "Bank Name: XYZ Bank"
+        )
+        y_position -= line_height
+        p.drawString(
+            left_margin + 0.1 * inch,
+            y_position - line_height,
+            "Account Name: Polymath College (Pvt) Ltd",
+        )
+        y_position -= line_height
+        p.drawString(
+            left_margin + 0.1 * inch,
+            y_position - line_height,
+            "Account Number: 1234567890",
+        )
+        y_position -= line_height
+        p.drawString(
+            left_margin + 0.1 * inch, y_position - line_height, "Branch: Maharagama"
+        )
+        y_position -= line_height
+
+        # Finalize the PDF
+        p.showPage()
+        p.save()
+        return response
+
+    except InvoiceMemo.DoesNotExist:
+        return HttpResponse("Invoice memo not found.", status=404)
+    except Exception as e:
+        return HttpResponse(f"Error generating PDF: {str(e)}", status=500)

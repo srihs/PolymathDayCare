@@ -499,12 +499,7 @@ $(document).ready(function() {
                                 <button type="button" class="btn btn-outline-primary btn-sm" onclick="printMemo(${row.id})" title="Print">
                                     <i class="ri-printer-line"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-success btn-sm" onclick="recordPayment('${row.memo_code}')" title="Payment">
-                                    <i class="ri-money-dollar-circle-line"></i>
-                                </button>
-                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteInvoice(${row.id})" title="Delete">
-                                    <i class="ri-delete-bin-line"></i>
-                                </button>
+                               
                             </div>
                         </div>
                     `;
@@ -709,33 +704,7 @@ function displayThreeMonthMemoDetails(data) {
                 </table>
             </div>
 
-            <!-- Summary Cards -->
-            <div class="row mt-4">
-                <div class="col-md-4">
-                    <div class="card border-warning">
-                        <div class="card-body text-center">
-                            <h6 class="card-title">Outstanding</h6>
-                            <h4 class="text-warning">Rs. ${safeFixed(data.summary.total_outstanding)}</h4>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card border-primary">
-                        <div class="card-body text-center">
-                            <h6 class="card-title">Current Month</h6>
-                            <h4 class="text-primary">Rs. ${safeFixed(data.month2.charge)}</h4>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card border-info">
-                        <div class="card-body text-center">
-                            <h6 class="card-title">Advance</h6>
-                            <h4 class="text-info">Rs. ${safeFixed(data.month3.charge)}</h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
+           
 
             <!-- Notes -->
             <div class="mt-4">
@@ -1184,12 +1153,7 @@ function displayThreeMonthPreviewUpdated(data) {
     $('#dueDate').text(formattedDueDate);
 }
 
-// Function to record payment
-function recordPayment(memoCode) {
-    alert(`Record payment for memo: ${memoCode}\n\nThis will redirect to payment recording page.`);
-    // You can implement payment recording logic here
-    // window.location.href = `/record_payment/${memoCode}/`;
-}
+
 
 // Function to generate after preview
 function generateAfterPreview() {
@@ -1226,7 +1190,7 @@ function applyFilters() {
 
 function printMemo(memoId) {
     // Open memo in print view
-    window.open(`/print_memo/${memoId}/`, '_blank');
+   window.open(`/download_invoice_pdf/${memoId}/`, '_blank');
 }
 
 function deleteInvoice(invoiceId) {
