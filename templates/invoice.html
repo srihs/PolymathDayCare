@@ -71,7 +71,7 @@
 
                         <!-- Action Buttons -->
                         <div class="col-md-12">
-                            <div class="d-flex gap-2">
+                            <div class="d-flex flex-row-reverse gap-2">
                                 <button type="button" class="btn btn-info" onclick="previewInvoiceUpdated()">
                                     <i class="ri-eye-line"></i> Preview Memo
                                 </button>
@@ -133,15 +133,11 @@
         <div class="card">
             <div class="card-header align-items-center d-flex">
                 <h4 class="card-title mb-0 flex-grow-1">Generated Invoice Memos</h4>
-                <div class="flex-shrink-0">
-                    <button type="button" class="btn btn-soft-info" onclick="refreshInvoiceList()">
-                        <i class="ri-refresh-line"></i> Refresh
-                    </button>
-                </div>
+                
             </div>
             <div class="card-body">
                 <!-- Filter Section -->
-                <div class="row g-3 mb-3">
+                <!-- <div class="row g-3 mb-3">
                     <div class="col-md-3">
                         <select class="form-control" id="filter_month">
                             <option value="">All Months</option>
@@ -182,7 +178,7 @@
                             <i class="ri-filter-line"></i> Apply Filters
                         </button>
                     </div>
-                </div>
+                </div> -->
 
                 <div class="table-responsive">
                     <table id="invoiceMemosTable" class="table table-bordered table-striped align-middle" style="width:100%">
@@ -226,9 +222,7 @@
                 <button type="button" class="btn btn-primary" onclick="printInvoiceAsPDF()">
                     <i class="ri-printer-line"></i> Print as PDF
                 </button>
-                <button type="button" class="btn btn-success" onclick="generateAfterPreview()">
-                    <i class="ri-file-add-line"></i> Generate This Memo
-                </button>
+                
             </div>
         </div>
     </div>
@@ -862,12 +856,12 @@ function generateThreeMonthPDFContent(data) {
         <div class="header">
             <h1>POLYMATH COLLEGE</h1>
             <p>No 452/3 High Level Road, Nawinna, Maharagama</p>
-            <p>PV 63200 | Phone 0112802554</p>
+            <p>PV 63200 | Phone 0112 802 554</p>
             <h2>KIDS DIVISION - MEMO</h2>
         </div>
         
         <div class="memo-info">
-            Memo Code: ${memoCode} | Generated: ${memoDate}
+            Memo Code: ${memoCode} | Generated: ${memoDate} |<span class="text-danger fw-bold">Due on: ${dueDateString}</span>
         </div>
         
         <div class="child-info">
@@ -923,7 +917,7 @@ function generateThreeMonthPDFContent(data) {
          <!-- Notes and Account Details -->
            <div class="notes">
             <p><strong>Please note that,</strong></p>
-            <p style="margin-bottom: 15px;">Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before 2024. Ignore this message if you have already settled that outstanding.</p>
+            <p style="margin-bottom: 15px;">Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before <span class="text-danger fw-bold">${dueDateString}</span>. Ignore this message if you have already settled that outstanding.</p>
             
             <div style="margin-top: 15px; font-weight: bold;">
                 <p style="margin-bottom: 5px;">Thank you,</p>
@@ -932,12 +926,12 @@ function generateThreeMonthPDFContent(data) {
         </div>
         
         <div class="account-details">
-            <p style="font-weight: bold; margin-bottom: 10px; font-size: 12px;">Account Details</p>
-            <p style="margin-bottom: 3px;"><strong>Account Name</strong> - Polymath College (PVT) Ltd</p>
-            <p style="margin-bottom: 3px;"><strong>Bank</strong> - Peoples Bank</p>
-            <p style="margin-bottom: 3px;"><strong>Branch</strong> - Gangodawila</p>
-            <p style="margin-bottom: 10px;"><strong>Account Number</strong> - 097100130026495</p>
-            <p style="margin-bottom: 5px;"><strong>Whatsapp</strong> - 0705585858</p>
+             <p style="font-weight: bold; margin-bottom: 5px; font-size: 16px;">Account Details</p>
+            <p style="margin-bottom: 2px;"><strong>Account Name</strong> - Polymath College (PVT) Ltd</p>
+            <p style="margin-bottom: 2px;"><strong>Bank</strong> - Peoples Bank</p>
+            <p style="margin-bottom: 2px;"><strong>Branch</strong> - Gangodawila</p>
+            <p style="margin-bottom: 2px;"><strong>Account Number</strong> - 097100130026495</p>
+            <p style="margin-bottom: 2px;"><strong>Whatsapp</strong> - 0705 58 58 58</p>
         </div>
     </body>
     </html>
@@ -1073,12 +1067,12 @@ function generateSingleMonthPDFContent(data) {
         <div class="header">
             <h1>POLYMATH COLLEGE</h1>
             <p>No 452/3 High Level Road, Nawinna, Maharagama</p>
-            <p>PV 63200 | Phone 0112802554</p>
+            <p>PV 63200 | Phone 0112 802 554</p>
             <h2>KIDS DIVISION - MEMO</h2>
         </div>
         
         <div class="memo-info">
-            Memo Code: ${data.memo_code} | Generated: ${data.memo_date}
+            Memo Code: ${data.memo_code} | Generated: ${data.memo_date} |  <span class="text-danger fw-bold"> Due on:  ${dueDateString}</span>
         </div>
         
         <div class="child-info">
@@ -1108,7 +1102,7 @@ function generateSingleMonthPDFContent(data) {
         <!-- Notes and Account Details -->
             <div class="notes">
             <p><strong>Please note that,</strong></p>
-            <p style="margin-bottom: 15px;">Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before 2024. Ignore this message if you have already settled that outstanding.</p>
+            <p style="margin-bottom: 15px;">Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before <span class="text-danger fw-bold">${dueDateString}</span>. Ignore this message if you have already settled that outstanding.</p>
             
             <div style="margin-top: 15px; font-weight: bold;">
                 <p style="margin-bottom: 5px;">Thank you,</p>
@@ -1117,12 +1111,12 @@ function generateSingleMonthPDFContent(data) {
         </div>
         
         <div class="account-details">
-            <p style="font-weight: bold; margin-bottom: 10px; font-size: 12px;">Account Details</p>
-            <p style="margin-bottom: 3px;"><strong>Account Name</strong> - Polymath College (PVT) Ltd</p>
-            <p style="margin-bottom: 3px;"><strong>Bank</strong> - Peoples Bank</p>
-            <p style="margin-bottom: 3px;"><strong>Branch</strong> - Gangodawila</p>
-            <p style="margin-bottom: 10px;"><strong>Account Number</strong> - 097100130026495</p>
-            <p style="margin-bottom: 5px;"><strong>Whatsapp</strong> - 0705585858</p>
+              <p style="font-weight: bold; margin-bottom: 5px; font-size: 16px;">Account Details</p>
+            <p style="margin-bottom: 2px;"><strong>Account Name</strong> - Polymath College (PVT) Ltd</p>
+            <p style="margin-bottom: 2px;"><strong>Bank</strong> - Peoples Bank</p>
+            <p style="margin-bottom: 2px;"><strong>Branch</strong> - Gangodawila</p>
+            <p style="margin-bottom: 2px;"><strong>Account Number</strong> - 097100130026495</p>
+            <p style="margin-bottom: 2px;"><strong>Whatsapp</strong> - 0705 58 58 58</p>
         </div>
             </div>
     </body>
@@ -1149,10 +1143,10 @@ function displayThreeMonthMemoDetails(data) {
             <!-- Header -->
             <div class="text-center mb-4">
                 <h3>POLYMATH COLLEGE</h3>
-                <p>No 452/3 High Level Road, Nawinna, Maharagama<br>PV 63200 | Phone 0112802554</p>
+                <p>No 452/3 High Level Road, Nawinna, Maharagama<br>PV 63200 | Phone 0112 802 554</p>
                 <h4>KIDS DIVISION - MEMO</h4>
                 <div class="alert alert-info">
-                    <strong>Memo Code:</strong> ${data.memo_code} | <strong>Generated:</strong> ${data.memo_date}
+                    <strong>Memo Code:</strong> ${data.memo_code} | <strong>Generated:</strong> ${data.memo_date} | <span class="text-danger fw-bold">Due on:  ${dueDateString}</span>
                 </div>
             </div>
             
@@ -1250,7 +1244,7 @@ function displayThreeMonthMemoDetails(data) {
 
              <div class="notes">
             <p><strong>Please note that,</strong></p>
-            <p style="margin-bottom: 15px;">Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before 2024. Ignore this message if you have already settled that outstanding.</p>
+            <p style="margin-bottom: 15px;">Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before <span class="text-danger fw-bold">${dueDateString}</span>. Ignore this message if you have already settled that outstanding.</p>
             
             <div style="margin-top: 15px; font-weight: bold;">
                 <p style="margin-bottom: 5px;">Thank you,</p>
@@ -1259,12 +1253,12 @@ function displayThreeMonthMemoDetails(data) {
         </div>
         
         <div class="account-details">
-            <p style="font-weight: bold; margin-bottom: 10px; font-size: 12px;">Account Details</p>
-            <p style="margin-bottom: 3px;"><strong>Account Name</strong> - Polymath College (PVT) Ltd</p>
-            <p style="margin-bottom: 3px;"><strong>Bank</strong> - Peoples Bank</p>
-            <p style="margin-bottom: 3px;"><strong>Branch</strong> - Gangodawila</p>
-            <p style="margin-bottom: 10px;"><strong>Account Number</strong> - 097100130026495</p>
-            <p style="margin-bottom: 5px;"><strong>Whatsapp</strong> - 0705585858</p>
+            <p style="font-weight: bold; margin-bottom: 5px; font-size: 16px;">Account Details</p>
+            <p style="margin-bottom: 2px;"><strong>Account Name</strong> - Polymath College (PVT) Ltd</p>
+            <p style="margin-bottom: 2px;"><strong>Bank</strong> - Peoples Bank</p>
+            <p style="margin-bottom: 2px;"><strong>Branch</strong> - Gangodawila</p>
+            <p style="margin-bottom: 2px;"><strong>Account Number</strong> - 097100130026495</p>
+            <p style="margin-bottom: 2px;"><strong>Whatsapp</strong> - 0705 58 58 58</p>
         </div>
         </div>
     `;
@@ -1291,10 +1285,10 @@ function displaySingleMonthMemoDetails(data) {
             <!-- Header -->
             <div class="text-center mb-4">
                 <h3>POLYMATH COLLEGE</h3>
-                <p>No 452/3 High Level Road, Nawinna, Maharagama<br>PV 63200 | Phone 0112802554</p>
+                <p>No 452/3 High Level Road, Nawinna, Maharagama<br>PV 63200 | Phone 0112 802 554</p>
                 <h4>KIDS DIVISION - MEMO</h4>
                 <div class="alert alert-secondary">
-                    <strong>Memo Code:</strong> ${data.memo_code} | <strong>Generated:</strong> ${data.memo_date}
+                    <strong>Memo Code:</strong> ${data.memo_code} | <strong>Generated:</strong> ${data.memo_date} |   <span class="text-danger fw-bold">Due on: ${dueDateString}</span>
                     <br><small>Single Month Format</small>
                 </div>
             </div>
@@ -1520,7 +1514,7 @@ function displayThreeMonthPreviewUpdated(data) {
             <!-- Header -->
             <div class="text-center mb-4">
                 <h3>POLYMATH COLLEGE</h3>
-                <p>No 452/3 High Level Road, Nawinna, Maharagama<br>  PV 63200 |  Phone 0112802554</p>
+                <p>No 452/3 High Level Road, Nawinna, Maharagama<br>  PV 63200 |  Phone 0112 802 554</p>
                 <h4>KIDS DIVISION - MEMO</h4>
             </div>
             
@@ -1677,7 +1671,7 @@ function displayThreeMonthPreviewUpdated(data) {
             <!-- Notes and Account Details -->
             <div class="notes">
             <p><strong>Please note that,</strong></p>
-            <p style="margin-bottom: 15px;">Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before 2024. Ignore this message if you have already settled that outstanding.</p>
+            <p style="margin-bottom: 15px;">Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before <span class="text-danger fw-bold">${dueDateString}</span>. Ignore this message if you have already settled that outstanding.</p>
             
             <div style="margin-top: 15px; font-weight: bold;">
                 <p style="margin-bottom: 5px;">Thank you,</p>
@@ -1686,12 +1680,12 @@ function displayThreeMonthPreviewUpdated(data) {
         </div>
         
         <div class="account-details">
-            <p style="font-weight: bold; margin-bottom: 10px; font-size: 12px;">Account Details</p>
-            <p style="margin-bottom: 3px;"><strong>Account Name</strong> - Polymath College (PVT) Ltd</p>
-            <p style="margin-bottom: 3px;"><strong>Bank</strong> - Peoples Bank</p>
-            <p style="margin-bottom: 3px;"><strong>Branch</strong> - Gangodawila</p>
-            <p style="margin-bottom: 10px;"><strong>Account Number</strong> - 097100130026495</p>
-            <p style="margin-bottom: 5px;"><strong>Whatsapp</strong> - 0705585858</p>
+             <p style="font-weight: bold; margin-bottom: 5px; font-size: 16px;">Account Details</p>
+            <p style="margin-bottom: 2px;"><strong>Account Name</strong> - Polymath College (PVT) Ltd</p>
+            <p style="margin-bottom: 2px;"><strong>Bank</strong> - Peoples Bank</p>
+            <p style="margin-bottom: 2px;"><strong>Branch</strong> - Gangodawila</p>
+            <p style="margin-bottom: 2px;"><strong>Account Number</strong> - 097100130026495</p>
+            <p style="margin-bottom: 2px;"><strong>Whatsapp</strong> - 0705 58 58 58</p>
         </div>
         </div>
     `;
@@ -1849,6 +1843,15 @@ function printMemoAsPDF(memoId) {
         }
     });
 }
+
+const today = new Date();
+const dueDate = new Date(today);
+dueDate.setDate(today.getDate() + 10);
+const dueDateString = dueDate.toLocaleDateString('en-GB', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+});
 
 function printInvoice() {
     // Legacy function - redirect to new PDF function
