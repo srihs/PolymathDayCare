@@ -3757,7 +3757,7 @@ def getInvoiceMemos(request):
         return render(
             request,
             "invoice.html",
-            {context},
+            context,
         )
 
 
@@ -4829,6 +4829,34 @@ def getInvoiceMemosJS(request):
                     month2_detail = details[1]  # Calculated
                     month3_detail = details[2]  # Advance
 
+                    # Build month_breakdown step by step to avoid dict issues
+                    month1_data = {
+                        "name": str(month1_detail.month_name),
+                        "year": int(month1_detail.year),
+                        "type": str(month1_detail.month_type),
+                        "charge": float(month1_detail.charge_amount),
+                        "payments": float(month1_detail.payment_amount),
+                        "balance": float(month1_detail.balance_amount),
+                    }
+
+                    month2_data = {
+                        "name": str(month2_detail.month_name),
+                        "year": int(month2_detail.year),
+                        "type": str(month2_detail.month_type),
+                        "charge": float(month2_detail.charge_amount),
+                        "payments": float(month2_detail.payment_amount),
+                        "balance": float(month2_detail.balance_amount),
+                    }
+
+                    month3_data = {
+                        "name": str(month3_detail.month_name),
+                        "year": int(month3_detail.year),
+                        "type": str(month3_detail.month_type),
+                        "charge": float(month3_detail.charge_amount),
+                        "payments": float(month3_detail.payment_amount),
+                        "balance": float(month3_detail.balance_amount),
+                    }
+
                     memo_item = {
                         "id": memo.id,
                         "memo_code": memo.memo_code or f"MEMO-{memo.id}",
@@ -4840,10 +4868,8 @@ def getInvoiceMemosJS(request):
                         else "N/A",
                         "month": memo.month or 0,
                         "year": memo.year or 0,
-                        "month_name": f"{month2_detail.month_name} {month2_detail.year}",  # Show the calculated month
-                        "month_charge": float(
-                            memo.grand_total or 0
-                        ),  # Show grand total instead of single month
+                        "month_name": f"{month2_detail.month_name} {month2_detail.year}",
+                        "month_charge": float(memo.grand_total or 0),
                         "payments_received": float(memo.total_payments_received or 0),
                         "month_balance": float(memo.grand_total or 0)
                         - float(memo.total_payments_received or 0),
@@ -4853,35 +4879,14 @@ def getInvoiceMemosJS(request):
                         "created_at": memo.date_created.strftime("%Y-%m-%d")
                         if memo.date_created
                         else "",
-                        # Flag to indicate this is 3-month format
                         "is_three_month_format": True,
-                        # 3-month breakdown for detailed display
-                        "month_breakdown": {
-                            "month1": {
-                                "name": month1_detail.month_name,
-                                "year": month1_detail.year,
-                                "type": month1_detail.month_type,
-                                "charge": float(month1_detail.charge_amount),
-                                "payments": float(month1_detail.payment_amount),
-                                "balance": float(month1_detail.balance_amount),
-                            },
-                            "month2": {
-                                "name": month2_detail.month_name,
-                                "year": month2_detail.year,
-                                "type": month2_detail.month_type,
-                                "charge": float(month2_detail.charge_amount),
-                                "payments": float(month2_detail.payment_amount),
-                                "balance": float(month2_detail.balance_amount),
-                            },
-                            "month3": {
-                                "name": month3_detail.month_name,
-                                "year": month3_detail.year,
-                                "type": month3_detail.month_type,
-                                "charge": float(month3_detail.charge_amount),
-                                "payments": float(month3_detail.payment_amount),
-                                "balance": float(month3_detail.balance_amount),
-                            },
-                        },
+                    }
+
+                    # Add month_breakdown separately to avoid dict issues
+                    memo_item["month_breakdown"] = {
+                        "month1": month1_data,
+                        "month2": month2_data,
+                        "month3": month3_data,
                     }
                 else:
                     # OLD FORMAT: Single month data (backward compatibility)
@@ -4896,7 +4901,7 @@ def getInvoiceMemosJS(request):
                         else "N/A",
                         "month": memo.month or 0,
                         "year": memo.year or 0,
-                        "month_name": month_name,
+                        "month_name": str(month_name),
                         "month_charge": float(memo.month_total_charge or 0),
                         "payments_received": float(memo.total_payments_received or 0),
                         "month_balance": float(memo.month_net_balance or 0),
@@ -4906,7 +4911,6 @@ def getInvoiceMemosJS(request):
                         "created_at": memo.date_created.strftime("%Y-%m-%d")
                         if memo.date_created
                         else "",
-                        # Flag to indicate this is old single-month format
                         "is_three_month_format": False,
                     }
 
@@ -4918,9 +4922,7 @@ def getInvoiceMemosJS(request):
 
         print(f"DEBUG: Returning {len(memo_data)} memo records")
 
-        response = JsonResponse(memo_data, safe=False)
-        response["Content-Type"] = "application/json"
-        return response
+        return JsonResponse(memo_data, safe=False)
 
     except Exception as e:
         print(f"ERROR in getInvoiceMemosJS: {e}")
