@@ -950,6 +950,369 @@ function previewInvoiceUpdated() {
     });
 }
 
+function displayThreeMonthPreviewUpdated(data) {
+    console.log('🔍 Displaying updated 3-month preview:', data);
+    
+    // Safe number formatting function with thousand separators
+    function safeFixed(value, decimals = 2) {
+        if (value === null || value === undefined || isNaN(value)) {
+            return '0.00';
+        }
+        const num = parseFloat(value).toFixed(decimals);
+        return parseFloat(num).toLocaleString('en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+    
+    // Safe value extraction
+    function safeValue(obj, path, defaultValue = 0) {
+        try {
+            const keys = path.split('.');
+            let result = obj;
+            for (const key of keys) {
+                result = result?.[key];
+            }
+            return result !== null && result !== undefined ? result : defaultValue;
+        } catch (e) {
+            return defaultValue;
+        }
+    }
+    
+    // Extract data safely
+    const childName = safeValue(data, 'child_name', 'Unknown Child');
+    const childAdmission = safeValue(data, 'child_admission', 'N/A');
+    
+    const month1 = {
+        name: safeValue(data, 'month1.name', ''),
+        year: safeValue(data, 'month1.year', 0),
+        charge: safeValue(data, 'month1.charge', 0),
+        balance: safeValue(data, 'month1.balance', 0),
+        status: safeValue(data, 'month1.status', 'No Record')
+    };
+    
+    const month2 = {
+        name: safeValue(data, 'month2.name', ''),
+        year: safeValue(data, 'month2.year', 0),
+        package_name: safeValue(data, 'month2.package_name', 'Unknown Package'),
+        charge: safeValue(data, 'month2.charge', 0),
+        package_fee: safeValue(data, 'month2.package_fee', 0),
+        extra_charges: safeValue(data, 'month2.extra_charges', 0),
+        holiday_charges: safeValue(data, 'month2.holiday_charges', 0),
+        discount: safeValue(data, 'month2.discount', 0),
+        days_attended: safeValue(data, 'month2.days_attended', 0),
+        expected_days: safeValue(data, 'month2.expected_days', 22),
+        attendance_percentage: safeValue(data, 'month2.attendance_percentage', 0),
+        is_half_charge: safeValue(data, 'month2.is_half_charge', false),
+        extra_charges_breakdown: safeValue(data, 'month2.extra_charges_breakdown', []),
+        holiday_charges_breakdown: safeValue(data, 'month2.holiday_charges_breakdown', []),
+        breakdown_summary: safeValue(data, 'month2.breakdown_summary', {})
+    };
+    
+    console.log('🔍 Month2 breakdown data:', {
+        extra_charges: month2.extra_charges,
+        holiday_charges: month2.holiday_charges,
+        extra_charges_breakdown_count: month2.extra_charges_breakdown.length,
+        holiday_charges_breakdown_count: month2.holiday_charges_breakdown.length,
+        breakdown_summary_keys: Object.keys(month2.breakdown_summary)
+    });
+    
+    const month3 = {
+        name: safeValue(data, 'month3.name', ''),
+        year: safeValue(data, 'month3.year', 0),
+        package_name: safeValue(data, 'month3.package_name', 'Unknown Package'),
+        charge: safeValue(data, 'month3.charge', 0)
+    };
+    
+    const summary = {
+        grand_total: safeValue(data, 'summary.grand_total', 0)
+    };
+
+    // Get due date (10 days from today)
+    const today = new Date();
+    const dueDate = new Date(today);
+    dueDate.setDate(today.getDate() + 10);
+    const dueDateString = dueDate.toLocaleDateString('en-GB', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+
+    let content = `
+        <div class="invoice-preview">
+            
+            <!-- Header -->
+            <div class="text-center mb-4">
+                <h3>POLYMATH COLLEGE</h3>
+                <p>No 452/3 High Level Road, Nawinna, Maharagama<br>PV 63200 | Phone 0112 802 554</p>
+                <h4>KIDS DIVISION - MEMO</h4>
+            </div>
+            
+            <!-- Child Information -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <strong>Name:</strong> ${childName}
+                </div>
+                <div class="col-md-6">
+                    <strong>Child ID:</strong> ${childAdmission}
+                </div>
+                <div class="col-md-12 mt-2">
+                    <strong>Package:</strong> ${month2.package_name}
+                </div>
+            </div>
+
+            <!-- Invoice Table -->
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Description</th>
+                            <th class="text-end">Amount (Rs.)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+
+    // Month 1 (Outstanding/Credits)
+    if (month1.status !== 'No Record' && month1.charge > 0) {
+        content += `
+            <tr class="table-secondary">
+                <td colspan="2"><strong>${month1.name} ${month1.year} - OUTSTANDING</strong></td>
+            </tr>
+            <tr>
+                <td style="padding-left: 20px;">Outstanding from ${month1.name}</td>
+                <td class="text-end">${safeFixed(month1.balance)}</td>
+            </tr>
+        `;
+    } else {
+        content += `
+            <tr>
+                <td style="padding-left: 20px;">Outstanding as at ${month1.name}</td>
+                <td class="text-end text-muted">0.00</td>
+            </tr>
+        `;
+    }
+
+    // Month 2 (Calculated with attendance) - ENHANCED WITH BREAKDOWN
+    if (month2.charge > 0) {
+        content += `
+            <tr class="table-warning">
+                <td colspan="2">
+                    <strong>${month2.name} ${month2.year} - CALCULATED</strong>
+                </td>
+            </tr>
+            <tr>
+                <td>Day Care Monthly fee - ${month2.name} ${month2.year} (${month2.days_attended}/${month2.expected_days} days attended)
+                    ${month2.is_half_charge ? '<br><small class="text-warning">Half charge applied (attendance < 50%)</small>' : ''}
+                </td>
+                <td class="text-end">${safeFixed(month2.charge)}</td>
+            </tr>
+        `;
+        
+        // ENHANCED: Show detailed breakdown if we have extra or holiday charges
+        if (month2.extra_charges > 0 || month2.holiday_charges > 0 || month2.discount > 0) {
+            content += `
+                <tr>
+                    <td colspan="2" class="table-light">
+                        <div class="breakdown-details">
+                            <strong>Detailed Breakdown for ${month2.name}:</strong>
+                            <div class="row mt-2">
+                                <div class="col-md-6">
+                                    <div class="breakdown-section">
+                                        <h6 class="text-primary mb-2"> Base Package</h6>
+                                        <div class="breakdown-item">
+                                            <span class="breakdown-label">Package Fee ${month2.is_half_charge ? '(Half Charge)' : '(Full Charge)'}</span>
+                                            <span class="breakdown-amount">Rs. ${safeFixed(month2.package_fee)}</span>
+                                        </div>
+                                        ${month2.is_half_charge ? `
+                                            <small class="text-muted">Half charge applied due to attendance < 50%</small>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="breakdown-section">
+                                        <h6 class="text-info mb-2">➕ Additional Charges</h6>
+                                        ${month2.extra_charges > 0 ? `
+                                            <div class="breakdown-item">
+                                                <span class="breakdown-label">Extra Hours (${month2.extra_charges_breakdown.length} instances)</span>
+                                                <span class="breakdown-amount">Rs. ${safeFixed(month2.extra_charges)}</span>
+                                            </div>
+                                        ` : `
+                                            <div class="breakdown-item">
+                                                <span class="breakdown-label">Extra Hours</span>
+                                                <span class="breakdown-amount text-muted">Rs. 0.00</span>
+                                            </div>
+                                        `}
+                                        ${month2.holiday_charges > 0 ? `
+                                            <div class="breakdown-item">
+                                                <span class="breakdown-label">Holiday Attendance (${month2.holiday_charges_breakdown.length} days)</span>
+                                                <span class="breakdown-amount">Rs. ${safeFixed(month2.holiday_charges)}</span>
+                                            </div>
+                                        ` : `
+                                            <div class="breakdown-item">
+                                                <span class="breakdown-label">Holiday Attendance</span>
+                                                <span class="breakdown-amount text-muted">Rs. 0.00</span>
+                                            </div>
+                                        `}
+                                        ${month2.discount > 0 ? `
+                                            <div class="breakdown-item text-success">
+                                                <span class="breakdown-label">💸 Discount Applied</span>
+                                                <span class="breakdown-amount">(Rs. ${safeFixed(month2.discount)})</span>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            </div>
+            `;
+            
+            // Show extra charges details if available
+            if (month2.extra_charges_breakdown && month2.extra_charges_breakdown.length > 0) {
+                content += `
+                    <div class="mt-3">
+                        <h6 class="text-success mb-2">Extra Hours Details Found:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Time Out</th>
+                                        <th>Time Slot</th>
+                                        <th class="text-end">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                month2.extra_charges_breakdown.forEach(charge => {
+                    content += `
+                        <tr>
+                            <td>${new Date(charge.date).toLocaleDateString('en-GB')}</td>
+                            <td>${charge.time_out}</td>
+                            <td>${charge.time_slot}</td>
+                            <td class="text-end">Rs. ${safeFixed(charge.rate)}</td>
+                        </tr>
+                    `;
+                });
+                
+                content += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } else if (month2.extra_charges > 0) {
+                content += `
+                    <div class="mt-3">
+                        <div class="alert alert-warning">
+                            <strong>Extra Charges Found but No Details:</strong><br>
+                            Total extra charges: Rs. ${safeFixed(month2.extra_charges)}<br>
+                            <small>This might indicate an issue with breakdown data retrieval.</small>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Show holiday charges details if available
+            if (month2.holiday_charges_breakdown && month2.holiday_charges_breakdown.length > 0) {
+                content += `
+                    <div class="mt-3">
+                        <h6 class="text-success mb-2">✅ Holiday Attendance Details Found:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Holiday Name</th>
+                                        <th class="text-end">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                month2.holiday_charges_breakdown.forEach(charge => {
+                    content += `
+                        <tr>
+                            <td>${new Date(charge.date).toLocaleDateString('en-GB')}</td>
+                            <td>${charge.holiday_name}</td>
+                            <td class="text-end">Rs. ${safeFixed(charge.rate)}</td>
+                        </tr>
+                    `;
+                });
+                
+                content += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } else if (month2.holiday_charges > 0) {
+                content += `
+                    <div class="mt-3">
+                        <div class="alert alert-warning">
+                            <strong>Holiday Charges Found but No Details:</strong><br>
+                            Total holiday charges: Rs. ${safeFixed(month2.holiday_charges)}<br>
+                            <small>This might indicate an issue with breakdown data retrieval.</small>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            content += `
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    // Month 3 (Full package - future month)
+    content += `
+        <tr class="table-info">
+            <td colspan="2"><strong>${month3.name} ${month3.year} - ADVANCE</strong></td>
+        </tr>
+        <tr>
+            <td>Day Care Monthly fee - ${month3.name} ${month3.year} (Full Package)
+                <br><small class="text-info">Advance charge for upcoming month</small>
+            </td>
+            <td class="text-end">${safeFixed(month3.charge)}</td>
+        </tr>
+    `;
+
+    // Grand total
+    content += `
+        <tr class="table-warning">
+            <td><strong>Total Amount to Pay</strong></td>
+            <td class="text-end"><strong>Rs. ${safeFixed(summary.grand_total)}</strong></td>
+        </tr>
+    </tbody>
+                </table>
+            </div>
+
+            <!-- Notes and Account Details -->
+            <div class="notes">
+                <p><strong>Please note that,</strong></p>
+                <p style="margin-bottom: 15px;">Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before <span class="text-danger fw-bold">${dueDateString}</span>. Ignore this message if you have already settled that outstanding.</p>
+                
+                <div style="margin-top: 15px; font-weight: bold;">
+                    <p style="margin-bottom: 5px;">Thank you,</p>
+                    <p style="margin-bottom: 20px;">The Management.</p>
+                </div>
+            </div>
+            
+            <div class="account-details">
+                <p style="font-weight: bold; margin-bottom: 5px; font-size: 16px;">Account Details</p>
+                <p style="margin-bottom: 2px;"><strong>Account Name</strong> - Polymath College (PVT) Ltd</p>
+                <p style="margin-bottom: 2px;"><strong>Bank</strong> - Peoples Bank</p>
+                <p style="margin-bottom: 2px;"><strong>Branch</strong> - Gangodawila</p>
+                <p style="margin-bottom: 2px;"><strong>Account Number</strong> - 097100130026495</p>
+                <p style="margin-bottom: 2px;"><strong>Whatsapp</strong> - 0705 58 58 58</p>
+            </div>
+        </div>
+    `;
+    
+    // Display the content in the modal
+    $('#invoicePreviewContent').html(content);
+}
 
 // Function to record payment
 function recordPayment(memoCode) {
