@@ -61,6 +61,7 @@ from .forms import (
     CreatePackageTypeForm,
     CreatePolymathHolidayForm,
     CreatePublicHolidayForm,
+    ExtraHoursReportForm,
     GenerateInvoiceForm,
     RecordPaymentForm,
     SearchForm,
@@ -5401,3 +5402,649 @@ def draw_wrapped_text(
 
     # Return the actual height used by the paragraph for precise y_position adjustments
     return height
+
+
+# Add these view functions to your views.py file
+
+
+@login_required
+def getExtraHoursReport(request):
+    """Display extra hours report page"""
+    form = ExtraHoursReportForm()
+    return render(
+        request,
+        "../templates/reports/extrahoursreport.html",
+        {"form": form, "UserName": request.user.username},
+    )
+
+
+# Complete implementation for views.py - Enhanced extra hours report
+
+# Replace your simplified view with this complete production version
+
+
+@login_required
+def getExtraHoursReportJS(request):
+    """Complete production version of extra hours report"""
+    try:
+        print("=== Extra Hours Report ===")
+
+        # Get parameters
+        child_id = request.GET.get("child")
+        from_date = request.GET.get("from_date")
+        to_date = request.GET.get("to_date")
+        report_type = request.GET.get("report_type", "detailed")
+        branch_id = request.GET.get("branch")
+        center_id = request.GET.get("center")
+
+        print(
+            f"Parameters: child_id={child_id}, from_date={from_date}, to_date={to_date}, report_type={report_type}"
+        )
+
+        # Set default dates if not provided
+        if not from_date or not to_date:
+            today = datetime.now()
+            if report_type == "monthly":
+                # Default to current month
+                first_day = today.replace(day=1).date()
+                last_day = datetime(
+                    today.year,
+                    today.month,
+                    calendar.monthrange(today.year, today.month)[1],
+                ).date()
+            else:
+                # Default to last 30 days
+                first_day = (today - timedelta(days=30)).date()
+                last_day = today.date()
+            from_date = first_day
+            to_date = last_day
+        else:
+            from_date = datetime.strptime(from_date, "%Y-%m-%d").date()
+            to_date = datetime.strptime(to_date, "%Y-%m-%d").date()
+
+        print(f"Date range: {from_date} to {to_date}")
+
+        # Build base filters
+        filters = Q(date_logged__range=(from_date, to_date))
+        if child_id:
+            filters &= Q(child__id=child_id)
+
+        # Add branch/center filters through enrollment
+        enrollment_filters = Q()
+        if branch_id:
+            enrollment_filters &= Q(branch__id=branch_id)
+        if center_id:
+            enrollment_filters &= Q(center__id=center_id)
+
+        # Get children based on enrollment filters
+        if enrollment_filters:
+            enrolled_children = ChildEnrollment.objects.filter(
+                enrollment_filters, status="Approved", is_active=True
+            ).values_list("child__id", flat=True)
+            filters &= Q(child__id__in=enrolled_children)
+
+        print(f"Filters: {filters}")
+
+        # Get attendance logs
+        attendance_logs = AttendanceLog.objects.filter(filters).order_by(
+            "child", "date_logged", "time_logged"
+        )
+
+        print(f"Found {attendance_logs.count()} attendance logs")
+
+        # Group by child and date
+        logs_by_child_date = defaultdict(list)
+        for log in attendance_logs:
+            key = (log.child.id, log.date_logged)
+            logs_by_child_date[key].append(log)
+
+        print(f"Grouped into {len(logs_by_child_date)} child-date combinations")
+
+        extra_hours_data = []
+
+        for (child_id_key, log_date), logs in logs_by_child_date.items():
+            if len(logs) < 2:  # Need both in and out
+                continue
+
+            # Sort logs by time
+            logs_sorted = sorted(logs, key=lambda x: x.time_logged or time(0, 0))
+            first_log = logs_sorted[0]
+            last_log = logs_sorted[-1]
+
+            child = first_log.child
+            time_in = first_log.time_logged
+            time_out = last_log.time_logged
+
+            # Get package mapping for this date
+            package_mapping = (
+                ChildPackageMapping.objects.filter(
+                    child=child,
+                    is_active=True,
+                    effective_from__lte=log_date,
+                )
+                .filter(Q(effective_to__gte=log_date) | Q(effective_to__isnull=True))
+                .first()
+            )
+
+            if not package_mapping:
+                continue
+
+            # Determine the active package and its end time
+            package = None
+            package_end_time = None
+            package_name = "Unknown Package"
+            package_type = None
+
+            if package_mapping.normal_package:
+                package = package_mapping.normal_package
+                package_end_time = package.to_time
+                package_name = package.package_name
+                package_type = package.package_type
+            elif package_mapping.holiday_package:
+                package = package_mapping.holiday_package
+                package_end_time = package.to_time
+                package_name = f"{package.package_name} (Holiday)"
+                package_type = package.package_type
+            elif package_mapping.flex_package:
+                # For flex packages, use standard end time or calculate based on hours
+                package = package_mapping.flex_package
+                package_name = f"{package.package_name} (Flex)"
+                # For flex packages, assume standard end time (e.g., 5:30 PM)
+                package_end_time = time(17, 30)  # 5:30 PM as default
+                package_type = package.package_type
+
+            if not package_end_time or not time_out:
+                continue
+
+            # Calculate extra hours if child stayed beyond package time
+            if time_out > package_end_time:
+                # Calculate extra time in hours
+                package_end_datetime = datetime.combine(log_date, package_end_time)
+                actual_out_datetime = datetime.combine(log_date, time_out)
+                extra_time_delta = actual_out_datetime - package_end_datetime
+                extra_hours = extra_time_delta.total_seconds() / 3600
+
+                # Get applicable extra hour charges
+                extra_charges = Decimal("0.00")
+                applied_rates = []
+
+                # Check for extra hours after 5:30 PM charges
+                extra_slots_after_530 = ExtraHoursAfter530.objects.filter(
+                    package_type=package_type,
+                    from_time__lte=time_out,
+                    to_time__gte=time_out,
+                    effective_from__lte=log_date,
+                ).filter(Q(effective_to__gte=log_date) | Q(effective_to__isnull=True))
+
+                for slot in extra_slots_after_530:
+                    extra_charges += slot.extra_rate
+                    applied_rates.append(
+                        {
+                            "time_slot": f"{slot.from_time.strftime('%H:%M')} - {slot.to_time.strftime('%H:%M')}",
+                            "rate": float(slot.extra_rate),
+                            "type": "After 5:30 PM",
+                        }
+                    )
+
+                # Check for extra hours before 5:30 PM if applicable
+                cutoff_530 = time(17, 30)
+                if package_end_time < cutoff_530 and time_out > cutoff_530:
+                    # Calculate hours between package end and 5:30 PM
+                    cutoff_datetime = datetime.combine(log_date, cutoff_530)
+                    hours_before_530 = (
+                        cutoff_datetime - package_end_datetime
+                    ).total_seconds() / 3600
+
+                    # Get rates for hours before 5:30 PM
+                    hour_count = int(hours_before_530) + (
+                        1 if hours_before_530 % 1 > 0 else 0
+                    )
+                    for hour_num in range(
+                        1, min(hour_count + 1, 7)
+                    ):  # Max 6 hours typically
+                        rate_obj = (
+                            ExtraHoursUpTo530.objects.filter(
+                                hour_number=hour_num,
+                                effective_from__lte=log_date,
+                                is_active=True,
+                            )
+                            .filter(
+                                Q(effective_to__gte=log_date)
+                                | Q(effective_to__isnull=True)
+                            )
+                            .first()
+                        )
+
+                        if rate_obj:
+                            extra_charges += rate_obj.extra_rate
+                            applied_rates.append(
+                                {
+                                    "time_slot": f"Hour {hour_num} (before 5:30 PM)",
+                                    "rate": float(rate_obj.extra_rate),
+                                    "type": "Before 5:30 PM",
+                                }
+                            )
+
+                # Check if it's a holiday for additional charges
+                is_holiday = Holiday.objects.filter(
+                    start_date__lte=log_date, end_date__gte=log_date, is_active=True
+                ).exists()
+
+                holiday_charge = Decimal("0.00")
+                if is_holiday and package_mapping.holiday_package:
+                    # Calculate holiday charge (daily rate)
+                    expected_days = package_mapping.holiday_package.no_days_months or 22
+                    holiday_charge = (
+                        package_mapping.holiday_package.package_total
+                        / Decimal(expected_days)
+                    )
+
+                total_charge = extra_charges + holiday_charge
+
+                # Get child's enrollment details for additional info
+                enrollment = ChildEnrollment.objects.filter(
+                    child=child, status="Approved", is_active=True
+                ).first()
+
+                extra_hours_data.append(
+                    {
+                        "child_admission": child.admission_number,
+                        "child_name": f"{child.child_first_name} {child.child_last_name}",
+                        "date": log_date.strftime("%Y-%m-%d"),
+                        "day_of_week": log_date.strftime("%A"),
+                        "package_name": package_name,
+                        "package_end_time": package_end_time.strftime("%H:%M"),
+                        "time_in": time_in.strftime("%H:%M") if time_in else "N/A",
+                        "time_out": time_out.strftime("%H:%M"),
+                        "extra_hours": round(extra_hours, 2),
+                        "extra_charges": float(extra_charges),
+                        "holiday_charge": float(holiday_charge),
+                        "total_charge": float(total_charge),
+                        "is_holiday": is_holiday,
+                        "applied_rates": applied_rates,
+                        "branch_name": enrollment.branch.branch_name
+                        if enrollment
+                        else "N/A",
+                        "center_name": enrollment.center.daycare_name
+                        if enrollment
+                        else "N/A",
+                        "package_type": package_type.package_type_name
+                        if package_type
+                        else "N/A",
+                        "notes": f"Stayed {extra_hours:.2f} hours beyond package time",
+                    }
+                )
+
+        # Sort by date and child name
+        extra_hours_data.sort(key=lambda x: (x["date"], x["child_name"]))
+
+        print(
+            f"=== Final Results: {len(extra_hours_data)} records with extra hours ==="
+        )
+
+        return JsonResponse(extra_hours_data, safe=False)
+
+    except Exception as e:
+        print(f"Error in getExtraHoursReportJS: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getExtraHoursSummaryJS(request):
+    """Generate summary of extra hours charges by child or month"""
+    try:
+        child_id = request.GET.get("child")
+        from_date = request.GET.get("from_date")
+        to_date = request.GET.get("to_date")
+        summary_type = request.GET.get("summary_type", "child")  # child or month
+        branch_id = request.GET.get("branch")
+        center_id = request.GET.get("center")
+
+        # Set default date range if not provided
+        if not from_date or not to_date:
+            today = datetime.now()
+            # Default to current month
+            first_day = today.replace(day=1).date()
+            last_day = datetime(
+                today.year, today.month, calendar.monthrange(today.year, today.month)[1]
+            ).date()
+            from_date = first_day
+            to_date = last_day
+        else:
+            from_date = datetime.strptime(from_date, "%Y-%m-%d").date()
+            to_date = datetime.strptime(to_date, "%Y-%m-%d").date()
+
+        # Build base filters
+        filters = Q(date_logged__range=(from_date, to_date))
+        if child_id:
+            filters &= Q(child__id=child_id)
+
+        # Add branch/center filters through enrollment
+        enrollment_filters = Q()
+        if branch_id:
+            enrollment_filters &= Q(branch__id=branch_id)
+        if center_id:
+            enrollment_filters &= Q(center__id=center_id)
+
+        # Get children based on enrollment filters
+        if enrollment_filters:
+            enrolled_children = ChildEnrollment.objects.filter(
+                enrollment_filters, status="Approved", is_active=True
+            ).values_list("child__id", flat=True)
+            filters &= Q(child__id__in=enrolled_children)
+
+        # Get attendance logs grouped by child and date
+        attendance_logs = AttendanceLog.objects.filter(filters).order_by(
+            "child", "date_logged", "time_logged"
+        )
+
+        # Group logs by child and date
+        logs_by_child_date = defaultdict(list)
+        for log in attendance_logs:
+            key = (log.child.id, log.date_logged)
+            logs_by_child_date[key].append(log)
+
+        # Get detailed extra hours data (reusing logic from main report)
+        extra_hours_detailed = []
+
+        for (child_id_key, log_date), logs in logs_by_child_date.items():
+            if len(logs) < 2:  # Skip incomplete attendance
+                continue
+
+            # Sort logs by time
+            logs_sorted = sorted(logs, key=lambda x: x.time_logged or time(0, 0))
+            first_log = logs_sorted[0]
+            last_log = logs_sorted[-1]
+
+            child = first_log.child
+            time_in = first_log.time_logged
+            time_out = last_log.time_logged
+
+            # Get package mapping
+            package_mapping = (
+                ChildPackageMapping.objects.filter(
+                    child=child,
+                    is_active=True,
+                    effective_from__lte=log_date,
+                )
+                .filter(Q(effective_to__gte=log_date) | Q(effective_to__isnull=True))
+                .first()
+            )
+
+            if not package_mapping:
+                continue
+
+            # Determine package and end time
+            package = None
+            package_end_time = None
+            package_type = None
+
+            if package_mapping.normal_package:
+                package = package_mapping.normal_package
+                package_end_time = package.to_time
+                package_type = package.package_type
+            elif package_mapping.holiday_package:
+                package = package_mapping.holiday_package
+                package_end_time = package.to_time
+                package_type = package.package_type
+            elif package_mapping.flex_package:
+                package = package_mapping.flex_package
+                package_end_time = time(17, 30)  # Default for flex
+                package_type = package.package_type
+
+            if not package_end_time or not time_out:
+                continue
+
+            # Calculate extra hours only if exceeded package time
+            if time_out > package_end_time:
+                package_end_datetime = datetime.combine(log_date, package_end_time)
+                actual_out_datetime = datetime.combine(log_date, time_out)
+                extra_time_delta = actual_out_datetime - package_end_datetime
+                extra_hours = extra_time_delta.total_seconds() / 3600
+
+                # Calculate charges
+                extra_charges = Decimal("0.00")
+
+                # Extra hours after 5:30 PM
+                extra_slots = ExtraHoursAfter530.objects.filter(
+                    package_type=package_type,
+                    from_time__lte=time_out,
+                    to_time__gte=time_out,
+                    effective_from__lte=log_date,
+                ).filter(Q(effective_to__gte=log_date) | Q(effective_to__isnull=True))
+
+                for slot in extra_slots:
+                    extra_charges += slot.extra_rate
+
+                # Extra hours before 5:30 PM
+                if package_end_time < time(17, 30):
+                    cutoff_530 = time(17, 30)
+                    if time_out > cutoff_530:
+                        cutoff_datetime = datetime.combine(log_date, cutoff_530)
+                        hours_before_530 = (
+                            cutoff_datetime - package_end_datetime
+                        ).total_seconds() / 3600
+
+                        hour_count = int(hours_before_530) + (
+                            1 if hours_before_530 % 1 > 0 else 0
+                        )
+                        for hour_num in range(1, min(hour_count + 1, 7)):
+                            rate_obj = (
+                                ExtraHoursUpTo530.objects.filter(
+                                    hour_number=hour_num,
+                                    effective_from__lte=log_date,
+                                    is_active=True,
+                                )
+                                .filter(
+                                    Q(effective_to__gte=log_date)
+                                    | Q(effective_to__isnull=True)
+                                )
+                                .first()
+                            )
+
+                            if rate_obj:
+                                extra_charges += rate_obj.extra_rate
+
+                # Holiday charges
+                is_holiday = Holiday.objects.filter(
+                    start_date__lte=log_date, end_date__gte=log_date, is_active=True
+                ).exists()
+
+                holiday_charge = Decimal("0.00")
+                if is_holiday and package_mapping.holiday_package:
+                    expected_days = package_mapping.holiday_package.no_days_months or 22
+                    holiday_charge = (
+                        package_mapping.holiday_package.package_total
+                        / Decimal(expected_days)
+                    )
+
+                total_charge = extra_charges + holiday_charge
+
+                # Store detailed data for summary processing
+                extra_hours_detailed.append(
+                    {
+                        "child_id": child.id,
+                        "child_admission": child.admission_number,
+                        "child_name": f"{child.child_first_name} {child.child_last_name}",
+                        "date": log_date,
+                        "month_year": log_date.strftime("%Y-%m"),
+                        "month_name": log_date.strftime("%B %Y"),
+                        "extra_hours": round(extra_hours, 2),
+                        "total_charge": float(total_charge),
+                        "is_holiday": is_holiday,
+                    }
+                )
+
+        # Now create summaries based on summary_type
+        if summary_type == "child":
+            # Group by child
+            summary_data = defaultdict(
+                lambda: {
+                    "child_id": 0,
+                    "child_admission": "",
+                    "child_name": "",
+                    "total_extra_hours": 0,
+                    "total_charges": 0,
+                    "days_count": 0,
+                    "holiday_days": 0,
+                    "avg_extra_hours_per_day": 0,
+                    "first_occurrence": "",
+                    "last_occurrence": "",
+                    "peak_month": "",
+                    "months_active": set(),
+                }
+            )
+
+            for item in extra_hours_detailed:
+                key = item["child_admission"]
+                summary = summary_data[key]
+
+                # Basic info
+                summary["child_id"] = item["child_id"]
+                summary["child_admission"] = item["child_admission"]
+                summary["child_name"] = item["child_name"]
+
+                # Accumulate totals
+                summary["total_extra_hours"] += item["extra_hours"]
+                summary["total_charges"] += item["total_charge"]
+                summary["days_count"] += 1
+                if item["is_holiday"]:
+                    summary["holiday_days"] += 1
+
+                # Track date range
+                if (
+                    not summary["first_occurrence"]
+                    or item["date"]
+                    < datetime.strptime(summary["first_occurrence"], "%Y-%m-%d").date()
+                ):
+                    summary["first_occurrence"] = item["date"].strftime("%Y-%m-%d")
+                if (
+                    not summary["last_occurrence"]
+                    or item["date"]
+                    > datetime.strptime(summary["last_occurrence"], "%Y-%m-%d").date()
+                ):
+                    summary["last_occurrence"] = item["date"].strftime("%Y-%m-%d")
+
+                # Track months
+                summary["months_active"].add(item["month_year"])
+
+            # Calculate derived metrics
+            for key, summary in summary_data.items():
+                if summary["days_count"] > 0:
+                    summary["avg_extra_hours_per_day"] = round(
+                        summary["total_extra_hours"] / summary["days_count"], 2
+                    )
+                summary["months_count"] = len(summary["months_active"])
+                summary["months_active"] = list(
+                    summary["months_active"]
+                )  # Convert set to list for JSON
+
+        else:  # monthly
+            # Group by month
+            summary_data = defaultdict(
+                lambda: {
+                    "month_year": "",
+                    "month_name": "",
+                    "total_extra_hours": 0,
+                    "total_charges": 0,
+                    "children_count": 0,
+                    "days_count": 0,
+                    "holiday_days": 0,
+                    "avg_extra_hours_per_day": 0,
+                    "avg_charge_per_day": 0,
+                    "unique_children": set(),
+                    "top_child": "",
+                    "top_child_hours": 0,
+                }
+            )
+
+            for item in extra_hours_detailed:
+                key = item["month_year"]
+                summary = summary_data[key]
+
+                # Basic info
+                summary["month_year"] = item["month_year"]
+                summary["month_name"] = item["month_name"]
+
+                # Accumulate totals
+                summary["total_extra_hours"] += item["extra_hours"]
+                summary["total_charges"] += item["total_charge"]
+                summary["days_count"] += 1
+                if item["is_holiday"]:
+                    summary["holiday_days"] += 1
+
+                # Track unique children
+                summary["unique_children"].add(item["child_name"])
+
+                # Track top child for this month
+                if item["extra_hours"] > summary["top_child_hours"]:
+                    summary["top_child"] = item["child_name"]
+                    summary["top_child_hours"] = item["extra_hours"]
+
+            # Calculate derived metrics
+            for key, summary in summary_data.items():
+                summary["children_count"] = len(summary["unique_children"])
+                if summary["days_count"] > 0:
+                    summary["avg_extra_hours_per_day"] = round(
+                        summary["total_extra_hours"] / summary["days_count"], 2
+                    )
+                    summary["avg_charge_per_day"] = round(
+                        summary["total_charges"] / summary["days_count"], 2
+                    )
+                summary["unique_children"] = list(
+                    summary["unique_children"]
+                )  # Convert set to list
+
+        # Convert defaultdict to regular dict and sort
+        result_data = dict(summary_data)
+
+        if summary_type == "child":
+            # Sort by total charges descending
+            sorted_items = sorted(
+                result_data.items(), key=lambda x: x[1]["total_charges"], reverse=True
+            )
+        else:
+            # Sort by month_year
+            sorted_items = sorted(result_data.items(), key=lambda x: x[1]["month_year"])
+
+        # Convert back to dict maintaining order
+        result_data = {k: v for k, v in sorted_items}
+
+        # Add overall statistics
+        if extra_hours_detailed:
+            overall_stats = {
+                "total_records": len(extra_hours_detailed),
+                "date_range": {
+                    "from": from_date.strftime("%Y-%m-%d"),
+                    "to": to_date.strftime("%Y-%m-%d"),
+                },
+                "grand_totals": {
+                    "total_extra_hours": sum(
+                        item["extra_hours"] for item in extra_hours_detailed
+                    ),
+                    "total_charges": sum(
+                        item["total_charge"] for item in extra_hours_detailed
+                    ),
+                    "unique_children": len(
+                        set(item["child_id"] for item in extra_hours_detailed)
+                    ),
+                    "total_days": len(extra_hours_detailed),
+                    "holiday_days": sum(
+                        1 for item in extra_hours_detailed if item["is_holiday"]
+                    ),
+                },
+            }
+
+            result_data["_overall_stats"] = overall_stats
+
+        return JsonResponse(result_data, safe=False)
+
+    except Exception as e:
+        print(f"Error in getExtraHoursSummaryJS: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)

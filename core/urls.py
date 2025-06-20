@@ -356,4 +356,19 @@ urlpatterns = [
         views.previewThreeMonthInvoiceUpdated,
         name="preview_three_month_invoice_updated",
     ),
+    path(
+        "extra_hours_report/",
+        views.getExtraHoursReport,
+        name="extra_hours_report",
+    ),
+    path(
+        "get_extra_hours_report_js/",
+        views.getExtraHoursReportJS,
+        name="get_extra_hours_report_js",
+    ),
+    path(
+        "get_extra_hours_summary_js/",
+        views.getExtraHoursSummaryJS,
+        name="get_extra_hours_summary_js",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

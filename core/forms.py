@@ -2518,3 +2518,79 @@ class InvoiceSearchForm(forms.Form):
         required=False,
         widget=forms.Select(attrs={"class": "form-control", "id": "search_branch"}),
     )
+
+
+# Add this updated form to your forms.py file (or replace the existing one)
+
+
+class ExtraHoursReportForm(forms.Form):
+    """Complete form for extra hours report filters"""
+
+    REPORT_TYPE_CHOICES = [
+        ("detailed", "Detailed Report"),
+        ("monthly", "Monthly Summary"),
+        ("child", "By Child"),
+    ]
+
+    child = forms.ModelChoiceField(
+        queryset=Child.objects.filter(
+            is_active=True, enrollement_approved=True
+        ).order_by("admission_number"),
+        empty_label="-All Children-",
+        required=False,
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "id": "child",
+            }
+        ),
+    )
+
+    report_type = forms.ChoiceField(
+        choices=REPORT_TYPE_CHOICES,
+        initial="detailed",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "id": "report_type",
+            }
+        ),
+    )
+
+    from_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(
+            attrs={
+                "class": "form-control",
+                "id": "from_date",
+                "type": "date",
+                "placeholder": "From Date",
+            }
+        ),
+    )
+
+    to_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(
+            attrs={
+                "class": "form-control",
+                "id": "to_date",
+                "type": "date",
+                "placeholder": "To Date",
+            }
+        ),
+    )
+
+    branch = forms.ModelChoiceField(
+        queryset=Branch.objects.filter(is_active=True).order_by("branch_code"),
+        empty_label="-All Branches-",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control", "id": "branch"}),
+    )
+
+    center = forms.ModelChoiceField(
+        queryset=DayCare.objects.filter(is_active=True).order_by("daycare_code"),
+        empty_label="-All Centers-",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control", "id": "center"}),
+    )

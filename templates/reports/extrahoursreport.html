@@ -1,0 +1,703 @@
+{% extends "base.html" %} {% load static %} 
+{% block PageTitle %}Extra Hours Report{% endblock %} 
+{% block UserName %} {{ UserName}}{% endblock %} 
+{% block Title %} REPORTS {% endblock %} 
+{% block functionTitle%}EXTRA HOURS CHARGES REPORT{% endblock %} 
+{% block content %}
+
+<div>
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card" id="extraHoursReport">
+                <div class="card-header border-0">
+                    <div class="row align-items-center gy-3">
+                        <div class="col-sm">
+                            <h5 class="card-title mb-0">Extra Hours Charges Report</h5>
+                        </div>
+                        <div class="col-sm-auto">
+                            <div class="d-flex gap-1 flex-wrap">
+                                <button type="button" class="btn btn-success" id="btnSummary">
+                                    <i class="ri-bar-chart-line align-bottom me-1"></i> View Summary
+                                </button>
+                                <button type="button" class="btn btn-info" id="btnExport">
+                                    <i class="ri-file-excel-line align-bottom me-1"></i> Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                             
+                <div class="card-body border border-dashed border-end-0 border-start-0">
+                    <div class="row g-3">
+                        <!-- Report Type -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">Report Type</label>
+                            <select class="form-control" id="report_type" name="report_type">
+                                <option value="detailed">Detailed Report</option>
+                                <option value="monthly">Monthly Summary</option>
+                                <option value="child">By Child</option>
+                            </select>
+                        </div>
+
+                        <!-- Child Selection -->
+                        <div class="col-xl-3 col-md-4">
+                            <label class="form-label">Child (Optional)</label>
+                            <select class="form-control" id="child" name="child">
+                                <option value="">-All Children-</option>
+                                {% for child in form.child.field.queryset %}
+                                    <option value="{{ child.id }}">{{ child.admission_number }} - {{ child.child_first_name }} {{ child.child_last_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- From Date -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">From Date</label>
+                            <input type="date" class="form-control" id="from_date" name="from_date">
+                        </div>
+
+                        <!-- To Date -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">To Date</label>
+                            <input type="date" class="form-control" id="to_date" name="to_date">
+                        </div>
+
+                        <!-- Search Button -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button id="btnSearch" type="button" class="btn btn-primary w-100"> 
+                                    <i class="ri-search-line me-1"></i> <span id="searchText">Search</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Clear Button -->
+                        <div class="col-xl-1 col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button id="btnClear" type="button" class="btn btn-secondary w-100"> 
+                                    <i class="ri-refresh-line me-1"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="card-body" id="summaryCards" style="display: none;">
+                    <div class="row">
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Total Extra Hours</p>
+                                            <div class="d-flex align-items-center">
+                                                <h4 class="fw-semibold flex-shrink-0 mb-0" id="totalExtraHours">0</h4>
+                                                <span class="text-muted ms-2">hours</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-success-subtle rounded fs-3">
+                                                    <i class="bx bx-time text-success"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Total Charges</p>
+                                            <div class="d-flex align-items-center">
+                                                <h4 class="fw-semibold flex-shrink-0 mb-0" id="totalCharges">0.00</h4>
+                                                <span class="text-muted ms-2">LKR</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-info-subtle rounded fs-3">
+                                                    <i class="bx bx-rupee text-info"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Affected Children</p>
+                                            <div class="d-flex align-items-center">
+                                                <h4 class="fw-semibold flex-shrink-0 mb-0" id="affectedChildren">0</h4>
+                                                <span class="text-muted ms-2">children</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-warning-subtle rounded fs-3">
+                                                    <i class="bx bx-user text-warning"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Total Days</p>
+                                            <div class="d-flex align-items-center">
+                                                <h4 class="fw-semibold flex-shrink-0 mb-0" id="totalDays">0</h4>
+                                                <span class="text-muted ms-2">days</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-primary-subtle rounded fs-3">
+                                                    <i class="bx bx-calendar text-primary"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Report Table -->
+                <div class="card-body pt-0" id="mainReportSection">
+                    <div id="loadingMessage" style="display: none;">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading extra hours data...</p>
+                        </div>
+                    </div>
+
+                    <div id="noDataMessage" style="display: none;">
+                        <div class="text-center py-5">
+                            <i class="ri-database-line display-4 text-muted"></i>
+                            <h5 class="mt-3">No Extra Hours Found</h5>
+                            <p class="text-muted">No children exceeded their package hours for the selected criteria.</p>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive" id="tableContainer" style="width: 100%;">
+                        <table id="extraHoursTable" class="table table-striped table-hover" style="width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th style="min-width: 150px;">Child</th>
+                                    <th style="min-width: 90px;">Date</th>
+                                    <th style="min-width: 120px;">Package</th>
+                                    <th style="min-width: 80px;">Package End Time</th>
+                                    <th style="min-width: 70px;">Time Out</th>
+                                    <th style="min-width: 80px;">Extra Hours</th>
+                                    <th style="min-width: 100px;">Extra Charges</th>
+                                    <th style="min-width: 100px;">Holiday Charge</th>
+                                    <th style="min-width: 100px;">Total Charge</th>
+                                    <th style="min-width: 60px;">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detailsModalLabel">Extra Hours Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="detailsContent">
+                    <!-- Details will be populated here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}  
+
+{% block scripts %}
+<!-- jQuery -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<!--datatable js-->
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+
+<script>
+var $ = jQuery;
+var dataTable;
+var currentReportData = [];
+
+jQuery(document).ready(function () {
+    console.log("Initializing Extra Hours Report...");
+    
+    // Initialize DataTable
+    initializeDataTable();
+    
+    // Set default dates
+    setDefaultDates();
+
+    // Event handlers
+    setupEventHandlers();
+
+    // Don't auto-load data - wait for user to click search
+    // setTimeout(function() {
+    //     loadExtraHoursData();
+    // }, 500);
+    
+    // Show initial empty state
+    showInitialState();
+});
+
+function initializeDataTable() {
+    try {
+        dataTable = $("#extraHoursTable").DataTable({
+            responsive: true,
+            autoWidth: true,
+            dom: "Bfrtip",
+            pageLength: 50,
+            scrollX: true,
+            buttons: [
+                {
+                    extend: 'excel',
+                    title: 'Extra Hours Report',
+                    exportOptions: {
+                        columns: ':not(:last-child)' // Exclude the Details column
+                    }
+                },
+                {
+                    extend: 'print',
+                    title: 'Extra Hours Report',
+                    exportOptions: {
+                        columns: ':not(:last-child)' // Exclude the Details column
+                    }
+                }
+            ],
+            order: [[1, "desc"]], // Sort by date descending
+            columnDefs: [
+                { targets: 0, width: "15%" }, // Child column - wider for names
+                { targets: 1, width: "8%" },  // Date column
+                { targets: 2, width: "12%" }, // Package column
+                { targets: 3, width: "8%" },  // Package End Time
+                { targets: 4, width: "7%" },  // Time Out
+                { targets: 5, width: "8%" },  // Extra Hours
+                { targets: 6, width: "10%" }, // Extra Charges
+                { targets: 7, width: "10%" }, // Holiday Charge  
+                { targets: 8, width: "10%" }, // Total Charge
+                { targets: 9, width: "5%", orderable: false, searchable: false }, // Details column
+                { targets: [5, 6, 7, 8], className: 'text-end' }, // Right align numeric columns
+            ],
+            language: {
+                emptyTable: "No extra hours data available"
+            }
+        });
+        console.log("DataTable initialized successfully");
+    } catch (error) {
+        console.error("Error initializing DataTable:", error);
+    }
+}
+
+function setupEventHandlers() {
+    jQuery("#btnSearch").click(function() {
+        loadExtraHoursData();
+    });
+
+    jQuery("#btnClear").click(function() {
+        clearFilters();
+    });
+
+    jQuery("#btnSummary").click(function() {
+        toggleSummaryView();
+    });
+
+    jQuery("#btnExport").click(function() {
+        exportToExcel();
+    });
+
+    // Report type change handler
+    jQuery("#report_type").change(function() {
+        var reportType = jQuery(this).val();
+        if (reportType === 'child') {
+            jQuery("#child").prop('required', true);
+        } else {
+            jQuery("#child").prop('required', false);
+        }
+    });
+}
+
+function setDefaultDates() {
+    var today = new Date();
+    var firstDayThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    jQuery("#from_date").val(formatDate(firstDayThisMonth));
+    jQuery("#to_date").val(formatDate(today));
+}
+
+function formatDate(date) {
+    return date.getFullYear() + '-' + 
+           String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+           String(date.getDate()).padStart(2, '0');
+}
+
+function clearFilters() {
+    jQuery("#child").val('');
+    jQuery("#report_type").val('detailed');
+    setDefaultDates();
+    
+    // Clear table and show initial state
+    if (dataTable) {
+        dataTable.destroy();
+    }
+    
+    // Hide summary cards
+    jQuery("#summaryCards").hide();
+    hideNoDataMessage();
+    
+    // Show initial welcome message
+    showInitialState();
+}
+
+function showNoDataMessage() {
+    jQuery("#noDataMessage").show();
+    jQuery("#tableContainer").hide();
+}
+
+function loadExtraHoursData() {
+    console.log("Loading extra hours data...");
+    
+    // Hide welcome message if it exists
+    hideWelcomeMessage();
+    
+    var data = {
+        child: jQuery("#child").val() || '',
+        from_date: jQuery("#from_date").val(),
+        to_date: jQuery("#to_date").val(),
+        report_type: jQuery("#report_type").val()
+    };
+    
+    console.log("Request data:", data);
+    
+    showLoading();
+    hideNoDataMessage();
+    
+    if (dataTable) {
+        dataTable.clear();
+    }
+
+    jQuery.ajax({
+        type: "GET",
+        url: "{% url 'core:get_extra_hours_report_js' %}",
+        dataType: "json",
+        data: data,
+        beforeSend: function () {
+            jQuery("#btnSearch").prop('disabled', true);
+            jQuery("#searchText").text('Loading...');
+        },
+        success: function (response) {
+            hideLoading();
+            currentReportData = response;
+            
+            console.log("Data loaded successfully:", response.length, "records");
+            
+            if (!Array.isArray(response) || response.length === 0) {
+                showNoDataMessage();
+                updateSummaryCards(0, 0, 0, 0);
+                jQuery("#summaryCards").hide();
+                return;
+            }
+
+            populateTable(response);
+            calculateAndShowSummary(response);
+        },
+        error: function (xhr, textStatus, errorThrown) {
+            hideLoading();
+            console.error("Error loading data:", xhr);
+            
+            var errorMsg = "Error loading data: " + xhr.statusText;
+            if (xhr.responseText) {
+                try {
+                    var errorResponse = JSON.parse(xhr.responseText);
+                    errorMsg = errorResponse.error || errorMsg;
+                } catch (e) {
+                    // Use default error message
+                }
+            }
+            
+            showErrorAlert(errorMsg);
+        },
+        complete: function() {
+            jQuery("#btnSearch").prop('disabled', false);
+            jQuery("#searchText").text('Search');
+        }
+    });
+}
+
+function populateTable(data) {
+    var totalExtraHours = 0;
+    var totalCharges = 0;
+    var uniqueChildren = new Set();
+
+    jQuery.each(data, function (i, item) {
+        totalExtraHours += parseFloat(item.extra_hours || 0);
+        totalCharges += parseFloat(item.total_charge || 0);
+        uniqueChildren.add(item.child_admission);
+
+        var holidayBadge = item.is_holiday ? ' <span class="badge bg-warning">Holiday</span>' : '';
+        var detailsBtn = '<button class="btn btn-sm btn-outline-info" onclick="showDetails(' + i + ')" title="View Details"><i class="ri-eye-line"></i></button>';
+
+        // Format child name as "admission_no - child_name"
+        var childDisplay = item.child_admission + ' - ' + item.child_name;
+        
+        // Convert extra hours to HH:MM format
+        var extraHoursFormatted = convertHoursToHHMM(item.extra_hours);
+
+        dataTable.row.add([
+            childDisplay,
+            item.date,
+            item.package_name + holidayBadge,
+            item.package_end_time,
+            item.time_out,
+            extraHoursFormatted,
+            formatCurrencyWithCommas(item.extra_charges || 0),
+            formatCurrencyWithCommas(item.holiday_charge || 0),
+            formatCurrencyWithCommas(item.total_charge),
+            detailsBtn
+        ]).draw(false);
+    });
+
+    // Adjust column widths after data is loaded
+    setTimeout(function() {
+        dataTable.columns.adjust().responsive.recalc();
+    }, 100);
+
+    updateSummaryCards(totalExtraHours, totalCharges, uniqueChildren.size, data.length);
+}
+
+// Remove this function as we no longer need day of week
+// function formatDayOfWeek(dateString) {
+//     var date = new Date(dateString);
+//     return date.toLocaleDateString('en-US', { weekday: 'short' });
+// }
+
+function calculateAndShowSummary(data) {
+    var totalExtraHours = data.reduce((sum, item) => sum + parseFloat(item.extra_hours || 0), 0);
+    var totalCharges = data.reduce((sum, item) => sum + parseFloat(item.total_charge || 0), 0);
+    var uniqueChildren = new Set(data.map(item => item.child_admission));
+    
+    updateSummaryCards(totalExtraHours, totalCharges, uniqueChildren.size, data.length);
+    
+    // Show summary cards
+    jQuery("#summaryCards").show();
+}
+
+function convertHoursToHHMM(hours) {
+    var totalMinutes = Math.round(parseFloat(hours) * 60);
+    var displayHours = Math.floor(totalMinutes / 60);
+    var displayMinutes = totalMinutes % 60;
+    return String(displayHours).padStart(2, '0') + ':' + String(displayMinutes).padStart(2, '0');
+}
+
+function formatCurrencyWithCommas(amount) {
+    var numAmount = parseFloat(amount);
+    return 'Rs. ' + numAmount.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+function updateSummaryCards(totalHours, totalCharges, childrenCount, totalDays) {
+    jQuery("#totalExtraHours").text(convertHoursToHHMM(totalHours));
+    jQuery("#totalCharges").text(totalCharges.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }));
+    jQuery("#affectedChildren").text(childrenCount);
+    jQuery("#totalDays").text(totalDays);
+}
+
+function showDetails(index) {
+    if (!currentReportData[index]) {
+        console.error("Invalid index for details:", index);
+        return;
+    }
+    
+    var item = currentReportData[index];
+    var childDisplay = item.child_admission + ' - ' + item.child_name;
+    
+    var detailsHtml = '<div class="row">';
+    detailsHtml += '<div class="col-md-6"><strong>Child:</strong> ' + childDisplay + '</div>';
+    detailsHtml += '<div class="col-md-6"><strong>Date:</strong> ' + item.date + '</div>';
+    detailsHtml += '<div class="col-md-6"><strong>Package:</strong> ' + item.package_name + '</div>';
+    detailsHtml += '<div class="col-md-6"><strong>Package End Time:</strong> ' + item.package_end_time + '</div>';
+    detailsHtml += '<div class="col-md-6"><strong>Actual Out Time:</strong> ' + item.time_out + '</div>';
+    detailsHtml += '<div class="col-md-6"><strong>Extra Hours:</strong> ' + convertHoursToHHMM(item.extra_hours) + '</div>';
+    detailsHtml += '</div><hr>';
+    
+    if (item.applied_rates && item.applied_rates.length > 0) {
+        detailsHtml += '<h6>Applied Rate Details:</h6>';
+        detailsHtml += '<div class="table-responsive">';
+        detailsHtml += '<table class="table table-sm table-bordered">';
+        detailsHtml += '<thead><tr><th>Time Slot</th><th>Rate</th></tr></thead>';
+        detailsHtml += '<tbody>';
+        
+        jQuery.each(item.applied_rates, function(i, rate) {
+            detailsHtml += '<tr><td>' + rate.time_slot + '</td><td>' + formatCurrencyWithCommas(rate.rate) + '</td></tr>';
+        });
+        
+        detailsHtml += '</tbody></table></div>';
+    }
+    
+    if (item.is_holiday) {
+        detailsHtml += '<div class="alert alert-warning mt-3">';
+        detailsHtml += '<i class="ri-calendar-line me-2"></i>This was a holiday. Additional holiday charges may apply.';
+        detailsHtml += '</div>';
+    }
+    
+    detailsHtml += '<hr><div class="row mt-3">';
+    detailsHtml += '<div class="col-6"><strong>Extra Hours Charge:</strong> ' + formatCurrencyWithCommas(item.extra_charges || 0) + '</div>';
+    detailsHtml += '<div class="col-6"><strong>Holiday Charge:</strong> ' + formatCurrencyWithCommas(item.holiday_charge || 0) + '</div>';
+    detailsHtml += '<div class="col-12 mt-2"><h5><strong>Total Charge: ' + formatCurrencyWithCommas(item.total_charge) + '</strong></h5></div>';
+    detailsHtml += '</div>';
+    
+    jQuery("#detailsContent").html(detailsHtml);
+    jQuery("#detailsModal").modal('show');
+}
+
+function toggleSummaryView() {
+    // For now, just show/hide summary cards
+    var summaryCards = jQuery("#summaryCards");
+    var btn = jQuery("#btnSummary");
+    
+    if (summaryCards.is(':visible')) {
+        summaryCards.hide();
+        btn.html('<i class="ri-bar-chart-line align-bottom me-1"></i> View Summary');
+    } else {
+        summaryCards.show();
+        btn.html('<i class="ri-table-line align-bottom me-1"></i> Hide Summary');
+    }
+}
+
+function exportToExcel() {
+    if (currentReportData.length === 0) {
+        alert('No data to export');
+        return;
+    }
+    
+    // Trigger DataTable export
+    dataTable.button('.buttons-excel').trigger();
+}
+
+function showLoading() {
+    jQuery("#loadingMessage").show();
+    jQuery("#tableContainer").hide();
+}
+
+function hideLoading() {
+    jQuery("#loadingMessage").hide();
+    jQuery("#tableContainer").show();
+}
+
+function showInitialState() {
+    // Hide summary cards initially
+    jQuery("#summaryCards").hide();
+    
+    // Show a welcome message
+    showWelcomeMessage();
+    
+    // Update summary cards with zero values
+    updateSummaryCards(0, 0, 0, 0);
+}
+
+function showWelcomeMessage() {
+    var welcomeHtml = '<div class="text-center py-5" id="welcomeMessage">';
+    welcomeHtml += '<i class="ri-search-line display-4 text-primary"></i>';
+    welcomeHtml += '<h5 class="mt-3">Extra Hours Report</h5>';
+    welcomeHtml += '<p class="text-muted">Select your criteria and click "Search" to generate the extra hours report.</p>';
+    welcomeHtml += '<p class="text-muted"><small>This report shows children who stayed beyond their package hours and the associated charges.</small></p>';
+    welcomeHtml += '</div>';
+    
+    jQuery("#tableContainer").html(welcomeHtml);
+}
+
+function hideWelcomeMessage() {
+    jQuery("#welcomeMessage").remove();
+    // Restore the table structure
+    var tableHtml = '<table id="extraHoursTable" class="table table-striped table-hover" style="width: 100%;">';
+    tableHtml += '<thead><tr>';
+    tableHtml += '<th style="min-width: 150px;">Child</th><th style="min-width: 90px;">Date</th>';
+    tableHtml += '<th style="min-width: 120px;">Package</th><th style="min-width: 80px;">Package End Time</th><th style="min-width: 70px;">Time Out</th>';
+    tableHtml += '<th style="min-width: 80px;">Extra Hours</th><th style="min-width: 100px;">Extra Charges</th><th style="min-width: 100px;">Holiday Charge</th><th style="min-width: 100px;">Total Charge</th><th style="min-width: 60px;">Details</th>';
+    tableHtml += '</tr></thead><tbody></tbody></table>';
+    
+    jQuery("#tableContainer").html(tableHtml);
+    
+    // Reinitialize DataTable
+    initializeDataTable();
+}
+
+function hideNoDataMessage() {
+    jQuery("#noDataMessage").hide();
+    jQuery("#tableContainer").show();
+}
+
+function showErrorAlert(message) {
+    var alertHtml = '<div class="alert alert-danger alert-dismissible fade show" role="alert">';
+    alertHtml += '<i class="ri-error-warning-line me-2"></i>' + message;
+    alertHtml += '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+    alertHtml += '</div>';
+    
+    jQuery("#mainReportSection").prepend(alertHtml);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(function() {
+        jQuery(".alert-danger").fadeOut();
+    }, 5000);
+}
+
+// Make showDetails available globally
+window.showDetails = showDetails;
+
+</script>
+
+<script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'assets/js/app.js' %}"></script>
+
+{% endblock %}
