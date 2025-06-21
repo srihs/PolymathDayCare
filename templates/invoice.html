@@ -638,6 +638,304 @@ function downloadMemo(memoId, memoCode) {
     });
 }
 
+function generateThreeMonthPDFContent(data) {
+    // Safe number formatting
+    function safeFixed(value, decimals = 2) {
+        if (value === null || value === undefined || isNaN(value)) {
+            return '0.00';
+        }
+        return parseFloat(value).toLocaleString('en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+    
+    // Safe value extraction
+    function safeValue(obj, path, defaultValue = 0) {
+        try {
+            const keys = path.split('.');
+            let result = obj;
+            for (const key of keys) {
+                result = result?.[key];
+            }
+            return result !== null && result !== undefined ? result : defaultValue;
+        } catch (e) {
+            return defaultValue;
+        }
+    }
+    
+    // Extract data safely
+    const childName = safeValue(data, 'child_name', 'Unknown Child');
+    const childAdmission = safeValue(data, 'child_admission', 'N/A');
+    const memoCode = safeValue(data, 'memo_code', 'N/A');
+    const memoDate = safeValue(data, 'memo_date', new Date().toLocaleDateString());
+    
+    const month1 = {
+        name: safeValue(data, 'month1.name', ''),
+        year: safeValue(data, 'month1.year', 0),
+        balance: safeValue(data, 'month1.balance', 0),
+        status: safeValue(data, 'month1.status', 'No Record')
+    };
+    
+    const month2 = {
+        name: safeValue(data, 'month2.name', ''),
+        year: safeValue(data, 'month2.year', 0),
+        charge: safeValue(data, 'month2.charge', 0),
+        days_attended: safeValue(data, 'month2.days_attended', 0),
+        expected_days: safeValue(data, 'month2.expected_days', 22)
+    };
+    
+    const month3 = {
+        name: safeValue(data, 'month3.name', ''),
+        year: safeValue(data, 'month3.year', 0),
+        charge: safeValue(data, 'month3.charge', 0)
+    };
+    
+    const summary = {
+        grand_total: safeValue(data, 'summary.grand_total', 0)
+    };
+
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Invoice Memo ${memoCode}</title>
+        <style>
+            @page {
+                size: A4;
+                margin: 20mm;
+            }
+            
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
+            body {
+                font-family: Arial, sans-serif;
+                font-size: 12px;
+                line-height: 1.4;
+                color: #333;
+                background: white;
+            }
+            
+            .header {
+                text-align: center;
+                margin-bottom: 20px;
+                border-bottom: 2px solid #ddd;
+                padding-bottom: 15px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+                font-weight: bold;
+                margin-bottom: 5px;
+                color: #2c3e50;
+            }
+            
+            .header p {
+                font-size: 11px;
+                color: #666;
+                margin-bottom: 3px;
+            }
+            
+            .header h2 {
+                font-size: 18px;
+                font-weight: bold;
+                margin-top: 10px;
+                color: #2c3e50;
+            }
+            
+            .memo-info {
+                background: #e8f4f8;
+                padding: 10px;
+                margin-bottom: 20px;
+                border-radius: 5px;
+                text-align: center;
+                font-weight: bold;
+                color: #2980b9;
+            }
+            
+            .child-info {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 20px;
+                font-weight: bold;
+            }
+            
+            .table-container {
+                margin-bottom: 20px;
+            }
+            
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 15px;
+            }
+            
+            th, td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+            }
+            
+            th {
+                background-color: #f8f9fa;
+                font-weight: bold;
+                text-align: center;
+            }
+            
+            .amount-cell {
+                text-align: right;
+                font-weight: bold;
+            }
+            
+            .section-header {
+                background-color: #e9ecef !important;
+                font-weight: bold;
+                color: #495057;
+            }
+            
+            .outstanding-section {
+                background-color: #f8d7da !important;
+            }
+            
+            .calculated-section {
+                background-color: #cce5ff !important;
+            }
+            
+            .advance-section {
+                background-color: #d1ecf1 !important;
+            }
+            
+            .total-row {
+                background-color: #fff3cd !important;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            
+            .indent {
+                padding-left: 20px;
+            }
+            
+            .notes {
+                margin-top: 20px;
+                font-size: 11px;
+                line-height: 1.6;
+            }
+            
+            .notes p {
+                margin-bottom: 10px;
+            }
+            
+            .signature {
+                margin-top: 15px;
+                font-weight: bold;
+            }
+            
+            .no-print {
+                display: none;
+            }
+            
+            @media print {
+                body {
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+                
+                .no-print {
+                    display: none !important;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>POLYMATH COLLEGE</h1>
+            <p>No 452/3 High Level Road, Nawinna, Maharagama</p>
+            <p>PV 63200 | Phone 0112802554</p>
+            <h2>KIDS DIVISION - MEMO</h2>
+        </div>
+        
+        <div class="memo-info">
+            Memo Code: ${memoCode} | Generated: ${memoDate}
+        </div>
+        
+        <div class="child-info">
+            <span>Name: ${childName}</span>
+            <span>Child ID: ${childAdmission}</span>
+        </div>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 70%;">Description</th>
+                        <th style="width: 30%;">Amount (Rs.)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Month 1 - Outstanding -->
+                    <tr class="section-header outstanding-section">
+                        <td colspan="2"><strong>${month1.name} ${month1.year} - OUTSTANDING</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="indent">${month1.status === 'No Record' ? 'No record for ' + month1.name : 'Outstanding from ' + month1.name}</td>
+                        <td class="amount-cell">${safeFixed(month1.balance)}</td>
+                    </tr>
+                    
+                    <!-- Month 2 - Calculated -->
+                    <tr class="section-header calculated-section">
+                        <td colspan="2"><strong>${month2.name} ${month2.year} - CALCULATED</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="indent">Day Care Monthly fee - ${month2.name} (${month2.days_attended}/${month2.expected_days} days attended)</td>
+                        <td class="amount-cell">${safeFixed(month2.charge)}</td>
+                    </tr>
+                    
+                    <!-- Month 3 - Advance -->
+                    <tr class="section-header advance-section">
+                        <td colspan="2"><strong>${month3.name} ${month3.year} - ADVANCE</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="indent">Day Care Monthly fee - ${month3.name} (Full Package Advance)</td>
+                        <td class="amount-cell">${safeFixed(month3.charge)}</td>
+                    </tr>
+                    
+                    <!-- Total -->
+                    <tr class="total-row">
+                        <td><strong>Total Amount to Pay</strong></td>
+                        <td class="amount-cell"><strong>Rs. ${safeFixed(summary.grand_total)}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+         <!-- Notes and Account Details -->
+           <div class="notes">
+            <p><strong>Please note that,</strong></p>
+            <p style="margin-bottom: 15px;">Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before 2024. Ignore this message if you have already settled that outstanding.</p>
+            
+            <div style="margin-top: 15px; font-weight: bold;">
+                <p style="margin-bottom: 5px;">Thank you,</p>
+                <p style="margin-bottom: 20px;">The Management.</p>
+            </div>
+        </div>
+        
+        <div class="account-details">
+            <p style="font-weight: bold; margin-bottom: 10px; font-size: 12px;">Account Details</p>
+            <p style="margin-bottom: 3px;"><strong>Account Name</strong> - Polymath College (PVT) Ltd</p>
+            <p style="margin-bottom: 3px;"><strong>Bank</strong> - Peoples Bank</p>
+            <p style="margin-bottom: 3px;"><strong>Branch</strong> - Gangodawila</p>
+            <p style="margin-bottom: 10px;"><strong>Account Number</strong> - 097100130026495</p>
+            <p style="margin-bottom: 5px;"><strong>Whatsapp</strong> - 0705585858</p>
+        </div>
+    </body>
+    </html>
+    `;
+}
 
 // Function to display 3-month memo details
 function displayThreeMonthMemoDetails(data) {
@@ -1384,7 +1682,7 @@ function printInvoiceAsPDF() {
     
     // Check if we have memo data in the modal
     const modalTitle = $('#invoicePreviewModal .modal-title').text();
-    
+    alert("Print");
     // Get the memo data that's currently being previewed
     // We'll use the global variable or extract from the preview content
     
