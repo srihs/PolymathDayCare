@@ -198,8 +198,8 @@
                     <div class="col-md-6">
                         <div class="form-row">
                             <label class="form-label">Receipt Number</label>
-                            <input type="text" class="form-control" name="receipt_number" 
-                                   id="receipt_number" placeholder="RN 18511">
+                            <input type="text" class="form-control" name="outstanding_receipt_number" 
+                                   id="outstanding_receipt_number" placeholder="RN 18511">
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -256,7 +256,7 @@
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="form-row">
                             <label class="form-label">Discount Applied</label>
                             <div class="input-group">
@@ -266,7 +266,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="form-row">
                             <label class="form-label">Payment Received</label>
                             <div class="input-group">
@@ -275,7 +275,16 @@
                                        id="previous_payment" step="0.01" placeholder="0.00" onchange="calculateTotals()">
                             </div>
                         </div>
+                        
                     </div>
+                    <div class="col-md-4">
+                        <div class="form-row">
+            <label class="form-label">Receipt Number</label>
+            <input type="text" class="form-control" name="previous_receipt_number" 
+                   id="previous_receipt_number" placeholder="RN 18512">
+        </div>
+                    </div>
+                    
                 </div>
             </div>
         </div>
@@ -320,7 +329,7 @@
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="form-row">
                             <label class="form-label">Discount Applied</label>
                             <div class="input-group">
@@ -330,7 +339,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="form-row">
                             <label class="form-label">Current Month Payment</label>
                             <div class="input-group">
@@ -340,6 +349,15 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="col-md-4">
+        <div class="form-row">
+            <label class="form-label">Receipt Number</label>
+            <input type="text" class="form-control" name="current_receipt_number" 
+                   id="current_receipt_number" placeholder="RN 18513">
+        </div>
+    </div>
+
                 </div>
             </div>
         </div>
@@ -543,34 +561,46 @@ function previewMemo() {
             <table class="table table-bordered">
                 <thead>
                     <tr>
-                        <th width="70%">Description</th>
-                        <th width="30%" class="text-end">Amount (Rs.)</th>
+                        <th width="50%">Description</th>
+                        <th width="20%" class="text-end">Amount (Rs.)</th>
+                        <th width="30%" class="text-center">Receipt No.</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td>Outstanding as at ${$('#outstanding_month_name').text()}</td>
                         <td class="text-end">${parseFloat($('#outstanding_amount').val() || 0).toLocaleString()}</td>
+                        <td class="text-center">-</td>
                     </tr>
                     <tr>
                         <td>Payment Settled</td>
                         <td class="text-end">(${parseFloat($('#payment_settled').val() || 0).toLocaleString()})</td>
-                    </tr>
-                    <tr>
-                        <td>Remaining Balance</td>
-                        <td class="text-end">${parseFloat($('#remaining_balance').val() || 0).toLocaleString()}</td>
+                        <td class="text-center">${$('#outstanding_receipt_number').val() || '-'}</td>
                     </tr>
                     <tr>
                         <td>Day Care Monthly fee - ${$('#previous_month_name').text()}</td>
                         <td class="text-end">${parseFloat($('#previous_package_fee').val() || 0).toLocaleString()}</td>
+                        <td class="text-center">-</td>
+                    </tr>
+                    <tr>
+                        <td>Previous Month Payment</td>
+                        <td class="text-end">(${parseFloat($('#previous_payment').val() || 0).toLocaleString()})</td>
+                        <td class="text-center">${$('#previous_receipt_number').val() || '-'}</td>
                     </tr>
                     <tr>
                         <td>Day Care Monthly fee - ${$('#current_month_name').text()}</td>
                         <td class="text-end">${parseFloat($('#package_fee').val() || 0).toLocaleString()}</td>
+                        <td class="text-center">-</td>
+                    </tr>
+                    <tr>
+                        <td>Current Month Payment</td>
+                        <td class="text-end">(${parseFloat($('#current_payment').val() || 0).toLocaleString()})</td>
+                        <td class="text-center">${$('#current_receipt_number').val() || '-'}</td>
                     </tr>
                     <tr class="table-warning">
                         <td><strong>Total</strong></td>
                         <td class="text-end"><strong>Rs. ${$('#grand_total').text()}</strong></td>
+                        <td class="text-center">-</td>
                     </tr>
                 </tbody>
             </table>
@@ -580,6 +610,7 @@ function previewMemo() {
     $('#preview_content').html(previewHTML);
     $('#previewModal').modal('show');
 }
+
 
 function generatePDF() {
     alert('PDF generation functionality would be implemented here');
