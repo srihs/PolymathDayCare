@@ -1,0 +1,567 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block UserName %}{{ UserName }}{% endblock %}
+{% block PageTitle %}Child Package Mapping{% endblock %}
+{% block Title %}PACKAGE MANAGEMENT{% endblock %}
+{% block functionTitle %}CHILD PACKAGE MAPPING{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header border-0">
+    <div class="d-flex align-items-center">
+      <h5 class="card-title mb-0 flex-grow-1">Child Package Mapping</h5>
+      <div class="flex-shrink-0">
+        <button class="btn btn-secondary" id="addMappingBtn">
+          <i class="ri-add-line align-bottom me-1"></i> Add Package Mapping
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <!-- Alert Section -->
+    <div id="alertSection">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            <strong>{{ message }}</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    <!-- Search Section -->
+    <div class="card border-light mb-3">
+      <div class="card-header bg-light">
+        <h6 class="mb-0">
+          <i class="ri-search-line"></i> Search Mappings
+        </h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label for="searchChild" class="form-label">Search Child</label>
+            <select class="form-select select2-search" id="searchChild">
+              <option value="">All Children</option>
+              {% for child in children %}
+                <option value="{{ child.id }}" data-admission="{{ child.admission_number }}">
+                  {{ child.admission_number }} - {{ child.child_first_name }} {{ child.child_last_name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="searchStatus" class="form-label">Status</label>
+            <select class="form-select" id="searchStatus">
+              <option value="">All Status</option>
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="searchDate" class="form-label">Effective Date</label>
+            <input type="date" class="form-control" id="searchDate">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">&nbsp;</label>
+            <div class="d-grid">
+              <button type="button" class="btn btn-outline-secondary" id="searchBtn">
+                <i class="ri-search-line"></i> Search
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Package Mappings Table -->
+    <table id="mappingTable" class="table table-striped table-hover">
+      <thead>
+        <tr>
+          <th>Child</th>
+          <th>Main Package</th>
+          <th>Holiday Package</th>
+          <th>Effective From</th>
+          <th>Effective To</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+    </table>
+  </div>
+</div>
+
+<!-- Add Mapping Modal -->
+<div class="modal fade" id="addMappingModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Package Mapping</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="mappingForm" action="{% url 'core:save_package_mapping' %}" method="post">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="row g-3">
+            <!-- Child Selection with Search -->
+            <div class="col-12">
+              <label for="child" class="form-label">Child <span class="text-danger">*</span></label>
+              <select class="form-select select2-child" id="child" name="child" required>
+                <option value="">Search and select child...</option>
+                {% for child in children %}
+                  <option value="{{ child.id }}" data-admission="{{ child.admission_number }}">
+                    {{ child.admission_number }} - {{ child.child_first_name }} {{ child.child_last_name }}
+                  </option>
+                {% endfor %}
+              </select>
+              <div id="childAlert" class="alert alert-warning mt-2" style="display: none;">
+                <i class="ri-alert-line"></i> <span id="alertText"></span>
+              </div>
+            </div>
+
+            <!-- Package Selection Info -->
+            <div class="col-12">
+              <div class="alert alert-info">
+                <h6><i class="ri-information-line"></i> Package Selection Guide</h6>
+                <p class="mb-0">Each child must have:</p>
+                <ul class="mb-0">
+                  <li><strong>Main Package:</strong> Either Normal Package OR Flex Package (required)</li>
+                  <li><strong>Holiday Package:</strong> For holiday attendance (required)</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Main Package Type Selection -->
+            <div class="col-12">
+              <label class="form-label">Main Package Type <span class="text-danger">*</span></label>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="main_package_type" id="normalType" value="normal" required>
+                    <label class="form-check-label" for="normalType">
+                      <strong>Normal Package</strong>
+                      <small class="text-muted d-block">Fixed time schedule package</small>
+                    </label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="main_package_type" id="flexType" value="flex" required>
+                    <label class="form-check-label" for="flexType">
+                      <strong>Flex Package</strong>
+                      <small class="text-muted d-block">Flexible hours package</small>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Normal Package Selection -->
+            <div class="col-12" id="normalSection" style="display: none;">
+              <label for="normalPackage" class="form-label">Normal Package <span class="text-danger">*</span></label>
+              <select class="form-select" id="normalPackage" name="normal_package">
+                <option value="">Select Normal Package</option>
+                {% for package in normal_packages %}
+                  <option value="{{ package.id }}">
+                    {{ package.package_code }} - {{ package.package_name }} 
+                    (Rs. {{ package.package_total }} - {{ package.from_time }} to {{ package.to_time }})
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Flex Package Selection -->
+            <div class="col-12" id="flexSection" style="display: none;">
+              <label for="flexPackage" class="form-label">Flex Package <span class="text-danger">*</span></label>
+              <select class="form-select" id="flexPackage" name="flex_package">
+                <option value="">Select Flex Package</option>
+                {% for package in flex_packages %}
+                  <option value="{{ package.id }}">
+                    {{ package.package_code }} - {{ package.package_name }} 
+                    (Rs. {{ package.package_total }} - {{ package.no_hours }} hours)
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Holiday Package Selection (Always Required) -->
+            <div class="col-12">
+              <label for="holidayPackage" class="form-label">Holiday Package <span class="text-danger">*</span></label>
+              <select class="form-select" id="holidayPackage" name="holiday_package" required>
+                <option value="">Select Holiday Package</option>
+                {% for package in holiday_packages %}
+                  <option value="{{ package.id }}">
+                    {{ package.package_code }} - {{ package.package_name }} 
+                    (Rs. {{ package.package_total }})
+                  </option>
+                {% endfor %}
+              </select>
+              <small class="form-text text-muted">This package will be used for holiday attendance charges</small>
+            </div>
+
+            <!-- Date Fields -->
+            <div class="col-md-6">
+              <label for="effectiveFrom" class="form-label">Effective From <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" id="effectiveFrom" name="effective_from" required>
+            </div>
+            <div class="col-md-6">
+              <label for="effectiveTo" class="form-label">Effective To</label>
+              <input type="date" class="form-control" id="effectiveTo" name="effective_to">
+              <small class="form-text text-muted">Leave empty for open-ended mapping</small>
+            </div>
+
+            <!-- Current Mapping Display -->
+            <div class="col-12" id="currentMappingDisplay" style="display: none;">
+              <div class="card border-info">
+                <div class="card-header bg-info-subtle">
+                  <h6 class="mb-0"><i class="ri-information-line"></i> Current Active Mapping</h6>
+                </div>
+                <div class="card-body" id="currentMappingContent">
+                  <!-- Current mapping details will be loaded here -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-secondary">Save Mapping</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+$(document).ready(function() {
+  console.log('Initializing package mapping page...');
+  console.log('Children data available:', $('#child option').length - 1, 'children');
+
+  // Debug: Check if children data is loaded
+  if ($('#child option').length <= 1) {
+    console.error('No children data found! Check if children are passed from the view.');
+    showAlert('No children data available. Please check if children are enrolled.', 'warning');
+  }
+
+  // Initialize Select2 for searchable dropdowns
+  $('#child').select2({
+    placeholder: 'Search by admission number or name...',
+    allowClear: true,
+    width: '100%',
+    dropdownParent: $('#addMappingModal'), // Important for modal
+    templateResult: function (data) {
+      if (!data.id) {
+        return data.text;
+      }
+      // Custom template to show admission number prominently
+      var admission = $(data.element).data('admission');
+      return $('<span><strong>' + admission + '</strong> - ' + data.text.split(' - ')[1] + '</span>');
+    },
+    templateSelection: function (data) {
+      return data.text || data.placeholder;
+    }
+  });
+
+  $('#searchChild').select2({
+    placeholder: 'Search children...',
+    allowClear: true,
+    width: '100%',
+    templateResult: function (data) {
+      if (!data.id) {
+        return data.text;
+      }
+      var admission = $(data.element).data('admission');
+      return $('<span><strong>' + admission + '</strong> - ' + data.text.split(' - ')[1] + '</span>');
+    }
+  });
+
+  // Initialize DataTable
+  var table = $('#mappingTable').DataTable({
+    ajax: {
+      url: "{% url 'core:get_package_mappings_js' %}",
+      dataSrc: "",
+      data: function(d) {
+        // Add search parameters
+        d.child_id = $('#searchChild').val();
+        d.status = $('#searchStatus').val();
+        d.effective_date = $('#searchDate').val();
+        return d;
+      },
+      error: function(xhr, error, code) {
+        console.log('DataTable error:', error);
+        console.log('Status:', xhr.status);
+        if (xhr.status === 404) {
+          showAlert('URL not found. Please check if the view exists.', 'danger');
+        } else {
+          showAlert('Error loading data: ' + error, 'danger');
+        }
+      }
+    },
+    columns: [
+      { data: "child_name" },
+      { 
+        data: null,
+        render: function(data, type, row) {
+          var mainPackage = '';
+          if (row.normal_package_name) {
+            mainPackage = '<span class="badge bg-primary">Normal</span> ' + row.normal_package_name;
+          } else if (row.flex_package_name) {
+            mainPackage = '<span class="badge bg-info">Flex</span> ' + row.flex_package_name;
+          } else {
+            mainPackage = '<span class="text-muted">No main package</span>';
+          }
+          return mainPackage;
+        }
+      },
+      { 
+        data: "holiday_package_name",
+        render: function(data, type, row) {
+          if (data) {
+            return '<span class="badge bg-warning">Holiday</span> ' + data;
+          } else {
+            return '<span class="text-muted">No holiday package</span>';
+          }
+        }
+      },
+      { data: "effective_from" },
+      { data: "effective_to" },
+      { data: "is_active" },
+      {
+        data: null,
+        render: function(data, type, row) {
+          return `
+            <button class="btn btn-sm btn-outline-info me-1" onclick="viewMapping(${row.id})" title="View Details">
+              <i class="ri-eye-line"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-primary me-1" onclick="editMapping(${row.id})" title="Edit">
+              <i class="ri-edit-line"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteMapping(${row.id})" title="Deactivate">
+              <i class="ri-delete-bin-line"></i>
+            </button>
+          `;
+        }
+      }
+    ],
+    createdRow: function(row, data) {
+      // Format status
+      if (data.is_active) {
+        $('td', row).eq(5).html('<span class="badge bg-success">Active</span>');
+      } else {
+        $('td', row).eq(5).html('<span class="badge bg-secondary">Inactive</span>');
+      }
+      
+      // Handle effective_to null values
+      if (!data.effective_to) {
+        $('td', row).eq(4).html('<span class="text-muted">Open-ended</span>');
+      }
+    },
+    order: [[3, "desc"]], // Sort by effective_from descending
+    pageLength: 25
+  });
+
+  // Search functionality
+  $('#searchBtn').click(function() {
+    table.ajax.reload();
+  });
+
+  // Clear search
+  $('#searchChild, #searchStatus, #searchDate').change(function() {
+    if (!$(this).val()) {
+      table.ajax.reload();
+    }
+  });
+
+  // Add mapping button
+  $('#addMappingBtn').click(function() {
+    console.log('Add mapping button clicked');
+    resetForm();
+    $('#addMappingModal').modal('show');
+    
+    // Re-initialize Select2 when modal opens
+    setTimeout(function() {
+      $('#child').select2({
+        placeholder: 'Search by admission number or name...',
+        allowClear: true,
+        width: '100%',
+        dropdownParent: $('#addMappingModal'),
+        templateResult: function (data) {
+          if (!data.id) {
+            return data.text;
+          }
+          var admission = $(data.element).data('admission');
+          if (admission) {
+            return $('<span><strong>' + admission + '</strong> - ' + data.text.split(' - ')[1] + '</span>');
+          }
+          return data.text;
+        }
+      });
+    }, 100);
+  });
+
+  // Main package type change
+  $('input[name="main_package_type"]').change(function() {
+    var type = $(this).val();
+    $('#normalSection, #flexSection').hide();
+    $('#normalPackage, #flexPackage').prop('required', false);
+    
+    if (type === 'normal') {
+      $('#normalSection').show();
+      $('#normalPackage').prop('required', true);
+    } else if (type === 'flex') {
+      $('#flexSection').show();
+      $('#flexPackage').prop('required', true);
+    }
+  });
+
+  // Child selection change
+  $('#child').change(function() {
+    var childId = $(this).val();
+    console.log('Child selected:', childId);
+    if (childId) {
+      checkExistingMapping(childId);
+    } else {
+      $('#childAlert').hide();
+      $('#currentMappingDisplay').hide();
+    }
+  });
+
+  // Set today's date
+  var today = new Date().toISOString().split('T')[0];
+  $('#effectiveFrom').val(today);
+
+  function resetForm() {
+    $('#mappingForm')[0].reset();
+    $('#normalSection, #flexSection').hide();
+    $('#childAlert, #currentMappingDisplay').hide();
+    $('#normalPackage, #flexPackage').prop('required', false);
+    $('#effectiveFrom').val(today);
+    
+    // Reset Select2
+    $('#child').val(null).trigger('change');
+  }
+
+  function checkExistingMapping(childId) {
+    $.ajax({
+      url: "{% url 'core:check_child_package_mapping' %}",
+      data: { child_id: childId },
+      success: function(response) {
+        if (response.exists) {
+          var message = 'Child already has an active mapping';
+          if (response.effective_to) {
+            message += ' (valid until ' + response.effective_to + ')';
+          } else {
+            message += ' (open-ended)';
+          }
+          
+          $('#alertText').text(message);
+          $('#childAlert').show();
+          
+          // Show current mapping details
+          if (response.current_mapping) {
+            showCurrentMapping(response.current_mapping);
+          }
+          
+          // Suggest next effective date
+          if (response.suggested_effective_from) {
+            $('#effectiveFrom').val(response.suggested_effective_from);
+          }
+        } else {
+          $('#childAlert').hide();
+          $('#currentMappingDisplay').hide();
+        }
+      },
+      error: function() {
+        console.log('Error checking existing mappings');
+      }
+    });
+  }
+
+  function showCurrentMapping(mappingData) {
+    var content = `
+      <div class="row">
+        <div class="col-md-6">
+          <strong>Current Packages:</strong><br>
+          ${mappingData.packages.join('<br>')}
+        </div>
+        <div class="col-md-6">
+          <strong>Effective Period:</strong><br>
+          From: ${mappingData.effective_from}<br>
+          To: ${mappingData.effective_to || 'Open-ended'}
+        </div>
+      </div>
+    `;
+    $('#currentMappingContent').html(content);
+    $('#currentMappingDisplay').show();
+  }
+
+  function showAlert(message, type) {
+    var alertHtml = `
+      <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+        <strong>${message}</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    `;
+    $('#alertSection').html(alertHtml);
+  }
+
+  // Global functions for buttons
+  window.viewMapping = function(id) {
+    console.log('View mapping:', id);
+    // Add view functionality here
+    alert('View mapping details for ID: ' + id);
+  };
+
+  window.editMapping = function(id) {
+    console.log('Edit mapping:', id);
+    // Add edit functionality here
+    alert('Edit mapping for ID: ' + id);
+  };
+
+  window.deleteMapping = function(id) {
+    if (confirm('Are you sure you want to deactivate this mapping?')) {
+      $.ajax({
+        url: "{% url 'core:deactivate_package_mapping' 0 %}".replace('0', id),
+        type: 'POST',
+        data: {
+          'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+        },
+        success: function(response) {
+          if (response.success) {
+            showAlert('Package mapping deactivated successfully', 'success');
+            table.ajax.reload();
+          } else {
+            showAlert('Error deactivating mapping', 'danger');
+          }
+        },
+        error: function() {
+          showAlert('Error deactivating mapping', 'danger');
+        }
+      });
+    }
+  };
+});
+</script>
+
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+$(document).ready(function() {
+  // Initialize Select2 for searchable dropdowns
+  $('#child, #searchChild').select2({
+    placeholder: 'Search and select child...',
+    allowClear: true,
+    width: '100%'
+  });
+});
+</script>
+
+{% endblock %}

@@ -6048,3 +6048,822 @@ def getExtraHoursSummaryJS(request):
 
         traceback.print_exc()
         return JsonResponse({"error": str(e)}, status=500)
+
+
+############################################
+@login_required
+def getChildPackageMapping(request):
+    """Display child package mapping page"""
+    try:
+        # Get all children for dropdown
+        children = Child.objects.filter(
+            is_active=True, is_enrolled=True, enrollement_approved=True
+        ).order_by("admission_number")
+
+        # Get packages for dropdowns
+        normal_packages = FixedPackage.objects.filter(
+            is_active=True, package_type__is_holiday_package=False
+        ).order_by("package_code")
+
+        holiday_packages = FixedPackage.objects.filter(
+            is_active=True, package_type__is_holiday_package=True
+        ).order_by("package_code")
+
+        flex_packages = FlexPackages.objects.filter(is_active=True).order_by(
+            "package_code"
+        )
+
+        context = {
+            "children": children,
+            "normal_packages": normal_packages,
+            "holiday_packages": holiday_packages,
+            "flex_packages": flex_packages,
+            "UserName": request.user.username,
+        }
+
+        return render(request, "../templates/utils/missing_mappings.html", context)
+
+    except Exception as e:
+        messages.error(request, f"Error loading page: {str(e)}")
+        # Try different redirect options
+        try:
+            return redirect("core:view_child")  # Try child view
+        except:
+            try:
+                return redirect("/")  # Try home page
+            except:
+                # If all else fails, show the error on the same page
+                context = {
+                    "children": [],
+                    "normal_packages": [],
+                    "holiday_packages": [],
+                    "flex_packages": [],
+                    "UserName": request.user.username,
+                }
+                return render(
+                    request, "../templates/utils/missing_mappings.html", context
+                )
+
+
+@login_required
+def getPackageMappingsJS(request):
+    """Return package mappings data as JSON for DataTable with search functionality"""
+    try:
+        # Get search parameters
+        child_id = request.GET.get("child_id")
+        status = request.GET.get("status")
+        effective_date = request.GET.get("effective_date")
+
+        # Start with base query
+        mappings = ChildPackageMapping.objects.select_related(
+            "child", "normal_package", "holiday_package", "flex_package"
+        ).filter(child__is_active=True)
+
+        # Apply search filters
+        if child_id:
+            mappings = mappings.filter(child_id=child_id)
+
+        if status:
+            is_active = status.lower() == "true"
+            mappings = mappings.filter(is_active=is_active)
+
+        if effective_date:
+            from datetime import datetime
+
+            date_obj = datetime.strptime(effective_date, "%Y-%m-%d").date()
+            mappings = mappings.filter(effective_from__lte=date_obj).filter(
+                Q(effective_to__isnull=True) | Q(effective_to__gte=date_obj)
+            )
+
+        # Order by most recent first
+        mappings = mappings.order_by("-effective_from")
+
+        mapping_data = []
+
+        for mapping in mappings:
+            # Build child name
+            child_name = f"{mapping.child.admission_number} - {mapping.child.child_first_name} {mapping.child.child_last_name}"
+
+            # Get package names (only one main package should be present)
+            normal_package_name = (
+                mapping.normal_package.package_name if mapping.normal_package else None
+            )
+            holiday_package_name = (
+                mapping.holiday_package.package_name
+                if mapping.holiday_package
+                else None
+            )
+            flex_package_name = (
+                mapping.flex_package.package_name if mapping.flex_package else None
+            )
+
+            # Format dates
+            effective_from = (
+                mapping.effective_from.strftime("%Y-%m-%d")
+                if mapping.effective_from
+                else ""
+            )
+            effective_to = (
+                mapping.effective_to.strftime("%Y-%m-%d")
+                if mapping.effective_to
+                else None
+            )
+
+            # Determine main package type for better display
+            main_package_type = (
+                "normal"
+                if normal_package_name
+                else ("flex" if flex_package_name else None)
+            )
+
+            mapping_data.append(
+                {
+                    "id": mapping.id,
+                    "child_id": mapping.child.id,
+                    "child_name": child_name,
+                    "normal_package_name": normal_package_name,
+                    "holiday_package_name": holiday_package_name,
+                    "flex_package_name": flex_package_name,
+                    "main_package_type": main_package_type,
+                    "effective_from": effective_from,
+                    "effective_to": effective_to,
+                    "is_active": mapping.is_active,
+                }
+            )
+
+        return JsonResponse(mapping_data, safe=False)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def checkChildPackageMapping(request):
+    """Check if child already has an active package mapping"""
+    try:
+        child_id = request.GET.get("child_id")
+        if not child_id:
+            return JsonResponse({"error": "Child ID required"}, status=400)
+
+        child = Child.objects.get(id=child_id)
+
+        # Check for active mapping
+        active_mapping = ChildPackageMapping.objects.filter(
+            child=child, is_active=True
+        ).first()
+
+        if active_mapping:
+            # Build mapping details
+            packages = []
+
+            # Main package (Normal or Flex)
+            if active_mapping.normal_package:
+                packages.append(
+                    f"Main Package: {active_mapping.normal_package.package_name} (Normal)"
+                )
+            elif active_mapping.flex_package:
+                packages.append(
+                    f"Main Package: {active_mapping.flex_package.package_name} (Flex)"
+                )
+
+            # Holiday package
+            if active_mapping.holiday_package:
+                packages.append(
+                    f"Holiday Package: {active_mapping.holiday_package.package_name}"
+                )
+
+            mapping_details = (
+                " | ".join(packages) if packages else "No packages assigned"
+            )
+
+            # Suggest next effective date (day after current mapping ends, or tomorrow if open-ended)
+            from datetime import datetime, timedelta
+
+            if active_mapping.effective_to:
+                suggested_date = (
+                    active_mapping.effective_to + timedelta(days=1)
+                ).strftime("%Y-%m-%d")
+            else:
+                suggested_date = (datetime.now().date() + timedelta(days=1)).strftime(
+                    "%Y-%m-%d"
+                )
+
+            return JsonResponse(
+                {
+                    "exists": True,
+                    "mapping_id": active_mapping.id,
+                    "mapping_details": mapping_details,
+                    "effective_from": active_mapping.effective_from.strftime("%Y-%m-%d")
+                    if active_mapping.effective_from
+                    else "",
+                    "effective_to": active_mapping.effective_to.strftime("%Y-%m-%d")
+                    if active_mapping.effective_to
+                    else None,
+                    "suggested_effective_from": suggested_date,
+                    "current_mapping": {
+                        "packages": packages,
+                        "effective_from": active_mapping.effective_from.strftime(
+                            "%Y-%m-%d"
+                        )
+                        if active_mapping.effective_from
+                        else "",
+                        "effective_to": active_mapping.effective_to.strftime("%Y-%m-%d")
+                        if active_mapping.effective_to
+                        else None,
+                        "has_main_package": bool(
+                            active_mapping.normal_package or active_mapping.flex_package
+                        ),
+                        "has_holiday_package": bool(active_mapping.holiday_package),
+                    },
+                }
+            )
+        else:
+            return JsonResponse({"exists": False})
+
+    except Child.DoesNotExist:
+        return JsonResponse({"error": "Child not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+@transaction.atomic
+def savePackageMapping(request):
+    """Save new package mapping with validation for 2-package structure"""
+    try:
+        if request.method != "POST":
+            messages.error(request, "Invalid request method")
+            return redirect("core:view_child_package_mapping")
+
+        # Get form data
+        child_id = request.POST.get("child")
+        main_package_type = request.POST.get("main_package_type")  # 'normal' or 'flex'
+        normal_package_id = request.POST.get("normal_package")
+        flex_package_id = request.POST.get("flex_package")
+        holiday_package_id = request.POST.get("holiday_package")
+        effective_from = request.POST.get("effective_from")
+        effective_to = request.POST.get("effective_to")
+
+        # Validation
+        if not all([child_id, main_package_type, holiday_package_id, effective_from]):
+            messages.error(request, "Missing required fields")
+            return redirect("core:view_child_package_mapping")
+
+        # Validate main package selection
+        if main_package_type == "normal" and not normal_package_id:
+            messages.error(
+                request, "Normal package is required when main package type is Normal"
+            )
+            return redirect("core:view_child_package_mapping")
+
+        if main_package_type == "flex" and not flex_package_id:
+            messages.error(
+                request, "Flex package is required when main package type is Flex"
+            )
+            return redirect("core:view_child_package_mapping")
+
+        # Get child
+        child = Child.objects.get(id=child_id)
+
+        # Parse dates
+        from datetime import datetime, timedelta
+
+        effective_from_date = datetime.strptime(effective_from, "%Y-%m-%d").date()
+        effective_to_date = None
+        if effective_to:
+            effective_to_date = datetime.strptime(effective_to, "%Y-%m-%d").date()
+
+            # Validate date range
+            if effective_to_date <= effective_from_date:
+                messages.error(
+                    request, "Effective To date must be after Effective From date"
+                )
+                return redirect("core:view_child_package_mapping")
+
+        # Check for overlapping mappings
+        overlap_query = ChildPackageMapping.objects.filter(
+            child=child, is_active=True, effective_from__lte=effective_from_date
+        )
+
+        if effective_to_date:
+            overlap_query = overlap_query.filter(
+                Q(effective_to__isnull=True) | Q(effective_to__gte=effective_from_date)
+            )
+        else:
+            overlap_query = overlap_query.filter(
+                Q(effective_to__isnull=True) | Q(effective_to__gte=effective_from_date)
+            )
+
+        if overlap_query.exists():
+            messages.error(
+                request,
+                "A package mapping already exists for this period. Please deactivate the existing mapping or adjust the dates.",
+            )
+            return redirect("core:view_child_package_mapping")
+
+        # Create new mapping
+        with transaction.atomic():
+            # First, deactivate any existing active mappings for this child
+            ChildPackageMapping.objects.filter(child=child, is_active=True).update(
+                is_active=False,
+                effective_to=effective_from_date - timedelta(days=1),
+                user_updated=request.user.username,
+                date_updated=datetime.now(),
+            )
+
+            # Create the new mapping
+            mapping = ChildPackageMapping.objects.create(
+                child=child,
+                effective_from=effective_from_date,
+                effective_to=effective_to_date,
+                user_created=request.user.username,
+                is_active=True,
+            )
+
+            # Set main package based on type
+            if main_package_type == "normal":
+                mapping.normal_package = FixedPackage.objects.get(id=normal_package_id)
+            elif main_package_type == "flex":
+                mapping.flex_package = FlexPackages.objects.get(id=flex_package_id)
+
+            # Always set holiday package (required)
+            mapping.holiday_package = FixedPackage.objects.get(id=holiday_package_id)
+
+            mapping.save()
+
+        messages.success(
+            request,
+            f"Package mapping created successfully for {child.admission_number}",
+        )
+        return redirect("core:view_child_package_mapping")
+
+    except Child.DoesNotExist:
+        messages.error(request, "Child not found")
+    except FixedPackage.DoesNotExist:
+        messages.error(request, "Selected package not found")
+    except FlexPackages.DoesNotExist:
+        messages.error(request, "Selected flex package not found")
+    except Exception as e:
+        messages.error(request, f"Error saving package mapping: {str(e)}")
+
+    return redirect("core:view_child_package_mapping")
+
+
+@login_required
+def getPackageMappingDetails(request, pk):
+    """Get detailed package mapping information"""
+    try:
+        mapping = get_object_or_404(ChildPackageMapping, pk=pk)
+
+        # Determine main package details
+        main_package = None
+        main_package_type = None
+
+        if mapping.normal_package:
+            main_package = mapping.normal_package
+            main_package_type = "normal"
+        elif mapping.flex_package:
+            main_package = mapping.flex_package
+            main_package_type = "flex"
+
+        details = {
+            "id": mapping.id,
+            "child": {
+                "id": mapping.child.id,
+                "name": f"{mapping.child.child_first_name} {mapping.child.child_last_name}",
+                "admission_number": mapping.child.admission_number,
+            },
+            "main_package": {
+                "id": main_package.id if main_package else None,
+                "name": main_package.package_name if main_package else None,
+                "code": main_package.package_code if main_package else None,
+                "type": main_package_type,
+                "total": float(main_package.package_total) if main_package else 0,
+                "from_time": main_package.from_time.strftime("%H:%M")
+                if hasattr(main_package, "from_time") and main_package.from_time
+                else None,
+                "to_time": main_package.to_time.strftime("%H:%M")
+                if hasattr(main_package, "to_time") and main_package.to_time
+                else None,
+                "hours": main_package.no_hours
+                if hasattr(main_package, "no_hours")
+                else None,
+            },
+            "holiday_package": {
+                "id": mapping.holiday_package.id if mapping.holiday_package else None,
+                "name": mapping.holiday_package.package_name
+                if mapping.holiday_package
+                else None,
+                "code": mapping.holiday_package.package_code
+                if mapping.holiday_package
+                else None,
+                "total": float(mapping.holiday_package.package_total)
+                if mapping.holiday_package
+                else 0,
+            },
+            "effective_from": mapping.effective_from.strftime("%Y-%m-%d")
+            if mapping.effective_from
+            else None,
+            "effective_to": mapping.effective_to.strftime("%Y-%m-%d")
+            if mapping.effective_to
+            else None,
+            "is_active": mapping.is_active,
+            "created_by": mapping.user_created,
+            "created_date": mapping.date_created.strftime("%Y-%m-%d %H:%M")
+            if mapping.date_created
+            else None,
+            "updated_by": mapping.user_updated,
+            "updated_date": mapping.date_updated.strftime("%Y-%m-%d %H:%M")
+            if mapping.date_updated
+            else None,
+        }
+
+        return JsonResponse(details)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getChildPackageMappingHistory(request):
+    """Get complete package mapping history for a child"""
+    try:
+        child_id = request.GET.get("child_id")
+        if not child_id:
+            return JsonResponse({"error": "Child ID required"}, status=400)
+
+        child = Child.objects.get(id=child_id)
+
+        # Get all mappings for this child (active and inactive)
+        mappings = (
+            ChildPackageMapping.objects.filter(child=child)
+            .select_related("normal_package", "holiday_package", "flex_package")
+            .order_by("-effective_from")
+        )
+
+        history_data = []
+
+        for mapping in mappings:
+            # Build package description
+            packages = []
+
+            if mapping.normal_package:
+                packages.append(f"Main: {mapping.normal_package.package_name} (Normal)")
+            elif mapping.flex_package:
+                packages.append(f"Main: {mapping.flex_package.package_name} (Flex)")
+
+            if mapping.holiday_package:
+                packages.append(f"Holiday: {mapping.holiday_package.package_name}")
+
+            package_details = " | ".join(packages) if packages else "No packages"
+
+            history_data.append(
+                {
+                    "id": mapping.id,
+                    "packages": packages,
+                    "package_details": package_details,
+                    "effective_from": mapping.effective_from.strftime("%Y-%m-%d")
+                    if mapping.effective_from
+                    else "",
+                    "effective_to": mapping.effective_to.strftime("%Y-%m-%d")
+                    if mapping.effective_to
+                    else "Open-ended",
+                    "is_active": mapping.is_active,
+                    "created_by": mapping.user_created,
+                    "created_date": mapping.date_created.strftime("%Y-%m-%d %H:%M")
+                    if mapping.date_created
+                    else "",
+                    "updated_by": mapping.user_updated or "",
+                    "updated_date": mapping.date_updated.strftime("%Y-%m-%d %H:%M")
+                    if mapping.date_updated
+                    else "",
+                }
+            )
+
+        return JsonResponse(
+            {
+                "child_name": f"{child.child_first_name} {child.child_last_name}",
+                "child_admission": child.admission_number,
+                "history": history_data,
+            }
+        )
+
+    except Child.DoesNotExist:
+        return JsonResponse({"error": "Child not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getPackageMappingForUpdate(request, pk):
+    """Get package mapping for update"""
+    try:
+        mapping = get_object_or_404(ChildPackageMapping, pk=pk)
+
+        # Get all packages for dropdowns
+        normal_packages = FixedPackage.objects.filter(
+            is_active=True, package_type__is_holiday_package=False
+        ).order_by("package_code")
+
+        holiday_packages = FixedPackage.objects.filter(
+            is_active=True, package_type__is_holiday_package=True
+        ).order_by("package_code")
+
+        flex_packages = FlexPackages.objects.filter(is_active=True).order_by(
+            "package_code"
+        )
+
+        context = {
+            "mapping": mapping,
+            "normal_packages": normal_packages,
+            "holiday_packages": holiday_packages,
+            "flex_packages": flex_packages,
+        }
+
+        return render(
+            request, "../templates/partials/package_mapping_update.html", context
+        )
+
+    except Exception as e:
+        messages.error(request, f"Error loading mapping: {str(e)}")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+@transaction.atomic
+def updatePackageMapping(request):
+    """Update existing package mapping"""
+    try:
+        if request.method != "POST":
+            return JsonResponse({"error": "Invalid request method"}, status=400)
+
+        mapping_id = request.POST.get("mapping_id")
+        package_type = request.POST.get("package_type")
+        normal_package_id = request.POST.get("normal_package")
+        holiday_package_id = request.POST.get("holiday_package")
+        flex_package_id = request.POST.get("flex_package")
+        additional_holiday_package_id = request.POST.get("additional_holiday_package")
+        effective_from = request.POST.get("effective_from")
+        effective_to = request.POST.get("effective_to")
+
+        if not all([mapping_id, package_type, effective_from]):
+            messages.error(request, "Missing required fields")
+            return redirect("core:view_child_package_mapping")
+
+        # Get mapping
+        mapping = ChildPackageMapping.objects.get(id=mapping_id)
+
+        # Parse dates
+        effective_from_date = datetime.strptime(effective_from, "%Y-%m-%d").date()
+        effective_to_date = None
+        if effective_to:
+            effective_to_date = datetime.strptime(effective_to, "%Y-%m-%d").date()
+
+            if effective_to_date <= effective_from_date:
+                messages.error(
+                    request, "Effective To date must be after Effective From date"
+                )
+                return redirect("core:view_child_package_mapping")
+
+        with transaction.atomic():
+            # Clear existing packages
+            mapping.normal_package = None
+            mapping.holiday_package = None
+            mapping.flex_package = None
+            mapping.is_holiday_package = False
+
+            # Update basic fields
+            mapping.effective_from = effective_from_date
+            mapping.effective_to = effective_to_date
+            mapping.user_updated = request.user.username
+            mapping.date_updated = datetime.now()
+
+            # Set packages based on type
+            if package_type == "normal" and normal_package_id:
+                mapping.normal_package = FixedPackage.objects.get(id=normal_package_id)
+                if additional_holiday_package_id:
+                    mapping.holiday_package = FixedPackage.objects.get(
+                        id=additional_holiday_package_id
+                    )
+
+            elif package_type == "holiday" and holiday_package_id:
+                mapping.holiday_package = FixedPackage.objects.get(
+                    id=holiday_package_id
+                )
+                mapping.is_holiday_package = True
+
+            elif package_type == "flex" and flex_package_id:
+                mapping.flex_package = FlexPackages.objects.get(id=flex_package_id)
+                if additional_holiday_package_id:
+                    mapping.holiday_package = FixedPackage.objects.get(
+                        id=additional_holiday_package_id
+                    )
+            else:
+                messages.error(request, "Invalid package selection")
+                return redirect("core:view_child_package_mapping")
+
+            mapping.save()
+
+        messages.success(request, "Package mapping updated successfully")
+        return redirect("core:view_child_package_mapping")
+
+    except ChildPackageMapping.DoesNotExist:
+        messages.error(request, "Package mapping not found")
+    except Exception as e:
+        messages.error(request, f"Error updating package mapping: {str(e)}")
+
+    return redirect("core:view_child_package_mapping")
+
+
+@login_required
+@transaction.atomic
+def deactivatePackageMapping(request, pk):
+    """Deactivate package mapping"""
+    try:
+        if request.method != "POST":
+            return JsonResponse({"error": "Invalid request method"}, status=400)
+
+        user = User.objects.get(username=request.user.username)
+        if user.groups.filter(name="Data Entry").exists():
+            return JsonResponse(
+                {"error": "You are not authorized to perform this operation."},
+                status=403,
+            )
+
+        mapping = get_object_or_404(ChildPackageMapping, pk=pk)
+
+        with transaction.atomic():
+            mapping.is_active = False
+            mapping.effective_to = datetime.now().date()
+            mapping.user_updated = request.user.username
+            mapping.date_updated = datetime.now()
+            mapping.save()
+
+        return JsonResponse(
+            {"success": True, "message": "Package mapping deactivated successfully"}
+        )
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getChildPackageMappingHistory(request):
+    """Get package mapping history for a child"""
+    try:
+        child_id = request.GET.get("child_id")
+        if not child_id:
+            return JsonResponse({"error": "Child ID required"}, status=400)
+
+        child = Child.objects.get(id=child_id)
+
+        # Get all mappings for this child (active and inactive)
+        mappings = (
+            ChildPackageMapping.objects.filter(child=child)
+            .select_related("normal_package", "holiday_package", "flex_package")
+            .order_by("-effective_from")
+        )
+
+        history_data = []
+
+        for mapping in mappings:
+            packages = []
+            if mapping.normal_package:
+                packages.append(f"Normal: {mapping.normal_package.package_name}")
+            if mapping.holiday_package:
+                packages.append(f"Holiday: {mapping.holiday_package.package_name}")
+            if mapping.flex_package:
+                packages.append(f"Flex: {mapping.flex_package.package_name}")
+
+            history_data.append(
+                {
+                    "id": mapping.id,
+                    "packages": packages,
+                    "package_details": " | ".join(packages),
+                    "effective_from": mapping.effective_from.strftime("%Y-%m-%d")
+                    if mapping.effective_from
+                    else "",
+                    "effective_to": mapping.effective_to.strftime("%Y-%m-%d")
+                    if mapping.effective_to
+                    else "Open-ended",
+                    "is_active": mapping.is_active,
+                    "created_by": mapping.user_created,
+                    "created_date": mapping.date_created.strftime("%Y-%m-%d %H:%M")
+                    if mapping.date_created
+                    else "",
+                    "updated_by": mapping.user_updated or "",
+                    "updated_date": mapping.date_updated.strftime("%Y-%m-%d %H:%M")
+                    if mapping.date_updated
+                    else "",
+                }
+            )
+
+        return JsonResponse(
+            {
+                "child_name": f"{child.child_first_name} {child.child_last_name}",
+                "child_admission": child.admission_number,
+                "history": history_data,
+            }
+        )
+
+    except Child.DoesNotExist:
+        return JsonResponse({"error": "Child not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def validatePackageMappingOverlap(request):
+    """Validate if new mapping dates overlap with existing mappings"""
+    try:
+        child_id = request.GET.get("child_id")
+        effective_from = request.GET.get("effective_from")
+        effective_to = request.GET.get("effective_to")
+        exclude_mapping_id = request.GET.get("exclude_mapping_id")  # For updates
+
+        if not all([child_id, effective_from]):
+            return JsonResponse({"error": "Missing required parameters"}, status=400)
+
+        child = Child.objects.get(id=child_id)
+        effective_from_date = datetime.strptime(effective_from, "%Y-%m-%d").date()
+        effective_to_date = None
+        if effective_to:
+            effective_to_date = datetime.strptime(effective_to, "%Y-%m-%d").date()
+
+        # Check for overlapping mappings
+        overlap_query = ChildPackageMapping.objects.filter(child=child, is_active=True)
+
+        if exclude_mapping_id:
+            overlap_query = overlap_query.exclude(id=exclude_mapping_id)
+
+        # Complex overlap logic
+        if effective_to_date:
+            # New mapping has end date - check for any overlap
+            overlap_query = overlap_query.filter(
+                Q(effective_from__lte=effective_to_date)
+                & (
+                    Q(effective_to__gte=effective_from_date)
+                    | Q(effective_to__isnull=True)
+                )
+            )
+        else:
+            # New mapping is open-ended - check if any mapping starts before our start date
+            overlap_query = overlap_query.filter(
+                Q(effective_to__gte=effective_from_date) | Q(effective_to__isnull=True)
+            )
+
+        overlapping_mappings = list(
+            overlap_query.values(
+                "id",
+                "effective_from",
+                "effective_to",
+                "normal_package__package_name",
+                "holiday_package__package_name",
+                "flex_package__package_name",
+            )
+        )
+
+        if overlapping_mappings:
+            overlap_details = []
+            for mapping in overlapping_mappings:
+                packages = []
+                if mapping["normal_package__package_name"]:
+                    packages.append(
+                        f"Normal: {mapping['normal_package__package_name']}"
+                    )
+                if mapping["holiday_package__package_name"]:
+                    packages.append(
+                        f"Holiday: {mapping['holiday_package__package_name']}"
+                    )
+                if mapping["flex_package__package_name"]:
+                    packages.append(f"Flex: {mapping['flex_package__package_name']}")
+
+                overlap_details.append(
+                    {
+                        "id": mapping["id"],
+                        "packages": " | ".join(packages),
+                        "effective_from": mapping["effective_from"].strftime(
+                            "%Y-%m-%d"
+                        ),
+                        "effective_to": mapping["effective_to"].strftime("%Y-%m-%d")
+                        if mapping["effective_to"]
+                        else "Open-ended",
+                    }
+                )
+
+            return JsonResponse(
+                {
+                    "overlap": True,
+                    "overlapping_mappings": overlap_details,
+                    "message": "Date range overlaps with existing package mappings",
+                }
+            )
+        else:
+            return JsonResponse(
+                {"overlap": False, "message": "No overlapping mappings found"}
+            )
+
+    except Child.DoesNotExist:
+        return JsonResponse({"error": "Child not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

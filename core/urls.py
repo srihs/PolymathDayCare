@@ -371,4 +371,39 @@ urlpatterns = [
         views.getExtraHoursSummaryJS,
         name="get_extra_hours_summary_js",
     ),
+    path(
+        "child-package-mapping/",
+        views.getChildPackageMapping,
+        name="view_child_package_mapping",
+    ),
+    path(
+        "child-package-mapping/data/",
+        views.getPackageMappingsJS,
+        name="get_package_mappings_js",
+    ),
+    path(
+        "child-package-mapping/check/",
+        views.checkChildPackageMapping,
+        name="check_child_package_mapping",
+    ),
+    path(
+        "child-package-mapping/save/",
+        views.savePackageMapping,
+        name="save_package_mapping",
+    ),
+    path(
+        "child-package-mapping/details/<int:pk>/",
+        views.getPackageMappingDetails,
+        name="get_package_mapping_details",
+    ),
+    path(
+        "child-package-mapping/deactivate/<int:pk>/",
+        views.deactivatePackageMapping,
+        name="deactivate_package_mapping",
+    ),
+    path(
+        "child-package-mapping/history/",
+        views.getChildPackageMappingHistory,
+        name="get_child_package_mapping_history",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
