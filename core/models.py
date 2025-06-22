@@ -808,6 +808,7 @@ class InvoiceMemoDetail(BaseClass):
     charge_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     payment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     balance_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    receipt_number = models.CharField(max_length=20, blank=True)
 
     # Store additional details as JSON
     calculation_details = models.JSONField(default=dict)

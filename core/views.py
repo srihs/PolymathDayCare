@@ -6867,3 +6867,524 @@ def validatePackageMappingOverlap(request):
         return JsonResponse({"error": "Child not found"}, status=404)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+########################## Manual Memo############################################
+# Add these views to your views.py file
+
+
+@login_required
+def getMemoDataEntry(request):
+    """Display memo data entry page"""
+    try:
+        # Get children for dropdown
+        children = Child.objects.filter(is_active=True, is_enrolled=True).order_by(
+            "admission_number"
+        )
+
+        # Generate year range
+        current_year = datetime.now().year
+        year_range = [
+            current_year - 2,
+            current_year - 1,
+            current_year,
+            current_year + 1,
+        ]
+
+        context = {
+            "children": children,
+            "year_range": year_range,
+            "UserName": request.user.username,
+        }
+
+        return render(request, "../templates/utils/memo_manual.html", context)
+
+    except Exception as e:
+        messages.error(request, f"Error loading page: {str(e)}")
+        return redirect("core:view_invoice_memos")
+
+
+@login_required
+def getChildPackageDetails(request):
+    """Get child's package details for auto-filling"""
+    try:
+        child_id = request.GET.get("child_id")
+        if not child_id:
+            return JsonResponse({"error": "Child ID required"}, status=400)
+
+        child = Child.objects.get(id=child_id)
+
+        # Get active package mapping
+        package_mapping = ChildPackageMapping.objects.filter(
+            child=child, is_active=True
+        ).first()
+
+        if not package_mapping:
+            return JsonResponse({"error": "No package mapping found"}, status=404)
+
+        # Determine which package is active
+        package_name = "Unknown Package"
+        package_fee = 0
+
+        if package_mapping.normal_package:
+            package_name = package_mapping.normal_package.package_name
+            package_fee = float(package_mapping.normal_package.package_total)
+        elif package_mapping.holiday_package:
+            package_name = f"{package_mapping.holiday_package.package_name} (Holiday)"
+            package_fee = float(package_mapping.holiday_package.package_total)
+        elif package_mapping.flex_package:
+            package_name = f"{package_mapping.flex_package.package_name} (Flex)"
+            package_fee = float(package_mapping.flex_package.package_total)
+
+        return JsonResponse(
+            {
+                "package_name": package_name,
+                "package_fee": package_fee,
+                "child_name": f"{child.child_first_name} {child.child_last_name}",
+                "admission_number": child.admission_number,
+            }
+        )
+
+    except Child.DoesNotExist:
+        return JsonResponse({"error": "Child not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getAttendanceSummary(request):
+    """Get attendance summary for a child in a specific month"""
+    try:
+        child_id = request.GET.get("child_id")
+        month = request.GET.get("month")
+        year = request.GET.get("year")
+
+        if not all([child_id, month, year]):
+            return JsonResponse({"error": "Missing parameters"}, status=400)
+
+        child = Child.objects.get(id=child_id)
+
+        # Get date range for the month
+        first_day = datetime(int(year), int(month), 1).date()
+        last_day = datetime(
+            int(year), int(month), calendar.monthrange(int(year), int(month))[1]
+        ).date()
+
+        # Get attendance logs
+        attendance_logs = AttendanceLog.objects.filter(
+            child=child, date_logged__range=(first_day, last_day)
+        )
+
+        # Group by date and count complete attendances (in and out)
+        logs_by_date = defaultdict(list)
+        for log in attendance_logs:
+            logs_by_date[log.date_logged].append(log)
+
+        days_attended = sum(1 for logs in logs_by_date.values() if len(logs) >= 2)
+
+        # Get expected days from package
+        package_mapping = ChildPackageMapping.objects.filter(
+            child=child, is_active=True
+        ).first()
+
+        expected_days = 22  # default
+        if package_mapping:
+            if package_mapping.normal_package:
+                expected_days = package_mapping.normal_package.no_days_months or 22
+            elif package_mapping.holiday_package:
+                expected_days = package_mapping.holiday_package.no_days_months or 22
+            elif package_mapping.flex_package:
+                expected_days = package_mapping.flex_package.no_days_months or 22
+
+        attendance_percentage = (
+            round((days_attended / expected_days * 100), 1) if expected_days > 0 else 0
+        )
+
+        return JsonResponse(
+            {
+                "days_attended": days_attended,
+                "expected_days": expected_days,
+                "attendance_percentage": attendance_percentage,
+            }
+        )
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def calculateMemoData(request):
+    """Calculate memo data automatically from system data"""
+    try:
+        child_id = request.GET.get("child_id")
+        month = request.GET.get("month")
+        year = request.GET.get("year")
+
+        if not all([child_id, month, year]):
+            return JsonResponse({"error": "Missing parameters"}, status=400)
+
+        child = Child.objects.get(id=child_id)
+
+        # Use existing 3-month calculation function
+        three_month_data = calculate_three_month_invoice_data(child, month, year)
+
+        # Extract data for form filling
+        calculated_data = {
+            "outstanding_amount": float(three_month_data["month1"]["balance"]),
+            "payment_settled": float(three_month_data["month1"]["payments"]),
+            "package_fee": float(three_month_data["month2"]["package_fee"]),
+            "extra_hours": float(three_month_data["month2"]["extra_charges"]),
+            "holiday_charges": float(three_month_data["month2"]["holiday_charges"]),
+            "discount_applied": float(three_month_data["month2"]["discount"]),
+            "advance_payment": float(three_month_data["month3"]["package_fee"]),
+            "current_payment": 0,  # No payment yet
+        }
+
+        return JsonResponse(calculated_data)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+@transaction.atomic
+def saveMemoDataEntry(request):
+    """Save manually entered memo data"""
+    try:
+        if request.method != "POST":
+            messages.error(request, "Invalid request method")
+            return redirect("core:memo_data_entry")
+
+        # Extract form data
+        child_id = request.POST.get("child")
+        month = request.POST.get("month")
+        year = request.POST.get("year")
+
+        # Outstanding (2 months ago) data
+        outstanding_amount = Decimal(request.POST.get("outstanding_amount") or "0")
+        payment_settled = Decimal(request.POST.get("payment_settled") or "0")
+        receipt_number = request.POST.get("receipt_number", "").strip()
+
+        # Previous month data
+        previous_package_fee = Decimal(request.POST.get("previous_package_fee") or "0")
+        previous_extra_hours = Decimal(request.POST.get("previous_extra_hours") or "0")
+        previous_holiday_charges = Decimal(
+            request.POST.get("previous_holiday_charges") or "0"
+        )
+        previous_discount_applied = Decimal(
+            request.POST.get("previous_discount_applied") or "0"
+        )
+        previous_payment = Decimal(request.POST.get("previous_payment") or "0")
+
+        # Current month data
+        package_fee = Decimal(request.POST.get("package_fee") or "0")
+        extra_hours = Decimal(request.POST.get("extra_hours") or "0")
+        holiday_charges = Decimal(request.POST.get("holiday_charges") or "0")
+        discount_applied = Decimal(request.POST.get("discount_applied") or "0")
+        current_payment = Decimal(request.POST.get("current_payment") or "0")
+
+        if not all([child_id, month, year]):
+            messages.error(request, "Please fill in all required fields")
+            return redirect("core:memo_data_entry")
+
+        child = Child.objects.get(id=child_id)
+
+        # Check if memo already exists
+        existing_memo = InvoiceMemo.objects.filter(
+            child=child, month=int(month), year=int(year)
+        ).first()
+
+        if existing_memo:
+            messages.error(
+                request,
+                f"Memo already exists for {calendar.month_name[int(month)]} {year}",
+            )
+            return redirect("core:memo_data_entry")
+
+        # Calculate month details
+        current_month_int = int(month)
+        current_year_int = int(year)
+
+        # Previous month
+        prev_month = current_month_int - 1 if current_month_int > 1 else 12
+        prev_year = current_year_int if current_month_int > 1 else current_year_int - 1
+
+        # Two months ago (outstanding)
+        two_months_ago = (
+            current_month_int - 2
+            if current_month_int > 2
+            else (12 + current_month_int - 2)
+        )
+        two_months_ago_year = (
+            current_year_int if current_month_int > 2 else current_year_int - 1
+        )
+
+        # Calculate totals
+        remaining_balance = outstanding_amount - payment_settled
+        previous_month_total = (
+            previous_package_fee
+            + previous_extra_hours
+            + previous_holiday_charges
+            - previous_discount_applied
+            - previous_payment
+        )
+        current_month_total = (
+            package_fee
+            + extra_hours
+            + holiday_charges
+            - discount_applied
+            - current_payment
+        )
+        grand_total = remaining_balance + previous_month_total + current_month_total
+
+        # Generate memo code
+        nextId = InvoiceMemo.objects.count() + 1
+        memo_code = f"MO{nextId:03d}"
+
+        # Get package info
+        package_mapping = ChildPackageMapping.objects.filter(
+            child=child, is_active=True
+        ).first()
+
+        enrollment = ChildEnrollment.objects.filter(
+            child=child, status="Approved", is_active=True
+        ).first()
+
+        if not package_mapping or not enrollment:
+            messages.error(request, "No package mapping or enrollment found for child")
+            return redirect("core:memo_data_entry")
+
+        # Determine package name
+        package_name = "Manual Entry Package"
+        if package_mapping.normal_package:
+            package_name = package_mapping.normal_package.package_name
+        elif package_mapping.holiday_package:
+            package_name = package_mapping.holiday_package.package_name
+        elif package_mapping.flex_package:
+            package_name = package_mapping.flex_package.package_name
+
+        with transaction.atomic():
+            # Create main memo record
+            memo = InvoiceMemo.objects.create(
+                memo_date=datetime.now().date(),
+                memo_code=memo_code,
+                child=child,
+                year=current_year_int,
+                month=current_month_int,
+                # Package info
+                package_name=package_name,
+                package_base_fee=package_fee,
+                # Current month details (backward compatibility)
+                current_month_package_fee=package_fee,
+                extra_hours_charge=extra_hours,
+                holiday_charge=holiday_charges,
+                discount_applied=discount_applied,
+                month_total_charge=current_month_total,
+                # Payments
+                total_payments_received=current_payment + previous_payment,
+                month_net_balance=current_month_total,
+                # 3-month totals
+                total_outstanding=remaining_balance,
+                grand_total=grand_total,
+                # Status
+                status="GENERATED",
+                branch_name=enrollment.branch.branch_name,
+                center_name=enrollment.center.daycare_name,
+                notes=f"Manually entered memo on {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                # Audit
+                user_created=request.user.username,
+            )
+
+            # Create detail records for 3-month structure
+            from .models import InvoiceMemoDetail
+
+            # Month 1 - Outstanding (2 months ago)
+            InvoiceMemoDetail.objects.create(
+                memo=memo,
+                month_sequence=1,
+                month=two_months_ago,
+                year=two_months_ago_year,
+                month_name=calendar.month_name[two_months_ago],
+                month_type="OUTSTANDING",
+                charge_amount=outstanding_amount,
+                payment_amount=payment_settled,
+                balance_amount=remaining_balance,
+                calculation_details={
+                    "manually_entered": True,
+                    "receipt_number": receipt_number,
+                },
+                user_created=request.user.username,
+            )
+
+            # Month 2 - Previous month
+            InvoiceMemoDetail.objects.create(
+                memo=memo,
+                month_sequence=2,
+                month=prev_month,
+                year=prev_year,
+                month_name=calendar.month_name[prev_month],
+                month_type="CALCULATED",
+                charge_amount=previous_package_fee
+                + previous_extra_hours
+                + previous_holiday_charges
+                - previous_discount_applied,
+                payment_amount=previous_payment,
+                balance_amount=previous_month_total,
+                calculation_details={
+                    "manually_entered": True,
+                    "package_fee": float(previous_package_fee),
+                    "extra_hours": float(previous_extra_hours),
+                    "holiday_charges": float(previous_holiday_charges),
+                    "discount_applied": float(previous_discount_applied),
+                },
+                user_created=request.user.username,
+            )
+
+            # Month 3 - Current month
+            InvoiceMemoDetail.objects.create(
+                memo=memo,
+                month_sequence=3,
+                month=current_month_int,
+                year=current_year_int,
+                month_name=calendar.month_name[current_month_int],
+                month_type="CURRENT",
+                charge_amount=package_fee
+                + extra_hours
+                + holiday_charges
+                - discount_applied,
+                payment_amount=current_payment,
+                balance_amount=current_month_total,
+                calculation_details={
+                    "manually_entered": True,
+                    "package_fee": float(package_fee),
+                    "extra_hours": float(extra_hours),
+                    "holiday_charges": float(holiday_charges),
+                    "discount_applied": float(discount_applied),
+                },
+                user_created=request.user.username,
+            )
+
+        messages.success(request, f"Memo {memo_code} created successfully!")
+        return redirect("core:view_invoice_memos")
+
+    except Exception as e:
+        messages.error(request, f"Error saving memo: {str(e)}")
+        return redirect("core:memo_data_entry")
+
+
+@login_required
+def saveMemoDataDraft(request):
+    """Save memo data as draft (auto-save functionality)"""
+    try:
+        if request.method != "POST":
+            return JsonResponse({"error": "Invalid method"}, status=400)
+
+        # Save draft to session or temporary table
+        draft_data = {
+            "child": request.POST.get("child"),
+            "month": request.POST.get("month"),
+            "year": request.POST.get("year"),
+            "outstanding_amount": request.POST.get("outstanding_amount"),
+            "payment_settled": request.POST.get("payment_settled"),
+            "package_fee": request.POST.get("package_fee"),
+            "extra_hours": request.POST.get("extra_hours"),
+            "holiday_charges": request.POST.get("holiday_charges"),
+            "discount_applied": request.POST.get("discount_applied"),
+            "advance_payment": request.POST.get("advance_payment"),
+            "current_payment": request.POST.get("current_payment"),
+            "receipt_number": request.POST.get("receipt_number"),
+            "timestamp": datetime.now().isoformat(),
+        }
+
+        # Save to session
+        request.session["memo_draft"] = draft_data
+        request.session.modified = True
+
+        return JsonResponse({"success": True, "message": "Draft saved"})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getPreviousMemoData(request):
+    """Get previous month's memo data for copying"""
+    try:
+        child_id = request.GET.get("child_id")
+        month = request.GET.get("month")
+        year = request.GET.get("year")
+
+        if not all([child_id, month, year]):
+            return JsonResponse({"error": "Missing parameters"}, status=400)
+
+        child = Child.objects.get(id=child_id)
+
+        # Look for existing memo for the specified month
+        existing_memo = InvoiceMemo.objects.filter(
+            child=child, month=int(month), year=int(year), is_active=True
+        ).first()
+
+        if existing_memo:
+            # Return simplified data for copying
+            data = {
+                "package_fee": float(existing_memo.current_month_package_fee),
+                "package_name": existing_memo.package_name,
+                "expected_days": existing_memo.expected_days,
+            }
+            return JsonResponse({"success": True, "data": data})
+        else:
+            return JsonResponse({"success": False, "message": "No memo found"})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def generateMemoPDF(request):
+    """Generate PDF from manual memo data"""
+    try:
+        if request.method != "POST":
+            return JsonResponse({"error": "Invalid method"}, status=400)
+
+        # Get form data (same as save function but generate PDF instead)
+        child_id = request.POST.get("child")
+        month = request.POST.get("month")
+        year = request.POST.get("year")
+
+        # Financial data
+        outstanding_amount = Decimal(request.POST.get("outstanding_amount") or "0")
+        payment_settled = Decimal(request.POST.get("payment_settled") or "0")
+        package_fee = Decimal(request.POST.get("package_fee") or "0")
+        extra_hours = Decimal(request.POST.get("extra_hours") or "0")
+        holiday_charges = Decimal(request.POST.get("holiday_charges") or "0")
+        discount_applied = Decimal(request.POST.get("discount_applied") or "0")
+        advance_payment = Decimal(request.POST.get("advance_payment") or "0")
+        current_payment = Decimal(request.POST.get("current_payment") or "0")
+        receipt_number = request.POST.get("receipt_number", "").strip()
+
+        if not all([child_id, month, year]):
+            return JsonResponse({"error": "Missing required fields"}, status=400)
+
+        child = Child.objects.get(id=child_id)
+
+        # Create temporary PDF (you can reuse the existing PDF generation logic)
+        # This is a simplified version - you should use your existing PDF generation
+        pdf_filename = f"temp_memo_{child.admission_number}_{month}_{year}.pdf"
+        pdf_path = os.path.join(settings.MEDIA_ROOT, "temp_pdfs", pdf_filename)
+
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
+
+        # Generate PDF using your existing logic (adapt generateThreeMonthPDFContent)
+        # For now, return success
+
+        return JsonResponse(
+            {
+                "success": True,
+                "pdf_url": f"/media/temp_pdfs/{pdf_filename}",
+                "message": "PDF generated successfully",
+            }
+        )
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

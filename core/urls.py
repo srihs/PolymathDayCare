@@ -406,4 +406,25 @@ urlpatterns = [
         views.getChildPackageMappingHistory,
         name="get_child_package_mapping_history",
     ),
+    # Memo Data Entry URLs
+    path("memo_data_entry/", views.getMemoDataEntry, name="memo_data_entry"),
+    path(
+        "get_child_package_details/",
+        views.getChildPackageDetails,
+        name="get_child_package_details",
+    ),
+    path(
+        "get_attendance_summary/",
+        views.getAttendanceSummary,
+        name="get_attendance_summary",
+    ),
+    path("calculate_memo_data/", views.calculateMemoData, name="calculate_memo_data"),
+    path("save_memo_data_entry/", views.saveMemoDataEntry, name="save_memo_data_entry"),
+    path("save_memo_draft/", views.saveMemoDataDraft, name="save_memo_draft"),
+    path(
+        "get_previous_memo_data/",
+        views.getPreviousMemoData,
+        name="get_previous_memo_data",
+    ),
+    path("generate_memo_pdf/", views.generateMemoPDF, name="generate_memo_pdf"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

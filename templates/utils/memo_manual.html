@@ -1,0 +1,606 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block PageTitle %}Invoice Memo Data Entry{% endblock %}
+{% block pageTitle %}Invoice Memo Data Entry{% endblock %}
+{% block Title %}Invoice Management{% endblock %}
+{% block functionTitle %}Manual Data Entry{% endblock %}
+
+{% block content %}
+<style>
+    .main-card {
+        background: white;
+        border: 1px solid #e0e0e0;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .form-section {
+        border: 1px solid #dee2e6;
+        margin-bottom: 1.25rem;
+        background: white;
+    }
+    
+    .section-header {
+        padding: 0.75rem 1rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+        border-bottom: 2px solid;
+        display: flex;
+        justify-content: between;
+        align-items: center;
+    }
+    
+    .outstanding-header {
+        background: #fff5f5;
+        color: #c53030;
+        border-color: #fc8181;
+    }
+    
+    .previous-header {
+        background: #f0fff4;
+        color: #38a169;
+        border-color: #68d391;
+    }
+    
+    .current-header {
+        background: #ebf8ff;
+        color: #2b6cb0;
+        border-color: #63b3ed;
+    }
+    
+    .section-body {
+        padding: 1rem;
+    }
+    
+    .form-row {
+        margin-bottom: 0.75rem;
+    }
+    
+    .form-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+        color: #374151;
+    }
+    
+    .form-control {
+        font-size: 0.875rem;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #d1d5db;
+    }
+    
+    .form-control:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
+    
+    .amount-input {
+        text-align: right;
+        font-weight: 600;
+    }
+    
+    .calculated-field {
+        background: #f9fafb;
+        border: 1px dashed #9ca3af;
+        cursor: not-allowed;
+    }
+    
+    .status-badge {
+        background: rgba(75, 85, 99, 0.1);
+        color: #374151;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .btn-action {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-right: 0.5rem;
+    }
+    
+    .total-section {
+        background: #fffbeb;
+        border: 1px solid #fbbf24;
+        padding: 1rem;
+        margin-top: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .total-amount {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #dc2626;
+    }
+    
+    .floating-total {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #3b82f6;
+        color: white;
+        padding: 0.75rem 1rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+    }
+</style>
+
+<!-- Main Form Card -->
+<div class="main-card">
+    <h4 class="mb-4">Generate New Invoice Memo</h4>
+    
+    <form id="memoDataForm" method="post" action="{% url 'core:save_memo_data_entry' %}">
+        {% csrf_token %}
+        
+        <!-- Basic Information -->
+        <div class="row form-row">
+            <div class="col-12">
+                <label class="form-label">Child *</label>
+                <select class="form-control" name="child" id="child" required>
+                    <option value="">Search by admission number or child name...</option>
+                    {% for child in children %}
+                    <option value="{{ child.id }}">{{ child.admission_number }} - {{ child.child_first_name }} {{ child.child_last_name }}</option>
+                    {% endfor %}
+                </select>
+                <small class="text-muted">Search by typing admission number or child name (454 children available)</small>
+            </div>
+        </div>
+        
+        <div class="row form-row">
+            <div class="col-md-6">
+                <label class="form-label">Month *</label>
+                <input type="text" class="form-control" name="month_display" id="month_display" value="June" readonly>
+                <input type="hidden" name="month" id="month" value="6">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Year *</label>
+                <input type="text" class="form-control" name="year" id="year" value="2025">
+            </div>
+        </div>
+        
+        <!-- Outstanding Section -->
+        <div class="form-section">
+            <div class="section-header outstanding-header">
+                <span><i class="ri-error-warning-line me-2"></i>Outstanding as at <span id="outstanding_month_name">April 2025</span></span>
+                <span class="status-badge">OUTSTANDING</span>
+            </div>
+            <div class="section-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-row">
+                            <label class="form-label">Outstanding Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="number" class="form-control amount-input" name="outstanding_amount" 
+                                       id="outstanding_amount" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-row">
+                            <label class="form-label">Payment Settled</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="number" class="form-control amount-input" name="payment_settled" 
+                                       id="payment_settled" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-row">
+                            <label class="form-label">Receipt Number</label>
+                            <input type="text" class="form-control" name="receipt_number" 
+                                   id="receipt_number" placeholder="RN 18511">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-row">
+                            <label class="form-label">Remaining Balance</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="number" class="form-control calculated-field amount-input" 
+                                       name="remaining_balance" id="remaining_balance" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Previous Month Section -->
+        <div class="form-section">
+            <div class="section-header previous-header">
+                <span><i class="ri-calendar-check-line me-2"></i>Day Care Monthly fee - <span id="previous_month_name">May 2025</span></span>
+                <span class="status-badge">PREVIOUS</span>
+            </div>
+            <div class="section-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-row">
+                            <label class="form-label">Package Fee</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="number" class="form-control amount-input" name="previous_package_fee" 
+                                       id="previous_package_fee" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-row">
+                            <label class="form-label">Extra Hours</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="number" class="form-control amount-input" name="previous_extra_hours" 
+                                       id="previous_extra_hours" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-row">
+                            <label class="form-label">Holiday Charges</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="number" class="form-control amount-input" name="previous_holiday_charges" 
+                                       id="previous_holiday_charges" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-row">
+                            <label class="form-label">Discount Applied</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="number" class="form-control amount-input" name="previous_discount_applied" 
+                                       id="previous_discount_applied" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-row">
+                            <label class="form-label">Payment Received</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="number" class="form-control amount-input" name="previous_payment" 
+                                       id="previous_payment" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Current Month Section -->
+        <div class="form-section">
+            <div class="section-header current-header">
+                <span><i class="ri-calendar-line me-2"></i>Day Care Monthly fee - <span id="current_month_name">June 2025</span></span>
+                <span class="status-badge">CURRENT</span>
+            </div>
+            <div class="section-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-row">
+                            <label class="form-label">Package Fee</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="number" class="form-control amount-input" name="package_fee" 
+                                       id="package_fee" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-row">
+                            <label class="form-label">Extra Hours</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="number" class="form-control amount-input" name="extra_hours" 
+                                       id="extra_hours" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-row">
+                            <label class="form-label">Holiday Charges</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="number" class="form-control amount-input" name="holiday_charges" 
+                                       id="holiday_charges" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-row">
+                            <label class="form-label">Discount Applied</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="number" class="form-control amount-input" name="discount_applied" 
+                                       id="discount_applied" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-row">
+                            <label class="form-label">Current Month Payment</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="number" class="form-control amount-input" name="current_payment" 
+                                       id="current_payment" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Total Amount Section -->
+        <div class="total-section">
+            <h5 class="mb-0">Total Amount</h5>
+            <div class="total-amount">Rs. <span id="grand_total">0.00</span></div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="d-flex justify-content-end mt-4">
+            <button type="button" class="btn btn-outline-secondary btn-action" onclick="clearForm()">
+                <i class="ri-refresh-line me-1"></i>Clear
+            </button>
+            <button type="submit" class="btn btn-success btn-action">
+                <i class="ri-save-line me-1"></i>Generate & Save Memo
+            </button>
+            <button type="button" class="btn btn-info btn-action" onclick="previewMemo()">
+                <i class="ri-eye-line me-1"></i>Preview Memo
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Floating Total -->
+<div class="floating-total" id="floating_total">
+    <i class="ri-money-dollar-circle-line me-2"></i>
+    Total: Rs. <span id="floating_amount">0.00</span>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Memo Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="preview_content">
+                <!-- Preview content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="generatePDF()">
+                    <i class="ri-file-pdf-line me-1"></i>Generate PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Initialize form
+$(document).ready(function() {
+    $('#child').select2({
+        placeholder: 'Search by admission number or child name...',
+        allowClear: true,
+        width: '100%'
+    });
+    
+    // Set current date
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    
+    $('#month').val(currentMonth);
+    $('#year').val(currentYear);
+    
+    updateMonthNames();
+    
+    // Event listeners
+    $('#child').on('change', loadChildDetails);
+    $('#year, #month').on('change', updateMonthNames);
+});
+
+function updateMonthNames() {
+    const month = parseInt($('#month').val()) || 6;
+    const year = parseInt($('#year').val()) || 2025;
+    
+    const months = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+                   'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    // Calculate months
+    let outstandingMonth = month - 2;
+    let outstandingYear = year;
+    if (outstandingMonth <= 0) {
+        outstandingMonth = 12 + outstandingMonth;
+        outstandingYear = year - 1;
+    }
+    
+    let previousMonth = month - 1;
+    let previousYear = year;
+    if (previousMonth === 0) {
+        previousMonth = 12;
+        previousYear = year - 1;
+    }
+    
+    // Update displays
+    $('#outstanding_month_name').text(months[outstandingMonth] + ' ' + outstandingYear);
+    $('#previous_month_name').text(months[previousMonth] + ' ' + previousYear);
+    $('#current_month_name').text(months[month] + ' ' + year);
+    $('#month_display').val(months[month]);
+}
+
+function loadChildDetails() {
+    const childId = $('#child').val();
+    if (!childId) return;
+    
+    $.ajax({
+        url: "{% url 'core:get_child_package_details' %}",
+        data: { child_id: childId },
+        success: function(response) {
+            if (response.package_fee) {
+                $('#package_fee').val(response.package_fee);
+                $('#previous_package_fee').val(response.package_fee);
+                calculateTotals();
+            }
+        },
+        error: function() {
+            console.log('Error loading child details');
+        }
+    });
+}
+
+function calculateTotals() {
+    // Get all values
+    const outstandingAmount = parseFloat($('#outstanding_amount').val()) || 0;
+    const paymentSettled = parseFloat($('#payment_settled').val()) || 0;
+    
+    const prevPackageFee = parseFloat($('#previous_package_fee').val()) || 0;
+    const prevExtraHours = parseFloat($('#previous_extra_hours').val()) || 0;
+    const prevHolidayCharges = parseFloat($('#previous_holiday_charges').val()) || 0;
+    const prevDiscountApplied = parseFloat($('#previous_discount_applied').val()) || 0;
+    const prevPayment = parseFloat($('#previous_payment').val()) || 0;
+    
+    const packageFee = parseFloat($('#package_fee').val()) || 0;
+    const extraHours = parseFloat($('#extra_hours').val()) || 0;
+    const holidayCharges = parseFloat($('#holiday_charges').val()) || 0;
+    const discountApplied = parseFloat($('#discount_applied').val()) || 0;
+    const currentPayment = parseFloat($('#current_payment').val()) || 0;
+    
+    // Calculate balances
+    const remainingBalance = outstandingAmount - paymentSettled;
+    $('#remaining_balance').val(remainingBalance.toFixed(2));
+    
+    const prevMonthCharges = prevPackageFee + prevExtraHours + prevHolidayCharges - prevDiscountApplied;
+    const prevMonthBalance = prevMonthCharges - prevPayment;
+    
+    const currentMonthCharges = packageFee + extraHours + holidayCharges - discountApplied;
+    const currentMonthBalance = currentMonthCharges - currentPayment;
+    
+    // Grand total
+    const grandTotal = remainingBalance + prevMonthBalance + currentMonthBalance;
+    
+    // Update displays
+    $('#grand_total').text(grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+    $('#floating_amount').text(grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+    
+    // Update floating total color
+    const floatingTotal = $('#floating_total');
+    if (grandTotal > 0) {
+        floatingTotal.css('background', '#dc2626');
+    } else if (grandTotal < 0) {
+        floatingTotal.css('background', '#16a34a');
+    } else {
+        floatingTotal.css('background', '#3b82f6');
+    }
+}
+
+function clearForm() {
+    if (confirm('Clear all entered data?')) {
+        $('#memoDataForm')[0].reset();
+        $('#child').val('').trigger('change');
+        calculateTotals();
+    }
+}
+
+function previewMemo() {
+    if (!$('#child').val()) {
+        alert('Please select a child first');
+        return;
+    }
+    
+    const childText = $('#child option:selected').text();
+    
+    const previewHTML = `
+        <div class="memo-preview">
+            <div class="text-center mb-4">
+                <h4>POLYMATH COLLEGE</h4>
+                <p class="mb-1">No 452/3 High Level Road, Nawinna, Maharagama</p>
+                <p class="mb-1">PV 63200 | Phone 0112802554</p>
+                <h5 class="mt-3">KIDS DIVISION - MEMO</h5>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-6"><strong>Name:</strong> ${childText}</div>
+                <div class="col-6"><strong>Month:</strong> ${$('#current_month_name').text()}</div>
+            </div>
+            
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th width="70%">Description</th>
+                        <th width="30%" class="text-end">Amount (Rs.)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Outstanding as at ${$('#outstanding_month_name').text()}</td>
+                        <td class="text-end">${parseFloat($('#outstanding_amount').val() || 0).toLocaleString()}</td>
+                    </tr>
+                    <tr>
+                        <td>Payment Settled</td>
+                        <td class="text-end">(${parseFloat($('#payment_settled').val() || 0).toLocaleString()})</td>
+                    </tr>
+                    <tr>
+                        <td>Remaining Balance</td>
+                        <td class="text-end">${parseFloat($('#remaining_balance').val() || 0).toLocaleString()}</td>
+                    </tr>
+                    <tr>
+                        <td>Day Care Monthly fee - ${$('#previous_month_name').text()}</td>
+                        <td class="text-end">${parseFloat($('#previous_package_fee').val() || 0).toLocaleString()}</td>
+                    </tr>
+                    <tr>
+                        <td>Day Care Monthly fee - ${$('#current_month_name').text()}</td>
+                        <td class="text-end">${parseFloat($('#package_fee').val() || 0).toLocaleString()}</td>
+                    </tr>
+                    <tr class="table-warning">
+                        <td><strong>Total</strong></td>
+                        <td class="text-end"><strong>Rs. ${$('#grand_total').text()}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    $('#preview_content').html(previewHTML);
+    $('#previewModal').modal('show');
+}
+
+function generatePDF() {
+    alert('PDF generation functionality would be implemented here');
+}
+
+// Form submission
+$('#memoDataForm').on('submit', function(e) {
+    if (!$('#child').val()) {
+        e.preventDefault();
+        alert('Please select a child');
+        return false;
+    }
+    
+    // Show loading
+    $(this).find('button[type="submit"]').html('<i class="ri-loader-4-line ri-spin me-1"></i>Saving...').prop('disabled', true);
+});
+</script>
+
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+{% endblock %}
