@@ -6906,7 +6906,7 @@ def getMemoDataEntry(request):
 
 @login_required
 def getChildPackageDetails(request):
-    """Get child's package details for auto-filling"""
+    """Get child's package details for auto-filling including discount info"""
     try:
         child_id = request.GET.get("child_id")
         if not child_id:
@@ -6922,6 +6922,11 @@ def getChildPackageDetails(request):
         if not package_mapping:
             return JsonResponse({"error": "No package mapping found"}, status=404)
 
+        # Get enrollment details for discount info
+        enrollment = ChildEnrollment.objects.filter(
+            child=child, status="Approved", is_active=True
+        ).first()
+
         # Determine which package is active
         package_name = "Unknown Package"
         package_fee = 0
@@ -6936,12 +6941,25 @@ def getChildPackageDetails(request):
             package_name = f"{package_mapping.flex_package.package_name} (Flex)"
             package_fee = float(package_mapping.flex_package.package_total)
 
+        # Get discount information
+        discount_rate = 0
+        discount_name = ""
+        if (
+            enrollment
+            and enrollment.discount
+            and enrollment.discount.status == "Approved"
+        ):
+            discount_rate = float(enrollment.discount.discount_rate)
+            discount_name = enrollment.discount.discount_name
+
         return JsonResponse(
             {
                 "package_name": package_name,
                 "package_fee": package_fee,
                 "child_name": f"{child.child_first_name} {child.child_last_name}",
                 "admission_number": child.admission_number,
+                "discount_rate": discount_rate,
+                "discount_name": discount_name,
             }
         )
 
@@ -7252,7 +7270,18 @@ def saveMemoDataEntry(request):
                     "manually_entered": True,
                 }
             )
+        payment_receipt_pairs = [
+            (payment_settled, outstanding_receipt_number, "outstanding"),
+            (previous_payment, previous_receipt_number, "previous month"),
+            (current_payment, current_receipt_number, "current month"),
+        ]
 
+        for payment, receipt, period_name in payment_receipt_pairs:
+            if payment > 0 and not receipt.strip():
+                messages.error(
+                    request, f"Receipt number is required for {period_name} payment"
+                )
+            return redirect("core:memo_data_entry")
         # Create the memo with transaction safety
         with transaction.atomic():
             # Create main memo record
@@ -7542,5 +7571,44 @@ def generateMemoPDF(request):
             }
         )
 
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getHistoricalMemoData(request):
+    """Get historical memo data for previous months"""
+    try:
+        child_id = request.GET.get("child_id")
+        month = request.GET.get("month")
+        year = request.GET.get("year")
+
+        if not all([child_id, month, year]):
+            return JsonResponse({"error": "Missing parameters"}, status=400)
+
+        child = Child.objects.get(id=child_id)
+
+        # Look for existing memo for the specified month
+        existing_memo = InvoiceMemo.objects.filter(
+            child=child, month=int(month), year=int(year), is_active=True
+        ).first()
+
+        if existing_memo:
+            # Return existing memo data
+            data = {
+                "package_fee": float(existing_memo.current_month_package_fee),
+                "extra_hours": float(existing_memo.extra_hours_charge),
+                "holiday_charges": float(existing_memo.holiday_charge),
+                "discount_applied": float(existing_memo.discount_applied),
+                "net_balance": float(existing_memo.month_net_balance),
+                "total_payments": float(existing_memo.total_payments_received),
+            }
+            return JsonResponse({"success": True, "data": data})
+        else:
+            # No memo found for this month
+            return JsonResponse({"success": False, "message": "No memo found"})
+
+    except Child.DoesNotExist:
+        return JsonResponse({"error": "Child not found"}, status=404)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)

@@ -130,6 +130,17 @@
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         z-index: 1000;
     }
+    
+    .form-control.is-invalid {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25);
+    }
+    
+    .tooltip-error {
+        color: #dc3545;
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+    }
 </style>
 
 <!-- Main Form Card -->
@@ -156,19 +167,37 @@
         <div class="row form-row">
             <div class="col-md-6">
                 <label class="form-label">Month *</label>
-                <input type="text" class="form-control" name="month_display" id="month_display" value="June" readonly>
-                <input type="hidden" name="month" id="month" value="6">
+                <select class="form-control" name="month" id="month" required onchange="updateMonthNames()">
+                    <option value="">Select Month</option>
+                    <option value="1">January</option>
+                    <option value="2">February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                </select>
             </div>
             <div class="col-md-6">
                 <label class="form-label">Year *</label>
-                <input type="text" class="form-control" name="year" id="year" value="2025">
+                <select class="form-control" name="year" id="year" required onchange="updateMonthOptions()">
+                    <option value="">Select Year</option>
+                    {% for year in year_range %}
+                    <option value="{{ year }}">{{ year }}</option>
+                    {% endfor %}
+                </select>
             </div>
         </div>
         
         <!-- Outstanding Section -->
         <div class="form-section">
             <div class="section-header outstanding-header">
-                <span><i class="ri-error-warning-line me-2"></i>Outstanding as at <span id="outstanding_month_name">April 2025</span></span>
+                <span><i class="ri-error-warning-line me-2"></i>Outstanding as at <span id="outstanding_month_name">-</span></span>
                 <span class="status-badge">OUTSTANDING</span>
             </div>
             <div class="section-body">
@@ -219,7 +248,7 @@
         <!-- Previous Month Section -->
         <div class="form-section">
             <div class="section-header previous-header">
-                <span><i class="ri-calendar-check-line me-2"></i>Day Care Monthly fee - <span id="previous_month_name">May 2025</span></span>
+                <span><i class="ri-calendar-check-line me-2"></i>Day Care Monthly fee - <span id="previous_month_name">-</span></span>
                 <span class="status-badge">PREVIOUS</span>
             </div>
             <div class="section-body">
@@ -279,12 +308,11 @@
                     </div>
                     <div class="col-md-4">
                         <div class="form-row">
-            <label class="form-label">Receipt Number</label>
-            <input type="text" class="form-control" name="previous_receipt_number" 
-                   id="previous_receipt_number" placeholder="RN 18512">
-        </div>
+                            <label class="form-label">Receipt Number</label>
+                            <input type="text" class="form-control" name="previous_receipt_number" 
+                                   id="previous_receipt_number" placeholder="RN 18512">
+                        </div>
                     </div>
-                    
                 </div>
             </div>
         </div>
@@ -292,7 +320,7 @@
         <!-- Current Month Section -->
         <div class="form-section">
             <div class="section-header current-header">
-                <span><i class="ri-calendar-line me-2"></i>Day Care Monthly fee - <span id="current_month_name">June 2025</span></span>
+                <span><i class="ri-calendar-line me-2"></i>Day Care Monthly fee - <span id="current_month_name">-</span></span>
                 <span class="status-badge">CURRENT</span>
             </div>
             <div class="section-body">
@@ -351,13 +379,12 @@
                     </div>
 
                     <div class="col-md-4">
-        <div class="form-row">
-            <label class="form-label">Receipt Number</label>
-            <input type="text" class="form-control" name="current_receipt_number" 
-                   id="current_receipt_number" placeholder="RN 18513">
-        </div>
-    </div>
-
+                        <div class="form-row">
+                            <label class="form-label">Receipt Number</label>
+                            <input type="text" class="form-control" name="current_receipt_number" 
+                                   id="current_receipt_number" placeholder="RN 18513">
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -411,7 +438,55 @@
 </div>
 
 <script>
-// Initialize form
+// Payment validation functions
+function validatePaymentAndReceipt() {
+    let isValid = true;
+    let errorMessage = '';
+    
+    // Check outstanding payment
+    const outstandingPayment = parseFloat($('#payment_settled').val()) || 0;
+    const outstandingReceipt = $('#outstanding_receipt_number').val().trim();
+    
+    if (outstandingPayment > 0 && !outstandingReceipt) {
+        isValid = false;
+        errorMessage += 'Receipt number is required for outstanding payment.\n';
+        $('#outstanding_receipt_number').addClass('is-invalid');
+    } else {
+        $('#outstanding_receipt_number').removeClass('is-invalid');
+    }
+    
+    // Check previous month payment
+    const previousPayment = parseFloat($('#previous_payment').val()) || 0;
+    const previousReceipt = $('#previous_receipt_number').val().trim();
+    
+    if (previousPayment > 0 && !previousReceipt) {
+        isValid = false;
+        errorMessage += 'Receipt number is required for previous month payment.\n';
+        $('#previous_receipt_number').addClass('is-invalid');
+    } else {
+        $('#previous_receipt_number').removeClass('is-invalid');
+    }
+    
+    // Check current month payment
+    const currentPayment = parseFloat($('#current_payment').val()) || 0;
+    const currentReceipt = $('#current_receipt_number').val().trim();
+    
+    if (currentPayment > 0 && !currentReceipt) {
+        isValid = false;
+        errorMessage += 'Receipt number is required for current month payment.\n';
+        $('#current_receipt_number').addClass('is-invalid');
+    } else {
+        $('#current_receipt_number').removeClass('is-invalid');
+    }
+    
+    if (!isValid) {
+        alert(errorMessage);
+    }
+    
+    return isValid;
+}
+
+// Add event listeners for payment fields
 $(document).ready(function() {
     $('#child').select2({
         placeholder: 'Search by admission number or child name...',
@@ -419,24 +494,132 @@ $(document).ready(function() {
         width: '100%'
     });
     
-    // Set current date
+    // Set current year and month as default
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
     
-    $('#month').val(currentMonth);
     $('#year').val(currentYear);
+    updateMonthOptions();
+    $('#month').val(currentMonth);
     
     updateMonthNames();
     
     // Event listeners
     $('#child').on('change', loadChildDetails);
-    $('#year, #month').on('change', updateMonthNames);
+    
+    // Add payment validation event listeners
+    $('#payment_settled, #outstanding_receipt_number').on('blur', function() {
+        validatePaymentField('outstanding');
+    });
+    
+    $('#previous_payment, #previous_receipt_number').on('blur', function() {
+        validatePaymentField('previous');
+    });
+    
+    $('#current_payment, #current_receipt_number').on('blur', function() {
+        validatePaymentField('current');
+    });
 });
 
+function validatePaymentField(type) {
+    let paymentField, receiptField;
+    
+    switch(type) {
+        case 'outstanding':
+            paymentField = $('#payment_settled');
+            receiptField = $('#outstanding_receipt_number');
+            break;
+        case 'previous':
+            paymentField = $('#previous_payment');
+            receiptField = $('#previous_receipt_number');
+            break;
+        case 'current':
+            paymentField = $('#current_payment');
+            receiptField = $('#current_receipt_number');
+            break;
+    }
+    
+    const paymentAmount = parseFloat(paymentField.val()) || 0;
+    const receiptNumber = receiptField.val().trim();
+    
+    if (paymentAmount > 0 && !receiptNumber) {
+        receiptField.addClass('is-invalid');
+        receiptField.attr('title', 'Receipt number is required when payment amount is entered');
+    } else {
+        receiptField.removeClass('is-invalid');
+        receiptField.removeAttr('title');
+    }
+}
+
+function updateMonthOptions() {
+    const selectedYear = parseInt($('#year').val());
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+    
+    const monthSelect = $('#month');
+    const monthOptions = monthSelect.find('option');
+    
+    // Clear current month selection if it becomes invalid
+    const currentSelectedMonth = parseInt(monthSelect.val());
+    
+    if (selectedYear) {
+        if (selectedYear === currentYear) {
+            // Current year: enable months up to current month
+            monthOptions.each(function(index) {
+                const option = $(this);
+                const monthValue = parseInt(option.val());
+                
+                if (monthValue && monthValue > currentMonth) {
+                    option.prop('disabled', true).hide();
+                } else {
+                    option.prop('disabled', false).show();
+                }
+            });
+            
+            // If selected month is greater than current month, clear it
+            if (currentSelectedMonth > currentMonth) {
+                monthSelect.val('');
+            }
+        } else if (selectedYear < currentYear) {
+            // Previous year: enable all months
+            monthOptions.prop('disabled', false).show();
+        } else {
+            // Future year: disable all months (shouldn't happen with proper year range)
+            monthOptions.each(function() {
+                const option = $(this);
+                if (option.val()) {
+                    option.prop('disabled', true).hide();
+                }
+            });
+            monthSelect.val('');
+        }
+    } else {
+        // No year selected: disable all months except placeholder
+        monthOptions.each(function() {
+            const option = $(this);
+            if (option.val()) {
+                option.prop('disabled', true).hide();
+            } else {
+                option.prop('disabled', false).show();
+            }
+        });
+        monthSelect.val('');
+    }
+    
+    updateMonthNames();
+}
+
 function updateMonthNames() {
-    const month = parseInt($('#month').val()) || 6;
-    const year = parseInt($('#year').val()) || 2025;
+    const month = parseInt($('#month').val());
+    const year = parseInt($('#year').val());
+    
+    if (!month || !year) {
+        $('#outstanding_month_name').text('-');
+        $('#previous_month_name').text('-');
+        $('#current_month_name').text('-');
+        return;
+    }
     
     const months = ['', 'January', 'February', 'March', 'April', 'May', 'June',
                    'July', 'August', 'September', 'October', 'November', 'December'];
@@ -460,13 +643,25 @@ function updateMonthNames() {
     $('#outstanding_month_name').text(months[outstandingMonth] + ' ' + outstandingYear);
     $('#previous_month_name').text(months[previousMonth] + ' ' + previousYear);
     $('#current_month_name').text(months[month] + ' ' + year);
-    $('#month_display').val(months[month]);
 }
 
 function loadChildDetails() {
     const childId = $('#child').val();
-    if (!childId) return;
+    if (!childId) {
+        clearChildRelatedData();
+        return;
+    }
     
+    const month = $('#month').val();
+    const year = $('#year').val();
+    
+    if (!month || !year) {
+        alert('Please select month and year first');
+        $('#child').val('').trigger('change');
+        return;
+    }
+    
+    // Load child package details
     $.ajax({
         url: "{% url 'core:get_child_package_details' %}",
         data: { child_id: childId },
@@ -474,11 +669,108 @@ function loadChildDetails() {
             if (response.package_fee) {
                 $('#package_fee').val(response.package_fee);
                 $('#previous_package_fee').val(response.package_fee);
+                
+                // Handle discount if available
+                if (response.discount_rate && response.discount_rate > 0) {
+                    const packageFee = parseFloat(response.package_fee);
+                    const discountAmount = (packageFee * response.discount_rate) / 100;
+                    $('#discount_applied').val(discountAmount.toFixed(2));
+                    $('#previous_discount_applied').val(discountAmount.toFixed(2));
+                }
+                
                 calculateTotals();
             }
         },
         error: function() {
             console.log('Error loading child details');
+        }
+    });
+    
+    // Load historical data for the selected months
+    loadHistoricalData(childId, month, year);
+}
+
+function clearChildRelatedData() {
+    // Clear all amount fields
+    $('#outstanding_amount, #payment_settled, #previous_package_fee, #previous_extra_hours, #previous_holiday_charges, #previous_discount_applied, #previous_payment, #package_fee, #extra_hours, #holiday_charges, #discount_applied, #current_payment').val('');
+    
+    // Clear receipt fields
+    $('#outstanding_receipt_number, #previous_receipt_number, #current_receipt_number').val('');
+    
+    calculateTotals();
+}
+
+function loadHistoricalData(childId, month, year) {
+    // Calculate previous months
+    const selectedMonth = parseInt(month);
+    const selectedYear = parseInt(year);
+    
+    let outstandingMonth = selectedMonth - 2;
+    let outstandingYear = selectedYear;
+    if (outstandingMonth <= 0) {
+        outstandingMonth = 12 + outstandingMonth;
+        outstandingYear = selectedYear - 1;
+    }
+    
+    let previousMonth = selectedMonth - 1;
+    let previousYear = selectedYear;
+    if (previousMonth === 0) {
+        previousMonth = 12;
+        previousYear = selectedYear - 1;
+    }
+    
+    // Load outstanding month data
+    $.ajax({
+        url: "{% url 'core:get_historical_memo_data' %}",
+        data: { 
+            child_id: childId, 
+            month: outstandingMonth, 
+            year: outstandingYear 
+        },
+        success: function(response) {
+            if (response.success && response.data) {
+                $('#outstanding_amount').val(response.data.net_balance || 0);
+            } else {
+                $('#outstanding_amount').val(0);
+            }
+            calculateTotals();
+        },
+        error: function() {
+            $('#outstanding_amount').val(0);
+            calculateTotals();
+        }
+    });
+    
+    // Load previous month data
+    $.ajax({
+        url: "{% url 'core:get_historical_memo_data' %}",
+        data: { 
+            child_id: childId, 
+            month: previousMonth, 
+            year: previousYear 
+        },
+        success: function(response) {
+            if (response.success && response.data) {
+                $('#previous_package_fee').val(response.data.package_fee || 0);
+                $('#previous_extra_hours').val(response.data.extra_hours || 0);
+                $('#previous_holiday_charges').val(response.data.holiday_charges || 0);
+                $('#previous_discount_applied').val(response.data.discount_applied || 0);
+            } else {
+                // No data for previous month - set to 0
+                $('#previous_package_fee').val(0);
+                $('#previous_extra_hours').val(0);
+                $('#previous_holiday_charges').val(0);
+                $('#previous_discount_applied').val(0);
+            }
+            calculateTotals();
+        },
+        error: function() {
+            // No data - set to 0
+            $('#previous_package_fee').val(0);
+            $('#previous_extra_hours').val(0);
+            $('#previous_holiday_charges').val(0);
+            $('#previous_discount_applied').val(0);
+            calculateTotals();
         }
     });
 }
@@ -532,6 +824,16 @@ function clearForm() {
     if (confirm('Clear all entered data?')) {
         $('#memoDataForm')[0].reset();
         $('#child').val('').trigger('change');
+        
+        // Reset to current month/year
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
+        
+        $('#year').val(currentYear);
+        updateMonthOptions();
+        $('#month').val(currentMonth);
+        updateMonthNames();
         calculateTotals();
     }
 }
@@ -539,6 +841,11 @@ function clearForm() {
 function previewMemo() {
     if (!$('#child').val()) {
         alert('Please select a child first');
+        return;
+    }
+    
+    if (!$('#month').val() || !$('#year').val()) {
+        alert('Please select month and year first');
         return;
     }
     
@@ -611,16 +918,27 @@ function previewMemo() {
     $('#previewModal').modal('show');
 }
 
-
 function generatePDF() {
     alert('PDF generation functionality would be implemented here');
 }
 
-// Form submission
+// Form submission validation
 $('#memoDataForm').on('submit', function(e) {
     if (!$('#child').val()) {
         e.preventDefault();
         alert('Please select a child');
+        return false;
+    }
+    
+    if (!$('#month').val() || !$('#year').val()) {
+        e.preventDefault();
+        alert('Please select month and year');
+        return false;
+    }
+    
+    // Validate payment and receipt requirements
+    if (!validatePaymentAndReceipt()) {
+        e.preventDefault();
         return false;
     }
     

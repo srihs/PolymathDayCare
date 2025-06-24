@@ -427,4 +427,9 @@ urlpatterns = [
         name="get_previous_memo_data",
     ),
     path("generate_memo_pdf/", views.generateMemoPDF, name="generate_memo_pdf"),
+    path(
+        "get_historical_memo_data/",
+        views.getHistoricalMemoData,
+        name="get_historical_memo_data",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
