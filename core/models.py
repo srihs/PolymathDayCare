@@ -751,6 +751,36 @@ class InvoiceMemo(BaseClass):
         return []
 
 
+class PaymentTransaction(BaseClass):
+    memo = models.ForeignKey(
+        InvoiceMemo, on_delete=models.CASCADE, related_name="payments"
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    receipt_number = models.CharField(max_length=50, blank=True, null=True)
+    payment_date = models.DateField()
+    payment_method = models.CharField(
+        max_length=20,
+        choices=[
+            ("CASH", "Cash"),
+            ("BANK_TRANSFER", "Bank Transfer"),
+            ("CHEQUE", "Cheque"),
+            ("CARD", "Card"),
+            ("OTHER", "Other"),
+        ],
+        default="CASH",
+    )
+    notes = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Payment Transaction"
+        verbose_name_plural = "Payment Transactions"
+        db_table = "dc_payment_transactions"
+        ordering = ["-payment_date"]
+
+    def __str__(self):
+        return f"{self.memo.memo_code} - Rs.{self.amount} - {self.receipt_number}"
+
+
 class InvoiceMemoDetail(BaseClass):
     """
     Stores detailed breakdown for each month in a 3-month invoice memo
@@ -792,33 +822,3 @@ class InvoiceMemoDetail(BaseClass):
 
     def __str__(self):
         return f"{self.memo.memo_code} - {self.month_name} {self.year}"
-
-
-class PaymentTransaction(BaseClass):
-    memo = models.ForeignKey(
-        InvoiceMemo, on_delete=models.CASCADE, related_name="payments"
-    )
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    receipt_number = models.CharField(max_length=50, blank=True, null=True)
-    payment_date = models.DateField()
-    payment_method = models.CharField(
-        max_length=20,
-        choices=[
-            ("CASH", "Cash"),
-            ("BANK_TRANSFER", "Bank Transfer"),
-            ("CHEQUE", "Cheque"),
-            ("CARD", "Card"),
-            ("OTHER", "Other"),
-        ],
-        default="CASH",
-    )
-    notes = models.TextField(blank=True, null=True)
-
-    class Meta:
-        verbose_name = "Payment Transaction"
-        verbose_name_plural = "Payment Transactions"
-        db_table = "dc_payment_transactions"
-        ordering = ["-payment_date"]
-
-    def __str__(self):
-        return f"{self.memo.memo_code} - Rs.{self.amount} - {self.receipt_number}"

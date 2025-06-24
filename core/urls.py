@@ -427,14 +427,4 @@ urlpatterns = [
         name="get_previous_memo_data",
     ),
     path("generate_memo_pdf/", views.generateMemoPDF, name="generate_memo_pdf"),
-    path(
-        "get_extra_hours_for_memo/",
-        views.getExtraHoursForMemo,
-        name="get_extra_hours_for_memo",
-    ),
-    path(
-        "get_child_package_details_enhanced/",
-        views.getChildPackageDetailsEnhanced,
-        name="get_child_package_details_enhanced",
-    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
