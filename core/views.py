@@ -6971,7 +6971,7 @@ def getChildPackageDetails(request):
 
 @login_required
 def getAttendanceSummary(request):
-    """Get attendance summary for a child in a specific month"""
+    """Get attendance summary for a child in a specific month with enhanced details"""
     try:
         child_id = request.GET.get("child_id")
         month = request.GET.get("month")
@@ -6982,49 +6982,12 @@ def getAttendanceSummary(request):
 
         child = Child.objects.get(id=child_id)
 
-        # Get date range for the month
-        first_day = datetime(int(year), int(month), 1).date()
-        last_day = datetime(
-            int(year), int(month), calendar.monthrange(int(year), int(month))[1]
-        ).date()
-
-        # Get attendance logs
-        attendance_logs = AttendanceLog.objects.filter(
-            child=child, date_logged__range=(first_day, last_day)
+        # Use the helper function
+        attendance_data = calculate_month_attendance_summary(
+            child, int(month), int(year)
         )
 
-        # Group by date and count complete attendances (in and out)
-        logs_by_date = defaultdict(list)
-        for log in attendance_logs:
-            logs_by_date[log.date_logged].append(log)
-
-        days_attended = sum(1 for logs in logs_by_date.values() if len(logs) >= 2)
-
-        # Get expected days from package
-        package_mapping = ChildPackageMapping.objects.filter(
-            child=child, is_active=True
-        ).first()
-
-        expected_days = 22  # default
-        if package_mapping:
-            if package_mapping.normal_package:
-                expected_days = package_mapping.normal_package.no_days_months or 22
-            elif package_mapping.holiday_package:
-                expected_days = package_mapping.holiday_package.no_days_months or 22
-            elif package_mapping.flex_package:
-                expected_days = package_mapping.flex_package.no_days_months or 22
-
-        attendance_percentage = (
-            round((days_attended / expected_days * 100), 1) if expected_days > 0 else 0
-        )
-
-        return JsonResponse(
-            {
-                "days_attended": days_attended,
-                "expected_days": expected_days,
-                "attendance_percentage": attendance_percentage,
-            }
-        )
+        return JsonResponse(attendance_data)
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
@@ -7577,11 +7540,14 @@ def generateMemoPDF(request):
 
 @login_required
 def getHistoricalMemoData(request):
-    """Get historical memo data for previous months"""
+    """Get historical memo data for previous months with optional discount calculation"""
     try:
         child_id = request.GET.get("child_id")
         month = request.GET.get("month")
         year = request.GET.get("year")
+        calculate_with_discount = (
+            request.GET.get("calculate_with_discount", "false").lower() == "true"
+        )
 
         if not all([child_id, month, year]):
             return JsonResponse({"error": "Missing parameters"}, status=400)
@@ -7604,11 +7570,139 @@ def getHistoricalMemoData(request):
                 "total_payments": float(existing_memo.total_payments_received),
             }
             return JsonResponse({"success": True, "data": data})
-        else:
-            # No memo found for this month
-            return JsonResponse({"success": False, "message": "No memo found"})
+
+        elif calculate_with_discount:
+            # No memo found, but calculate based on attendance and discount
+            try:
+                # Get attendance data for this month
+                attendance_data = calculate_month_attendance_summary(
+                    child, int(month), int(year)
+                )
+
+                # Get child's package and discount info
+                package_mapping = ChildPackageMapping.objects.filter(
+                    child=child, is_active=True
+                ).first()
+
+                enrollment = ChildEnrollment.objects.filter(
+                    child=child, status="Approved", is_active=True
+                ).first()
+
+                if package_mapping and enrollment:
+                    # Get base package fee
+                    base_package_fee = 0
+                    if package_mapping.normal_package:
+                        base_package_fee = float(
+                            package_mapping.normal_package.package_total
+                        )
+                    elif package_mapping.holiday_package:
+                        base_package_fee = float(
+                            package_mapping.holiday_package.package_total
+                        )
+                    elif package_mapping.flex_package:
+                        base_package_fee = float(
+                            package_mapping.flex_package.package_total
+                        )
+
+                    # Apply attendance-based rules
+                    attendance_percentage = attendance_data.get(
+                        "attendance_percentage", 0
+                    )
+                    if attendance_percentage == 0:
+                        calculated_package_fee = 0  # No attendance = no charge
+                    elif attendance_percentage < 50:
+                        calculated_package_fee = (
+                            base_package_fee / 2
+                        )  # Less than 50% = half charge
+                    else:
+                        calculated_package_fee = (
+                            base_package_fee  # 50% or more = full charge
+                        )
+
+                    # Apply discount
+                    discount_applied = 0
+                    if enrollment.discount and enrollment.discount.status == "Approved":
+                        discount_rate = float(enrollment.discount.discount_rate)
+                        discount_applied = (
+                            calculated_package_fee * discount_rate
+                        ) / 100
+
+                    data = {
+                        "package_fee": calculated_package_fee,
+                        "extra_hours": 0,  # No historical extra hours data
+                        "holiday_charges": 0,  # No historical holiday data
+                        "discount_applied": discount_applied,
+                        "net_balance": 0,
+                        "total_payments": 0,
+                        "calculated_from_attendance": True,
+                        "attendance_percentage": attendance_percentage,
+                    }
+                    return JsonResponse({"success": True, "data": data})
+
+            except Exception as e:
+                print(f"Error calculating attendance-based data: {e}")
+                # Fall through to return no data found
+
+        # No memo found and no calculation requested
+        return JsonResponse({"success": False, "message": "No memo found"})
 
     except Child.DoesNotExist:
         return JsonResponse({"error": "Child not found"}, status=404)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+def calculate_month_attendance_summary(child, month, year):
+    """Calculate attendance summary for a specific month"""
+    import calendar
+    from collections import defaultdict
+    from datetime import datetime
+
+    try:
+        # Get date range for the month
+        first_day = datetime(year, month, 1).date()
+        last_day = datetime(year, month, calendar.monthrange(year, month)[1]).date()
+
+        # Get attendance logs for the month
+        attendance_logs = AttendanceLog.objects.filter(
+            child=child, date_logged__range=(first_day, last_day)
+        )
+
+        # Group by date and count complete attendances (in and out)
+        logs_by_date = defaultdict(list)
+        for log in attendance_logs:
+            logs_by_date[log.date_logged].append(log)
+
+        days_attended = sum(1 for logs in logs_by_date.values() if len(logs) >= 2)
+
+        # Get expected days from package
+        package_mapping = ChildPackageMapping.objects.filter(
+            child=child, is_active=True
+        ).first()
+
+        expected_days = 22  # default
+        if package_mapping:
+            if package_mapping.normal_package:
+                expected_days = package_mapping.normal_package.no_days_months or 22
+            elif package_mapping.holiday_package:
+                expected_days = package_mapping.holiday_package.no_days_months or 22
+            elif package_mapping.flex_package:
+                expected_days = package_mapping.flex_package.no_days_months or 22
+
+        attendance_percentage = (
+            round((days_attended / expected_days * 100), 1) if expected_days > 0 else 0
+        )
+
+        return {
+            "days_attended": days_attended,
+            "expected_days": expected_days,
+            "attendance_percentage": attendance_percentage,
+        }
+
+    except Exception as e:
+        print(f"Error calculating attendance summary: {e}")
+        return {
+            "days_attended": 0,
+            "expected_days": 22,
+            "attendance_percentage": 0,
+        }
