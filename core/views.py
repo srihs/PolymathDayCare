@@ -5280,7 +5280,7 @@ def calculate_month_full_package(child, package_mapping, enrollment, month, year
 
 @login_required
 def previewThreeMonthInvoiceUpdated(request):
-    """Updated 3-month invoice preview with proper month calculations"""
+    """Updated 3-month invoice preview with detailed breakdown and payment tracking"""
     try:
         child_id = request.GET.get("child")
         month = request.GET.get("month")
@@ -5291,7 +5291,7 @@ def previewThreeMonthInvoiceUpdated(request):
 
         child = Child.objects.get(id=child_id)
 
-        # Check if memo already exists for this month
+        # Check if memo already exists
         existing_memo = InvoiceMemo.objects.filter(
             child_id=child_id, year=int(year), month=int(month)
         ).first()
@@ -5305,13 +5305,486 @@ def previewThreeMonthInvoiceUpdated(request):
                 status=400,
             )
 
-        # Calculate 3-month data
-        three_month_data = calculate_three_month_invoice_data(child, month, year)
+        # Calculate enhanced 3-month data with detailed breakdown
+        three_month_data = calculate_enhanced_three_month_data(child, month, year)
 
         return JsonResponse({"success": True, **three_month_data})
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+def calculate_enhanced_three_month_data(child, target_month, target_year):
+    """
+    Enhanced 3-month calculation with detailed breakdown and payment tracking
+    """
+    import calendar
+
+    target_month_int = int(target_month)
+    target_year_int = int(target_year)
+
+    # Calculate the three months
+    if target_month_int > 2:
+        month1 = target_month_int - 2
+        year1 = target_year_int
+    elif target_month_int == 2:
+        month1 = 12
+        year1 = target_year_int - 1
+    else:  # target_month_int == 1
+        month1 = 11
+        year1 = target_year_int - 1
+
+    if target_month_int > 1:
+        month2 = target_month_int - 1
+        year2 = target_year_int
+    else:
+        month2 = 12
+        year2 = target_year_int - 1
+
+    month3 = target_month_int
+    year3 = target_year_int
+
+    # Get month names
+    month1_name = calendar.month_name[month1]
+    month2_name = calendar.month_name[month2]
+    month3_name = calendar.month_name[month3]
+
+    # Get child details
+    package_mapping = ChildPackageMapping.objects.filter(
+        child=child, is_active=True
+    ).first()
+
+    enrollment = ChildEnrollment.objects.filter(
+        child=child, status="Approved", is_active=True
+    ).first()
+
+    if not package_mapping or not enrollment:
+        raise Exception("No package mapping or enrollment found")
+
+    # Month 1: Enhanced outstanding with payment tracking
+    month1_data = get_enhanced_outstanding_data(child, month1, year1)
+
+    # Month 2: Enhanced calculation with detailed breakdown
+    month2_data = calculate_enhanced_month_with_attendance(
+        child, package_mapping, enrollment, month2, year2
+    )
+
+    # Month 3: Enhanced advance calculation
+    month3_data = calculate_enhanced_advance_month(
+        child, package_mapping, enrollment, month3, year3
+    )
+
+    # Calculate enhanced summary with payment adjustments
+    total_outstanding = month1_data["balance_after_payments"]
+    current_month_charge = month2_data["total_charge"]
+    next_month_charge = month3_data["total_charge"]
+
+    # Adjust for payments
+    current_month_balance = (
+        month2_data["total_charge"] - month2_data["payments_received"]
+    )
+    next_month_balance = month3_data["total_charge"] - month3_data["payments_received"]
+
+    grand_total = total_outstanding + current_month_balance + next_month_balance
+
+    return {
+        "child_name": f"{child.child_first_name} {child.child_last_name}",
+        "child_admission": child.admission_number,
+        "month1": {
+            "name": month1_name,
+            "year": year1,
+            "type": "OUTSTANDING",
+            "charge": month1_data["original_charge"],
+            "payments": month1_data["payments_received"],
+            "balance": month1_data["balance_after_payments"],
+            "status": month1_data["status"],
+            "payment_details": month1_data["payment_details"],
+        },
+        "month2": {
+            "name": month2_name,
+            "year": year2,
+            "type": "CALCULATED",
+            "package_name": month2_data["package_name"],
+            "charge": month2_data["total_charge"],
+            # DETAILED BREAKDOWN
+            "package_fee": month2_data["package_fee"],
+            "extra_charges": month2_data["extra_charges"],
+            "holiday_charges": month2_data["holiday_charges"],
+            "discount": month2_data["discount"],
+            "days_attended": month2_data["days_attended"],
+            "expected_days": month2_data["expected_days"],
+            "attendance_percentage": month2_data["attendance_percentage"],
+            "is_half_charge": month2_data["is_half_charge"],
+            # PAYMENT TRACKING
+            "payments": month2_data["payments_received"],
+            "balance": month2_data["total_charge"] - month2_data["payments_received"],
+            "payment_details": month2_data["payment_details"],
+            # BREAKDOWN DETAILS
+            "extra_charges_breakdown": month2_data.get("extra_charges_breakdown", []),
+            "holiday_charges_breakdown": month2_data.get(
+                "holiday_charges_breakdown", []
+            ),
+            "breakdown_summary": month2_data.get("breakdown_summary", {}),
+        },
+        "month3": {
+            "name": month3_name,
+            "year": year3,
+            "type": "ADVANCE",
+            "package_name": month3_data["package_name"],
+            "charge": month3_data["total_charge"],
+            "package_fee": month3_data["package_fee"],
+            "payments": month3_data["payments_received"],
+            "balance": month3_data["total_charge"] - month3_data["payments_received"],
+            "payment_details": month3_data["payment_details"],
+            "expected_days": month3_data["expected_days"],
+        },
+        "summary": {
+            "total_outstanding": total_outstanding,
+            "current_month_charge": current_month_charge,
+            "next_month_charge": next_month_charge,
+            "total_payments": month1_data["payments_received"]
+            + month2_data["payments_received"]
+            + month3_data["payments_received"],
+            "grand_total": grand_total,
+        },
+    }
+
+
+def get_enhanced_outstanding_data(child, month, year):
+    """Get outstanding data with payment tracking"""
+    import json
+    from decimal import Decimal
+
+    # Check for existing memo
+    existing_memo = InvoiceMemo.objects.filter(
+        child=child, month=month, year=year, is_active=True
+    ).first()
+
+    if existing_memo:
+        # Get payment details from existing memo
+        payment_details = []
+        if existing_memo.payment_receipts:
+            try:
+                payment_details = json.loads(existing_memo.payment_receipts)
+            except:
+                payment_details = []
+
+        return {
+            "original_charge": existing_memo.month_total_charge,
+            "payments_received": existing_memo.total_payments_received,
+            "balance_after_payments": existing_memo.month_net_balance,
+            "status": existing_memo.status,
+            "payment_details": payment_details,
+        }
+    else:
+        return {
+            "original_charge": Decimal("0.00"),
+            "payments_received": Decimal("0.00"),
+            "balance_after_payments": Decimal("0.00"),
+            "status": "No Record",
+            "payment_details": [],
+        }
+
+
+def calculate_enhanced_month_with_attendance(
+    child, package_mapping, enrollment, month, year
+):
+    """Enhanced calculation with detailed breakdown and payment tracking"""
+    import calendar
+    from collections import defaultdict
+    from datetime import datetime, time
+    from decimal import Decimal
+
+    from django.db.models import Q
+
+    # Get the date range for the month
+    first_day = datetime(year, month, 1).date()
+    last_day = datetime(year, month, calendar.monthrange(year, month)[1]).date()
+
+    # Get package details
+    is_flex = package_mapping.flex_package is not None
+    package = (
+        package_mapping.flex_package if is_flex else package_mapping.normal_package
+    )
+
+    expected_days = package.no_days_months or 22
+    package_total = package.package_total or Decimal("0.00")
+
+    # Get attendance logs for the month
+    attendance_logs = AttendanceLog.objects.filter(
+        child=child, date_logged__range=(first_day, last_day)
+    ).order_by("date_logged", "time_logged")
+
+    # Get holidays in this month
+    holidays = set(
+        Holiday.objects.filter(
+            start_date__lte=last_day, end_date__gte=first_day
+        ).values_list("start_date", flat=True)
+    )
+
+    # Group logs by date
+    logs_by_date = defaultdict(list)
+    for log in attendance_logs:
+        logs_by_date[log.date_logged].append(log)
+
+    present_days = 0
+    holiday_attendance_days = 0
+    extra_hours_charge = Decimal("0.00")
+    holiday_charge = Decimal("0.00")
+
+    # DETAILED BREAKDOWN LISTS
+    extra_charges_breakdown = []
+    holiday_charges_breakdown = []
+    breakdown_summary = {
+        "total_extra_instances": 0,
+        "total_holiday_days": 0,
+        "average_extra_hours": 0,
+    }
+
+    # Process each attendance day
+    for log_date, logs in logs_by_date.items():
+        logs_sorted = sorted(logs, key=lambda x: x.time_logged or time(0, 0))
+
+        if len(logs_sorted) >= 2:  # Complete attendance (in and out)
+            present_days += 1
+            first_log = logs_sorted[0]
+            last_log = logs_sorted[-1]
+
+            time_in = first_log.time_logged
+            time_out = last_log.time_logged
+            is_holiday_day = log_date in holidays
+
+            # Calculate extra hours charges with detailed breakdown
+            if time_out and package.to_time and time_out > package.to_time:
+                package_end_datetime = datetime.combine(log_date, package.to_time)
+                actual_out_datetime = datetime.combine(log_date, time_out)
+                extra_time_delta = actual_out_datetime - package_end_datetime
+                extra_hours = extra_time_delta.total_seconds() / 3600
+
+                day_extra_charges = Decimal("0.00")
+                applied_rates = []
+
+                # Check for extra hours after 5:30 PM charges
+                extra_slots_after_530 = ExtraHoursAfter530.objects.filter(
+                    package_type=package.package_type,
+                    from_time__lte=time_out,
+                    to_time__gte=time_out,
+                    effective_from__lte=log_date,
+                ).filter(Q(effective_to__gte=log_date) | Q(effective_to__isnull=True))
+
+                for slot in extra_slots_after_530:
+                    day_extra_charges += slot.extra_rate
+                    applied_rates.append(
+                        {
+                            "time_slot": f"{slot.from_time.strftime('%H:%M')} - {slot.to_time.strftime('%H:%M')}",
+                            "rate": float(slot.extra_rate),
+                            "type": "After 5:30 PM",
+                        }
+                    )
+
+                # Check for extra hours before 5:30 PM if applicable
+                cutoff_530 = time(17, 30)
+                if package.to_time < cutoff_530 and time_out > cutoff_530:
+                    cutoff_datetime = datetime.combine(log_date, cutoff_530)
+                    hours_before_530 = (
+                        cutoff_datetime - package_end_datetime
+                    ).total_seconds() / 3600
+
+                    hour_count = int(hours_before_530) + (
+                        1 if hours_before_530 % 1 > 0 else 0
+                    )
+                    for hour_num in range(1, min(hour_count + 1, 7)):
+                        rate_obj = (
+                            ExtraHoursUpTo530.objects.filter(
+                                hour_number=hour_num,
+                                effective_from__lte=log_date,
+                                is_active=True,
+                            )
+                            .filter(
+                                Q(effective_to__gte=log_date)
+                                | Q(effective_to__isnull=True)
+                            )
+                            .first()
+                        )
+
+                        if rate_obj:
+                            day_extra_charges += rate_obj.extra_rate
+                            applied_rates.append(
+                                {
+                                    "time_slot": f"Hour {hour_num} (before 5:30 PM)",
+                                    "rate": float(rate_obj.extra_rate),
+                                    "type": "Before 5:30 PM",
+                                }
+                            )
+
+                if day_extra_charges > 0:
+                    extra_charges_breakdown.append(
+                        {
+                            "date": log_date.strftime("%Y-%m-%d"),
+                            "time_in": time_in.strftime("%H:%M") if time_in else "N/A",
+                            "time_out": time_out.strftime("%H:%M"),
+                            "extra_hours": round(extra_hours, 2),
+                            "rate": float(day_extra_charges),
+                            "time_slot": f"Extended until {time_out.strftime('%H:%M')}",
+                            "applied_rates": applied_rates,
+                        }
+                    )
+                    extra_hours_charge += day_extra_charges
+
+            # Holiday attendance charge with breakdown
+            if is_holiday_day and package_mapping.holiday_package:
+                holiday_attendance_days += 1
+                expected_days_holiday = (
+                    package_mapping.holiday_package.no_days_months or 22
+                )
+                daily_holiday_rate = (
+                    package_mapping.holiday_package.package_total
+                    / Decimal(expected_days_holiday)
+                )
+                holiday_charge += daily_holiday_rate
+
+                # Get holiday name
+                holiday_obj = Holiday.objects.filter(
+                    start_date__lte=log_date, end_date__gte=log_date, is_active=True
+                ).first()
+
+                holiday_charges_breakdown.append(
+                    {
+                        "date": log_date.strftime("%Y-%m-%d"),
+                        "holiday_name": holiday_obj.title if holiday_obj else "Holiday",
+                        "rate": float(daily_holiday_rate),
+                    }
+                )
+
+    # Update breakdown summary
+    breakdown_summary.update(
+        {
+            "total_extra_instances": len(extra_charges_breakdown),
+            "total_holiday_days": len(holiday_charges_breakdown),
+            "average_extra_hours": round(
+                sum(item["extra_hours"] for item in extra_charges_breakdown)
+                / len(extra_charges_breakdown)
+                if extra_charges_breakdown
+                else 0,
+                2,
+            ),
+        }
+    )
+
+    # Calculate attendance percentage and package fee
+    attendance_percentage = (
+        (present_days / expected_days * 100) if expected_days > 0 else 0
+    )
+    is_half_charge = False
+
+    if attendance_percentage == 0:
+        package_fee = Decimal("0.00")
+    elif attendance_percentage < 50:
+        package_fee = package_total / 2
+        is_half_charge = True
+    else:
+        package_fee = package_total
+
+    # Calculate subtotal
+    subtotal = package_fee + extra_hours_charge + holiday_charge
+
+    # Apply discount
+    discount_amount = Decimal("0.00")
+    if enrollment.discount and enrollment.discount.status == "Approved":
+        discount_amount = subtotal * (enrollment.discount.discount_rate / 100)
+
+    total_charge = subtotal - discount_amount
+
+    # Check for existing payments for this month
+    existing_memo = InvoiceMemo.objects.filter(
+        child=child, month=month, year=year, is_active=True
+    ).first()
+
+    payments_received = Decimal("0.00")
+    payment_details = []
+
+    if existing_memo:
+        payments_received = existing_memo.total_payments_received
+        if existing_memo.payment_receipts:
+            try:
+                payment_details = json.loads(existing_memo.payment_receipts)
+            except:
+                payment_details = []
+
+    return {
+        "package_name": package.package_name,
+        "package_base_fee": package_total,
+        "days_attended": present_days,
+        "expected_days": expected_days,
+        "attendance_percentage": round(attendance_percentage, 2),
+        "is_half_charge": is_half_charge,
+        "package_fee": package_fee,
+        "extra_charges": extra_hours_charge,
+        "holiday_attendance_days": holiday_attendance_days,
+        "holiday_charges": holiday_charge,
+        "discount": discount_amount,
+        "total_charge": total_charge,
+        "payments_received": payments_received,
+        "payment_details": payment_details,
+        # ENHANCED BREAKDOWN DATA
+        "extra_charges_breakdown": extra_charges_breakdown,
+        "holiday_charges_breakdown": holiday_charges_breakdown,
+        "breakdown_summary": breakdown_summary,
+    }
+
+
+def calculate_enhanced_advance_month(child, package_mapping, enrollment, month, year):
+    """Enhanced advance month calculation with payment tracking"""
+    import json
+    from decimal import Decimal
+
+    # Get package details
+    is_flex = package_mapping.flex_package is not None
+    package = (
+        package_mapping.flex_package if is_flex else package_mapping.normal_package
+    )
+
+    expected_days = package.no_days_months or 22
+    package_total = package.package_total or Decimal("0.00")
+
+    # For future months, charge full package amount
+    package_fee = package_total
+
+    # Apply discount
+    discount_amount = Decimal("0.00")
+    if enrollment.discount and enrollment.discount.status == "Approved":
+        discount_amount = package_fee * (enrollment.discount.discount_rate / 100)
+
+    total_charge = package_fee - discount_amount
+
+    # Check for existing payments
+    existing_memo = InvoiceMemo.objects.filter(
+        child=child, month=month, year=year, is_active=True
+    ).first()
+
+    payments_received = Decimal("0.00")
+    payment_details = []
+
+    if existing_memo:
+        payments_received = existing_memo.total_payments_received
+        if existing_memo.payment_receipts:
+            try:
+                payment_details = json.loads(existing_memo.payment_receipts)
+            except:
+                payment_details = []
+
+    return {
+        "package_name": package.package_name,
+        "package_base_fee": package_total,
+        "expected_days": expected_days,
+        "package_fee": package_fee,
+        "extra_charges": Decimal("0.00"),
+        "holiday_charges": Decimal("0.00"),
+        "discount": discount_amount,
+        "total_charge": total_charge,
+        "payments_received": payments_received,
+        "payment_details": payment_details,
+    }
 
 
 # Helper function to safely get values from dictionaries/objects
