@@ -522,9 +522,6 @@
             <button type="submit" class="btn btn-success btn-action">
                 <i class="ri-save-line me-1"></i>Generate & Save Memo
             </button>
-            <button type="button" class="btn btn-info btn-action" onclick="previewMemo()">
-                <i class="ri-eye-line me-1"></i>Preview Memo
-            </button>
         </div>
     </form>
 </div>
@@ -533,27 +530,6 @@
 <div class="floating-total" id="floating_total">
     <i class="ri-money-dollar-circle-line me-2"></i>
     Total: Rs. <span id="floating_amount">0.00</span>
-</div>
-
-<!-- Preview Modal -->
-<div class="modal fade" id="previewModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Memo Preview</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="preview_content">
-                <!-- Preview content will be loaded here -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="generatePDF()">
-                    <i class="ri-file-pdf-line me-1"></i>Generate PDF
-                </button>
-            </div>
-        </div>
-    </div>
 </div>
 
 <script>
@@ -995,13 +971,21 @@ $(document).ready(function() {
         }
     });
     
-    // Enhanced child change listener
+    // Enhanced child change listener with complete field clearing
     $('#child').on('change', function() {
-        if ($('#month').val() && $('#year').val()) {
-            setTimeout(function() {
-                loadChildDetails();
-                loadPreviousMonthBreakdown();
-            }, 500);
+        if ($(this).val()) {
+            // Child selected - clear all fields first, then load data
+            clearAllManualFields();
+            
+            if ($('#month').val() && $('#year').val()) {
+                setTimeout(function() {
+                    loadChildDetails();
+                    loadPreviousMonthBreakdown();
+                }, 500);
+            }
+        } else {
+            // No child selected - clear everything
+            clearAllManualFields();
         }
     });
     
@@ -1175,7 +1159,6 @@ function updateMonthNames() {
 function loadChildDetails() {
     const childId = $('#child').val();
     if (!childId) {
-        clearChildRelatedData();
         return;
     }
     
@@ -1239,12 +1222,17 @@ function showDiscountInfo(discountName, discountRate) {
     `);
 }
 
-function clearChildRelatedData() {
+function clearAllManualFields() {
     // Clear all amount fields
-    $('#outstanding_amount, #payment_settled, #previous_package_fee, #previous_extra_hours, #previous_holiday_charges, #previous_discount_applied, #previous_payment, #package_fee, #extra_hours, #holiday_charges, #discount_applied, #current_payment').val('');
+    $('#outstanding_amount, #payment_settled, #remaining_balance').val('');
+    $('#previous_package_fee, #previous_extra_hours, #previous_holiday_charges, #previous_discount_applied, #previous_payment').val('');
+    $('#package_fee, #extra_hours, #holiday_charges, #discount_applied, #current_payment').val('');
     
-    // Clear receipt fields
+    // Clear all receipt fields
     $('#outstanding_receipt_number, #previous_receipt_number, #current_receipt_number').val('');
+    
+    // Clear validation states
+    $('input').removeClass('is-invalid');
     
     // Clear discount info
     $('#discount_info').remove();
@@ -1253,7 +1241,16 @@ function clearChildRelatedData() {
     
     // Clear breakdown
     $('#breakdown-content').hide().html('');
+    $('#breakdown-loading').hide();
     
+    // Reset toggle button state
+    const toggleBtn = $('#toggle-breakdown');
+    const icon = toggleBtn.find('i');
+    const textSpan = toggleBtn.find('span');
+    icon.removeClass('ri-eye-off-line').addClass('ri-eye-line');
+    textSpan.text('Show Breakdown');
+    
+    // Recalculate totals (will show all zeros)
     calculateTotals();
 }
 
@@ -1399,95 +1396,9 @@ function clearForm() {
         $('#month').val(currentMonth);
         updateMonthNames();
         
-        // Clear breakdown
-        $('#breakdown-content').hide().html('');
-        
-        calculateTotals();
+        // Clear all manual fields
+        clearAllManualFields();
     }
-}
-
-function previewMemo() {
-    if (!$('#child').val()) {
-        alert('Please select a child first');
-        return;
-    }
-    
-    if (!$('#month').val() || !$('#year').val()) {
-        alert('Please select month and year first');
-        return;
-    }
-    
-    const childText = $('#child option:selected').text();
-    
-    const previewHTML = `
-        <div class="memo-preview">
-            <div class="text-center mb-4">
-                <h4>POLYMATH COLLEGE</h4>
-                <p class="mb-1">No 452/3 High Level Road, Nawinna, Maharagama</p>
-                <p class="mb-1">PV 63200 | Phone 0112802554</p>
-                <h5 class="mt-3">KIDS DIVISION - MEMO</h5>
-            </div>
-            
-            <div class="row mb-3">
-                <div class="col-6"><strong>Name:</strong> ${childText}</div>
-                <div class="col-6"><strong>Month:</strong> ${$('#current_month_name').text()}</div>
-            </div>
-            
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th width="50%">Description</th>
-                        <th width="20%" class="text-end">Amount (Rs.)</th>
-                        <th width="30%" class="text-center">Receipt No.</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Outstanding as at ${$('#outstanding_month_name').text()}</td>
-                        <td class="text-end">${formatCurrency(parseFloat($('#outstanding_amount').val() || 0))}</td>
-                        <td class="text-center">-</td>
-                    </tr>
-                    <tr>
-                        <td>Payment Settled</td>
-                        <td class="text-end">(${formatCurrency(parseFloat($('#payment_settled').val() || 0))})</td>
-                        <td class="text-center">${$('#outstanding_receipt_number').val() || '-'}</td>
-                    </tr>
-                    <tr>
-                        <td>Day Care Monthly fee - ${$('#previous_month_name').text()}</td>
-                        <td class="text-end">${formatCurrency(parseFloat($('#previous_package_fee').val() || 0))}</td>
-                        <td class="text-center">-</td>
-                    </tr>
-                    <tr>
-                        <td>Previous Month Payment</td>
-                        <td class="text-end">(${formatCurrency(parseFloat($('#previous_payment').val() || 0))})</td>
-                        <td class="text-center">${$('#previous_receipt_number').val() || '-'}</td>
-                    </tr>
-                    <tr>
-                        <td>Day Care Monthly fee - ${$('#current_month_name').text()}</td>
-                        <td class="text-end">${formatCurrency(parseFloat($('#package_fee').val() || 0))}</td>
-                        <td class="text-center">-</td>
-                    </tr>
-                    <tr>
-                        <td>Current Month Payment</td>
-                        <td class="text-end">(${formatCurrency(parseFloat($('#current_payment').val() || 0))})</td>
-                        <td class="text-center">${$('#current_receipt_number').val() || '-'}</td>
-                    </tr>
-                    <tr class="table-warning">
-                        <td><strong>Total</strong></td>
-                        <td class="text-end"><strong>Rs. ${$('#summary_total').text().replace('Rs. ', '')}</strong></td>
-                        <td class="text-center">-</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    `;
-    
-    $('#preview_content').html(previewHTML);
-    $('#previewModal').modal('show');
-}
-
-function generatePDF() {
-    alert('PDF generation functionality would be implemented here');
 }
 
 // Form submission validation
