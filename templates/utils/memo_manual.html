@@ -27,7 +27,7 @@
         font-size: 0.9rem;
         border-bottom: 2px solid;
         display: flex;
-        justify-content: between;
+        justify-content: space-between;
         align-items: center;
     }
     
@@ -129,6 +129,7 @@
         font-size: 0.9rem;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         z-index: 1000;
+        border-radius: 0.5rem;
     }
     
     .form-control.is-invalid {
@@ -140,6 +141,82 @@
         color: #dc3545;
         font-size: 0.75rem;
         margin-top: 0.25rem;
+    }
+
+    /* Enhanced breakdown styles */
+    .breakdown-section {
+        border-top: 1px solid #e9ecef;
+        padding-top: 1rem;
+        margin-top: 1rem;
+    }
+
+    .breakdown-table {
+        font-size: 0.85rem;
+    }
+
+    .breakdown-table th {
+        font-weight: 600;
+        border-color: #dee2e6;
+    }
+
+    .breakdown-table td {
+        vertical-align: middle;
+        border-color: #dee2e6;
+    }
+
+    .summary-card {
+        border: 1px solid #e9ecef;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .header-actions .btn {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .breakdown-area {
+        background: #f8f9fa;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+
+    .alert-light {
+        background-color: #fefefe;
+        border-color: #e9ecef;
+        color: #6c757d;
+    }
+
+    .badge {
+        font-size: 0.65rem;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .breakdown-table {
+            font-size: 0.75rem;
+        }
+        
+        .header-actions {
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .header-actions .btn {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.4rem;
+        }
+        
+        .section-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
     }
 </style>
 
@@ -160,7 +237,7 @@
                     <option value="{{ child.id }}">{{ child.admission_number }} - {{ child.child_first_name }} {{ child.child_last_name }}</option>
                     {% endfor %}
                 </select>
-                <small class="text-muted">Search by typing admission number or child name (454 children available)</small>
+                <small class="text-muted">Search by typing admission number or child name ({{ children.count }} children available)</small>
             </div>
         </div>
         
@@ -245,13 +322,22 @@
             </div>
         </div>
         
-        <!-- Previous Month Section -->
+        <!-- Previous Month Section with Enhanced Breakdown -->
         <div class="form-section">
             <div class="section-header previous-header">
                 <span><i class="ri-calendar-check-line me-2"></i>Day Care Monthly fee - <span id="previous_month_name">-</span></span>
-                <span class="status-badge">PREVIOUS</span>
+                <div class="header-actions">
+                    <span class="status-badge">PREVIOUS</span>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="refresh-breakdown" title="Refresh Breakdown">
+                        <i class="ri-refresh-line me-1"></i>Refresh
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-info" id="toggle-breakdown" title="Toggle Breakdown">
+                        <i class="ri-eye-line me-1"></i><span>Show Breakdown</span>
+                    </button>
+                </div>
             </div>
             <div class="section-body">
+                <!-- Original form fields -->
                 <div class="row">
                     <div class="col-md-4">
                         <div class="form-row">
@@ -304,7 +390,6 @@
                                        id="previous_payment" step="0.01" placeholder="0.00" onchange="calculateTotals()">
                             </div>
                         </div>
-                        
                     </div>
                     <div class="col-md-4">
                         <div class="form-row">
@@ -312,6 +397,20 @@
                             <input type="text" class="form-control" name="previous_receipt_number" 
                                    id="previous_receipt_number" placeholder="RN 18512">
                         </div>
+                    </div>
+                </div>
+                
+                <!-- Loading and Breakdown Content Area -->
+                <div class="breakdown-area mt-3">
+                    <div id="breakdown-loading" class="text-center" style="display: none;">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                            <span class="visually-hidden">Loading breakdown...</span>
+                        </div>
+                        <span class="ms-2 text-muted">Loading detailed breakdown...</span>
+                    </div>
+                    
+                    <div id="breakdown-content" style="display: none;">
+                        <!-- Breakdown tables will be inserted here -->
                     </div>
                 </div>
             </div>
@@ -377,7 +476,6 @@
                             </div>
                         </div>
                     </div>
-
                     <div class="col-md-4">
                         <div class="form-row">
                             <label class="form-label">Receipt Number</label>
@@ -416,8 +514,6 @@
             </div>
         </div>
 
-
-        
         <!-- Action Buttons -->
         <div class="d-flex justify-content-end mt-4">
             <button type="button" class="btn btn-outline-secondary btn-action" onclick="clearForm()">
@@ -461,6 +557,237 @@
 </div>
 
 <script>
+// Utility functions for formatting
+function formatCurrency(amount) {
+    return parseFloat(amount || 0).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: '2-digit'
+    });
+}
+
+// Function to load and display detailed breakdown inline
+function loadPreviousMonthBreakdown() {
+    const childId = $('#child').val();
+    const month = $('#month').val();
+    const year = $('#year').val();
+    
+    if (!childId || !month || !year) {
+        return;
+    }
+    
+    // Calculate previous month
+    let prevMonth = parseInt(month) - 1;
+    let prevYear = parseInt(year);
+    if (prevMonth === 0) {
+        prevMonth = 12;
+        prevYear = prevYear - 1;
+    }
+    
+    // Show loading indicator
+    $('#breakdown-loading').show();
+    $('#breakdown-content').hide();
+    
+    $.ajax({
+        url: "{% url 'core:get_detailed_charges_breakdown' %}",
+        data: {
+            child_id: childId,
+            month: prevMonth,
+            year: prevYear
+        },
+        success: function(response) {
+            $('#breakdown-loading').hide();
+            
+            if (response.success) {
+                // Update form fields
+                $('#previous_extra_hours').val(response.extra_hours.total.toFixed(2));
+                $('#previous_holiday_charges').val(response.holiday_charges.total.toFixed(2));
+                
+                // Display breakdown table
+                displayBreakdownTable(response);
+                
+                // Show the breakdown section
+                $('#breakdown-content').show();
+                
+                // Recalculate totals
+                calculateTotals();
+            } else {
+                $('#breakdown-content').html('<p class="text-muted">No breakdown data available for this month.</p>').show();
+            }
+        },
+        error: function() {
+            $('#breakdown-loading').hide();
+            $('#breakdown-content').html('<p class="text-danger">Error loading breakdown data.</p>').show();
+        }
+    });
+}
+
+// Function to display breakdown in tabular format
+function displayBreakdownTable(data) {
+    let tableHtml = `
+        <div class="breakdown-section mt-3">
+            <div class="row">
+                <div class="col-12">
+                    <h6 class="text-primary mb-3">
+                        <i class="ri-file-list-line me-2"></i>
+                        Charges Breakdown for ${data.month_name} ${data.year}
+                        <small class="text-muted">(Package: ${data.package_info.name}, Ends: ${data.package_info.end_time})</small>
+                    </h6>
+                </div>
+            </div>
+            
+            <div class="row">
+    `;
+    
+    // Extra Hours Table
+    if (data.extra_hours.breakdown.length > 0) {
+        tableHtml += `
+                <div class="col-md-7">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered breakdown-table">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>In Time</th>
+                                    <th>Out Time</th>
+                                    <th>Extra Hours</th>
+                                    <th class="text-end">Amount (Rs.)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+        `;
+        
+        data.extra_hours.breakdown.forEach(function(item) {
+            const isHoliday = item.is_holiday ? ' <span class="badge bg-warning text-dark">Holiday</span>' : '';
+            tableHtml += `
+                                <tr>
+                                    <td>
+                                        <strong>${formatDate(item.date)}</strong><br>
+                                        <small class="text-muted">${item.day_name}</small>
+                                        ${isHoliday}
+                                    </td>
+                                    <td class="text-center">${item.time_in}</td>
+                                    <td class="text-center">
+                                        ${item.time_out}<br>
+                                        <small class="text-muted">(Pkg: ${item.package_end_time})</small>
+                                    </td>
+                                    <td class="text-center">${item.extra_hours.toFixed(2)}</td>
+                                    <td class="text-end">
+                                        <strong>${formatCurrency(item.charges)}</strong>
+                                        ${item.applied_rates.length > 1 ? '<br><small class="text-muted">Multiple rates</small>' : ''}
+                                    </td>
+                                </tr>
+            `;
+        });
+        
+        tableHtml += `
+                                <tr class="table-info">
+                                    <td colspan="4"><strong>Total Extra Hours Charges</strong></td>
+                                    <td class="text-end"><strong>${formatCurrency(data.extra_hours.total)}</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+        `;
+    } else {
+        tableHtml += `
+                <div class="col-md-7">
+                    <div class="alert alert-light">
+                        <i class="ri-information-line me-2"></i>
+                        No extra hours charges for this month
+                    </div>
+                </div>
+        `;
+    }
+    
+    // Holiday Charges Table
+    if (data.holiday_charges.breakdown.length > 0) {
+        tableHtml += `
+                <div class="col-md-5">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered breakdown-table">
+                            <thead class="table-warning">
+                                <tr>
+                                    <th>Holiday Date</th>
+                                    <th class="text-end">Amount (Rs.)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+        `;
+        
+        data.holiday_charges.breakdown.forEach(function(item) {
+            tableHtml += `
+                                <tr>
+                                    <td>
+                                        <strong>${formatDate(item.date)}</strong><br>
+                                        <small class="text-muted">${item.day_name}</small>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong>${formatCurrency(item.charges)}</strong>
+                                    </td>
+                                </tr>
+            `;
+        });
+        
+        tableHtml += `
+                                <tr class="table-warning">
+                                    <td><strong>Total Holiday Charges</strong></td>
+                                    <td class="text-end"><strong>${formatCurrency(data.holiday_charges.total)}</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+        `;
+    } else {
+        tableHtml += `
+                <div class="col-md-5">
+                    <div class="alert alert-light">
+                        <i class="ri-information-line me-2"></i>
+                        No holiday charges for this month
+                    </div>
+                </div>
+        `;
+    }
+    
+    // Summary section
+    tableHtml += `
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="summary-card bg-light p-3 rounded">
+                        <div class="row text-center">
+                            <div class="col-md-4">
+                                <h6 class="text-primary mb-1">${formatCurrency(data.extra_hours.total)}</h6>
+                                <small class="text-muted">Extra Hours Total<br>(${data.extra_hours.days_count} days)</small>
+                            </div>
+                            <div class="col-md-4">
+                                <h6 class="text-warning mb-1">${formatCurrency(data.holiday_charges.total)}</h6>
+                                <small class="text-muted">Holiday Charges<br>(${data.holiday_charges.days_count} days)</small>
+                            </div>
+                            <div class="col-md-4">
+                                <h6 class="text-success mb-1">${formatCurrency(data.summary.combined_total)}</h6>
+                                <small class="text-muted">Combined Total</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    $('#breakdown-content').html(tableHtml);
+}
+
 // Define function in separate script block
 function updateMonthDisplays() {
     console.log('Function called');
@@ -562,6 +889,66 @@ function validatePaymentAndReceipt() {
     return isValid;
 }
 
+// Enhanced calculateTotals function with thousand separators
+function calculateTotals() {
+    // Get all values
+    const outstandingAmount = parseFloat($('#outstanding_amount').val()) || 0;
+    const paymentSettled = parseFloat($('#payment_settled').val()) || 0;
+    
+    const prevPackageFee = parseFloat($('#previous_package_fee').val()) || 0;
+    const prevExtraHours = parseFloat($('#previous_extra_hours').val()) || 0;
+    const prevHolidayCharges = parseFloat($('#previous_holiday_charges').val()) || 0;
+    const prevDiscountApplied = parseFloat($('#previous_discount_applied').val()) || 0;
+    const prevPayment = parseFloat($('#previous_payment').val()) || 0;
+    
+    const packageFee = parseFloat($('#package_fee').val()) || 0;
+    const extraHours = parseFloat($('#extra_hours').val()) || 0;
+    const holidayCharges = parseFloat($('#holiday_charges').val()) || 0;
+    const discountApplied = parseFloat($('#discount_applied').val()) || 0;
+    const currentPayment = parseFloat($('#current_payment').val()) || 0;
+    
+    // Calculate balances with discount properly applied
+    const remainingBalance = outstandingAmount - paymentSettled;
+    $('#remaining_balance').val(remainingBalance.toFixed(2));
+    
+    // Previous month: charges - discount, then subtract payment
+    const prevMonthCharges = prevPackageFee + prevExtraHours + prevHolidayCharges - prevDiscountApplied;
+    const prevMonthBalance = prevMonthCharges - prevPayment;
+    
+    // Current month: charges - discount, then subtract payment  
+    const currentMonthCharges = packageFee + extraHours + holidayCharges - discountApplied;
+    const currentMonthBalance = currentMonthCharges - currentPayment;
+    
+    // Grand total is sum of all balances
+    const grandTotal = remainingBalance + prevMonthBalance + currentMonthBalance;
+    
+    // Update displays with thousand separators
+    $('#summary_outstanding').text('Rs. ' + formatCurrency(remainingBalance));
+    $('#summary_previous').text('Rs. ' + formatCurrency(prevMonthBalance));
+    $('#summary_current').text('Rs. ' + formatCurrency(currentMonthBalance));
+    $('#summary_total').text('Rs. ' + formatCurrency(grandTotal));
+    $('#floating_amount').text(formatCurrency(grandTotal));
+    
+    // Update floating total color
+    const floatingTotal = $('#floating_total');
+    if (grandTotal > 0) {
+        floatingTotal.css('background', '#dc2626');
+    } else if (grandTotal < 0) {
+        floatingTotal.css('background', '#16a34a');
+    } else {
+        floatingTotal.css('background', '#3b82f6');
+    }
+    
+    // Debug logging to verify calculations
+    console.log('=== CALCULATION BREAKDOWN ===');
+    console.log('Outstanding Balance:', remainingBalance);
+    console.log('Previous Month - Package Fee:', prevPackageFee, 'Extra Hours:', prevExtraHours, 'Holiday:', prevHolidayCharges, 'Discount:', prevDiscountApplied);
+    console.log('Previous Month - Total Charges:', prevMonthCharges, 'Payment:', prevPayment, 'Balance:', prevMonthBalance);
+    console.log('Current Month - Package Fee:', packageFee, 'Extra Hours:', extraHours, 'Holiday:', holidayCharges, 'Discount:', discountApplied);
+    console.log('Current Month - Total Charges:', currentMonthCharges, 'Payment:', currentPayment, 'Balance:', currentMonthBalance);
+    console.log('GRAND TOTAL:', grandTotal);
+}
+
 // Add event listeners for payment fields
 $(document).ready(function() {
     $('#child').select2({
@@ -594,6 +981,7 @@ $(document).ready(function() {
         setTimeout(updateMonthNames, 100); // Add small delay
         if ($('#child').val()) {
             loadChildDetails();
+            setTimeout(loadPreviousMonthBreakdown, 300);
         }
     });
     
@@ -603,6 +991,17 @@ $(document).ready(function() {
         setTimeout(updateMonthNames, 100); // Add small delay
         if ($('#child').val()) {
             loadChildDetails();
+            setTimeout(loadPreviousMonthBreakdown, 300);
+        }
+    });
+    
+    // Enhanced child change listener
+    $('#child').on('change', function() {
+        if ($('#month').val() && $('#year').val()) {
+            setTimeout(function() {
+                loadChildDetails();
+                loadPreviousMonthBreakdown();
+            }, 500);
         }
     });
     
@@ -621,6 +1020,28 @@ $(document).ready(function() {
     
     // Add calculation triggers for all amount fields
     $('input[type="number"]').on('input change', calculateTotals);
+    
+    // Manual refresh button
+    $('#refresh-breakdown').on('click', function() {
+        loadPreviousMonthBreakdown();
+    });
+    
+    // Toggle breakdown visibility
+    $('#toggle-breakdown').on('click', function() {
+        const content = $('#breakdown-content');
+        const icon = $(this).find('i');
+        const textSpan = $(this).find('span');
+        
+        if (content.is(':visible')) {
+            content.slideUp();
+            icon.removeClass('ri-eye-off-line').addClass('ri-eye-line');
+            textSpan.text('Show Breakdown');
+        } else {
+            content.slideDown();
+            icon.removeClass('ri-eye-line').addClass('ri-eye-off-line');
+            textSpan.text('Hide Breakdown');
+        }
+    });
     
     // Make updateMonthNames available globally for testing
     window.updateMonthNames = updateMonthNames;
@@ -830,6 +1251,9 @@ function clearChildRelatedData() {
     window.childDiscountRate = 0;
     window.childDiscountName = '';
     
+    // Clear breakdown
+    $('#breakdown-content').hide().html('');
+    
     calculateTotals();
 }
 
@@ -881,7 +1305,8 @@ function loadHistoricalData(childId, month, year) {
             child_id: childId, 
             month: previousMonth, 
             year: previousYear,
-            calculate_with_discount: true  // Request discount calculation
+            calculate_with_discount: true,
+            include_breakdown: true
         },
         success: function(response) {
             if (response.success && response.data) {
@@ -959,68 +1384,6 @@ function calculatePreviousMonthFromAttendance(childId, month, year) {
     });
 }
 
-function calculateTotals() {
-    // Get all values
-    const outstandingAmount = parseFloat($('#outstanding_amount').val()) || 0;
-    const paymentSettled = parseFloat($('#payment_settled').val()) || 0;
-    
-    const prevPackageFee = parseFloat($('#previous_package_fee').val()) || 0;
-    const prevExtraHours = parseFloat($('#previous_extra_hours').val()) || 0;
-    const prevHolidayCharges = parseFloat($('#previous_holiday_charges').val()) || 0;
-    const prevDiscountApplied = parseFloat($('#previous_discount_applied').val()) || 0;
-    const prevPayment = parseFloat($('#previous_payment').val()) || 0;
-    
-    const packageFee = parseFloat($('#package_fee').val()) || 0;
-    const extraHours = parseFloat($('#extra_hours').val()) || 0;
-    const holidayCharges = parseFloat($('#holiday_charges').val()) || 0;
-    const discountApplied = parseFloat($('#discount_applied').val()) || 0;
-    const currentPayment = parseFloat($('#current_payment').val()) || 0;
-    
-    // Calculate balances with discount properly applied
-    const remainingBalance = outstandingAmount - paymentSettled;
-    $('#remaining_balance').val(remainingBalance.toFixed(2));
-    
-    // Previous month: charges - discount, then subtract payment
-    const prevMonthCharges = prevPackageFee + prevExtraHours + prevHolidayCharges - prevDiscountApplied;
-    const prevMonthBalance = prevMonthCharges - prevPayment;
-    
-    // Current month: charges - discount, then subtract payment  
-    const currentMonthCharges = packageFee + extraHours + holidayCharges - discountApplied;
-    const currentMonthBalance = currentMonthCharges - currentPayment;
-    
-    // Grand total is sum of all balances
-    const grandTotal = remainingBalance + prevMonthBalance + currentMonthBalance;
-    
-    // Update main displays
-    $('#grand_total').text(grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-    $('#floating_amount').text(grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-    
-    // Update summary breakdown
-    $('#summary_outstanding').text('Rs. ' + remainingBalance.toLocaleString('en-US', {minimumFractionDigits: 2}));
-    $('#summary_previous').text('Rs. ' + prevMonthBalance.toLocaleString('en-US', {minimumFractionDigits: 2}));
-    $('#summary_current').text('Rs. ' + currentMonthBalance.toLocaleString('en-US', {minimumFractionDigits: 2}));
-    $('#summary_total').text('Rs. ' + grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2}));
-    
-    // Update floating total color
-    const floatingTotal = $('#floating_total');
-    if (grandTotal > 0) {
-        floatingTotal.css('background', '#dc2626');
-    } else if (grandTotal < 0) {
-        floatingTotal.css('background', '#16a34a');
-    } else {
-        floatingTotal.css('background', '#3b82f6');
-    }
-    
-    // Debug logging to verify calculations
-    console.log('=== CALCULATION BREAKDOWN ===');
-    console.log('Outstanding Balance:', remainingBalance);
-    console.log('Previous Month - Package Fee:', prevPackageFee, 'Extra Hours:', prevExtraHours, 'Holiday:', prevHolidayCharges, 'Discount:', prevDiscountApplied);
-    console.log('Previous Month - Total Charges:', prevMonthCharges, 'Payment:', prevPayment, 'Balance:', prevMonthBalance);
-    console.log('Current Month - Package Fee:', packageFee, 'Extra Hours:', extraHours, 'Holiday:', holidayCharges, 'Discount:', discountApplied);
-    console.log('Current Month - Total Charges:', currentMonthCharges, 'Payment:', currentPayment, 'Balance:', currentMonthBalance);
-    console.log('GRAND TOTAL:', grandTotal);
-}
-
 function clearForm() {
     if (confirm('Clear all entered data?')) {
         $('#memoDataForm')[0].reset();
@@ -1035,6 +1398,10 @@ function clearForm() {
         updateMonthOptions();
         $('#month').val(currentMonth);
         updateMonthNames();
+        
+        // Clear breakdown
+        $('#breakdown-content').hide().html('');
+        
         calculateTotals();
     }
 }
@@ -1077,37 +1444,37 @@ function previewMemo() {
                 <tbody>
                     <tr>
                         <td>Outstanding as at ${$('#outstanding_month_name').text()}</td>
-                        <td class="text-end">${parseFloat($('#outstanding_amount').val() || 0).toLocaleString()}</td>
+                        <td class="text-end">${formatCurrency(parseFloat($('#outstanding_amount').val() || 0))}</td>
                         <td class="text-center">-</td>
                     </tr>
                     <tr>
                         <td>Payment Settled</td>
-                        <td class="text-end">(${parseFloat($('#payment_settled').val() || 0).toLocaleString()})</td>
+                        <td class="text-end">(${formatCurrency(parseFloat($('#payment_settled').val() || 0))})</td>
                         <td class="text-center">${$('#outstanding_receipt_number').val() || '-'}</td>
                     </tr>
                     <tr>
                         <td>Day Care Monthly fee - ${$('#previous_month_name').text()}</td>
-                        <td class="text-end">${parseFloat($('#previous_package_fee').val() || 0).toLocaleString()}</td>
+                        <td class="text-end">${formatCurrency(parseFloat($('#previous_package_fee').val() || 0))}</td>
                         <td class="text-center">-</td>
                     </tr>
                     <tr>
                         <td>Previous Month Payment</td>
-                        <td class="text-end">(${parseFloat($('#previous_payment').val() || 0).toLocaleString()})</td>
+                        <td class="text-end">(${formatCurrency(parseFloat($('#previous_payment').val() || 0))})</td>
                         <td class="text-center">${$('#previous_receipt_number').val() || '-'}</td>
                     </tr>
                     <tr>
                         <td>Day Care Monthly fee - ${$('#current_month_name').text()}</td>
-                        <td class="text-end">${parseFloat($('#package_fee').val() || 0).toLocaleString()}</td>
+                        <td class="text-end">${formatCurrency(parseFloat($('#package_fee').val() || 0))}</td>
                         <td class="text-center">-</td>
                     </tr>
                     <tr>
                         <td>Current Month Payment</td>
-                        <td class="text-end">(${parseFloat($('#current_payment').val() || 0).toLocaleString()})</td>
+                        <td class="text-end">(${formatCurrency(parseFloat($('#current_payment').val() || 0))})</td>
                         <td class="text-center">${$('#current_receipt_number').val() || '-'}</td>
                     </tr>
                     <tr class="table-warning">
                         <td><strong>Total</strong></td>
-                        <td class="text-end"><strong>Rs. ${$('#grand_total').text()}</strong></td>
+                        <td class="text-end"><strong>Rs. ${$('#summary_total').text().replace('Rs. ', '')}</strong></td>
                         <td class="text-center">-</td>
                     </tr>
                 </tbody>

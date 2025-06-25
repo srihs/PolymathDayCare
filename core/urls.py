@@ -432,4 +432,10 @@ urlpatterns = [
         views.getHistoricalMemoData,
         name="get_historical_memo_data",
     ),
+    # Add this to your urlpatterns in urls.py
+    path(
+        "get_detailed_charges_breakdown/",
+        views.getDetailedChargesBreakdown,
+        name="get_detailed_charges_breakdown",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

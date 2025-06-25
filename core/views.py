@@ -7706,3 +7706,369 @@ def calculate_month_attendance_summary(child, month, year):
             "expected_days": 22,
             "attendance_percentage": 0,
         }
+
+
+@login_required
+def getDetailedChargesBreakdown(request):
+    """Get detailed breakdown of extra hours and holiday charges for a specific month"""
+    try:
+        child_id = request.GET.get("child_id")
+        month = request.GET.get("month")
+        year = request.GET.get("year")
+
+        if not all([child_id, month, year]):
+            return JsonResponse({"error": "Missing parameters"}, status=400)
+
+        child = Child.objects.get(id=child_id)
+
+        # Get date range for the month
+        first_day = datetime(int(year), int(month), 1).date()
+        last_day = datetime(
+            int(year), int(month), calendar.monthrange(int(year), int(month))[1]
+        ).date()
+
+        # Get package mapping for this period
+        package_mapping = (
+            ChildPackageMapping.objects.filter(
+                child=child,
+                is_active=True,
+                effective_from__lte=last_day,
+            )
+            .filter(Q(effective_to__gte=first_day) | Q(effective_to__isnull=True))
+            .first()
+        )
+
+        if not package_mapping:
+            return JsonResponse(
+                {"error": "No package mapping found for this period"}, status=404
+            )
+
+        # Get attendance logs for the month
+        attendance_logs = AttendanceLog.objects.filter(
+            child=child, date_logged__range=(first_day, last_day)
+        ).order_by("date_logged", "time_logged")
+
+        # Get holidays in this month
+        holidays = Holiday.objects.filter(
+            start_date__lte=last_day, end_date__gte=first_day, is_active=True
+        ).values_list("start_date", flat=True)
+        holiday_dates = set(holidays)
+
+        # Group logs by date
+        logs_by_date = defaultdict(list)
+        for log in attendance_logs:
+            logs_by_date[log.date_logged].append(log)
+
+        # Determine package details
+        package = None
+        package_end_time = None
+        package_type = None
+
+        if package_mapping.normal_package:
+            package = package_mapping.normal_package
+            package_end_time = package.to_time
+            package_type = package.package_type
+        elif package_mapping.holiday_package:
+            package = package_mapping.holiday_package
+            package_end_time = package.to_time
+            package_type = package.package_type
+        elif package_mapping.flex_package:
+            package = package_mapping.flex_package
+            package_end_time = time(17, 30)  # Default for flex
+            package_type = package.package_type
+
+        if not package_end_time or not package_type:
+            return JsonResponse(
+                {"error": "Could not determine package details"}, status=400
+            )
+
+        # Calculate detailed charges
+        extra_hours_breakdown = []
+        holiday_charges_breakdown = []
+        total_extra_charges = Decimal("0.00")
+        total_holiday_charges = Decimal("0.00")
+
+        for log_date, logs in logs_by_date.items():
+            if len(logs) < 2:  # Need both in and out
+                continue
+
+            logs_sorted = sorted(logs, key=lambda x: x.time_logged or time(0, 0))
+            time_in = logs_sorted[0].time_logged
+            time_out = logs_sorted[-1].time_logged
+
+            if not time_out or not package_end_time:
+                continue
+
+            is_holiday = log_date in holiday_dates
+
+            # Calculate extra hours charges
+            if time_out > package_end_time:
+                package_end_datetime = datetime.combine(log_date, package_end_time)
+                actual_out_datetime = datetime.combine(log_date, time_out)
+                extra_time_delta = actual_out_datetime - package_end_datetime
+                extra_hours = extra_time_delta.total_seconds() / 3600
+
+                day_extra_charges = Decimal("0.00")
+                applied_rates = []
+
+                # Check for extra hours after 5:30 PM charges
+                extra_slots_after_530 = ExtraHoursAfter530.objects.filter(
+                    package_type=package_type,
+                    from_time__lte=time_out,
+                    to_time__gte=time_out,
+                    effective_from__lte=log_date,
+                ).filter(Q(effective_to__gte=log_date) | Q(effective_to__isnull=True))
+
+                for slot in extra_slots_after_530:
+                    day_extra_charges += slot.extra_rate
+                    applied_rates.append(
+                        {
+                            "time_slot": f"{slot.from_time.strftime('%H:%M')} - {slot.to_time.strftime('%H:%M')}",
+                            "rate": float(slot.extra_rate),
+                            "type": "After 5:30 PM",
+                        }
+                    )
+
+                # Check for extra hours before 5:30 PM if applicable
+                cutoff_530 = time(17, 30)
+                if package_end_time < cutoff_530 and time_out > cutoff_530:
+                    cutoff_datetime = datetime.combine(log_date, cutoff_530)
+                    hours_before_530 = (
+                        cutoff_datetime - package_end_datetime
+                    ).total_seconds() / 3600
+
+                    hour_count = int(hours_before_530) + (
+                        1 if hours_before_530 % 1 > 0 else 0
+                    )
+                    for hour_num in range(1, min(hour_count + 1, 7)):
+                        rate_obj = (
+                            ExtraHoursUpTo530.objects.filter(
+                                hour_number=hour_num,
+                                effective_from__lte=log_date,
+                                is_active=True,
+                            )
+                            .filter(
+                                Q(effective_to__gte=log_date)
+                                | Q(effective_to__isnull=True)
+                            )
+                            .first()
+                        )
+
+                        if rate_obj:
+                            day_extra_charges += rate_obj.extra_rate
+                            applied_rates.append(
+                                {
+                                    "time_slot": f"Hour {hour_num} (before 5:30 PM)",
+                                    "rate": float(rate_obj.extra_rate),
+                                    "type": "Before 5:30 PM",
+                                }
+                            )
+
+                if day_extra_charges > 0:
+                    extra_hours_breakdown.append(
+                        {
+                            "date": log_date.strftime("%Y-%m-%d"),
+                            "day_name": log_date.strftime("%A"),
+                            "time_in": time_in.strftime("%H:%M") if time_in else "N/A",
+                            "time_out": time_out.strftime("%H:%M"),
+                            "package_end_time": package_end_time.strftime("%H:%M"),
+                            "extra_hours": round(extra_hours, 2),
+                            "charges": float(day_extra_charges),
+                            "applied_rates": applied_rates,
+                            "is_holiday": is_holiday,
+                        }
+                    )
+                    total_extra_charges += day_extra_charges
+
+            # Calculate holiday charges
+            if is_holiday and package_mapping.holiday_package:
+                expected_days = package_mapping.holiday_package.no_days_months or 22
+                daily_holiday_rate = (
+                    package_mapping.holiday_package.package_total
+                    / Decimal(expected_days)
+                )
+
+                holiday_charges_breakdown.append(
+                    {
+                        "date": log_date.strftime("%Y-%m-%d"),
+                        "day_name": log_date.strftime("%A"),
+                        "holiday_package": package_mapping.holiday_package.package_name,
+                        "daily_rate": float(daily_holiday_rate),
+                        "charges": float(daily_holiday_rate),
+                    }
+                )
+                total_holiday_charges += daily_holiday_rate
+
+        return JsonResponse(
+            {
+                "success": True,
+                "month_name": calendar.month_name[int(month)],
+                "year": year,
+                "package_info": {
+                    "name": package.package_name,
+                    "end_time": package_end_time.strftime("%H:%M"),
+                    "type": package_type.package_type_name,
+                },
+                "extra_hours": {
+                    "breakdown": extra_hours_breakdown,
+                    "total": float(total_extra_charges),
+                    "days_count": len(extra_hours_breakdown),
+                },
+                "holiday_charges": {
+                    "breakdown": holiday_charges_breakdown,
+                    "total": float(total_holiday_charges),
+                    "days_count": len(holiday_charges_breakdown),
+                },
+                "summary": {
+                    "total_extra_charges": float(total_extra_charges),
+                    "total_holiday_charges": float(total_holiday_charges),
+                    "combined_total": float(
+                        total_extra_charges + total_holiday_charges
+                    ),
+                },
+            }
+        )
+
+    except Child.DoesNotExist:
+        return JsonResponse({"error": "Child not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getHistoricalMemoData(request):
+    """Get historical memo data for previous months with detailed breakdown"""
+    try:
+        child_id = request.GET.get("child_id")
+        month = request.GET.get("month")
+        year = request.GET.get("year")
+        calculate_with_discount = (
+            request.GET.get("calculate_with_discount", "false").lower() == "true"
+        )
+        include_breakdown = (
+            request.GET.get("include_breakdown", "false").lower() == "true"
+        )
+
+        if not all([child_id, month, year]):
+            return JsonResponse({"error": "Missing parameters"}, status=400)
+
+        child = Child.objects.get(id=child_id)
+
+        # Look for existing memo for the specified month
+        existing_memo = InvoiceMemo.objects.filter(
+            child=child, month=int(month), year=int(year), is_active=True
+        ).first()
+
+        if existing_memo:
+            # Return existing memo data
+            data = {
+                "package_fee": float(existing_memo.current_month_package_fee),
+                "extra_hours": float(existing_memo.extra_hours_charge),
+                "holiday_charges": float(existing_memo.holiday_charge),
+                "discount_applied": float(existing_memo.discount_applied),
+                "net_balance": float(existing_memo.month_net_balance),
+                "total_payments": float(existing_memo.total_payments_received),
+            }
+            return JsonResponse({"success": True, "data": data})
+
+        elif calculate_with_discount or include_breakdown:
+            # Calculate based on attendance and get detailed breakdown
+            try:
+                # Get detailed charges breakdown
+                breakdown_request = type(
+                    "MockRequest",
+                    (),
+                    {"GET": {"child_id": child_id, "month": month, "year": year}},
+                )()
+
+                # Call the detailed breakdown function
+                breakdown_response = getDetailedChargesBreakdown(breakdown_request)
+                breakdown_data = json.loads(breakdown_response.content.decode("utf-8"))
+
+                if breakdown_data.get("success"):
+                    # Get attendance data
+                    attendance_data = calculate_month_attendance_summary(
+                        child, int(month), int(year)
+                    )
+
+                    # Get child's package and discount info
+                    package_mapping = ChildPackageMapping.objects.filter(
+                        child=child, is_active=True
+                    ).first()
+
+                    enrollment = ChildEnrollment.objects.filter(
+                        child=child, status="Approved", is_active=True
+                    ).first()
+
+                    if package_mapping and enrollment:
+                        # Get base package fee
+                        base_package_fee = 0
+                        if package_mapping.normal_package:
+                            base_package_fee = float(
+                                package_mapping.normal_package.package_total
+                            )
+                        elif package_mapping.holiday_package:
+                            base_package_fee = float(
+                                package_mapping.holiday_package.package_total
+                            )
+                        elif package_mapping.flex_package:
+                            base_package_fee = float(
+                                package_mapping.flex_package.package_total
+                            )
+
+                        # Apply attendance-based rules
+                        attendance_percentage = attendance_data.get(
+                            "attendance_percentage", 0
+                        )
+                        if attendance_percentage == 0:
+                            calculated_package_fee = 0
+                        elif attendance_percentage < 50:
+                            calculated_package_fee = base_package_fee / 2
+                        else:
+                            calculated_package_fee = base_package_fee
+
+                        # Apply discount
+                        discount_applied = 0
+                        if (
+                            enrollment.discount
+                            and enrollment.discount.status == "Approved"
+                        ):
+                            discount_rate = float(enrollment.discount.discount_rate)
+                            discount_applied = (
+                                calculated_package_fee * discount_rate
+                            ) / 100
+
+                        data = {
+                            "package_fee": calculated_package_fee,
+                            "extra_hours": breakdown_data["extra_hours"]["total"],
+                            "holiday_charges": breakdown_data["holiday_charges"][
+                                "total"
+                            ],
+                            "discount_applied": discount_applied,
+                            "net_balance": 0,
+                            "total_payments": 0,
+                            "calculated_from_attendance": True,
+                            "attendance_percentage": attendance_percentage,
+                            # Include detailed breakdown
+                            "breakdown": {
+                                "extra_hours": breakdown_data["extra_hours"][
+                                    "breakdown"
+                                ],
+                                "holiday_charges": breakdown_data["holiday_charges"][
+                                    "breakdown"
+                                ],
+                                "package_info": breakdown_data["package_info"],
+                            },
+                        }
+                        return JsonResponse({"success": True, "data": data})
+
+            except Exception as e:
+                print(f"Error calculating detailed breakdown: {e}")
+
+        # No memo found and no calculation requested
+        return JsonResponse({"success": False, "message": "No memo found"})
+
+    except Child.DoesNotExist:
+        return JsonResponse({"error": "Child not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
