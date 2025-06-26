@@ -590,9 +590,8 @@ function downloadMemo(memoId, memoCode) {
     });
 }
 
-// 2. FIXED THREE MONTH PDF CONTENT GENERATOR
 function generateThreeMonthPDFContent(data) {
-    const dueDateString = calculateDueDate(); // FIXED: Calculate here
+    const dueDateString = calculateDueDate();
     
     // Safe number formatting
     function safeFixed(value, decimals = 2) {
@@ -636,22 +635,28 @@ function generateThreeMonthPDFContent(data) {
         name: safeValue(data, 'month2.name', ''),
         year: safeValue(data, 'month2.year', 0),
         charge: safeValue(data, 'month2.charge', 0),
+        package_fee: safeValue(data, 'month2.package_fee', 0),
+        extra_charges: safeValue(data, 'month2.extra_charges', 0),
+        holiday_charges: safeValue(data, 'month2.holiday_charges', 0),
         days_attended: safeValue(data, 'month2.days_attended', 0),
         expected_days: safeValue(data, 'month2.expected_days', 22),
-        extra_charges: safeValue(data, 'month2.details.extra_charges', 0)
+        extra_charges_breakdown: safeValue(data, 'month2.extra_charges_breakdown', []),
+        holiday_charges_breakdown: safeValue(data, 'month2.holiday_charges_breakdown', []),
+        package_name: safeValue(data, 'month2.package_name', 'Unknown Package')
     };
     
     const month3 = {
         name: safeValue(data, 'month3.name', ''),
         year: safeValue(data, 'month3.year', 0),
-        charge: safeValue(data, 'month3.charge', 0)
+        charge: safeValue(data, 'month3.charge', 0),
+        package_fee: safeValue(data, 'month3.package_fee', 0)
     };
     
     const summary = {
         grand_total: safeValue(data, 'summary.grand_total', 0)
     };
 
-    return `
+    let htmlContent = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -704,21 +709,15 @@ function generateThreeMonthPDFContent(data) {
                 color: #2c3e50;
             }
             
-            .memo-info {
-                background: #e8f4f8;
-                padding: 10px;
+            .child-info {
                 margin-bottom: 20px;
-                border-radius: 5px;
-                text-align: center;
                 font-weight: bold;
-                color: #2980b9;
             }
             
-            .child-info {
+            .child-info-row {
                 display: flex;
                 justify-content: space-between;
-                margin-bottom: 20px;
-                font-weight: bold;
+                margin-bottom: 8px;
             }
             
             .table-container {
@@ -735,6 +734,7 @@ function generateThreeMonthPDFContent(data) {
                 border: 1px solid #ddd;
                 padding: 8px;
                 text-align: left;
+                vertical-align: top;
             }
             
             th {
@@ -769,11 +769,21 @@ function generateThreeMonthPDFContent(data) {
             .total-row {
                 background-color: #fff3cd !important;
                 font-weight: bold;
-                font-size: 14px;
+                font-size: 12px;
+            }
+            
+            .breakdown-row {
+                background-color: #f8f9fa !important;
+                font-size: 11px;
+                font-style: italic;
             }
             
             .indent {
                 padding-left: 20px;
+            }
+            
+            .indent-more {
+                padding-left: 40px;
             }
             
             .notes {
@@ -789,6 +799,22 @@ function generateThreeMonthPDFContent(data) {
             .signature {
                 margin-top: 15px;
                 font-weight: bold;
+            }
+            
+            .badge {
+                display: inline-block;
+                padding: 2px 6px;
+                font-size: 10px;
+                font-weight: bold;
+                border-radius: 3px;
+                margin-left: 5px;
+                background-color: #0dcaf0;
+                color: white;
+            }
+            
+            .badge-warning {
+                background-color: #ffc107;
+                color: black;
             }
             
             .no-print {
@@ -812,16 +838,17 @@ function generateThreeMonthPDFContent(data) {
             <h2>POLYMATH KIDS DIVISION - MEMO</h2>
             <p>No 452/3 High Level Road, Nawinna, Maharagama</p>
             <p>PV 63200 | Phone 0112802554</p>
-           
-        </div>
-        
-        <div class="memo-info">
-            Memo Code: ${memoCode} | Generated: ${memoDate} | Due Date: ${dueDateString}
         </div>
         
         <div class="child-info">
-            <span>Name: ${childName}</span>
-            <span>Child ID: ${childAdmission}</span>
+            <div class="child-info-row">
+                <span>Name: ${childName}</span>
+                <span>Child ID: ${childAdmission}</span>
+            </div>
+            <div class="child-info-row">
+                <span>Package: ${month2.package_name}</span>
+                <span style="color: #dc3545;">Due Date: ${dueDateString}</span>
+            </div>
         </div>
         
         <div class="table-container">
@@ -838,7 +865,7 @@ function generateThreeMonthPDFContent(data) {
                         <td colspan="2"><strong>${month1.name} ${month1.year} - OUTSTANDING</strong></td>
                     </tr>
                     <tr>
-                        <td class="indent">${month1.status === 'No Record' ? 'No record for ' + month1.name : 'Outstanding from ' + month1.name}</td>
+                        <td class="indent">${month1.status === 'No Record' ? 'No outstanding from ' + month1.name : 'Outstanding from ' + month1.name}</td>
                         <td class="amount-cell">${safeFixed(month1.balance)}</td>
                     </tr>
                     
@@ -848,11 +875,69 @@ function generateThreeMonthPDFContent(data) {
                     </tr>
                     <tr>
                         <td class="indent">Day Care Monthly fee - ${month2.name} (${month2.days_attended}/${month2.expected_days} days attended)</td>
-                        <td class="amount-cell">${safeFixed(month2.charge)}</td>
+                        <td class="amount-cell">${safeFixed(month2.package_fee)}</td>
                     </tr>
+    `;
+
+    // Enhanced Extra Hours Section
+    if (month2.extra_charges > 0) {
+        htmlContent += `
                     <tr>
-                        <td class="indent">Charges for extra hours charges for ${month2.name} ${month2.year}</td>
+                        <td class="indent">Extra Hours Charges <span class="badge">${month2.extra_charges_breakdown.length} instances</span></td>
                         <td class="amount-cell">${safeFixed(month2.extra_charges)}</td>
+                    </tr>
+        `;
+        
+        // Show detailed breakdown if available
+        month2.extra_charges_breakdown.forEach((instance, index) => {
+            htmlContent += `
+                    <tr class="breakdown-row">
+                        <td class="indent-more">${instance.date} -> ${instance.time_out} (${instance.extra_hours}h extra)</td>
+                        <td class="amount-cell">${safeFixed(instance.rate || instance.charges)}</td>
+                    </tr>
+            `;
+        });
+    } else {
+        htmlContent += `
+                    <tr>
+                        <td class="indent">Extra Hours Charges</td>
+                        <td class="amount-cell">0.00</td>
+                    </tr>
+        `;
+    }
+
+    // Enhanced Holiday Charges Section
+    if (month2.holiday_charges > 0) {
+        htmlContent += `
+                    <tr>
+                        <td class="indent">Holiday Attendance Charges <span class="badge badge-warning">${month2.holiday_charges_breakdown.length} days</span></td>
+                        <td class="amount-cell">${safeFixed(month2.holiday_charges)}</td>
+                    </tr>
+        `;
+        
+        // Show detailed breakdown if available
+        month2.holiday_charges_breakdown.forEach((instance, index) => {
+            htmlContent += `
+                    <tr class="breakdown-row">
+                        <td class="indent-more">${instance.date} -> ${instance.holiday_name}</td>
+                        <td class="amount-cell">${safeFixed(instance.rate || instance.charges)}</td>
+                    </tr>
+            `;
+        });
+    } else {
+        htmlContent += `
+                    <tr>
+                        <td class="indent">Holiday Attendance Charges</td>
+                        <td class="amount-cell">0.00</td>
+                    </tr>
+        `;
+    }
+
+    // Month 2 Total
+    htmlContent += `
+                    <tr class="total-row">
+                        <td class="indent"><strong>Total for ${month2.name} ${month2.year}</strong></td>
+                        <td class="amount-cell"><strong>${safeFixed(month2.charge)}</strong></td>
                     </tr>
                     
                     <!-- Month 3 - Advance -->
@@ -860,13 +945,13 @@ function generateThreeMonthPDFContent(data) {
                         <td colspan="2"><strong>${month3.name} ${month3.year} - ADVANCE</strong></td>
                     </tr>
                     <tr>
-                        <td class="indent">Day Care Monthly fee - ${month3.name} (Full Package Advance)</td>
-                        <td class="amount-cell">${safeFixed(month3.charge)}</td>
+                        <td class="indent">Day Care Monthly fee - ${month3.name} ${month3.year} (Full Package)<br><small style="color: #0dcaf0;">Advance charge for upcoming month</small></td>
+                        <td class="amount-cell">${safeFixed(month3.package_fee)}</td>
                     </tr>
                     
                     <!-- Total -->
                     <tr class="total-row">
-                        <td><strong>Total Amount to Pay</strong></td>
+                        <td><strong>TOTAL AMOUNT TO PAY</strong></td>
                         <td class="amount-cell"><strong>Rs. ${safeFixed(summary.grand_total)}</strong></td>
                     </tr>
                 </tbody>
@@ -875,8 +960,243 @@ function generateThreeMonthPDFContent(data) {
         
         <!-- Notes and Account Details -->
         <div class="notes">
-            <p><strong>Please note that,</strong> Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before ${dueDateString}. Ignore this message if you have already settled that outstanding.</p>
+            <p><strong>Please note that,</strong> Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before <span style="color: #dc3545; font-weight: bold;"> ${dueDateString} </span>. Ignore this message if you have already settled that outstanding.</p>
             
+            <div style="margin-top: 15px; font-weight: bold;">
+                <p style="margin-bottom: 5px; font-size: 10px;">Thank you,</p>
+                <p style="margin-bottom: 5px; font-size: 10px;">The Management.</p>
+            </div>
+        </div>
+        
+        <div class="account-details">
+            <p style="font-weight: bold; margin-left: 75px; margin-bottom: 5px; font-size: 10px;">Account Details</p>
+            <p style="margin-bottom: 2px; margin-left: 75px; font-size: 10px;"><strong>Account Name</strong> - Polymath College (PVT) Ltd</p>
+            <p style="margin-bottom: 2px; margin-left: 75px; font-size: 10px;"><strong>Bank</strong> - Peoples Bank</p>
+            <p style="margin-bottom: 2px; margin-left: 75px; font-size: 10px;"><strong>Branch</strong> - Gangodawila</p>
+            <p style="margin-bottom: 2px; margin-left: 75px; font-size: 10px;"><strong>Account Number</strong> - 097100130026495</p>
+            <p style="margin-bottom: 2px; margin-left: 75px; font-size: 10px;"><strong>Whatsapp</strong> - 0705585858</p>
+        </div>
+    </body>
+    </html>
+    `;
+    
+    return htmlContent;
+}
+
+// 2. UPDATED generatePreviewPDFContent function
+function generatePreviewPDFContent(data) {
+    const dueDateString = calculateDueDate();
+    
+    // Safe number formatting with thousand separators
+    function safeFixed(value, decimals = 2) {
+        if (value === null || value === undefined || isNaN(value)) {
+            return '0.00';
+        }
+        const num = parseFloat(value).toFixed(decimals);
+        return parseFloat(num).toLocaleString('en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+    
+    // Safe value extraction
+    function safeValue(obj, path, defaultValue = 0) {
+        try {
+            const keys = path.split('.');
+            let result = obj;
+            for (const key of keys) {
+                result = result?.[key];
+            }
+            return result !== null && result !== undefined ? result : defaultValue;
+        } catch (e) {
+            return defaultValue;
+        }
+    }
+    
+    // Extract data safely
+    const childName = safeValue(data, 'child_name', 'Unknown Child');
+    const childAdmission = safeValue(data, 'child_admission', 'N/A');
+    
+    const month1 = {
+        name: safeValue(data, 'month1.name', ''),
+        year: safeValue(data, 'month1.year', 0),
+        balance: safeValue(data, 'month1.balance', 0),
+        status: safeValue(data, 'month1.status', 'No Record')
+    };
+    
+    const month2 = {
+        name: safeValue(data, 'month2.name', ''),
+        year: safeValue(data, 'month2.year', 0),
+        package_name: safeValue(data, 'month2.package_name', 'Unknown Package'),
+        charge: safeValue(data, 'month2.charge', 0),
+        package_fee: safeValue(data, 'month2.package_fee', 0),
+        extra_charges: safeValue(data, 'month2.extra_charges', 0),
+        holiday_charges: safeValue(data, 'month2.holiday_charges', 0),
+        days_attended: safeValue(data, 'month2.days_attended', 0),
+        expected_days: safeValue(data, 'month2.expected_days', 22),
+        extra_charges_breakdown: safeValue(data, 'month2.extra_charges_breakdown', []),
+        holiday_charges_breakdown: safeValue(data, 'month2.holiday_charges_breakdown', [])
+    };
+    
+    const month3 = {
+        name: safeValue(data, 'month3.name', ''),
+        year: safeValue(data, 'month3.year', 0),
+        package_fee: safeValue(data, 'month3.package_fee', 0)
+    };
+    
+    const summary = {
+        grand_total: safeValue(data, 'summary.grand_total', 0)
+    };
+
+    let htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Invoice Memo ${childAdmission}</title>
+        <style>
+            @page { size: A4; margin: 15mm; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; font-size: 12px; line-height: 1.4; color: #333; background: white; }
+            .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 15px; }
+            .header h2 { font-size: 18px; font-weight: bold; margin-bottom: 5px; color: #2c3e50; }
+            .header p { font-size: 11px; color: #666; margin-bottom: 3px; }
+            .child-info { margin-bottom: 20px; font-weight: bold; }
+            .child-info-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+            th { background-color: #f8f9fa; font-weight: bold; text-align: center; }
+            .amount-cell { text-align: right; font-weight: bold; }
+            .section-header { background-color: #e9ecef !important; font-weight: bold; color: #495057; }
+            .breakdown-row { background-color: #f8f9fa !important; font-size: 11px; font-style: italic; }
+            .total-row { background-color: #fff3cd !important; font-weight: bold; }
+            .indent { padding-left: 20px; }
+            .indent-more { padding-left: 40px; }
+            .badge { display: inline-block; padding: 2px 6px; font-size: 10px; font-weight: bold; border-radius: 3px; margin-left: 5px; background-color: #0dcaf0; color: white; }
+            .badge-warning { background-color: #ffc107; color: black; }
+            .notes { margin-top: 20px; font-size: 11px; line-height: 1.6; }
+            .account-details { margin-top: 15px; font-size: 10px; }
+            .account-details p { margin-bottom: 2px; }
+            @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h2>POLYMATH KIDS DIVISION - MEMO</h2>
+            <p>No 452/3 High Level Road, Nawinna, Maharagama</p>
+            <p>PV 63200 | Phone 0112 802 554</p>
+        </div>
+        
+        <div class="child-info">
+            <div class="child-info-row">
+                <span><strong>Name:</strong> ${childName}</span>
+                <span><strong>Child ID:</strong> ${childAdmission}</span>
+            </div>
+            <div class="child-info-row">
+                <span><strong>Package:</strong> ${month2.package_name}</span>
+                <span><strong>Due Date:</strong> <span style="color: #dc3545; font-weight: bold;">${dueDateString}</span></span>
+            </div>
+        </div>
+        
+        <table>
+            <thead>
+                <tr><th style="width: 70%;">Description</th><th style="width: 30%;">Amount (Rs.)</th></tr>
+            </thead>
+            <tbody>
+                <tr class="section-header">
+                    <td colspan="2"><strong>${month1.name} ${month1.year} - OUTSTANDING</strong></td>
+                </tr>
+                <tr>
+                    <td class="indent">${month1.status === 'No Record' || month1.balance <= 0 ? 'No outstanding from ' + month1.name : 'Outstanding from ' + month1.name}</td>
+                    <td class="amount-cell">${safeFixed(month1.balance)}</td>
+                </tr>
+                
+                <tr class="section-header">
+                    <td colspan="2"><strong>${month2.name} ${month2.year} - CALCULATED</strong></td>
+                </tr>
+                <tr>
+                    <td class="indent">Day Care Monthly fee - ${month2.name} (${month2.days_attended}/${month2.expected_days} days attended)</td>
+                    <td class="amount-cell">${safeFixed(month2.package_fee)}</td>
+                </tr>
+    `;
+
+    // Enhanced Extra Hours Section
+    if (month2.extra_charges > 0) {
+        htmlContent += `
+                <tr>
+                    <td class="indent">Extra Hours Charges <span class="badge">${month2.extra_charges_breakdown.length} instances</span></td>
+                    <td class="amount-cell">${safeFixed(month2.extra_charges)}</td>
+                </tr>
+        `;
+        
+        // Show detailed breakdown
+        month2.extra_charges_breakdown.forEach((instance, index) => {
+            htmlContent += `
+                <tr class="breakdown-row">
+                    <td class="indent-more">${instance.date} -> ${instance.time_out} (${instance.extra_hours}h extra)</td>
+                    <td class="amount-cell">${safeFixed(instance.rate || instance.charges)}</td>
+                </tr>
+            `;
+        });
+    } else {
+        htmlContent += `
+                <tr>
+                    <td class="indent">Extra Hours Charges</td>
+                    <td class="amount-cell">0.00</td>
+                </tr>
+        `;
+    }
+
+    // Enhanced Holiday Charges Section
+    if (month2.holiday_charges > 0) {
+        htmlContent += `
+                <tr>
+                    <td class="indent">Holiday Attendance Charges <span class="badge badge-warning">${month2.holiday_charges_breakdown.length} days</span></td>
+                    <td class="amount-cell">${safeFixed(month2.holiday_charges)}</td>
+                </tr>
+        `;
+        
+        // Show detailed breakdown
+        month2.holiday_charges_breakdown.forEach((instance, index) => {
+            htmlContent += `
+                <tr class="breakdown-row">
+                    <td class="indent-more">${instance.date} -> ${instance.holiday_name}</td>
+                    <td class="amount-cell">${safeFixed(instance.rate || instance.charges)}</td>
+                </tr>
+            `;
+        });
+    } else {
+        htmlContent += `
+                <tr>
+                    <td class="indent">Holiday Attendance Charges</td>
+                    <td class="amount-cell">0.00</td>
+                </tr>
+        `;
+    }
+
+    htmlContent += `
+                <tr class="total-row">
+                    <td class="indent"><strong>Total for ${month2.name} ${month2.year}</strong></td>
+                    <td class="amount-cell"><strong>${safeFixed(month2.charge)}</strong></td>
+                </tr>
+                
+                <tr class="section-header">
+                    <td colspan="2"><strong>${month3.name} ${month3.year} - ADVANCE</strong></td>
+                </tr>
+                <tr>
+                    <td class="indent">Day Care Monthly fee - ${month3.name} ${month3.year} (Full Package)<br><small style="color: #0dcaf0;">Advance charge for upcoming month</small></td>
+                    <td class="amount-cell">${safeFixed(month3.package_fee)}</td>
+                </tr>
+                
+                <tr class="total-row">
+                    <td><strong>TOTAL AMOUNT TO PAY</strong></td>
+                    <td class="amount-cell"><strong>Rs. ${safeFixed(summary.grand_total)}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="notes">
+            <p><strong>Please note that, </strong> Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before <span style="color: #dc3545; font-weight: bold;">${dueDateString}</span>. Ignore this message if you have already settled that outstanding.</p>
             <div style="margin-top: 15px; font-weight: bold;">
                 <p style="margin-bottom: 5px;">Thank you,</p>
                 <p style="margin-bottom: 20px;">The Management.</p>
@@ -884,19 +1204,269 @@ function generateThreeMonthPDFContent(data) {
         </div>
         
         <div class="account-details">
-            <p style="font-weight: bold; margin-bottom: 10px; font-size: 12px;">Account Details</p>
-            <p style="margin-bottom: 3px;"><strong>Account Name</strong> - Polymath College (PVT) Ltd</p>
-            <p style="margin-bottom: 3px;"><strong>Bank</strong> - Peoples Bank</p>
-            <p style="margin-bottom: 3px;"><strong>Branch</strong> - Gangodawila</p>
-            <p style="margin-bottom: 10px;"><strong>Account Number</strong> - 097100130026495</p>
-            <p style="margin-bottom: 5px;"><strong>Whatsapp</strong> - 0705585858</p>
+            <p style="font-weight: bold; margin-bottom: 5px; font-size: 13px;">Account Details</p>
+            <p><strong>Account Name</strong> - Polymath College (PVT) Ltd</p>
+            <p><strong>Bank</strong> - Peoples Bank</p>
+            <p><strong>Branch</strong> - Gangodawila</p>
+            <p><strong>Account Number</strong> - 097100130026495</p>
+            <p><strong>Whatsapp</strong> - 0705 58 58 58</p>
         </div>
     </body>
     </html>
     `;
+    
+    return htmlContent;
 }
 
-// REPLACE the existing displayThreeMonthMemoDetails function with this enhanced version
+// 2. OPTIMIZED generatePreviewPDFContent function
+function generatePreviewPDFContent(data) {
+    const dueDateString = calculateDueDate();
+    
+    // Safe number formatting with thousand separators
+    function safeFixed(value, decimals = 2) {
+        if (value === null || value === undefined || isNaN(value)) {
+            return '0.00';
+        }
+        const num = parseFloat(value).toFixed(decimals);
+        return parseFloat(num).toLocaleString('en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+    
+    // Safe value extraction
+    function safeValue(obj, path, defaultValue = 0) {
+        try {
+            const keys = path.split('.');
+            let result = obj;
+            for (const key of keys) {
+                result = result?.[key];
+            }
+            return result !== null && result !== undefined ? result : defaultValue;
+        } catch (e) {
+            return defaultValue;
+        }
+    }
+    
+    // Extract data safely
+    const childName = safeValue(data, 'child_name', 'Unknown Child');
+    const childAdmission = safeValue(data, 'child_admission', 'N/A');
+    
+    const month1 = {
+        name: safeValue(data, 'month1.name', ''),
+        year: safeValue(data, 'month1.year', 0),
+        balance: safeValue(data, 'month1.balance', 0),
+        status: safeValue(data, 'month1.status', 'No Record')
+    };
+    
+    const month2 = {
+        name: safeValue(data, 'month2.name', ''),
+        year: safeValue(data, 'month2.year', 0),
+        package_name: safeValue(data, 'month2.package_name', 'Unknown Package'),
+        charge: safeValue(data, 'month2.charge', 0),
+        package_fee: safeValue(data, 'month2.package_fee', 0),
+        extra_charges: safeValue(data, 'month2.extra_charges', 0),
+        holiday_charges: safeValue(data, 'month2.holiday_charges', 0),
+        days_attended: safeValue(data, 'month2.days_attended', 0),
+        expected_days: safeValue(data, 'month2.expected_days', 22),
+        extra_charges_breakdown: safeValue(data, 'month2.extra_charges_breakdown', []),
+        holiday_charges_breakdown: safeValue(data, 'month2.holiday_charges_breakdown', [])
+    };
+    
+    const month3 = {
+        name: safeValue(data, 'month3.name', ''),
+        year: safeValue(data, 'month3.year', 0),
+        package_fee: safeValue(data, 'month3.package_fee', 0)
+    };
+    
+    const summary = {
+        grand_total: safeValue(data, 'summary.grand_total', 0)
+    };
+
+    // Use the same compact styling as above
+    let htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Invoice Memo ${childAdmission}</title>
+        <style>
+            @page { size: A4; margin: 10mm 15mm 10mm 15mm; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; font-size: 10px; line-height: 1.2; color: #333; background: white; }
+            .header { text-align: center; margin-bottom: 12px; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+            .header h2 { font-size: 14px; font-weight: bold; margin-bottom: 3px; color: #2c3e50; }
+            .header p { font-size: 9px; color: #666; margin-bottom: 2px; }
+            .child-info { margin-bottom: 10px; font-weight: bold; font-size: 9px; }
+            .child-info-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+            th, td { border: 1px solid #ddd; padding: 4px 6px; text-align: left; vertical-align: top; font-size: 9px; }
+            th { background-color: #f8f9fa; font-weight: bold; text-align: center; font-size: 10px; }
+            .amount-cell { text-align: right; font-weight: bold; }
+            .section-header { background-color: #e9ecef !important; font-weight: bold; color: #495057; font-size: 10px; }
+            .breakdown-row { background-color: #f8f9fa !important; font-size: 8px; font-style: italic; color: #666; }
+            .total-row { background-color: #fff3cd !important; font-weight: bold; font-size: 10px; }
+            .indent { padding-left: 15px; }
+            .indent-more { padding-left: 25px; }
+            .badge { display: inline-block; padding: 1px 4px; font-size: 7px; font-weight: bold; border-radius: 2px; margin-left: 3px; background-color: #0dcaf0; color: white; }
+            .badge-warning { background-color: #ffc107; color: black; }
+            .notes { margin-top: 10px; font-size: 11px; line-height: 1.3; }
+            .notes p { margin-bottom: 4px; }
+            .account-details { margin-top: 8px; font-size: 10px; line-height: 1.2; }
+            .account-details p { margin-bottom: 1px; }
+            @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h2>POLYMATH KIDS DIVISION - MEMO</h2>
+            <p>No 452/3 High Level Road, Nawinna, Maharagama | PV 63200 | Phone 0112 802 554</p>
+        </div>
+        
+        <div class="child-info">
+            <div class="child-info-row">
+                <span><strong>Name:</strong> ${childName}</span>
+                <span><strong>Child ID:</strong> ${childAdmission}</span>
+            </div>
+            <div class="child-info-row">
+                <span><strong>Package:</strong> ${month2.package_name}</span>
+                <span><strong>Due Date:</strong> <span style="color: #dc3545; font-weight: bold;">${dueDateString}</span></span>
+            </div>
+        </div>
+        
+        <table>
+            <thead>
+                <tr><th style="width: 70%;">Description</th><th style="width: 30%;">Amount (Rs.)</th></tr>
+            </thead>
+            <tbody>
+                <tr class="section-header">
+                    <td colspan="2"><strong>${month1.name} ${month1.year} - OUTSTANDING</strong></td>
+                </tr>
+                <tr>
+                    <td class="indent">${month1.status === 'No Record' || month1.balance <= 0 ? 'No outstanding from ' + month1.name : 'Outstanding from ' + month1.name}</td>
+                    <td class="amount-cell">${safeFixed(month1.balance)}</td>
+                </tr>
+                
+                <tr class="section-header">
+                    <td colspan="2"><strong>${month2.name} ${month2.year} - CALCULATED</strong></td>
+                </tr>
+                <tr>
+                    <td class="indent">Day Care Monthly fee - ${month2.name} (${month2.days_attended}/${month2.expected_days} days attended)</td>
+                    <td class="amount-cell">${safeFixed(month2.package_fee)}</td>
+                </tr>
+    `;
+
+    // Enhanced Extra Hours Section - CONDENSED
+    if (month2.extra_charges > 0) {
+        htmlContent += `
+                <tr>
+                    <td class="indent">Extra Hours Charges <span class="badge">${month2.extra_charges_breakdown.length} instances</span></td>
+                    <td class="amount-cell">${safeFixed(month2.extra_charges)}</td>
+                </tr>
+        `;
+        
+        // Show condensed breakdown
+        if (month2.extra_charges_breakdown.length <= 8) {
+            month2.extra_charges_breakdown.forEach((instance, index) => {
+                htmlContent += `
+                <tr class="breakdown-row">
+                    <td class="indent-more">${instance.date} → ${instance.time_out} (${instance.extra_hours}h)</td>
+                    <td class="amount-cell">${safeFixed(instance.rate || instance.charges)}</td>
+                </tr>
+                `;
+            });
+        } else {
+            // Show first 5 entries and summarize rest
+            for (let i = 0; i < 5; i++) {
+                const instance = month2.extra_charges_breakdown[i];
+                htmlContent += `
+                <tr class="breakdown-row">
+                    <td class="indent-more">${instance.date} → ${instance.time_out} (${instance.extra_hours}h)</td>
+                    <td class="amount-cell">${safeFixed(instance.rate || instance.charges)}</td>
+                </tr>
+                `;
+            }
+            htmlContent += `
+                <tr class="breakdown-row">
+                    <td class="indent-more">... and ${month2.extra_charges_breakdown.length - 5} more instances</td>
+                    <td class="amount-cell">—</td>
+                </tr>
+            `;
+        }
+    } else {
+        htmlContent += `
+                <tr>
+                    <td class="indent">Extra Hours Charges</td>
+                    <td class="amount-cell">0.00</td>
+                </tr>
+        `;
+    }
+
+    // Enhanced Holiday Charges Section
+    if (month2.holiday_charges > 0) {
+        htmlContent += `
+                <tr>
+                    <td class="indent">Holiday Attendance Charges <span class="badge badge-warning">${month2.holiday_charges_breakdown.length} days</span></td>
+                    <td class="amount-cell">${safeFixed(month2.holiday_charges)}</td>
+                </tr>
+        `;
+        
+        month2.holiday_charges_breakdown.forEach((instance, index) => {
+            htmlContent += `
+                <tr class="breakdown-row">
+                    <td class="indent-more">${instance.date} → ${instance.holiday_name}</td>
+                    <td class="amount-cell">${safeFixed(instance.rate || instance.charges)}</td>
+                </tr>
+            `;
+        });
+    } else {
+        htmlContent += `
+                <tr>
+                    <td class="indent">Holiday Attendance Charges</td>
+                    <td class="amount-cell">0.00</td>
+                </tr>
+        `;
+    }
+
+    htmlContent += `
+                <tr class="total-row">
+                    <td class="indent"><strong>Total for ${month2.name} ${month2.year}</strong></td>
+                    <td class="amount-cell"><strong>${safeFixed(month2.charge)}</strong></td>
+                </tr>
+                
+                <tr class="section-header">
+                    <td colspan="2"><strong>${month3.name} ${month3.year} - ADVANCE</strong></td>
+                </tr>
+                <tr>
+                    <td class="indent">Day Care Monthly fee - ${month3.name} ${month3.year} (Full Package)<br><small style="color: #0dcaf0; font-size: 7px;">Advance charge for upcoming month</small></td>
+                    <td class="amount-cell">${safeFixed(month3.package_fee)}</td>
+                </tr>
+                
+                <tr class="total-row" style="background-color: #f8d7da !important;">
+                    <td><strong>TOTAL AMOUNT TO PAY</strong></td>
+                    <td class="amount-cell"><strong>Rs. ${safeFixed(summary.grand_total)}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="notes">
+            <p><strong>Please note:</strong> Only payments made before invoice date are indicated. If there is any outstanding amount please settle on or before <strong style="color: #dc3545;">${dueDateString}</strong>. Ignore this message if you have already settled.</p>
+            <div style="margin-top: 6px; font-weight: bold;"><span>Thank you, The Management.</span></div>
+        </div>
+        
+        <div class="account-details">
+            <p style="font-weight: bold; margin-bottom: 3px;">Account Details</p>
+            <p><strong>Account Name:</strong> Polymath College (PVT) Ltd | <strong>Bank:</strong> Peoples Bank | <strong>Branch:</strong> Gangodawila</p>
+            <p><strong>Account Number:</strong> 097100130026495 | <strong>Whatsapp:</strong> 0705 58 58 58</p>
+        </div>
+    </body>
+    </html>
+    `;
+    
+    return htmlContent;
+}
+
+
 function displayThreeMonthMemoDetails(data) {
     console.log('=== Displaying 3-month memo details with enhanced breakdown ===');
     console.log('Display data:', data);
@@ -1164,7 +1734,7 @@ function displayThreeMonthMemoDetails(data) {
             </div>
             
             <div class="account-details">
-                <p style="font-weight: bold; margin-bottom: 5px; font-size: 13px;">Account Details</p>
+                <p style="font-weight: bold; margin-bottom: 5px; font-size: 10px;">Account Details</p>
                 <p style="margin-bottom: 2px;"><strong>Account Name</strong> - Polymath College (PVT) Ltd</p>
                 <p style="margin-bottom: 2px;"><strong>Bank</strong> - Peoples Bank</p>
                 <p style="margin-bottom: 2px;"><strong>Branch</strong> - Gangodawila</p>
@@ -1791,7 +2361,7 @@ function generatePreviewPDFContent(data) {
             .table-info { background-color: #cff4fc !important; font-weight: bold; color: #055160; }
             .table-success { background-color: #d1e7dd !important; color: #0a3622; }
             .table-warning { background-color: #fff3cd !important; font-weight: bold; color: #664d03; }
-            .table-danger { background-color: #f8d7da !important; font-weight: bold; color: #58151c; }
+            .table-danger { background-color: #f8d7da !important; font-size: 11px; font-weight: bold; color: #58151c; }
             .table-light { background-color: #f8f9fa !important; font-size: 11px; font-style: italic; }
             .indent { padding-left: 20px; }
             .indent-more { padding-left: 40px; }
@@ -1809,7 +2379,7 @@ function generatePreviewPDFContent(data) {
             .card-body p { margin-bottom: 3px; }
             .notes { margin-top: 20px; font-size: 11px; line-height: 1.6; }
             .notes p { margin-bottom: 8px; }
-            .account-details { margin-top: 15px; font-size: 11px; }
+            .account-details { margin-top: 15px; font-size: 10px; }
             .account-details p { margin-bottom: 2px; }
             @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .summary-cards { page-break-inside: avoid; } }
         </style>
@@ -2062,7 +2632,7 @@ function printModalContentAsPDF() {
             .table-info { background-color: #cff4fc !important; font-weight: bold; color: #055160; }
             .table-success { background-color: #d1e7dd !important; color: #0a3622; }
             .table-warning { background-color: #fff3cd !important; font-weight: bold; color: #664d03; }
-            .table-danger { background-color: #f8d7da !important; font-weight: bold; color: #58151c; }
+            .table-danger { background-color: #f8d7da !important;font-size: 11px; font-weight: bold; color: #58151c; }
             .table-light { background-color: #f8f9fa !important; font-size: 11px; font-style: italic; }
             .text-end { text-align: right; }
             .text-center { text-align: center; }
@@ -2080,7 +2650,7 @@ function printModalContentAsPDF() {
             .border-info .card-header { background-color: #0dcaf0 !important; color: white; }
             .border-warning .card-header { background-color: #ffc107 !important; color: black; }
             .notes { margin-top: 20px; font-size: 11px; line-height: 1.6; }
-            .account-details { margin-top: 15px; font-size: 11px; }
+            .account-details { margin-top: 15px; font-size: 10px; }
             .account-details p { margin-bottom: 3px; }
             @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .card { page-break-inside: avoid; } }
         </style>
