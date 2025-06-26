@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 {% load static %}
-
+{% block PageTitle %}Memo generation{% endblock %}
+{% block UserName %} {{ UserName }}{% endblock %} 
+{% block Title %} TRANSACTION {% endblock %} 
+{% block functionTitle %}MEMO GENERATION{% endblock %} 
 {% block content %}
 <div class="row">
     <div class="col-12">
         <div class="page-title-box d-sm-flex align-items-center justify-content-between">
             <h4 class="mb-sm-0">Invoice Memo Generation</h4>
             <div class="page-title-right">
-                <ol class="breadcrumb m-0">
-                    <li class="breadcrumb-item"><a href="{% url 'core:home' %}">Dashboard</a></li>
-                    <li class="breadcrumb-item active">Invoice Generation</li>
-                </ol>
+                
             </div>
         </div>
     </div>
@@ -18,17 +18,39 @@
 
 <!-- Generate Invoice Memo Section -->
 <div class="row">
-    <div class="col-xl-8">
+    <div class="col-xl-12">
         <div class="card">
             <div class="card-header align-items-center d-flex">
+                
                 <h4 class="card-title mb-0 flex-grow-1">Generate New Invoice Memo</h4>
             </div>
+              
             <div class="card-body">
+               <div class="alert alert-dismissible" role="alert">
+                    {% if messages %} {% for message in messages %}
+                    <!-- Danger Alert -->
+                    <div
+                            class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show"
+                            role="alert"
+                    >
+                        <strong>
+                            <center>{{ message }}</center>
+                        </strong>
+                        <button
+                                type="button"
+                                class="btn-close"
+                                data-bs-dismiss="alert"
+                                aria-label="Close"
+                        ></button>
+                    </div>
+                    {% endfor %} {% endif %}
+                    <!-- end row -->
+                </div>
                 <form method="post" action="{% url 'core:generate_save_invoice_memo' %}">
                     {% csrf_token %}
-                    <div class="row g-3">
+                    <div class="row">
                         <!-- Child Selection -->
-                        <div class="col-md-12">
+                        <div class="col-sm">
                             <label for="child" class="form-label">Child *</label>
                             <select class="form-control" name="child" id="child" required>
                                 <option value="">-Select Child-</option>
@@ -40,7 +62,7 @@
                         </div>
 
                         <!-- Month and Year Selection -->
-                        <div class="col-md-6">
+                        <div class="col-sm">
                             <label for="month" class="form-label">Month *</label>
                             <select class="form-control" name="month" id="month" required>
                                 <option value="">-Select Month-</option>
@@ -59,7 +81,7 @@
                             </select>
                         </div>
 
-                        <div class="col-md-6">
+                        <div class="col-sm">
                             <label for="year" class="form-label">Year *</label>
                             <select class="form-control" name="year" id="year" required>
                                 <option value="">-Select Year-</option>
@@ -85,59 +107,13 @@
                         </div>
                     </div>
                 </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Info Panel -->
-    <div class="col-xl-4">
-        <div class="card">
-            <div class="card-header">
-                <h4 class="card-title mb-0">Generation Summary</h4>
-            </div>
-            <div class="card-body">
-                <div class="text-center">
-                    <h3 class="text-primary">{{ children|length }}</h3>
-                    <p class="text-muted mb-3">Total Enrolled Children</p>
-                </div>
-                
-                <div class="row text-center">
-                    <div class="col-6">
-                        <div class="border rounded p-2">
-                            <h5 class="mb-1">{% now "m" %}</h5>
-                            <p class="text-muted mb-0 font-size-12">Current Month</p>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="border rounded p-2">
-                            <h5 class="mb-1">{% now "Y" %}</h5>
-                            <p class="text-muted mb-0 font-size-12">Current Year</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-3">
-                    <small class="text-muted">
-                        <i class="ri-information-line"></i> 
-                        The system will automatically calculate 3-month charges including previous outstanding amounts.
-                    </small>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Generated Invoice Memos List -->
+<br>
+                <!-- Generated Invoice Memos List -->
 <div class="row">
     <div class="col-12">
-        <div class="card">
-            <div class="card-header align-items-center d-flex">
-                <h4 class="card-title mb-0 flex-grow-1">Generated Invoice Memos</h4>
-            </div>
-            <div class="card-body">
                 <div class="table-responsive">
-                    <table id="invoiceMemosTable" class="table table-bordered table-striped align-middle" style="width:100%">
-                        <thead class="table-light">
+                    <table id="invoiceMemosTable" class="table table-striped table-hover" cellspacing="0" style="width:100%">
+                        <thead >
                             <tr>
                                 <th style="width: 10%">Memo Code</th>
                                 <th style="width: 20%">Child</th>
@@ -153,11 +129,21 @@
                             <!-- Data will be populated via AJAX -->
                         </tbody>
                     </table>
-                </div>
-            </div>
+                
+          
         </div>
     </div>
 </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Info Panel -->
+  
+</div>
+
+
 
 <!-- 3-Month Invoice Preview Modal -->
 <div class="modal fade" id="invoicePreviewModal" tabindex="-1" aria-hidden="true">
@@ -2215,6 +2201,7 @@ function generateAfterPreview() {
 function printInvoice() {
     printInvoiceAsPDF();
 }
-
 </script>
+<script src="{% static 'assets/js/app.js' %}"></script>
+
 {% endblock %}
