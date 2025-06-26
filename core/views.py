@@ -1895,7 +1895,6 @@ def generate_enrollment_forms(child_id):
             )
 
         if not enrollment:
-            print(f"No enrollment found for child {child.admission_number}")
             return None
 
         # Get package information
@@ -1946,11 +1945,9 @@ def generate_enrollment_forms(child_id):
         draw_all_forms_single_page(c, data)
 
         c.save()
-        print(f"Enrollment forms saved: {pdf_path}")
         return pdf_path
 
-    except Exception as e:
-        print(f"Error: {str(e)}")
+    except Exception:
         return None
 
 
@@ -3469,7 +3466,6 @@ def generateInvoiceEligibilityJS(request):
                         "to_date": to_date,
                     }
                 )
-        print(children_status)
         # Return response with the combined list
         return JsonResponse(
             {
@@ -3751,8 +3747,7 @@ def getInvoiceMemos(request):
 
         return render(request, "invoice.html", context)
 
-    except Exception as e:
-        print(f"Error in getInvoiceMemos: {e}")
+    except Exception:
         return render(
             request,
             "invoice.html",
@@ -3991,10 +3986,6 @@ def generateAndSaveInvoiceMemo(request):
             )
 
     except Exception as e:
-        import traceback
-
-        print(f"DEBUG: Exception occurred: {str(e)}")
-        print(f"DEBUG: Traceback: {traceback.format_exc()}")
         messages.error(request, f"Error generating invoice memo: {str(e)}")
 
     return redirect("core:view_invoice_memos")
@@ -4010,22 +4001,14 @@ def getInvoiceMemoByID(request, pk):
     try:
         memo = get_object_or_404(InvoiceMemo, pk=pk)
 
-        print(f"=== DEBUG: Processing memo {memo.memo_code} ===")
-
         # Get the 3 detail records
         details = memo.details.all().order_by("month_sequence")
-
-        print(f"DEBUG: Found {details.count()} detail records")
 
         if details.count() == 3:
             # New format - return 3-month data from stored details WITH GENERATED BREAKDOWN
             month1_detail = details[0]  # Outstanding
             month2_detail = details[1]  # Calculated
             month3_detail = details[2]  # Advance
-
-            print(f"DEBUG: Month1: {month1_detail.month_name} {month1_detail.year}")
-            print(f"DEBUG: Month2: {month2_detail.month_name} {month2_detail.year}")
-            print(f"DEBUG: Month3: {month3_detail.month_name} {month3_detail.year}")
 
             # GENERATE DETAILED BREAKDOWN FOR MONTH 2 ON-THE-FLY
             extra_charges_breakdown = []
@@ -4339,19 +4322,8 @@ def getInvoiceMemoByID(request, pk):
                 "is_three_month_format": True,
             }
 
-            print(
-                "DEBUG: Returning enhanced 3-month format data with generated breakdown"
-            )
-            print(
-                f"DEBUG: Extra charges breakdown items: {len(extra_charges_breakdown)}"
-            )
-            print(
-                f"DEBUG: Holiday charges breakdown items: {len(holiday_charges_breakdown)}"
-            )
-
         else:
             # Fallback for old single-month format
-            print("DEBUG: Using single-month fallback")
             memo_data = {
                 "id": memo.id,
                 "memo_code": memo.memo_code,
@@ -4382,14 +4354,9 @@ def getInvoiceMemoByID(request, pk):
                 "is_three_month_format": False,
             }
 
-        print(f"DEBUG: Final memo_data keys: {list(memo_data.keys())}")
         return JsonResponse(memo_data)
 
     except Exception as e:
-        print(f"ERROR in getInvoiceMemoByID: {str(e)}")
-        import traceback
-
-        traceback.print_exc()
         return JsonResponse({"error": str(e)}, status=500)
 
 
@@ -5087,16 +5054,12 @@ def get_record_payment(request):
 def getInvoiceMemosJS(request):
     """Return invoice memos data as JSON for DataTable with 3-month support"""
     try:
-        print("=== DEBUG: getInvoiceMemosJS called ===")
-
         # Get all invoice memos - using correct field names
         memos = (
             InvoiceMemo.objects.select_related("child")
             .filter(is_active=True)
             .order_by("-date_created")
         )
-
-        print(f"DEBUG: Found {memos.count()} memos")
 
         memo_data = []
 
@@ -5205,20 +5168,11 @@ def getInvoiceMemosJS(request):
 
                 memo_data.append(memo_item)
 
-            except Exception as e:
-                print(f"DEBUG: Error processing memo {memo.id}: {e}")
+            except Exception:
                 continue
-
-        print(f"DEBUG: Returning {len(memo_data)} memo records")
-
         return JsonResponse(memo_data, safe=False)
 
     except Exception as e:
-        print(f"ERROR in getInvoiceMemosJS: {e}")
-        import traceback
-
-        traceback.print_exc()
-
         return JsonResponse({"error": str(e), "data": []}, status=500)
 
 
@@ -6190,8 +6144,6 @@ def getExtraHoursReport(request):
 def getExtraHoursReportJS(request):
     """Complete production version of extra hours report"""
     try:
-        print("=== Extra Hours Report ===")
-
         # Get parameters
         child_id = request.GET.get("child")
         from_date = request.GET.get("from_date")
@@ -6199,10 +6151,6 @@ def getExtraHoursReportJS(request):
         report_type = request.GET.get("report_type", "detailed")
         branch_id = request.GET.get("branch")
         center_id = request.GET.get("center")
-
-        print(
-            f"Parameters: child_id={child_id}, from_date={from_date}, to_date={to_date}, report_type={report_type}"
-        )
 
         # Set default dates if not provided
         if not from_date or not to_date:
@@ -6225,8 +6173,6 @@ def getExtraHoursReportJS(request):
             from_date = datetime.strptime(from_date, "%Y-%m-%d").date()
             to_date = datetime.strptime(to_date, "%Y-%m-%d").date()
 
-        print(f"Date range: {from_date} to {to_date}")
-
         # Build base filters
         filters = Q(date_logged__range=(from_date, to_date))
         if child_id:
@@ -6246,22 +6192,16 @@ def getExtraHoursReportJS(request):
             ).values_list("child__id", flat=True)
             filters &= Q(child__id__in=enrolled_children)
 
-        print(f"Filters: {filters}")
-
         # Get attendance logs
         attendance_logs = AttendanceLog.objects.filter(filters).order_by(
             "child", "date_logged", "time_logged"
         )
-
-        print(f"Found {attendance_logs.count()} attendance logs")
 
         # Group by child and date
         logs_by_child_date = defaultdict(list)
         for log in attendance_logs:
             key = (log.child.id, log.date_logged)
             logs_by_child_date[key].append(log)
-
-        print(f"Grouped into {len(logs_by_child_date)} child-date combinations")
 
         extra_hours_data = []
 
@@ -6441,17 +6381,9 @@ def getExtraHoursReportJS(request):
         # Sort by date and child name
         extra_hours_data.sort(key=lambda x: (x["date"], x["child_name"]))
 
-        print(
-            f"=== Final Results: {len(extra_hours_data)} records with extra hours ==="
-        )
-
         return JsonResponse(extra_hours_data, safe=False)
 
     except Exception as e:
-        print(f"Error in getExtraHoursReportJS: {e}")
-        import traceback
-
-        traceback.print_exc()
         return JsonResponse({"error": str(e)}, status=500)
 
 
@@ -6806,10 +6738,6 @@ def getExtraHoursSummaryJS(request):
         return JsonResponse(result_data, safe=False)
 
     except Exception as e:
-        print(f"Error in getExtraHoursSummaryJS: {e}")
-        import traceback
-
-        traceback.print_exc()
         return JsonResponse({"error": str(e)}, status=500)
 
 
@@ -8134,15 +8062,6 @@ def saveMemoDataEntry(request):
                 user_created=request.user.username,
             )
 
-            # Log the creation
-            print(
-                f"Successfully created manual memo {memo_code} for child {child.admission_number}"
-            )
-            print(f"Outstanding: Rs.{float(remaining_balance):,.2f}")
-            print(f"Previous Month: Rs.{float(previous_month_balance):,.2f}")
-            print(f"Current Month: Rs.{float(current_month_balance):,.2f}")
-            print(f"Grand Total: Rs.{float(grand_total):,.2f}")
-
         # Success message with details
         success_message = (
             f"Memo {memo_code} created successfully for {child.child_first_name} {child.child_last_name} "
@@ -8174,10 +8093,6 @@ def saveMemoDataEntry(request):
 
     except Exception as e:
         # Log the full error for debugging
-        import traceback
-
-        print(f"Error in saveMemoDataEntry: {str(e)}")
-        print(f"Traceback: {traceback.format_exc()}")
 
         messages.error(request, f"Error saving memo: {str(e)}")
         return redirect("core:memo_data_entry")
@@ -8462,8 +8377,7 @@ def calculate_month_attendance_summary(child, month, year):
             "attendance_percentage": attendance_percentage,
         }
 
-    except Exception as e:
-        print(f"Error calculating attendance summary: {e}")
+    except Exception:
         return {
             "days_attended": 0,
             "expected_days": 22,
