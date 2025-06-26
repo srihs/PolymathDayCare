@@ -910,11 +910,12 @@ function generateThreeMonthPDFContent(data) {
     `;
 }
 
-// 3. FIXED DISPLAY THREE MONTH MEMO DETAILS FUNCTION
+// REPLACE the existing displayThreeMonthMemoDetails function with this enhanced version
 function displayThreeMonthMemoDetails(data) {
-    console.log('Displaying 3-month memo details:', data);
+    console.log('=== Displaying 3-month memo details with enhanced breakdown ===');
+    console.log('Display data:', data);
     
-    const dueDateString = calculateDueDate(); // FIXED: Calculate here
+    const dueDateString = calculateDueDate();
     
     function safeFixed(value, decimals = 2) {
         if (value === null || value === undefined || isNaN(value)) {
@@ -926,116 +927,249 @@ function displayThreeMonthMemoDetails(data) {
         });
     }
     
+    // Extract data with proper fallbacks - check both stored detail structure and flat structure
+    const childName = data.child_name || 'Unknown Child';
+    const childAdmission = data.child_admission || 'N/A';
+    const memoCode = data.memo_code || 'N/A';
+    const memoDate = data.memo_date || new Date().toLocaleDateString();
+    
+    // Enhanced data extraction - handles both new detailed format and legacy format
+    let month1, month2, month3, summary, packageInfo = '';
+    
+    if (data.is_three_month_format && data.month1 && data.month2 && data.month3) {
+        // NEW FORMAT: Use stored detail data
+        month1 = data.month1;
+        month2 = data.month2;
+        month3 = data.month3;
+        summary = data.summary || { grand_total: 0 };
+        
+        // Try to get package info from month2 details
+        if (month2.details && month2.details.package_name) {
+            packageInfo = month2.details.package_name;
+        } else {
+            packageInfo = month2.package_name || 'Unknown Package';
+        }
+    } else {
+        // LEGACY FORMAT: Convert single month data to 3-month structure
+        month1 = { 
+            name: 'Previous', 
+            year: data.year || new Date().getFullYear(),
+            balance: 0, 
+            status: 'No Record' 
+        };
+        month2 = { 
+            name: data.month_name || 'Current', 
+            year: data.year || new Date().getFullYear(),
+            charge: data.month_total_charge || 0, 
+            package_fee: data.current_month_fee || 0, 
+            extra_charges: data.extra_hours_charge || 0, 
+            holiday_charges: data.holiday_charge || 0,
+            days_attended: data.days_attended || 0, 
+            expected_days: data.expected_days || 20,
+            details: {
+                package_name: data.package_name || 'Unknown Package',
+                is_half_charge: data.is_half_charge_applied || false
+            }
+        };
+        month3 = { 
+            name: 'Advance', 
+            year: data.year || new Date().getFullYear(),
+            charge: 0, 
+            package_fee: 0 
+        };
+        summary = { 
+            grand_total: data.month_total_charge || 0 
+        };
+        packageInfo = data.package_name || 'Unknown Package';
+    }
+    
     let content = `
         <div class="invoice-preview">
             <!-- Header -->
             <div class="text-center mb-4">
                 <h3>POLYMATH KIDS DIVISION - MEMO</h3>
                 <p>No 452/3 High Level Road, Nawinna, Maharagama<br>PV 63200 | Phone 0112 802 554</p>
-                
-                <div class="alert alert-info">
-                    <strong>Memo Code:</strong> ${data.memo_code} | <strong>Generated:</strong> ${data.memo_date} | <span class="text-danger fw-bold">Due on: ${dueDateString}</span>
-                </div>
             </div>
             
             <!-- Child Information -->
             <div class="row mb-3">
                 <div class="col-md-6">
-                    <strong>Name:</strong> ${data.child_name}
+                    <strong>Name:</strong> ${childName}
                 </div>
                 <div class="col-md-6">
-                    <strong>Child ID:</strong> ${data.child_admission}
+                    <strong>Child ID:</strong> ${childAdmission}
+                </div>
+            </div>
+            
+            <!-- Package Information -->
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <strong>Package:</strong> ${packageInfo}
                 </div>
             </div>
 
-            <!-- 3-Month Breakdown Table -->
+            <!-- Enhanced 3-Month Breakdown Table -->
             <div class="table-responsive">
                 <table class="table table-bordered">
                     <thead class="table-light">
                         <tr>
-                            <th>Description</th>
-                            <th class="text-end">Amount (Rs.)</th>
+                            <th style="width: 75%;">Description</th>
+                            <th style="width: 25%;" class="text-end">Amount (Rs.)</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- Month 1 -->
-                        <tr class="table-secondary">
-                            <td colspan="2"><strong>${data.month1.name} ${data.month1.year} - ${data.month1.type}</strong></td>
-                        </tr>
+    `;
+
+    // Month 1 - Outstanding Section
+    content += `
+        <tr style="background-color: #e6d7ff;">
+            <td colspan="2"><strong>${month1.name} ${month1.year} - OUTSTANDING</strong></td>
+        </tr>
+        <tr>
+            <td style="padding-left: 20px;">${month1.status === 'No Record' || month1.balance <= 0 ? 'No outstanding from ' + month1.name : 'Outstanding from ' + month1.name}</td>
+            <td class="text-end">${safeFixed(month1.balance)}</td>
+        </tr>
     `;
     
-    if (data.month1.details && data.month1.details.status !== 'No Record') {
-        if (data.month1.charge > 0) {
+    // Month 2 - Calculated Section with Enhanced Breakdown
+    content += `
+        <tr style="background-color: #e6d7ff;">
+            <td colspan="2"><strong>${month2.name} ${month2.year} - CALCULATED</strong></td>
+        </tr>
+        <tr>
+            <td style="padding-left: 20px;">Day Care Monthly fee - ${month2.name} (${month2.days_attended}/${month2.expected_days} days attended)
+                ${month2.details && month2.details.is_half_charge ? '<br><small class="text-warning">Half charge applied (attendance < 50%)</small>' : ''}
+            </td>
+            <td class="text-end">${safeFixed(month2.package_fee || month2.charge)}</td>
+        </tr>
+    `;
+
+    // Enhanced Extra Hours Section
+    if (month2.extra_charges > 0) {
+        // Check if we have detailed breakdown
+        const extraChargesBreakdown = month2.extra_charges_breakdown || month2.details?.extra_charges_breakdown || [];
+        
+        if (extraChargesBreakdown.length > 0) {
+            // Show detailed breakdown like Image 1
             content += `
-                <tr>
-                    <td style="padding-left: 20px;">Outstanding from ${data.month1.name}</td>
-                    <td class="text-end">${safeFixed(data.month1.balance)}</td>
+                <tr class="table-info">
+                    <td style="padding-left: 20px;">
+                        <strong>Extra Hours Charges</strong> 
+                        <span class="badge bg-info ms-2">${extraChargesBreakdown.length} instances</span>
+                    </td>
+                    <td class="text-end">${safeFixed(month2.extra_charges)}</td>
                 </tr>
             `;
+            
+            // Show each extra hours instance
+            extraChargesBreakdown.forEach((instance, index) => {
+                content += `
+                    <tr class="table-light">
+                        <td style="padding-left: 40px; font-size: 0.9em;">
+                            ${instance.date} -> ${instance.time_out} (${instance.extra_hours} h extra)
+                        </td>
+                        <td class="text-end" style="font-size: 0.9em;">${safeFixed(instance.rate || instance.charges)}</td>
+                    </tr>
+                `;
+            });
         } else {
+            // Fallback to simple display if no breakdown available
             content += `
                 <tr>
-                    <td style="padding-left: 20px;">No outstanding from ${data.month1.name}</td>
-                    <td class="text-end">0.00</td>
+                    <td style="padding-left: 20px;">Extra Hours Charges</td>
+                    <td class="text-end">${safeFixed(month2.extra_charges)}</td>
                 </tr>
             `;
         }
     } else {
         content += `
             <tr>
-                <td style="padding-left: 20px;">No record for ${data.month1.name}</td>
-                <td class="text-end">0.00</td>
+                <td style="padding-left: 20px;">Extra Hours Charges</td>
+                <td class="text-end text-muted">0.00</td>
             </tr>
         `;
     }
-    
-    // Month 2
-    content += `
-        <tr class="table-primary">
-            <td colspan="2"><strong>${data.month2.name} ${data.month2.year} - ${data.month2.type}</strong></td>
-        </tr>
-        <tr>
-            <td style="padding-left: 20px;">Day Care Monthly fee - ${data.month2.name} 
-                ${data.month2.details && data.month2.details.days_attended ? 
-                    `(${data.month2.details.days_attended}/${data.month2.details.expected_days} days attended)` : 
-                    ''}
-                ${data.month2.details && data.month2.details.is_half_charge ? 
-                    '<br><small class="text-warning">Half charge applied (attendance < 50%)</small>' : 
-                    ''}
-            </td>
-            <td class="text-end">${safeFixed(data.month2.charge)}</td>
-        </tr>
 
-        <tr>
-            <td style="padding-left: 20px;">Charges for extra hours charges for ${data.month2.name} ${data.month2.year} 
-            </td>
-            <td class="text-end">${safeFixed(data.month2.details.extra_charges)}</td>
+    // Enhanced Holiday Charges Section
+    if (month2.holiday_charges > 0) {
+        const holidayChargesBreakdown = month2.holiday_charges_breakdown || month2.details?.holiday_charges_breakdown || [];
+        
+        if (holidayChargesBreakdown.length > 0) {
+            content += `
+                <tr class="table-info">
+                    <td style="padding-left: 20px;">
+                        <strong>Holiday Attendance Charges</strong>
+                        <span class="badge bg-warning ms-2">${holidayChargesBreakdown.length} days</span>
+                    </td>
+                    <td class="text-end">${safeFixed(month2.holiday_charges)}</td>
+                </tr>
+            `;
+            
+            // Show each holiday instance
+            holidayChargesBreakdown.forEach((instance, index) => {
+                content += `
+                    <tr class="table-light">
+                        <td style="padding-left: 40px; font-size: 0.9em;">
+                            ${instance.date} -> ${instance.holiday_name}
+                        </td>
+                        <td class="text-end" style="font-size: 0.9em;">${safeFixed(instance.rate || instance.charges)}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            content += `
+                <tr>
+                    <td style="padding-left: 20px;">Holiday Attendance Charges</td>
+                    <td class="text-end">${safeFixed(month2.holiday_charges)}</td>
+                </tr>
+            `;
+        }
+    } else {
+        content += `
+            <tr>
+                <td style="padding-left: 20px;">Holiday Attendance Charges</td>
+                <td class="text-end text-muted">0.00</td>
+            </tr>
+        `;
+    }
+
+    // Month 2 Total
+    content += `
+        <tr style="background-color: #fff3e0;">
+            <td style="padding-left: 20px;"><strong>Total for ${month2.name} ${month2.year}</strong></td>
+            <td class="text-end"><strong>${safeFixed(month2.charge)}</strong></td>
         </tr>
     `;
     
-    // Month 3
+    // Month 3 - Advance Section
     content += `
-        <tr class="table-info">
-            <td colspan="2"><strong>${data.month3.name} ${data.month3.year} - ${data.month3.type}</strong></td>
+        <tr style="background-color: #d4f1f9;">
+            <td colspan="2"><strong>${month3.name} ${month3.year} - ADVANCE</strong></td>
         </tr>
         <tr>
-            <td style="padding-left: 20px;">Day Care Monthly fee - ${data.month3.name} (Full Package Advance)</td>
-            <td class="text-end">${safeFixed(data.month3.charge)}</td>
+            <td style="padding-left: 20px;">
+                Day Care Monthly fee - ${month3.name} ${month3.year} (Full Package)
+                <br><small class="text-info">Advance charge for upcoming month</small>
+            </td>
+            <td class="text-end">${safeFixed(month3.package_fee || month3.charge)}</td>
         </tr>
     `;
     
     // Grand Total
     content += `
-                        <tr class="table-warning">
-                            <td><strong>Total Amount to Pay</strong></td>
-                            <td class="text-end"><strong>Rs. ${safeFixed(data.summary.grand_total)}</strong></td>
-                        </tr>
+        <tr style="background-color: #fff2e6;">
+            <td><strong>TOTAL AMOUNT TO PAY</strong></td>
+            <td class="text-end"><strong>Rs. ${safeFixed(summary.grand_total)}</strong></td>
+        </tr>
+    `;
+
+    content += `
                     </tbody>
                 </table>
             </div>
 
-            <div class="notes">
-                <p><strong>Please note that,</strong> Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before <span class="text-danger fw-bold">${dueDateString}</span>. Ignore this message if you have already settled that outstanding.</p>
+            <div class="notes mt-4">
+                <p><strong>Please note that.</strong> Only the payments made before the invoice date is indicated. If there is any outstanding amount please settle on or before <span class="text-danger fw-bold">${dueDateString}</span>. Ignore this message if you have already settled that outstanding.</p>
                 
                 <div style="margin-top: 15px; font-weight: bold;">
                     <p style="margin-bottom: 5px;">Thank you,</p>

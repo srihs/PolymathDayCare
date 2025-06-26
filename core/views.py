@@ -4000,20 +4000,239 @@ def generateAndSaveInvoiceMemo(request):
     return redirect("core:view_invoice_memos")
 
 
+# Add this enhanced version to your views.py
+# This will generate the detailed breakdown on-the-fly for existing memos
+
+
 @login_required
 def getInvoiceMemoByID(request, pk):
-    """Get detailed invoice memo with 3-month data for display"""
+    """Get detailed invoice memo with 3-month data and generate breakdown on-the-fly"""
     try:
         memo = get_object_or_404(InvoiceMemo, pk=pk)
+
+        print(f"=== DEBUG: Processing memo {memo.memo_code} ===")
 
         # Get the 3 detail records
         details = memo.details.all().order_by("month_sequence")
 
+        print(f"DEBUG: Found {details.count()} detail records")
+
         if details.count() == 3:
-            # New format - return 3-month data from stored details
+            # New format - return 3-month data from stored details WITH GENERATED BREAKDOWN
             month1_detail = details[0]  # Outstanding
             month2_detail = details[1]  # Calculated
             month3_detail = details[2]  # Advance
+
+            print(f"DEBUG: Month1: {month1_detail.month_name} {month1_detail.year}")
+            print(f"DEBUG: Month2: {month2_detail.month_name} {month2_detail.year}")
+            print(f"DEBUG: Month3: {month3_detail.month_name} {month3_detail.year}")
+
+            # GENERATE DETAILED BREAKDOWN FOR MONTH 2 ON-THE-FLY
+            extra_charges_breakdown = []
+            holiday_charges_breakdown = []
+
+            # Try to regenerate the breakdown from attendance data
+            if month2_detail.charge_amount > 0:
+                try:
+                    # Get the date range for month2
+                    first_day = datetime(
+                        month2_detail.year, month2_detail.month, 1
+                    ).date()
+                    last_day = datetime(
+                        month2_detail.year,
+                        month2_detail.month,
+                        calendar.monthrange(month2_detail.year, month2_detail.month)[1],
+                    ).date()
+
+                    # Get attendance logs for this period
+                    attendance_logs = AttendanceLog.objects.filter(
+                        child=memo.child, date_logged__range=(first_day, last_day)
+                    ).order_by("date_logged", "time_logged")
+
+                    # Get package mapping
+                    package_mapping = (
+                        ChildPackageMapping.objects.filter(
+                            child=memo.child,
+                            effective_from__lte=last_day,
+                            is_active=True,
+                        )
+                        .filter(
+                            Q(effective_to__gte=first_day)
+                            | Q(effective_to__isnull=True)
+                        )
+                        .first()
+                    )
+
+                    if package_mapping and attendance_logs.exists():
+                        # Determine package details
+                        package = None
+                        package_end_time = None
+                        package_type = None
+
+                        if package_mapping.normal_package:
+                            package = package_mapping.normal_package
+                            package_end_time = package.to_time
+                            package_type = package.package_type
+                        elif package_mapping.holiday_package:
+                            package = package_mapping.holiday_package
+                            package_end_time = package.to_time
+                            package_type = package.package_type
+                        elif package_mapping.flex_package:
+                            package = package_mapping.flex_package
+                            package_end_time = time(17, 30)  # Default for flex
+                            package_type = package.package_type
+
+                        if package_end_time and package_type:
+                            # Get holidays for this period
+                            holidays = set(
+                                Holiday.objects.filter(
+                                    start_date__lte=last_day,
+                                    end_date__gte=first_day,
+                                    is_active=True,
+                                ).values_list("start_date", flat=True)
+                            )
+
+                            # Group logs by date
+                            logs_by_date = defaultdict(list)
+                            for log in attendance_logs:
+                                logs_by_date[log.date_logged].append(log)
+
+                            # Generate breakdown for each day
+                            for log_date, logs in logs_by_date.items():
+                                if len(logs) >= 2:  # Complete attendance
+                                    logs_sorted = sorted(
+                                        logs, key=lambda x: x.time_logged or time(0, 0)
+                                    )
+                                    time_in = logs_sorted[0].time_logged
+                                    time_out = logs_sorted[-1].time_logged
+
+                                    if (
+                                        time_out
+                                        and package_end_time
+                                        and time_out > package_end_time
+                                    ):
+                                        # Calculate extra hours
+                                        package_end_datetime = datetime.combine(
+                                            log_date, package_end_time
+                                        )
+                                        actual_out_datetime = datetime.combine(
+                                            log_date, time_out
+                                        )
+                                        extra_time_delta = (
+                                            actual_out_datetime - package_end_datetime
+                                        )
+                                        extra_hours = (
+                                            extra_time_delta.total_seconds() / 3600
+                                        )
+
+                                        # Calculate charges for this day
+                                        day_extra_charges = Decimal("0.00")
+
+                                        # Check after 5:30 charges
+                                        extra_slots = ExtraHoursAfter530.objects.filter(
+                                            package_type=package_type,
+                                            from_time__lte=time_out,
+                                            to_time__gte=time_out,
+                                            effective_from__lte=log_date,
+                                        ).filter(
+                                            Q(effective_to__gte=log_date)
+                                            | Q(effective_to__isnull=True)
+                                        )
+
+                                        for slot in extra_slots:
+                                            day_extra_charges += slot.extra_rate
+
+                                        # Check before 5:30 charges if applicable
+                                        cutoff_530 = time(17, 30)
+                                        if (
+                                            package_end_time < cutoff_530
+                                            and time_out > cutoff_530
+                                        ):
+                                            cutoff_datetime = datetime.combine(
+                                                log_date, cutoff_530
+                                            )
+                                            hours_before_530 = (
+                                                cutoff_datetime - package_end_datetime
+                                            ).total_seconds() / 3600
+                                            hour_count = int(hours_before_530) + (
+                                                1 if hours_before_530 % 1 > 0 else 0
+                                            )
+
+                                            for hour_num in range(
+                                                1, min(hour_count + 1, 7)
+                                            ):
+                                                rate_obj = (
+                                                    ExtraHoursUpTo530.objects.filter(
+                                                        hour_number=hour_num,
+                                                        effective_from__lte=log_date,
+                                                        is_active=True,
+                                                    )
+                                                    .filter(
+                                                        Q(effective_to__gte=log_date)
+                                                        | Q(effective_to__isnull=True)
+                                                    )
+                                                    .first()
+                                                )
+
+                                                if rate_obj:
+                                                    day_extra_charges += (
+                                                        rate_obj.extra_rate
+                                                    )
+
+                                        if day_extra_charges > 0:
+                                            extra_charges_breakdown.append(
+                                                {
+                                                    "date": log_date.strftime(
+                                                        "%Y-%m-%d"
+                                                    ),
+                                                    "time_in": time_in.strftime("%H:%M")
+                                                    if time_in
+                                                    else "N/A",
+                                                    "time_out": time_out.strftime(
+                                                        "%H:%M"
+                                                    ),
+                                                    "extra_hours": round(
+                                                        extra_hours, 2
+                                                    ),
+                                                    "rate": float(day_extra_charges),
+                                                    "charges": float(day_extra_charges),
+                                                }
+                                            )
+
+                                    # Check for holiday charges
+                                    if (
+                                        log_date in holidays
+                                        and package_mapping.holiday_package
+                                    ):
+                                        expected_days = (
+                                            package_mapping.holiday_package.no_days_months
+                                            or 22
+                                        )
+                                        daily_holiday_rate = (
+                                            package_mapping.holiday_package.package_total
+                                            / Decimal(expected_days)
+                                        )
+
+                                        holiday_obj = Holiday.objects.filter(
+                                            start_date__lte=log_date,
+                                            end_date__gte=log_date,
+                                            is_active=True,
+                                        ).first()
+
+                                        holiday_charges_breakdown.append(
+                                            {
+                                                "date": log_date.strftime("%Y-%m-%d"),
+                                                "holiday_name": holiday_obj.title
+                                                if holiday_obj
+                                                else "Holiday",
+                                                "rate": float(daily_holiday_rate),
+                                                "charges": float(daily_holiday_rate),
+                                            }
+                                        )
+
+                except Exception as e:
+                    print(f"Error generating breakdown: {e}")
+                    # Continue without breakdown data
 
             memo_data = {
                 # Basic memo info
@@ -4027,7 +4246,7 @@ def getInvoiceMemoByID(request, pk):
                 "branch_name": memo.branch_name,
                 "center_name": memo.center_name,
                 "notes": memo.notes or "",
-                # 3-month breakdown
+                # 3-month breakdown - ENHANCED WITH GENERATED BREAKDOWN
                 "month1": {
                     "name": month1_detail.month_name,
                     "year": month1_detail.year,
@@ -4035,7 +4254,10 @@ def getInvoiceMemoByID(request, pk):
                     "charge": float(month1_detail.charge_amount),
                     "payments": float(month1_detail.payment_amount),
                     "balance": float(month1_detail.balance_amount),
-                    "details": month1_detail.calculation_details,
+                    "status": "Outstanding"
+                    if month1_detail.charge_amount > 0
+                    else "No Record",
+                    "details": month1_detail.calculation_details or {},
                 },
                 "month2": {
                     "name": month2_detail.month_name,
@@ -4044,7 +4266,50 @@ def getInvoiceMemoByID(request, pk):
                     "charge": float(month2_detail.charge_amount),
                     "payments": float(month2_detail.payment_amount),
                     "balance": float(month2_detail.balance_amount),
-                    "details": month2_detail.calculation_details,
+                    "package_fee": float(
+                        month2_detail.calculation_details.get("package_fee", 0)
+                    )
+                    if month2_detail.calculation_details
+                    else float(month2_detail.charge_amount),
+                    "extra_charges": float(
+                        month2_detail.calculation_details.get("extra_charges", 0)
+                    )
+                    if month2_detail.calculation_details
+                    else 0,
+                    "holiday_charges": float(
+                        month2_detail.calculation_details.get("holiday_charges", 0)
+                    )
+                    if month2_detail.calculation_details
+                    else 0,
+                    "discount": float(
+                        month2_detail.calculation_details.get("discount_applied", 0)
+                    )
+                    if month2_detail.calculation_details
+                    else 0,
+                    "days_attended": month2_detail.calculation_details.get(
+                        "days_attended", 0
+                    )
+                    if month2_detail.calculation_details
+                    else 0,
+                    "expected_days": month2_detail.calculation_details.get(
+                        "expected_days", 22
+                    )
+                    if month2_detail.calculation_details
+                    else 22,
+                    "is_half_charge": month2_detail.calculation_details.get(
+                        "is_half_charge", False
+                    )
+                    if month2_detail.calculation_details
+                    else False,
+                    "details": month2_detail.calculation_details or {},
+                    # GENERATED BREAKDOWN DATA
+                    "extra_charges_breakdown": extra_charges_breakdown,
+                    "holiday_charges_breakdown": holiday_charges_breakdown,
+                    "package_name": month2_detail.calculation_details.get(
+                        "package_name", "Unknown Package"
+                    )
+                    if month2_detail.calculation_details
+                    else "Unknown Package",
                 },
                 "month3": {
                     "name": month3_detail.month_name,
@@ -4053,30 +4318,51 @@ def getInvoiceMemoByID(request, pk):
                     "charge": float(month3_detail.charge_amount),
                     "payments": float(month3_detail.payment_amount),
                     "balance": float(month3_detail.balance_amount),
-                    "details": month3_detail.calculation_details,
+                    "package_fee": float(
+                        month3_detail.calculation_details.get("package_fee", 0)
+                    )
+                    if month3_detail.calculation_details
+                    else float(month3_detail.charge_amount),
+                    "details": month3_detail.calculation_details or {},
                 },
                 # Summary
                 "summary": {
-                    "total_outstanding": float(memo.total_outstanding),
-                    "grand_total": float(memo.grand_total),
+                    "total_outstanding": float(memo.total_outstanding)
+                    if memo.total_outstanding
+                    else 0,
+                    "grand_total": float(memo.grand_total) if memo.grand_total else 0,
+                    "total_payments": float(memo.total_payments_received)
+                    if memo.total_payments_received
+                    else 0,
                 },
                 # Flag to indicate this is 3-month data
                 "is_three_month_format": True,
             }
 
+            print(
+                "DEBUG: Returning enhanced 3-month format data with generated breakdown"
+            )
+            print(
+                f"DEBUG: Extra charges breakdown items: {len(extra_charges_breakdown)}"
+            )
+            print(
+                f"DEBUG: Holiday charges breakdown items: {len(holiday_charges_breakdown)}"
+            )
+
         else:
-            # Fallback for old single-month format (backward compatibility)
+            # Fallback for old single-month format
+            print("DEBUG: Using single-month fallback")
             memo_data = {
-                # Basic memo info
                 "id": memo.id,
                 "memo_code": memo.memo_code,
                 "memo_date": memo.memo_date.strftime("%Y-%m-%d"),
                 "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}",
                 "child_admission": memo.child.admission_number,
-                "month_name": memo.get_month_name(),
+                "month_name": calendar.month_name[memo.month]
+                if memo.month
+                else "Unknown",
                 "year": memo.year,
                 "status": memo.status,
-                # Single month data (old format)
                 "package_name": memo.package_name,
                 "days_attended": memo.days_attended,
                 "expected_days": memo.expected_days,
@@ -4093,13 +4379,17 @@ def getInvoiceMemoByID(request, pk):
                 "branch_name": memo.branch_name,
                 "center_name": memo.center_name,
                 "notes": memo.notes or "",
-                # Flag to indicate this is old single-month format
                 "is_three_month_format": False,
             }
 
+        print(f"DEBUG: Final memo_data keys: {list(memo_data.keys())}")
         return JsonResponse(memo_data)
 
     except Exception as e:
+        print(f"ERROR in getInvoiceMemoByID: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
         return JsonResponse({"error": str(e)}, status=500)
 
 
