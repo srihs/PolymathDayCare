@@ -280,100 +280,117 @@ def getChildbyID(request, pk):
 
 @login_required
 def createChild(request):
-    try:
-        if request.method == "POST":
-            # capturing the variables with data
-            admission_number = request.POST.get("admission_number")
-            child_first_name = request.POST.get("child_first_name")
-            child_last_name = request.POST.get("child_last_name")
-            date_of_birth = request.POST.get("date_of_birth")
-            fathers_name = request.POST.get("fathers_name")
-            fathers_contact_number = request.POST.get("fathers_contact_number").strip()
-            fathers_whatsapp_number = request.POST.get("fathers_whatsapp_number")
-            mothers_name = request.POST.get("mothers_name")
-            mothers_contact_number = request.POST.get("mothers_contact_number").strip()
-            mothers_whatsapp_number = request.POST.get(
-                "mothers_whatsapp_number"
-            ).strip()
-            resident_contact_number = request.POST.get(
-                "resident_contact_number"
-            ).strip()
-            address_line1 = request.POST.get("address_line1")
-            address_line2 = request.POST.get("address_line2")
-            address_line3 = request.POST.get("address_line3")
-            email_address = request.POST.get("email_address")
-            is_polymath_student = request.POST.get("is_polymath_student")
-            admission_date = request.POST.get("admission_date")
-            is_active = request.POST.get("is_active")
-            child_image = request.FILES["child_image"]
-            if is_polymath_student == "on":
-                is_polymath_student = True
-            else:
-                is_polymath_student = False
-            if is_active == "on":
-                is_active = True
-            else:
-                is_active = False
-        if request.POST.get("admission_number") is not None:
-            user = User.objects.get(username=request.user.username)
-            if user.groups.filter(name="Data Entry").exists():
-                messages.error(
-                    request, "You are not authorized to performe this operation."
-                )
-            else:
-                objChild = Child.objects.get(
-                    admission_number=request.POST.get("admission_number")
-                )
-                if objChild is not None:
-                    objChild.child_first_name = child_first_name
-                    objChild.child_last_name = child_last_name
-                    objChild.fathers_contact_number = int(fathers_contact_number)
-                    objChild.fathers_whatsapp_number = int(fathers_whatsapp_number)
-                    objChild.mothers_contact_number = int(mothers_contact_number)
-                    objChild.mothers_whatsapp_number = int(mothers_whatsapp_number)
-                    objChild.resident_contact_number = int(resident_contact_number)
-                    objChild.address_line1 = address_line1
-                    objChild.address_line2 = address_line2
-                    objChild.address_line3 = address_line3
-                    objChild.email_address = email_address
-                    objChild.is_polymath_student = is_polymath_student
-                    objChild.user_updated = request.user.username
-                    objChild.is_active = is_active
-                    if objChild.qr_code == None:
-                        objChild.qr_code = generateQR(
-                            admission_number,
-                            objChild.child_first_name,
-                            objChild.child_last_name,
-                        )
+    if request.method == "POST":
+        # capturing the variables with data
+        admission_number = request.POST.get("admission_number")
+        child_first_name = request.POST.get("child_first_name")
+        child_last_name = request.POST.get("child_last_name")
+        date_of_birth = request.POST.get("date_of_birth")
+        fathers_name = request.POST.get("fathers_name")
+        fathers_contact_number = request.POST.get("fathers_contact_number").strip()
+        fathers_whatsapp_number = request.POST.get("fathers_whatsapp_number")
+        mothers_name = request.POST.get("mothers_name")
+        mothers_contact_number = request.POST.get("mothers_contact_number").strip()
+        mothers_whatsapp_number = request.POST.get("mothers_whatsapp_number").strip()
+        resident_contact_number = request.POST.get("resident_contact_number").strip()
+        address_line1 = request.POST.get("address_line1")
+        address_line2 = request.POST.get("address_line2")
+        address_line3 = request.POST.get("address_line3")
+        email_address = request.POST.get("email_address")
+        is_polymath_student = request.POST.get("is_polymath_student")
+        admission_date = request.POST.get("admission_date")
+        is_active = request.POST.get("is_active")
+        child_image = request.FILES.get("child_image")
+
+        # Convert checkbox values to boolean
+        if is_polymath_student == "on":
+            is_polymath_student = True
+        else:
+            is_polymath_student = False
+
+        if is_active == "on":
+            is_active = True
+        else:
+            is_active = False
+
+        # Check user permissions
+        user = User.objects.get(username=request.user.username)
+        if user.groups.filter(name="Data Entry").exists():
+            messages.error(request, "You are not authorized to perform this operation.")
+            return redirect("core:view_child")
+
+        try:
+            # Use get_or_create to handle both creation and updates
+            objChild, created = Child.objects.get_or_create(
+                admission_number=admission_number,
+                defaults={
+                    "child_first_name": child_first_name,
+                    "child_last_name": child_last_name,
+                    "date_of_birth": datetime.strptime(
+                        date_of_birth, "%Y-%m-%d"
+                    ).date(),
+                    "fathers_name": fathers_name,
+                    "fathers_contact_number": fathers_contact_number,
+                    "fathers_whatsapp_number": fathers_whatsapp_number,
+                    "mothers_name": mothers_name,
+                    "mothers_contact_number": mothers_contact_number,
+                    "mothers_whatsapp_number": mothers_whatsapp_number,
+                    "resident_contact_number": resident_contact_number,
+                    "address_line1": address_line1,
+                    "address_line2": address_line2,
+                    "address_line3": address_line3,
+                    "email_address": email_address,
+                    "is_polymath_student": is_polymath_student,
+                    "user_created": request.user.username,
+                    "qr_code": generateQR(
+                        admission_number, child_first_name, child_last_name
+                    ),
+                    "child_image": child_image,
+                    "admission_date": datetime.strptime(
+                        admission_date, "%Y-%m-%d"
+                    ).date(),
+                    "is_active": is_active,
+                },
+            )
+
+            if not created:
+                # Record exists, update it
+                objChild.child_first_name = child_first_name
+                objChild.child_last_name = child_last_name
+                objChild.fathers_contact_number = fathers_contact_number
+                objChild.fathers_whatsapp_number = fathers_whatsapp_number
+                objChild.mothers_contact_number = mothers_contact_number
+                objChild.mothers_whatsapp_number = mothers_whatsapp_number
+                objChild.resident_contact_number = resident_contact_number
+                objChild.address_line1 = address_line1
+                objChild.address_line2 = address_line2
+                objChild.address_line3 = address_line3
+                objChild.email_address = email_address
+                objChild.is_polymath_student = is_polymath_student
+                objChild.user_updated = request.user.username
+                objChild.is_active = is_active
+
+                # Generate QR code if it doesn't exist
+                if objChild.qr_code is None:
+                    objChild.qr_code = generateQR(
+                        admission_number,
+                        objChild.child_first_name,
+                        objChild.child_last_name,
+                    )
+
+                # Update image if provided
+                if child_image:
                     objChild.child_image = child_image
-                    objChild.save()
-                    messages.success(request, "Child details updated.")
-    except Exception:
-        objChild = Child(
-            admission_number=admission_number,
-            child_first_name=child_first_name,
-            child_last_name=child_last_name,
-            date_of_birth=datetime.strptime(date_of_birth, "%Y-%m-%d").date(),
-            fathers_name=fathers_name,
-            fathers_contact_number=fathers_contact_number,
-            fathers_whatsapp_number=fathers_whatsapp_number,
-            mothers_name=mothers_name,
-            mothers_contact_number=mothers_contact_number,
-            mothers_whatsapp_number=mothers_whatsapp_number,
-            resident_contact_number=resident_contact_number,
-            address_line1=address_line1,
-            address_line2=address_line2,
-            address_line3=address_line3,
-            email_address=email_address,
-            is_polymath_student=is_polymath_student,
-            user_created=request.user.username,
-            qr_code=generateQR(admission_number, child_first_name, child_last_name),
-            child_image=child_image,
-            admission_date=datetime.strptime(admission_date, "%Y-%m-%d").date(),
-            is_active=is_active,
-        )
-        objChild.save()
-        messages.success(request, "Child details saved.")
+
+                objChild.save()
+                messages.success(request, "Child details updated.")
+            else:
+                # New record was created
+                messages.success(request, "Child details saved.")
+
+        except Exception as e:
+            messages.error(request, f"An error occurred: {str(e)}")
+
     return redirect("core:view_child")
 
 
