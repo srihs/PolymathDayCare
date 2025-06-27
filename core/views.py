@@ -7676,10 +7676,12 @@ def getChildPackageDetails(request):
         if not package_mapping:
             return JsonResponse({"error": "No package mapping found"}, status=404)
 
-        # Get enrollment details for discount info
-        enrollment = ChildEnrollment.objects.filter(
-            child=child, status="Approved", is_active=True
+        package_mapping = ChildPackageMapping.objects.filter(
+            child=child, is_active=True
         ).first()
+
+        if not package_mapping:
+            return JsonResponse({"error": "No package mapping found"}, status=404)
 
         # Determine which package is active
         package_name = "Unknown Package"
@@ -7699,12 +7701,12 @@ def getChildPackageDetails(request):
         discount_rate = 0
         discount_name = ""
         if (
-            enrollment
-            and enrollment.discount
-            and enrollment.discount.status == "Approved"
+            package_mapping.discount
+            and package_mapping.discount.is_active
+            and package_mapping.discount.status == "Approved"
         ):
-            discount_rate = float(enrollment.discount.discount_rate)
-            discount_name = enrollment.discount.discount_name
+            discount_rate = float(package_mapping.discount.discount_rate)
+            discount_name = package_mapping.discount.discount_name
 
         return JsonResponse(
             {
