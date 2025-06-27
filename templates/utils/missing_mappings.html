@@ -81,12 +81,13 @@
       <thead>
         <tr>
           <th>Child</th>
+          <th>Package Codes</th>    <!-- ADD THIS -->
           <th>Main Package</th>
+          <th>Package Amounts</th>
           <th>Holiday Package</th>
+           <th>Discount</th>
           <th>Effective From</th>
           <th>Effective To</th>
-          <th>Status</th>
-          <th>Actions</th>
         </tr>
       </thead>
     </table>
@@ -201,6 +202,19 @@
               <small class="form-text text-muted">This package will be used for holiday attendance charges</small>
             </div>
 
+            <div class="col-12">
+    <label for="discount" class="form-label">Discount (Optional)</label>
+    <select class="form-select" id="discount" name="discount">
+        <option value="">No Discount</option>
+        {% for discount in approved_discounts %}
+            <option value="{{ discount.id }}">
+                {{ discount.discount_code }} - {{ discount.discount_name }} ({{ discount.discount_rate }}%)
+            </option>
+        {% endfor %}
+    </select>
+    <small class="form-text text-muted">Select applicable discount for this package mapping</small>
+</div>
+
             <!-- Date Fields -->
             <div class="col-md-6">
               <label for="effectiveFrom" class="form-label">Effective From <span class="text-danger">*</span></label>
@@ -277,90 +291,135 @@ $(document).ready(function() {
     }
   });
 
-  // Initialize DataTable
-  var table = $('#mappingTable').DataTable({
+var table = $('#mappingTable').DataTable({
     ajax: {
-      url: "{% url 'core:get_package_mappings_js' %}",
-      dataSrc: "",
-      data: function(d) {
-        // Add search parameters
-        d.child_id = $('#searchChild').val();
-        d.status = $('#searchStatus').val();
-        d.effective_date = $('#searchDate').val();
-        return d;
-      },
-      error: function(xhr, error, code) {
-        console.log('DataTable error:', error);
-        console.log('Status:', xhr.status);
-        if (xhr.status === 404) {
-          showAlert('URL not found. Please check if the view exists.', 'danger');
-        } else {
-          showAlert('Error loading data: ' + error, 'danger');
+        url: "{% url 'core:get_package_mappings_js' %}",
+        dataSrc: "",
+        data: function(d) {
+            // Add search parameters
+            d.child_id = $('#searchChild').val();
+            d.status = $('#searchStatus').val();
+            d.effective_date = $('#searchDate').val();
+            return d;
+        },
+        error: function(xhr, error, code) {
+            console.log('DataTable error:', error);
+            console.log('Status:', xhr.status);
+            if (xhr.status === 404) {
+                showAlert('URL not found. Please check if the view exists.', 'danger');
+            } else {
+                showAlert('Error loading data: ' + error, 'danger');
+            }
         }
-      }
     },
     columns: [
-      { data: "child_name" },
-      { 
-        data: null,
-        render: function(data, type, row) {
-          var mainPackage = '';
-          if (row.normal_package_name) {
-            mainPackage = '<span class="badge bg-primary">Normal</span> ' + row.normal_package_name;
-          } else if (row.flex_package_name) {
-            mainPackage = '<span class="badge bg-info">Flex</span> ' + row.flex_package_name;
-          } else {
-            mainPackage = '<span class="text-muted">No main package</span>';
-          }
-          return mainPackage;
-        }
-      },
-      { 
-        data: "holiday_package_name",
-        render: function(data, type, row) {
-          if (data) {
-            return '<span class="badge bg-warning">Holiday</span> ' + data;
-          } else {
-            return '<span class="text-muted">No holiday package</span>';
-          }
-        }
-      },
-      { data: "effective_from" },
-      { data: "effective_to" },
-      { data: "is_active" },
-      {
-        data: null,
-        render: function(data, type, row) {
-          return `
-            <button class="btn btn-sm btn-outline-info me-1" onclick="viewMapping(${row.id})" title="View Details">
-              <i class="ri-eye-line"></i>
-            </button>
-            <button class="btn btn-sm btn-outline-primary me-1" onclick="editMapping(${row.id})" title="Edit">
-              <i class="ri-edit-line"></i>
-            </button>
-            <button class="btn btn-sm btn-outline-danger" onclick="deleteMapping(${row.id})" title="Deactivate">
-              <i class="ri-delete-bin-line"></i>
-            </button>
-          `;
-        }
-      }
+        // 1. Child
+        { data: "child_name" },
+        
+        // 2. Package Codes
+        { 
+            data: null,
+            render: function(data, type, row) {
+                var codes = [];
+                
+                if (row.normal_package_code) {
+                    codes.push('<div class="text-primary"><strong>' + row.normal_package_code + '</strong></div>');
+                } else if (row.flex_package_code) {
+                    codes.push('<div class="text-info"><strong>' + row.flex_package_code + '</strong></div>');
+                }
+                
+                if (row.holiday_package_code) {
+                    codes.push('<div class="text-warning"><strong>' + row.holiday_package_code + '</strong></div>');
+                }
+                
+                return codes.length > 0 ? codes.join('') : '<span class="text-muted">No codes</span>';
+            }
+        },
+        
+        // 3. Main Package
+        { 
+            data: null,
+            render: function(data, type, row) {
+                var mainPackage = '';
+                if (row.normal_package_name) {
+                    mainPackage = '<span class="badge bg-primary">Normal</span><br>' + row.normal_package_name;
+                } else if (row.flex_package_name) {
+                    mainPackage = '<span class="badge bg-info">Flex</span><br>' + row.flex_package_name;
+                } else {
+                    mainPackage = '<span class="text-muted">No main package</span>';
+                }
+                return mainPackage;
+            }
+        },
+        
+        // 4. Package Amounts
+        { 
+            data: null,
+            render: function(data, type, row) {
+                var amounts = [];
+                
+                if (row.normal_package_amount) {
+                    amounts.push('<div class="text-primary">Rs.' + parseFloat(row.normal_package_amount).toLocaleString() + '</div>');
+                } else if (row.flex_package_amount) {
+                    amounts.push('<div class="text-info">Rs.' + parseFloat(row.flex_package_amount).toLocaleString() + '</div>');
+                }
+                
+                if (row.holiday_package_amount) {
+                    amounts.push('<div class="text-warning">Rs.' + parseFloat(row.holiday_package_amount).toLocaleString() + '</div>');
+                }
+                
+                return amounts.length > 0 ? amounts.join('') : '<span class="text-muted">No amounts</span>';
+            }
+        },
+        
+        // 5. Holiday Package
+        { 
+            data: "holiday_package_name",
+            render: function(data, type, row) {
+                if (data) {
+                    return '<span class="badge bg-warning">Holiday</span><br>' + data;
+                } else {
+                    return '<span class="text-muted">No holiday package</span>';
+                }
+            }
+        },
+        
+        // 6. Discount
+        { 
+            data: "discount_info",
+            render: function(data, type, row) {
+                if (data) {
+                    return '<span class="badge bg-success">Discount</span><br>' + data;
+                } else {
+                    return '<span class="text-muted">No discount</span>';
+                }
+            }
+        },
+        
+        // 7. Effective From
+        { data: "effective_from" },
+        
+        // 8. Effective To
+        { data: "effective_to" }
+        
+          
     ],
     createdRow: function(row, data) {
-      // Format status
-      if (data.is_active) {
-        $('td', row).eq(5).html('<span class="badge bg-success">Active</span>');
-      } else {
-        $('td', row).eq(5).html('<span class="badge bg-secondary">Inactive</span>');
-      }
-      
-      // Handle effective_to null values
-      if (!data.effective_to) {
-        $('td', row).eq(4).html('<span class="text-muted">Open-ended</span>');
-      }
+        // Format status
+        if (data.is_active) {
+            $('td', row).eq(8).html('<span class="badge bg-success">Active</span>');
+        } else {
+            $('td', row).eq(8).html('<span class="badge bg-secondary">Inactive</span>');
+        }
+        
+        // Handle effective_to null values
+        if (!data.effective_to) {
+            $('td', row).eq(7).html('<span class="text-muted">Open-ended</span>');
+        }
     },
-    order: [[3, "desc"]], // Sort by effective_from descending
+    order: [[6, "desc"]], // Sort by effective_from descending (column index 6)
     pageLength: 25
-  });
+});
 
   // Search functionality
   $('#searchBtn').click(function() {

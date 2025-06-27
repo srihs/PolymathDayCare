@@ -418,6 +418,13 @@ class ChildPackageMapping(BaseClass):
         null=True,
         blank=True,
     )
+    discount = models.ForeignKey(
+        "Discount",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        help_text="Discount applied to this package mapping",
+    )
     effective_from = models.DateField()
     effective_to = models.DateField(null=True)
     is_holiday_package = models.BooleanField(default=False)

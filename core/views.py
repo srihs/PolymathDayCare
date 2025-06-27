@@ -3814,6 +3814,17 @@ def generateAndSaveInvoiceMemo(request):
                 child, package_mapping, enrollment, int(month), int(year)
             )
 
+            discount_amount = Decimal("0.00")
+            if (
+                package_mapping.discount
+                and package_mapping.discount.status == "APPROVED"
+            ):
+                discount_amount = subtotal * (
+                    package_mapping.discount.discount_rate / 100
+                )
+
+            total_charge = subtotal - discount_amount
+
             # Helper function to convert Decimal to float for JSON storage
             def decimal_to_float(value):
                 if isinstance(value, Decimal):
@@ -6764,11 +6775,17 @@ def getChildPackageMapping(request):
             "package_code"
         )
 
+        # ADD THIS: Get approved discounts
+        approved_discounts = Discount.objects.filter(
+            is_active=True, status="APPROVED"
+        ).order_by("discount_code")
+
         context = {
             "children": children,
             "normal_packages": normal_packages,
             "holiday_packages": holiday_packages,
             "flex_packages": flex_packages,
+            "approved_discounts": approved_discounts,  # ADD THIS
             "UserName": request.user.username,
         }
 
@@ -6807,7 +6824,7 @@ def getPackageMappingsJS(request):
 
         # Start with base query
         mappings = ChildPackageMapping.objects.select_related(
-            "child", "normal_package", "holiday_package", "flex_package"
+            "child", "normal_package", "holiday_package", "flex_package", "discount"
         ).filter(child__is_active=True)
 
         # Apply search filters
@@ -6835,18 +6852,33 @@ def getPackageMappingsJS(request):
             # Build child name
             child_name = f"{mapping.child.admission_number} - {mapping.child.child_first_name} {mapping.child.child_last_name}"
 
-            # Get package names (only one main package should be present)
-            normal_package_name = (
-                mapping.normal_package.package_name if mapping.normal_package else None
-            )
-            holiday_package_name = (
-                mapping.holiday_package.package_name
-                if mapping.holiday_package
-                else None
-            )
-            flex_package_name = (
-                mapping.flex_package.package_name if mapping.flex_package else None
-            )
+            # Get package details with codes and amounts
+            normal_package_name = None
+            normal_package_code = None
+            normal_package_amount = None
+
+            holiday_package_name = None
+            holiday_package_code = None
+            holiday_package_amount = None
+
+            flex_package_name = None
+            flex_package_code = None
+            flex_package_amount = None
+
+            if mapping.normal_package:
+                normal_package_name = mapping.normal_package.package_name
+                normal_package_code = mapping.normal_package.package_code
+                normal_package_amount = float(mapping.normal_package.package_total)
+
+            if mapping.holiday_package:
+                holiday_package_name = mapping.holiday_package.package_name
+                holiday_package_code = mapping.holiday_package.package_code
+                holiday_package_amount = float(mapping.holiday_package.package_total)
+
+            if mapping.flex_package:
+                flex_package_name = mapping.flex_package.package_name
+                flex_package_code = mapping.flex_package.package_code
+                flex_package_amount = float(mapping.flex_package.package_total)
 
             # Format dates
             effective_from = (
@@ -6867,14 +6899,36 @@ def getPackageMappingsJS(request):
                 else ("flex" if flex_package_name else None)
             )
 
+            # Get discount info
+            discount_info = None
+            try:
+                if hasattr(mapping, "discount") and mapping.discount:
+                    discount_info = f"{mapping.discount.discount_code} - {mapping.discount.discount_name} ({mapping.discount.discount_rate}%)"
+            except AttributeError:
+                discount_info = None
+            except Exception as e:
+                print(f"Error getting discount info: {e}")
+                discount_info = None
+
             mapping_data.append(
                 {
                     "id": mapping.id,
                     "child_id": mapping.child.id,
                     "child_name": child_name,
+                    # Normal package details
                     "normal_package_name": normal_package_name,
+                    "normal_package_code": normal_package_code,
+                    "normal_package_amount": normal_package_amount,
+                    # Holiday package details
                     "holiday_package_name": holiday_package_name,
+                    "holiday_package_code": holiday_package_code,
+                    "holiday_package_amount": holiday_package_amount,
+                    # Flex package details
                     "flex_package_name": flex_package_name,
+                    "flex_package_code": flex_package_code,
+                    "flex_package_amount": flex_package_amount,
+                    # Other info
+                    "discount_info": discount_info,
                     "main_package_type": main_package_type,
                     "effective_from": effective_from,
                     "effective_to": effective_to,
@@ -6885,6 +6939,11 @@ def getPackageMappingsJS(request):
         return JsonResponse(mapping_data, safe=False)
 
     except Exception as e:
+        print(f"Error in getPackageMappingsJS: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+
         return JsonResponse({"error": str(e)}, status=500)
 
 
@@ -6992,6 +7051,7 @@ def savePackageMapping(request):
         normal_package_id = request.POST.get("normal_package")
         flex_package_id = request.POST.get("flex_package")
         holiday_package_id = request.POST.get("holiday_package")
+        discount_id = request.POST.get("discount")
         effective_from = request.POST.get("effective_from")
         effective_to = request.POST.get("effective_to")
 
@@ -7079,6 +7139,9 @@ def savePackageMapping(request):
 
             # Always set holiday package (required)
             mapping.holiday_package = FixedPackage.objects.get(id=holiday_package_id)
+
+            if discount_id:
+                mapping.discount = Discount.objects.get(id=discount_id)
 
             mapping.save()
 
