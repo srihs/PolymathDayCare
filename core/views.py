@@ -3778,6 +3778,7 @@ def generateAndSaveInvoiceMemo(request):
     """Generate and save invoice memo with 3-month data"""
     try:
         if request.method == "POST":
+            subtotal = 0
             child_id = request.POST.get("child")
             month = request.POST.get("month")
             year = request.POST.get("year")
@@ -7805,6 +7806,7 @@ def calculateMemoData(request):
 def saveMemoDataEntry(request):
     """Save manually entered memo data with receipt numbers for each month"""
     try:
+        print("in the method")
         if request.method != "POST":
             messages.error(request, "Invalid request method")
             return redirect("core:memo_data_entry")
@@ -8017,7 +8019,7 @@ def saveMemoDataEntry(request):
                 messages.error(
                     request, f"Receipt number is required for {period_name} payment"
                 )
-            return redirect("core:memo_data_entry")
+                return redirect("core:memo_data_entry")
         # Create the memo with transaction safety
         with transaction.atomic():
             # Create main memo record
