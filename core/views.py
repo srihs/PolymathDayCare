@@ -8831,3 +8831,377 @@ def getHistoricalMemoData(request):
         return JsonResponse({"error": "Child not found"}, status=404)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getChildComprehensiveView(request):
+    """Display comprehensive child view page"""
+    try:
+        # Get all enrolled children for dropdown
+        children = Child.objects.filter(
+            is_active=True, is_enrolled=True, enrollement_approved=True
+        ).order_by("admission_number")
+
+        context = {
+            "children": children,
+            "UserName": request.user.username,
+        }
+
+        return render(request, "../templates/childdet.html", context)
+
+    except Exception as e:
+        messages.error(request, f"Error loading page: {str(e)}")
+        return redirect("core:view_child")
+
+
+@login_required
+def getChildComprehensiveDataJS(request):
+    """Get comprehensive child data as JSON"""
+    try:
+        child_id = request.GET.get("child_id")
+        admission_number = request.GET.get("admission_number")
+
+        # Find child by ID or admission number
+        if child_id:
+            child = Child.objects.get(id=child_id, is_active=True)
+        elif admission_number:
+            child = Child.objects.get(admission_number=admission_number, is_active=True)
+        else:
+            return JsonResponse(
+                {"error": "Child ID or admission number required"}, status=400
+            )
+
+        # Get enrollment information
+        enrollment = ChildEnrollment.objects.filter(
+            child=child, status="Approved", is_active=True
+        ).first()
+
+        # Get current package mapping
+        current_package_mapping = ChildPackageMapping.objects.filter(
+            child=child, is_active=True
+        ).first()
+
+        # Get package history
+        package_history = ChildPackageMapping.objects.filter(child=child).order_by(
+            "-effective_from"
+        )[:10]
+
+        # Get current month attendance from 1st to today (weekdays only)
+        import calendar
+        from collections import defaultdict
+        from datetime import date, datetime, time, timedelta
+
+        current_date = datetime.now().date()
+        current_month = current_date.month
+        current_year = current_date.year
+        first_day_of_month = date(current_year, current_month, 1)
+
+        # Get all attendance logs for current month
+        current_month_attendance_logs = AttendanceLog.objects.filter(
+            child=child,
+            date_logged__gte=first_day_of_month,
+            date_logged__lte=current_date,
+        ).order_by("date_logged", "time_logged")
+
+        # Group attendance by date
+        attendance_by_date = defaultdict(list)
+        for log in current_month_attendance_logs:
+            attendance_by_date[log.date_logged].append(log)
+
+        # Create complete attendance record for each weekday of the month
+        complete_month_attendance = []
+        current_day = first_day_of_month
+
+        while current_day <= current_date:
+            # Only include weekdays (Monday=0 to Friday=4)
+            if current_day.weekday() < 5:
+                logs_for_day = attendance_by_date.get(current_day, [])
+
+                if logs_for_day:
+                    # Sort logs by time for this date
+                    sorted_logs = sorted(
+                        logs_for_day, key=lambda x: x.time_logged or time(0, 0)
+                    )
+
+                    first_log = sorted_logs[0]  # IN time
+                    last_log = (
+                        sorted_logs[-1] if len(sorted_logs) > 1 else None
+                    )  # OUT time
+
+                    attendance_record = {
+                        "date": current_day.strftime("%Y-%m-%d"),
+                        "day_name": current_day.strftime("%A"),
+                        "in_time": first_log.time_logged.strftime("%H:%M")
+                        if first_log.time_logged
+                        else None,
+                        "out_time": last_log.time_logged.strftime("%H:%M")
+                        if last_log and last_log.time_logged
+                        else None,
+                        "complete_attendance": len(sorted_logs) >= 2,
+                        "total_logs": len(sorted_logs),
+                        "is_present": True,
+                    }
+                else:
+                    # No attendance for this day
+                    attendance_record = {
+                        "date": current_day.strftime("%Y-%m-%d"),
+                        "day_name": current_day.strftime("%A"),
+                        "in_time": None,
+                        "out_time": None,
+                        "complete_attendance": False,
+                        "total_logs": 0,
+                        "is_present": False,
+                    }
+
+                complete_month_attendance.append(attendance_record)
+
+            current_day += timedelta(days=1)
+
+        # Reverse to show most recent first
+        complete_month_attendance.reverse()
+
+        # Calculate attendance stats
+        total_weekdays = len(complete_month_attendance)
+        days_attended = len(
+            [
+                record
+                for record in complete_month_attendance
+                if record["complete_attendance"]
+            ]
+        )
+        attendance_percentage = (
+            (days_attended / total_weekdays * 100) if total_weekdays > 0 else 0
+        )
+
+        # Get recent invoice memos (last 6 months)
+        recent_invoices = InvoiceMemo.objects.filter(
+            child=child, is_active=True
+        ).order_by("-year", "-month")[:6]
+
+        # Get outstanding payments
+        outstanding_invoices = InvoiceMemo.objects.filter(
+            child=child, month_net_balance__gt=0, is_active=True
+        ).order_by("year", "month")
+
+        # Get pending requests
+        pending_package_changes = PackageChangerequest.objects.filter(
+            child=child, status="Pending Approval", is_active=True
+        )
+
+        pending_center_changes = CenterChangerequest.objects.filter(
+            child=child, status="Pending Approval", is_active=True
+        )
+
+        # Build comprehensive response
+        response_data = {
+            # Basic child information
+            "child_info": {
+                "id": child.id,
+                "admission_number": child.admission_number,
+                "full_name": f"{child.child_first_name} {child.child_last_name}",
+                "first_name": child.child_first_name,
+                "last_name": child.child_last_name,
+                "date_of_birth": child.date_of_birth.strftime("%Y-%m-%d")
+                if child.date_of_birth
+                else None,
+                "admission_date": child.admission_date.strftime("%Y-%m-%d")
+                if child.admission_date
+                else None,
+                "fathers_name": child.fathers_name,
+                "mothers_name": child.mothers_name,
+                "fathers_contact": child.fathers_contact_number,
+                "mothers_contact": child.mothers_contact_number,
+                "fathers_whatsapp": child.fathers_whatsapp_number,
+                "mothers_whatsapp": child.mothers_whatsapp_number,
+                "address": f"{child.address_line1 or ''}, {child.address_line2 or ''}, {child.address_line3 or ''}".strip(
+                    ", "
+                ),
+                "email": child.email_address,
+                "is_polymath_student": child.is_polymath_student,
+                "child_image": child.child_image.url if child.child_image else None,
+                "qr_code": child.qr_code,
+            },
+            # Enrollment information
+            "enrollment_info": {
+                "enrollment_code": enrollment.enrollment_code if enrollment else None,
+                "enrollment_date": enrollment.enrollment_date.strftime("%Y-%m-%d")
+                if enrollment
+                else None,
+                "branch_name": enrollment.branch.branch_name if enrollment else None,
+                "center_name": enrollment.center.daycare_name if enrollment else None,
+                "status": enrollment.status if enrollment else None,
+                "receipt_number": enrollment.recipt_number if enrollment else None,
+            }
+            if enrollment
+            else None,
+            # Current package information
+            "current_package": {
+                "normal_package": {
+                    "name": current_package_mapping.normal_package.package_name,
+                    "code": current_package_mapping.normal_package.package_code,
+                    "from_time": current_package_mapping.normal_package.from_time.strftime(
+                        "%H:%M"
+                    ),
+                    "to_time": current_package_mapping.normal_package.to_time.strftime(
+                        "%H:%M"
+                    ),
+                    "total": float(
+                        current_package_mapping.normal_package.package_total
+                    ),
+                }
+                if current_package_mapping and current_package_mapping.normal_package
+                else None,
+                "holiday_package": {
+                    "name": current_package_mapping.holiday_package.package_name,
+                    "code": current_package_mapping.holiday_package.package_code,
+                    "total": float(
+                        current_package_mapping.holiday_package.package_total
+                    ),
+                }
+                if current_package_mapping and current_package_mapping.holiday_package
+                else None,
+                "flex_package": {
+                    "name": current_package_mapping.flex_package.package_name,
+                    "code": current_package_mapping.flex_package.package_code,
+                    "hours": current_package_mapping.flex_package.no_hours,
+                    "total": float(current_package_mapping.flex_package.package_total),
+                }
+                if current_package_mapping and current_package_mapping.flex_package
+                else None,
+                "discount": {
+                    "name": current_package_mapping.discount.discount_name,
+                    "rate": float(current_package_mapping.discount.discount_rate),
+                }
+                if current_package_mapping and current_package_mapping.discount
+                else None,
+                "effective_from": current_package_mapping.effective_from.strftime(
+                    "%Y-%m-%d"
+                )
+                if current_package_mapping
+                else None,
+                "effective_to": current_package_mapping.effective_to.strftime(
+                    "%Y-%m-%d"
+                )
+                if current_package_mapping and current_package_mapping.effective_to
+                else None,
+            }
+            if current_package_mapping
+            else None,
+            # Attendance statistics
+            "attendance_stats": {
+                "current_month": {
+                    "days_attended": days_attended,
+                    "expected_days": total_weekdays,
+                    "attendance_percentage": round(attendance_percentage, 1),
+                    "month_name": calendar.month_name[current_month],
+                    "year": current_year,
+                    "total_weekdays_so_far": total_weekdays,
+                },
+                "current_month_attendance": complete_month_attendance,
+            },
+            # Financial information
+            "financial_info": {
+                "outstanding_amount": float(
+                    sum(invoice.month_net_balance for invoice in outstanding_invoices)
+                ),
+                "outstanding_invoices": [
+                    {
+                        "memo_code": invoice.memo_code,
+                        "month_name": calendar.month_name[invoice.month],
+                        "year": invoice.year,
+                        "amount": float(invoice.month_total_charge),
+                        "payments": float(invoice.total_payments_received),
+                        "balance": float(invoice.month_net_balance),
+                        "status": invoice.status,
+                    }
+                    for invoice in outstanding_invoices
+                ],
+                "recent_invoices": [
+                    {
+                        "memo_code": invoice.memo_code,
+                        "month_name": calendar.month_name[invoice.month],
+                        "year": invoice.year,
+                        "amount": float(invoice.month_total_charge),
+                        "payments": float(invoice.total_payments_received),
+                        "balance": float(invoice.month_net_balance),
+                        "status": invoice.status,
+                        "created_date": invoice.date_created.strftime("%Y-%m-%d")
+                        if invoice.date_created
+                        else None,
+                    }
+                    for invoice in recent_invoices
+                ],
+            },
+            # Package history
+            "package_history": [
+                {
+                    "normal_package": mapping.normal_package.package_name
+                    if mapping.normal_package
+                    else None,
+                    "holiday_package": mapping.holiday_package.package_name
+                    if mapping.holiday_package
+                    else None,
+                    "flex_package": mapping.flex_package.package_name
+                    if mapping.flex_package
+                    else None,
+                    "effective_from": mapping.effective_from.strftime("%Y-%m-%d")
+                    if mapping.effective_from
+                    else None,
+                    "effective_to": mapping.effective_to.strftime("%Y-%m-%d")
+                    if mapping.effective_to
+                    else "Current",
+                    "is_active": mapping.is_active,
+                }
+                for mapping in package_history
+            ],
+            # Pending requests
+            "pending_requests": {
+                "package_changes": [
+                    {
+                        "id": req.id,
+                        "old_package": req.old_fixed_package.package_name
+                        if req.old_fixed_package
+                        else req.old_flexed_package.package_name
+                        if req.old_flexed_package
+                        else None,
+                        "new_package": req.new_fixed_package.package_name
+                        if req.new_fixed_package
+                        else req.new_flexed_package.package_name
+                        if req.new_flexed_package
+                        else None,
+                        "reason": req.reason_for_request,
+                        "effective_date": req.effective_date.strftime("%Y-%m-%d"),
+                        "requested_date": req.date_requested.strftime("%Y-%m-%d"),
+                    }
+                    for req in pending_package_changes
+                ],
+                "center_changes": [
+                    {
+                        "id": req.id,
+                        "old_center": req.old_center.daycare_name
+                        if req.old_center
+                        else None,
+                        "new_center": req.new_center.daycare_name
+                        if req.new_center
+                        else None,
+                        "old_branch": req.old_branch.branch_name
+                        if req.old_branch
+                        else None,
+                        "new_branch": req.new_branch.branch_name
+                        if req.new_branch
+                        else None,
+                        "reason": req.reason_for_request,
+                        "effective_date": req.effective_date.strftime("%Y-%m-%d"),
+                        "requested_date": req.date_requested.strftime("%Y-%m-%d"),
+                    }
+                    for req in pending_center_changes
+                ],
+            },
+        }
+
+        return JsonResponse(response_data)
+
+    except Child.DoesNotExist:
+        return JsonResponse({"error": "Child not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

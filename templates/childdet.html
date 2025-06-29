@@ -1,696 +1,697 @@
-{% extends "base.html" %} {% load static %}
-{% block PageTitle %}Children List{% endblock %} 
-{% block UserName %} {{ UserName}} {% endblock %} 
-{% block Title %} CHILDREN {% endblock %} 
-{% block functionTitle%}CHILD DETAILS{% endblock %} 
+{% extends "base.html" %} 
+{% load static %} 
+{% block PageTitle %}Child Comprehensive View{% endblock %}
+{% block UserName %}{{ UserName }}{% endblock %} 
+{% block Title %}CHILD MANAGEMENT > COMPREHENSIVE VIEW{% endblock %} 
+{% block functionTitle %}CHILD COMPREHENSIVE VIEW{% endblock %} 
 {% block content %}
 
-
-<div class="container-fluid">
-    <div class="card">
-        <div class="card-body">
-            <div class="col-12">
-                <div class="page-title-box d-sm-flex align-items-center justify-content-between">
-                    <h4 class="mb-sm-0">Child Details</h4>
+<!-- Search Section -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Search Child</h5>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Select Child</label>
+                <select class="form-control" id="child_select">
+                    <option value="">-Select Child-</option>
+                    {% for child in children %}
+                    <option value="{{ child.id }}">{{ child.admission_number }} - {{ child.child_first_name }} {{ child.child_last_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Or Enter Admission Number</label>
+                <input type="text" class="form-control" id="admission_number" placeholder="Enter admission number">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">&nbsp;</label>
+                <div>
+                    <button type="button" class="btn btn-primary" id="search_btn">
+                        <i class="ri-search-line"></i> Search
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="clear_btn">
+                        <i class="ri-refresh-line"></i> Clear
+                    </button>
                 </div>
             </div>
-            <div class="row">
-                <div class="card">
-                    <div class="card-header border-0">
-                        <div class="d-flex align-items-center">
-                            <h5 class="card-title mb-0 flex-grow-1">Public Holidays</h5>
-                            
-                        </div>
-                    </div>
-                
-                    <div class="row ">
-                        <div class="card-body">
-                            <form id="additionalRatesForm"  action="{% url 'core:save_public_holiday' %}"
-                            method="POST">
-                            {% csrf_token %}
-                                    <div class="row ">
-                                        <div class="col-sm">
-                                            {{form.child}}
-                                            
-                                        </div>
-                                        <div class="col-sm">
-                                        </div>
-                                        <div class="col-sm">
-                                        </div>
-                                        
-                                        <div class="col-sm-2">
-                                            <button
-                                            class="btn btn-secondary add-btn">
-                                        <i class="ri-add-line align-bottom me-1"></i> Search
-                                    </button>
-                                        </div>
-                        
-                                   
-                                    </div> </br>
-                                   
-                                    
-                                </form>
-                                </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-xl-8">
-                            <div class="card">
-                                <div class="card-body pb-0">
-                                    <div class="row align-items-center">
-                                        <div class="col-md-3">
-                                            <div class="text-center border-end">
-                                                <img src={{child.child_image}} class="img-fluid avatar-xxl rounded-circle" alt="">
-                                                <!-- Assuming that child.child_image contains the URL of the image -->
-                                                <img class="img-fluid avatar-xxl rounded-circle" alt="" src="{% if child.child_image %}{{ child.child_image.url }}{% else %}/media/child_images/profile-outline-filled.png{% endif %}" alt="Child Image">
-                
-                                                <h4 class="text-primary font-size-20 mt-3 mb-2">{{child.child_first_name}} </h4>
-                                                <h5 class="text-muted font-size-13 mb-0">{{child.child_last_name}}</h5>
-                                            </div>
-                                        </div><!-- end col -->
-                                        <div class="col-md-9">
-                                            <div class="ms-3">
-                                                <div>
-                                                    <h4 class="card-title mb-2">Child's Information</h4>
-                                                </div>
-                                                <div class="row my-4">
-                                                    <div class="col-md-12">
-                                                        <div>
-                                                            <p class="text-muted mb-2 fw-medium">Child Name</i> - {{child.child_first_name}} {{child.child_last_name}} 
-                                                            </p>
-                                                            <p class="text-muted mb-2 fw-medium">Child Name</i> - {{child.child_first_name}} {{child.child_last_name}} 
-                                                            </p>
-                                                            <p class="text-muted fw-medium mb-0"><i class="mdi mdi-phone-in-talk-outline me-2"></i>418-955-4703
-                                                            </p>
-                                                        </div>
-                                                    </div><!-- end col -->
-                                                </div><!-- end row -->
-                                             
-                                                <ul class="nav nav-tabs nav-tabs-custom border-bottom-0 mt-3 nav-justfied" role="tablist">
-                                                    <li class="nav-item" role="presentation">
-                                                        <a class="nav-link px-4 "  href="https://bootdey.com/snippets/view/profile-projects" target="__blank">
-                                                            <span class="d-block d-sm-none"><i class="fas fa-home"></i></span>
-                                                            <span class="d-none d-sm-block">Projects</span>
-                                                        </a>
-                                                    </li><!-- end li -->
-                                                    <li class="nav-item" role="presentation">
-                                                        <a class="nav-link px-4 active" data-bs-toggle="tab" href="#tasks-tab" role="tab" aria-selected="false" tabindex="-1">
-                                                            <span class="d-block d-sm-none"><i class="mdi mdi-menu-open"></i></span>
-                                                            <span class="d-none d-sm-block">Tasks</span>
-                                                        </a>
-                                                    </li><!-- end li -->
-                                                    <li class="nav-item" role="presentation">
-                                                        <a class="nav-link px-4 "  href="https://bootdey.com/snippets/view/profile-with-team-section" target="__blank">
-                                                            <span class="d-block d-sm-none"><i class="mdi mdi-account-group-outline"></i></span>
-                                                            <span class="d-none d-sm-block">Team</span>
-                                                        </a>
-                                                    </li><!-- end li -->
-                                                </ul><!-- end ul -->
-                                            </div>
-                                        </div><!-- end col -->
-                                    </div><!-- end row -->
-                                </div><!-- end card body -->
-                            </div><!-- end card -->
-                    
-                            <div class="card">
-                                <div class="tab-content p-4">
-                                    
-                    
-                                    <div class="tab-pane active show" id="tasks-tab" role="tabpanel">
-                                        <h4 class="card-title mb-4">Tasks</h4>
-                    
-                                        <div class="row">
-                                            <div class="col-xl-12">
-                                                <div class="task-list-box" id="landing-task">
-                                                    <div id="task-item-1">
-                                                        <div class="card task-box rounded-3">
-                                                            <div class="card-body">
-                                                                <div class="row align-items-center">
-                                                                    <div class="col-xl-6 col-sm-5">
-                                                                        <div class="checklist form-check font-size-15">
-                                                                            <input type="checkbox" class="form-check-input" id="customCheck1">
-                                                                            <label class="form-check-label ms-1 task-title" for="customCheck1">Create a New
-                                                                                Landing</label>
-                                                                        </div>
-                                                                    </div><!-- end col -->
-                                                                    <div class="col-xl-6 col-sm-7">
-                                                                        <div class="row align-items-center">
-                                                                            <div class="col-xl-5 col-md-6 col-sm-5">
-                                                                                <div class="avatar-group mt-3 mt-xl-0 task-assigne">
-                                                                                    <div class="avatar-group-item">
-                                                                                        <a href="javascript: void(0);" class="d-inline-block" data-bs-toggle="tooltip" value="member-2" data-bs-placement="top" aria-label="Mark Powell" data-bs-original-title="Mark Powell">
-                                                                                            <img src="https://bootdey.com/img/Content/avatar/avatar2.png" alt="" class="rounded-circle avatar-sm">
-                                                                                        </a>
-                                                                                    </div>
-                                                                                    <div class="avatar-group-item">
-                                                                                        <a href="javascript: void(0);" class="d-inline-block" data-bs-toggle="tooltip" value="member-4" data-bs-placement="top" aria-label="Craig Hall" data-bs-original-title="Craig Hall">
-                                                                                            <img src="https://bootdey.com/img/Content/avatar/avatar4.png" alt="" class="rounded-circle avatar-sm">
-                                                                                        </a>
-                                                                                    </div>
-                                                                                    <div class="avatar-group-item">
-                                                                                        <a href="javascript: void(0);" class="d-block" data-bs-toggle="tooltip" value="member-11" data-bs-placement="top" data-bs-original-title="Sarah Kerns">
-                                                                                            <div class="avatar-sm">
-                                                                                                <div class="avatar-title rounded-circle bg-info">
-                                                                                                    S
-                                                                                                </div>
-                                                                                            </div>
-                                                                                        </a>
-                                                                                    </div>
-                                                                                </div><!-- end avatar group -->
-                                                                            </div><!-- end col -->
-                                                                            <div class="col-xl-7 col-md-6 col-sm-7">
-                                                                                <div class="d-flex flex-wrap gap-3 mt-3 mt-xl-0 justify-content-md-end">
-                                                                                    <div>
-                                                                                        <span class="badge rounded-pill badge-soft-warning font-size-11 task-status">Progress</span>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="mb-0 text-muted fw-medium"><i class="mdi mdi-checkbox-marked-circle-outline me-1"></i>4/8
-                                                                                        </a>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="mb-0 text-muted fw-medium" data-bs-toggle="modal" data-bs-target=".bs-example-new-task"><i class="mdi mdi-square-edit-outline font-size-16 align-middle" onclick="editTask('task-item-1')"></i></a>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="delete-item" onclick="deleteProjects('task-item-1')">
-                                                                                            <i class="mdi mdi-trash-can-outline align-middle font-size-16 text-danger"></i>
-                                                                                        </a>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div><!-- end col -->
-                                                                        </div><!-- end row -->
-                                                                    </div><!-- end col -->
-                                                                </div><!-- end row -->
-                                                            </div><!-- end cardbody -->
-                                                        </div><!-- end card -->
-                                                    </div>
-                                                </div><!-- end -->
-                    
-                                                <div class="task-list-box" id="design-task">
-                                                    <div id="task-item-2">
-                                                        <div class="card task-box rounded-3">
-                                                            <div class="card-body">
-                                                                <div class="row align-items-center">
-                                                                    <div class="col-xl-6 col-sm-5">
-                                                                        <div class="checklist form-check font-size-15">
-                                                                            <input type="checkbox" class="form-check-input" id="customCheck2">
-                                                                            <label class="form-check-label ms-1 task-title" for="customCheck2">Create a Layout
-                                                                                Design</label>
-                                                                        </div>
-                                                                    </div><!-- end col -->
-                                                                    <div class="col-xl-6 col-sm-7">
-                                                                        <div class="row align-items-center">
-                                                                            <div class="col-xl-5 col-md-6 col-sm-5">
-                                                                                <div class="avatar-group mt-3 mt-xl-0 task-assigne">
-                                                                                    <div class="avatar-group-item">
-                                                                                        <a href="javascript: void(0);" class="d-inline-block" value="member-3" data-bs-toggle="tooltip" data-bs-placement="top" aria-label="Terrell Soto" data-bs-original-title="Terrell Soto">
-                                                                                            <img src="https://bootdey.com/img/Content/avatar/avatar3.png" alt="" class="rounded-circle avatar-sm">
-                                                                                        </a>
-                                                                                    </div>
-                                                                                    <div class="avatar-group-item">
-                                                                                        <a href="javascript: void(0);" class="d-inline-block" value="member-2" data-bs-toggle="tooltip" data-bs-placement="top" aria-label="Ruhi Shah" data-bs-original-title="Ruhi Shah">
-                                                                                            <img src="https://bootdey.com/img/Content/avatar/avatar2.png" alt="" class="rounded-circle avatar-sm">
-                                                                                        </a>
-                                                                                    </div>
-                                                                                    <div class="avatar-group-item">
-                                                                                        <a href="javascript: void(0);" class="d-inline-block" value="member-1" data-bs-toggle="tooltip" data-bs-placement="top" aria-label="Ruhi Shah" data-bs-original-title="Ruhi Shah">
-                                                                                            <img src="https://bootdey.com/img/Content/avatar/avatar1.png" alt="" class="rounded-circle avatar-sm">
-                                                                                        </a>
-                                                                                    </div>
-                                                                                </div><!-- end avatar group -->
-                                                                            </div><!-- end col -->
-                                                                            <div class="col-xl-7 col-md-6 col-sm-7">
-                                                                                <div class="d-flex flex-wrap gap-3 mt-3 mt-xl-0 justify-content-md-end">
-                                                                                    <div>
-                                                                                        <span class="badge rounded-pill badge-soft-warning font-size-11 task-status">Progress</span>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="mb-0 text-muted fw-medium"><i class="mdi mdi-checkbox-marked-circle-outline me-1"></i>8/12
-                                                                                        </a>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="mb-0 text-muted fw-medium" data-bs-toggle="modal" data-bs-target=".bs-example-new-task"><i class="mdi mdi-square-edit-outline font-size-16 align-middle" onclick="editTask('task-item-2')"></i></a>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="delete-item" onclick="deleteProjects('task-item-2')">
-                                                                                            <i class="mdi mdi-trash-can-outline font-size-16 text-danger align-middle"></i>
-                                                                                        </a>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div><!-- end col -->
-                                                                        </div><!-- end row -->
-                                                                    </div><!-- end col -->
-                                                                </div><!-- end row -->
-                                                            </div><!-- end cardbody -->
-                                                        </div><!-- end card -->
-                                                    </div>
-                                                </div><!-- end -->
-                    
-                                                <div class="task-list-box" id="blog-task">
-                                                    <div id="task-item-3">
-                                                        <div class="card task-box rounded-3">
-                                                            <div class="card-body">
-                                                                <div class="row align-items-center">
-                                                                    <div class="col-xl-6 col-sm-5">
-                                                                        <div class="checklist form-check font-size-15">
-                                                                            <input type="checkbox" class="form-check-input" id="customCheck3">
-                                                                            <label class="form-check-label ms-1 task-title" for="customCheck3">Create a Blog Template
-                                                                                UI</label>
-                                                                        </div>
-                                                                    </div><!-- end col -->
-                                                                    <div class="col-xl-6 col-sm-7">
-                                                                        <div class="row align-items-center">
-                                                                            <div class="col-xl-5 col-md-6 col-sm-5">
-                                                                                <div class="avatar-group mt-3 mt-xl-0 task-assigne">
-                                                                                    <div class="avatar-group-item">
-                                                                                        <a href="javascript: void(0);" class="d-inline-block" data-bs-toggle="tooltip" data-bs-placement="top" value="member-6" aria-label="Scott Edward" data-bs-original-title="Scott Edward">
-                                                                                            <img src="https://bootdey.com/img/Content/avatar/avatar6.png" alt="" class="rounded-circle avatar-sm">
-                                                                                        </a>
-                                                                                    </div>
-                                                                                    <div class="avatar-group-item">
-                                                                                        <a href="javascript: void(0);" class="d-block" data-bs-toggle="tooltip" value="member-12" data-bs-placement="top" data-bs-original-title="Denny Silva">
-                                                                                            <div class="avatar-sm">
-                                                                                                <div class="avatar-title rounded-circle bg-primary">
-                                                                                                    D
-                                                                                                </div>
-                                                                                            </div>
-                                                                                        </a>
-                                                                                    </div>
-                                                                                    <div class="avatar-group-item">
-                                                                                        <a href="javascript: void(0);" class="d-inline-block" data-bs-toggle="tooltip" data-bs-placement="top" value="member-10" aria-label="Betty Cooney" data-bs-original-title="Betty Cooney">
-                                                                                            <img src="https://bootdey.com/img/Content/avatar/avatar1.png" alt="" class="rounded-circle avatar-sm">
-                                                                                        </a>
-                                                                                    </div>
-                                                                                    <div class="avatar-group-item">
-                                                                                        <a href="javascript: void(0);" class="d-inline-block" data-bs-toggle="tooltip" data-bs-placement="top" value="member-5" aria-label="Michael Jackson" data-bs-original-title="Michael Jackson">
-                                                                                            <img src="https://bootdey.com/img/Content/avatar/avatar5.png" alt="" class="rounded-circle avatar-sm">
-                                                                                        </a>
-                                                                                    </div>
-                                                                                </div><!-- end avatar group -->
-                                                                            </div><!-- end col -->
-                                                                            <div class="col-xl-7 col-md-6 col-sm-7">
-                                                                                <div class="d-flex flex-wrap gap-3 mt-3 mt-xl-0 justify-content-md-end">
-                                                                                    <div>
-                                                                                        <span class="badge rounded-pill badge-soft-danger font-size-11 task-status">Pending</span>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="mb-0 text-muted fw-medium"><i class="mdi mdi-checkbox-marked-circle-outline me-1"></i>0/6
-                                                                                        </a>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="mb-0 text-muted fw-medium" data-bs-toggle="modal" data-bs-target=".bs-example-new-task"><i class="mdi mdi-square-edit-outline font-size-16 align-middle" onclick="editTask('task-item-3')"></i></a>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="delete-item" onclick="deleteProjects('task-item-3')">
-                                                                                            <i class="mdi mdi-trash-can-outline font-size-16 align-middle text-danger"></i>
-                                                                                        </a>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div><!-- end col -->
-                                                                        </div><!-- end row -->
-                                                                    </div><!-- end col -->
-                                                                </div><!-- end row -->
-                                                            </div><!-- end cardbody -->
-                                                        </div><!-- end card -->
-                                                    </div>
-                                                </div><!-- end -->
-                    
-                                                <div class="task-list-box" id="comp-task">
-                                                    <div id="task-item-4">
-                                                        <div class="card task-box rounded-3">
-                                                            <div class="card-body">
-                                                                <div class="row align-items-center">
-                                                                    <div class="col-xl-6 col-sm-5">
-                                                                        <div class="checklist form-check font-size-15">
-                                                                            <input type="checkbox" class="form-check-input" id="customChat" checked="">
-                                                                            <label class="form-check-label ms-1 task-title" for="customChat">Chat App Pages</label>
-                                                                        </div>
-                                                                    </div><!-- end col -->
-                                                                    <div class="col-xl-6 col-sm-7">
-                                                                        <div class="row align-items-center">
-                                                                            <div class="col-xl-5 col-md-6 col-sm-5">
-                                                                                <div class="avatar-group mt-3 mt-xl-0 task-assigne">
-                                                                                    <div class="avatar-group-item">
-                                                                                        <a href="javascript: void(0);" class="d-inline-block" data-bs-toggle="tooltip" data-bs-placement="top" value="member-3" aria-label="Annmarie Paul" data-bs-original-title="Annmarie Paul">
-                                                                                            <img src="https://bootdey.com/img/Content/avatar/avatar3.png" alt="" class="rounded-circle avatar-sm">
-                                                                                        </a>
-                                                                                    </div>
-                                                                                </div><!-- end avatar group -->
-                                                                            </div><!-- end col -->
-                                                                            <div class="col-xl-7 col-md-6 col-sm-7">
-                                                                                <div class="d-flex flex-wrap gap-3 mt-3 mt-xl-0 justify-content-md-end">
-                                                                                    <div>
-                                                                                        <span class="badge rounded-pill badge-soft-success font-size-11 task-status">Completed</span>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="mb-0 text-muted fw-medium"><i class="mdi mdi-checkbox-marked-circle-outline me-1"></i>3/3
-                                                                                        </a>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="mb-0 text-muted fw-medium" data-bs-toggle="modal" data-bs-target=".bs-example-new-task"><i class="mdi mdi-square-edit-outline font-size-16 align-middle" onclick="editTask('task-item-4')"></i></a>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="delete-item" onclick="deleteProjects('task-item-4')">
-                                                                                            <i class="mdi mdi-trash-can-outline font-size-16 align-middle text-danger"></i>
-                                                                                        </a>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div><!-- end col -->
-                                                                        </div><!-- end row -->
-                                                                    </div><!-- end col -->
-                                                                </div><!-- end row -->
-                                                            </div><!-- end cardbody -->
-                                                        </div><!-- end card -->
-                                                    </div>
-                                                </div><!-- end -->
-                    
-                                                <div class="task-list-box" id="app-task">
-                                                    <div id="task-item-5">
-                                                        <div class="card task-box rounded-3">
-                                                            <div class="card-body">
-                                                                <div class="row align-items-center">
-                                                                    <div class="col-xl-6 col-sm-5">
-                                                                        <div class="checklist form-check font-size-15">
-                                                                            <input type="checkbox" class="form-check-input" id="customComponents">
-                                                                            <label class="form-check-label ms-1 task-title" for="customComponents">Components
-                                                                                Pages</label>
-                                                                        </div>
-                                                                    </div><!-- end col -->
-                                                                    <div class="col-xl-6 col-sm-7">
-                                                                        <div class="row align-items-center">
-                                                                            <div class="col-xl-5 col-md-6 col-sm-5">
-                                                                                <div class="avatar-group mt-3 mt-xl-0 task-assigne">
-                                                                                    <div class="avatar-group-item">
-                                                                                        <a href="javascript: void(0);" class="d-inline-block" data-bs-toggle="tooltip" value="member-7" data-bs-placement="top" aria-label="Eric Williams" data-bs-original-title="Eric Williams">
-                                                                                            <img src="https://bootdey.com/img/Content/avatar/avatar7.png" alt="" class="rounded-circle avatar-sm">
-                                                                                        </a>
-                                                                                    </div>
-                                                                                    <div class="avatar-group-item">
-                                                                                        <a href="javascript: void(0);" class="d-inline-block" data-bs-toggle="tooltip" value="member-9" data-bs-placement="top" aria-label="Richard Millar" data-bs-original-title="Richard Millar">
-                                                                                            <img src="https://bootdey.com/img/Content/avatar/avatar8.png" alt="" class="rounded-circle avatar-sm">
-                                                                                        </a>
-                                                                                    </div>
-                                                                                    <div class="avatar-group-item">
-                                                                                        <a href="javascript: void(0);" class="d-inline-block" data-bs-toggle="tooltip" value="member-8" data-bs-placement="top" aria-label="Tama Turner" data-bs-original-title="Tama Turner">
-                                                                                            <img src="https://bootdey.com/img/Content/avatar/avatar8.png" alt="" class="rounded-circle avatar-sm">
-                                                                                        </a>
-                                                                                    </div>
-                                                                                </div><!-- end avatar group -->
-                                                                            </div><!-- end col -->
-                                                                            <div class="col-xl-7 col-md-6 col-sm-7">
-                                                                                <div class="d-flex flex-wrap gap-3 mt-3 mt-xl-0 justify-content-md-end">
-                                                                                    <div>
-                                                                                        <span class="badge rounded-pill badge-soft-danger font-size-11 task-status">Pending</span>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="mb-0 text-muted fw-medium"><i class="mdi mdi-checkbox-marked-circle-outline me-1"></i>7/17
-                                                                                        </a>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="mb-0 text-muted fw-medium" data-bs-toggle="modal" data-bs-target=".bs-example-new-task"><i class="mdi mdi-square-edit-outline font-size-16 align-middle" onclick="editTask('task-item-5')"></i></a>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="delete-item" onclick="deleteProjects('task-item-5')">
-                                                                                            <i class="mdi mdi-trash-can-outline font-size-16 align-middle text-danger"></i>
-                                                                                        </a>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div><!-- end col -->
-                                                                        </div><!-- end row -->
-                                                                    </div><!-- end col -->
-                                                                </div><!-- end row -->
-                                                            </div><!-- end cardbody -->
-                                                        </div><!-- end card -->
-                                                    </div>
-                                                </div><!-- end -->
-                    
-                                                <div class="task-list-box" id="gallery-task">
-                                                    <div id="task-item-6">
-                                                        <div class="card task-box rounded-3">
-                                                            <div class="card-body">
-                                                                <div class="row align-items-center">
-                                                                    <div class="col-xl-6 col-sm-5">
-                                                                        <div class="checklist form-check font-size-15">
-                                                                            <input type="checkbox" class="form-check-input" id="customGallry" checked="">
-                                                                            <label class="form-check-label ms-1 task-title" for="customGallry">Create a Gallery
-                                                                                Pages</label>
-                                                                        </div>
-                                                                    </div><!-- end col -->
-                                                                    <div class="col-xl-6 col-sm-7">
-                                                                        <div class="row align-items-center">
-                                                                            <div class="col-xl-5 col-md-6 col-sm-5">
-                                                                                <div class="avatar-group mt-3 mt-xl-0 task-assigne">
-                                                                                    <div class="avatar-group-item">
-                                                                                        <a href="javascript: void(0);" class="d-inline-block" data-bs-toggle="tooltip" value="member-5" data-bs-placement="top" aria-label="John Walker" data-bs-original-title="John Walker">
-                                                                                            <img src="https://bootdey.com/img/Content/avatar/avatar5.png" alt="" class="rounded-circle avatar-sm">
-                                                                                        </a>
-                                                                                    </div>
-                                                                                    <div class="avatar-group-item">
-                                                                                        <a href="javascript: void(0);" class="d-inline-block" data-bs-toggle="tooltip" data-bs-placement="top" value="member-4" aria-label="Willie Garcia" data-bs-original-title="Willie Garcia">
-                                                                                            <img src="https://bootdey.com/img/Content/avatar/avatar4.png" alt="" class="rounded-circle avatar-sm">
-                                                                                        </a>
-                                                                                    </div>
-                                                                                </div><!-- end avatar group -->
-                                                                            </div><!-- end col -->
-                                                                            <div class="col-xl-7 col-md-6 col-sm-7">
-                                                                                <div class="d-flex flex-wrap gap-3 mt-3 mt-xl-0 justify-content-md-end">
-                                                                                    <div>
-                                                                                        <span class="badge rounded-pill badge-soft-success font-size-11 task-status">Completed</span>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="mb-0 text-muted fw-medium"><i class="mdi mdi-checkbox-marked-circle-outline me-1"></i>5/5
-                                                                                        </a>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="mb-0 text-muted fw-medium" data-bs-toggle="modal" data-bs-target=".bs-example-new-task"><i class="mdi mdi-square-edit-outline font-size-16 align-middle" onclick="editTask('task-item-6')"></i></a>
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <a href="#" class="delete-item" onclick="deleteProjects('task-item-6')">
-                                                                                            <i class="mdi mdi-trash-can-outline font-size-16 align-middle text-danger"></i>
-                                                                                        </a>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div><!-- end col -->
-                                                                        </div><!-- end row -->
-                                                                    </div><!-- end col -->
-                                                                </div><!-- end row -->
-                                                            </div><!-- end cardbody -->
-                                                        </div><!-- end card -->
-                                                    </div>
-                                                </div><!-- end -->
-                    
-                                            </div><!-- end col -->
-                                        </div><!-- end row -->
-                                    </div><!-- end tab pane -->
-                    
-                                    
-                                </div>
-                            </div><!-- end card -->
-                        </div><!-- end col -->
-                    
-                        <div class="col-xl-4">
-                            <div class="card">
-                                <div class="card-body">
-                                    <div class="pb-2">
-                                        <h4 class="card-title mb-3">About</h4>
-                                        <p>Hi I'm Jansh, has been the industry's standard dummy text To an English
-                                            person, it will seem like
-                                            simplified.</p>
-                                        <ul class="ps-3 mb-0">
-                                            <li>it will seem like simplified.</li>
-                                            <li>To achieve this, it would be necessary to have uniform pronunciation</li>
-                                        </ul>
-                                        <!-- end ul -->
-                                    </div>
-                                    <hr>
-                                    <div class="pt-2">
-                                        <h4 class="card-title mb-4">My Skill</h4>
-                                        <div class="d-flex gap-2 flex-wrap">
-                                            <span class="badge badge-soft-secondary p-2">HTML</span>
-                                            <span class="badge badge-soft-secondary p-2">Bootstrap</span>
-                                            <span class="badge badge-soft-secondary p-2">Scss</span>
-                                            <span class="badge badge-soft-secondary p-2">Javascript</span>
-                                            <span class="badge badge-soft-secondary p-2">React</span>
-                                            <span class="badge badge-soft-secondary p-2">Angular</span>
-                                        </div>
-                                    </div>
-                                </div><!-- end cardbody -->
-                            </div><!-- end card -->
-                    
-                            <div class="card">
-                                <div class="card-body">
-                                    <div>
-                                        <h4 class="card-title mb-4">Personal Details</h4>
-                                        <div class="table-responsive">
-                                            <table class="table table-bordered mb-0">
-                                                <tbody>
-                                                    <tr>
-                                                        <th scope="row">Name</th>
-                                                        <td>Jansh Wells</td>
-                                                    </tr><!-- end tr -->
-                                                    <tr>
-                                                        <th scope="row">Location</th>
-                                                        <td>California, United States</td>
-                                                    </tr><!-- end tr -->
-                                                    <tr>
-                                                        <th scope="row">Language</th>
-                                                        <td>English</td>
-                                                    </tr><!-- end tr -->
-                                                    <tr>
-                                                        <th scope="row">Website</th>
-                                                        <td>abc12@probic.com</td>
-                                                    </tr><!-- end tr -->
-                                                </tbody><!-- end tbody -->
-                                            </table><!-- end table -->
-                                        </div>
-                                    </div>
-                                </div><!-- end card body -->
-                            </div><!-- end card -->
-                    
-                            <div class="card">
-                                <div class="card-body">
-                                    <div>
-                                        <h4 class="card-title mb-4">Work Experince</h4>
-                                        <ul class="list-unstyled work-activity mb-0">
-                                            <li class="work-item" data-date="2020-21">
-                                                <h6 class="lh-base mb-0">ABCD Company</h6>
-                                                <p class="font-size-13 mb-2">Web Designer</p>
-                                                <p>To achieve this, it would be necessary to have uniform grammar, and more
-                                                    common words.</p>
-                                            </li>
-                                            <li class="work-item" data-date="2019-20">
-                                                <h6 class="lh-base mb-0">XYZ Company</h6>
-                                                <p class="font-size-13 mb-2">Graphic Designer</p>
-                                                <p class="mb-0">It will be as simple as occidental in fact, it will be
-                                                    Occidental person, it will seem like simplified.</p>
-                                            </li>
-                                        </ul><!-- end ul -->
-                                    </div>
-                                </div><!-- end card-body -->
-                            </div><!-- end card -->
-                        </div><!-- end col -->
-                    </div>
-                    
-                        <!-- end card-body -->
-                
-                        
-                
-                   
-                </div>
-                </div>
-          
-            <!--end row-->
         </div>
     </div>
-   
-
-
-
-<div class="modal-body">
-    
-   
 </div>
 
-</div>{% endblock %}
+<!-- Child Information Display -->
+<div id="child_data_container" style="display: none;">
+    
+    <!-- Basic Information Card -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="ri-user-line me-2"></i>Basic Information
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3 text-center">
+                    <img id="child_image" src="" alt="Child Photo" class="img-thumbnail" style="max-width: 150px; display: none;">
+                    <div id="no_image" class="bg-light p-4 rounded" style="display: none;">
+                        <i class="ri-user-line" style="font-size: 48px; color: #ccc;"></i>
+                        <br>No Photo
+                    </div>
+                </div>
+                <div class="col-md-9">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <strong>Full Name:</strong> <span id="full_name"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Admission Number:</strong> <span id="display_admission_number"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Date of Birth:</strong> <span id="date_of_birth"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Admission Date:</strong> <span id="admission_date"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Father's Name:</strong> <span id="fathers_name"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Father's Contact:</strong> <span id="fathers_contact"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Mother's Name:</strong> <span id="mothers_name"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Mother's Contact:</strong> <span id="mothers_contact"></span>
+                        </div>
+                        <div class="col-md-12">
+                            <strong>Address:</strong> <span id="address"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Email:</strong> <span id="email"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Polymath Student:</strong> <span id="is_polymath_student"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enrollment Information Card -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="ri-school-line me-2"></i>Enrollment Information
+            </h5>
+        </div>
+        <div class="card-body" id="enrollment_info">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Current Package Information Card -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="ri-gift-line me-2"></i>Current Package Information
+            </h5>
+        </div>
+        <div class="card-body" id="current_package_info">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Attendance Statistics Card -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="ri-calendar-check-line me-2"></i>Attendance Statistics
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h3 id="attendance_percentage">0%</h3>
+                            <p class="mb-0">Current Month Attendance</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h3><span id="days_attended">0</span>/<span id="expected_days">0</span></h3>
+                            <p class="mb-0">Days Attended</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Current Month Attendance Table -->
+            <div class="mt-3">
+                <h6>Current Month Attendance (<span id="current_month_year"></span>)</h6>
+                <div class="row mb-2">
+                    <div class="col-md-6">
+                        <small class="text-muted">
+                            <i class="ri-calendar-line"></i> Showing weekdays from 1st to today
+                        </small>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <small class="text-muted">
+                            Total Days: <span id="total_days_count"></span> | 
+                            Present: <span id="present_days_count" class="text-success"></span> | 
+                            Absent: <span id="absent_days_count" class="text-danger"></span>
+                        </small>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Day</th>
+                                <th>In Time</th>
+                                <th>Out Time</th>
+                                <th>Duration</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="current_month_attendance_tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Information Card -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="ri-money-dollar-circle-line me-2"></i>Financial Information
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body text-center">
+                            <h4 id="outstanding_amount">Rs. 0.00</h4>
+                            <p class="mb-0">Outstanding Amount</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <!-- Outstanding Invoices Table -->
+                    <h6>Outstanding Invoices</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Memo Code</th>
+                                    <th>Month</th>
+                                    <th>Amount</th>
+                                    <th>Balance</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="outstanding_invoices_tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Invoices -->
+            <div class="mt-3">
+                <h6>Recent Invoices</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Memo Code</th>
+                                <th>Month</th>
+                                <th>Amount</th>
+                                <th>Payments</th>
+                                <th>Balance</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent_invoices_tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Package History Card -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="ri-history-line me-2"></i>Package History
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Normal Package</th>
+                            <th>Holiday Package</th>
+                            <th>Flex Package</th>
+                            <th>Effective From</th>
+                            <th>Effective To</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="package_history_tbody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Requests Card -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="ri-time-line me-2"></i>Pending Requests
+            </h5>
+        </div>
+        <div class="card-body" id="pending_requests_section">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+    </div>
+
+</div>
+
+<!-- Loading Spinner -->
+<div id="loading_spinner" style="display: none;">
+    <div class="text-center p-4">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading child information...</p>
+    </div>
+</div>
+
+<!-- Error Message -->
+<div id="error_message" class="alert alert-danger" style="display: none;">
+    <strong>Error:</strong> <span id="error_text"></span>
+</div>
+
+{% endblock %} 
+
+{% block modals %}
+<!-- Add any modals if needed -->
+{% endblock %} 
 
 {% block scripts %}
-    <!-- jQuery -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <!--datatable js-->
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
-    
-    <script src="{% static 'assets/js/pages/datatables.init.js' %}"></script>
-    <script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
-    <script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
-    <!-- flatpickr -->
-    <script src="{% static 'assets/libs/flatpickr/flatpickr.min.js' %}"></script>
-    <script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
-    <script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script>
-        jQuery(document).ready(function () {
-            var table = $("#ChildList").DataTable({
-                responsive: true,
-                ajax: {
-                    processing: true,
-                    url: "{% url 'core:view_child_j' %}",
-                    dataSrc: "",
-                },
-                columns: [
-                    {data: "admission_number"},
-                    {data: "child_image"},
-                    {data: "child_first_name"},
-                    {data: "child_last_name"},
-                    {data: "fathers_contact_number"},
-                    {data: "mothers_contact_number"},
-                    {data: "resident_contact_number"},
-                    {data: "is_polymath_student"},
-                    {data: "is_active"},
-                  
-                            
-                ],
-    
-                createdRow: function (row, data, dataIndex) {
-                    if (data.child_image != "") {
-                    
-                    $("td", row).eq(1).html('<p style="text-align:center"><img  src="/media/'+ data.child_image +'"  width="100px;"/></p>');
-    
-                    }
-                    else
-                    {
-                        $("td", row).eq(1).html('<img  src="/media/child_images/profile-outline-filled.png"  width="25px;"/>');
-                    }
-                    
-                    // Check the condition for the 'is_polymath_student' column
-                    if (data.is_polymath_student) {
-                        $("td", row)
-                            .eq(7)
-                            .html(
-                                '<span class="badge bg-secondary-subtle text-secondary">Yes</span>'
-                            );
-                    } else {
-                        $("td", row)
-                            .eq(7)
-                            .html(
-                                '<span class="badge bg-danger-subtle text-danger">No</span>'
-                            );
-                    }
-                    // Check the condition for the 'is_active' column
-                    if (data.is_active) {
-                        $("td", row).eq(8).html('<span class="badge bg-success">Active</span>');
-                    } else {
-                        $("td", row).eq(8).html('<span class="badge bg-danger">Inactive</span>');
-                    }
-                    
-                },
-                layout: {
-                    bottomEnd: {
-                        paging: {
-                            firstLast: false
-                                }
-                            }
-                    },
-                dom: "Bfrtip",
-                pageLength: 20,
-    
-                buttons: ["excel", "print"],
-    
-                order: [[0, "asc"]], // Set default sorting by admission_date in descending order
-            });
-        });
+<!-- jQuery -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
 
+<script>
+    var $ = jQuery;
+    
+    $(document).ready(function() {
         
+        // Search button click
+        $('#search_btn').click(function() {
+            var childId = $('#child_select').val();
+            var admissionNumber = $('#admission_number').val();
+            
+            if (!childId && !admissionNumber) {
+                alert('Please select a child or enter admission number');
+                return;
+            }
+            
+            loadChildData(childId, admissionNumber);
+        });
         
-    </script>
+        // Clear button click
+        $('#clear_btn').click(function() {
+            $('#child_select').val('');
+            $('#admission_number').val('');
+            $('#child_data_container').hide();
+            $('#error_message').hide();
+        });
+        
+        // Child select change
+        $('#child_select').change(function() {
+            if ($(this).val()) {
+                $('#admission_number').val('');
+            }
+        });
+        
+        // Admission number input
+        $('#admission_number').on('input', function() {
+            if ($(this).val()) {
+                $('#child_select').val('');
+            }
+        });
+        
+        // Enter key press on admission number input
+        $('#admission_number').keypress(function(e) {
+            if (e.which == 13) {
+                $('#search_btn').click();
+            }
+        });
+    });
     
-    <!-- App js -->
-    <script src="{% static 'assets/js/app.js' %}"></script>
+    function loadChildData(childId, admissionNumber) {
+        $('#loading_spinner').show();
+        $('#child_data_container').hide();
+        $('#error_message').hide();
+        
+        var params = {};
+        if (childId) {
+            params.child_id = childId;
+        } else if (admissionNumber) {
+            params.admission_number = admissionNumber;
+        }
+        
+        $.ajax({
+            url: "{% url 'core:get_child_comprehensive_data_js' %}",
+            type: 'GET',
+            data: params,
+            success: function(data) {
+                $('#loading_spinner').hide();
+                populateChildData(data);
+                $('#child_data_container').show();
+            },
+            error: function(xhr, status, error) {
+                $('#loading_spinner').hide();
+                var errorMsg = 'An error occurred while loading child data.';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                $('#error_text').text(errorMsg);
+                $('#error_message').show();
+            }
+        });
+    }
     
-    {% endblock %}
+    function calculateDuration(inTime, outTime) {
+        if (!inTime || !outTime) return '-';
+        
+        try {
+            var inDateTime = new Date('1970-01-01T' + inTime + ':00');
+            var outDateTime = new Date('1970-01-01T' + outTime + ':00');
+            var diffMs = outDateTime - inDateTime;
+            
+            if (diffMs <= 0) return '-';
+            
+            var totalMinutes = Math.floor(diffMs / (1000 * 60));
+            var hours = Math.floor(totalMinutes / 60);
+            var minutes = totalMinutes % 60;
+            
+            if (hours > 0) {
+                return hours + 'h ' + (minutes > 0 ? minutes + 'm' : '');
+            } else {
+                return minutes + 'm';
+            }
+        } catch (error) {
+            return '-';
+        }
+    }
     
+    function populateChildData(data) {
+        // Basic Information
+        $('#full_name').text(data.child_info.full_name);
+        $('#display_admission_number').text(data.child_info.admission_number);
+        $('#date_of_birth').text(data.child_info.date_of_birth || 'N/A');
+        $('#admission_date').text(data.child_info.admission_date || 'N/A');
+        $('#fathers_name').text(data.child_info.fathers_name || 'N/A');
+        $('#fathers_contact').text(data.child_info.fathers_contact || 'N/A');
+        $('#mothers_name').text(data.child_info.mothers_name || 'N/A');
+        $('#mothers_contact').text(data.child_info.mothers_contact || 'N/A');
+        $('#address').text(data.child_info.address || 'N/A');
+        $('#email').text(data.child_info.email || 'N/A');
+        $('#is_polymath_student').text(data.child_info.is_polymath_student ? 'Yes' : 'No');
+        
+        // Child Image
+        if (data.child_info.child_image) {
+            $('#child_image').attr('src', data.child_info.child_image).show();
+            $('#no_image').hide();
+        } else {
+            $('#child_image').hide();
+            $('#no_image').show();
+        }
+        
+        // Enrollment Information
+        if (data.enrollment_info) {
+            var enrollmentHtml = `
+                <div class="row g-3">
+                    <div class="col-md-6"><strong>Enrollment Code:</strong> ${data.enrollment_info.enrollment_code || 'N/A'}</div>
+                   <div class="col-md-6"><strong>Enrollment Date:</strong> ${data.enrollment_info.enrollment_date || 'N/A'}</div>
+                   <div class="col-md-6"><strong>Branch:</strong> ${data.enrollment_info.branch_name || 'N/A'}</div>
+                   <div class="col-md-6"><strong>Center:</strong> ${data.enrollment_info.center_name || 'N/A'}</div>
+                   <div class="col-md-6"><strong>Status:</strong> <span class="badge bg-success">${data.enrollment_info.status || 'N/A'}</span></div>
+                   <div class="col-md-6"><strong>Receipt Number:</strong> ${data.enrollment_info.receipt_number || 'N/A'}</div>
+               </div>
+           `;
+           $('#enrollment_info').html(enrollmentHtml);
+       } else {
+           $('#enrollment_info').html('<p class="text-muted">No enrollment information found.</p>');
+       }
+       
+       // Current Package Information
+       if (data.current_package) {
+           var packageHtml = '<div class="row g-3">';
+           
+           if (data.current_package.normal_package) {
+               packageHtml += `
+                   <div class="col-md-12"><h6 class="text-primary">Normal Package</h6></div>
+                   <div class="col-md-4"><strong>Name:</strong> ${data.current_package.normal_package.name}</div>
+                   <div class="col-md-4"><strong>Code:</strong> ${data.current_package.normal_package.code}</div>
+                   <div class="col-md-4"><strong>Amount:</strong> Rs. ${data.current_package.normal_package.total.toFixed(2)}</div>
+                   <div class="col-md-6"><strong>Time:</strong> ${data.current_package.normal_package.from_time} - ${data.current_package.normal_package.to_time}</div>
+               `;
+           }
+           
+           if (data.current_package.holiday_package) {
+               packageHtml += `
+                   <div class="col-md-12"><h6 class="text-warning">Holiday Package</h6></div>
+                   <div class="col-md-6"><strong>Name:</strong> ${data.current_package.holiday_package.name}</div>
+                   <div class="col-md-6"><strong>Amount:</strong> Rs. ${data.current_package.holiday_package.total.toFixed(2)}</div>
+               `;
+           }
+           
+           if (data.current_package.flex_package) {
+               packageHtml += `
+                   <div class="col-md-12"><h6 class="text-info">Flex Package</h6></div>
+                   <div class="col-md-4"><strong>Name:</strong> ${data.current_package.flex_package.name}</div>
+                   <div class="col-md-4"><strong>Hours:</strong> ${data.current_package.flex_package.hours}</div>
+                   <div class="col-md-4"><strong>Amount:</strong> Rs. ${data.current_package.flex_package.total.toFixed(2)}</div>
+               `;
+           }
+           
+           if (data.current_package.discount) {
+               packageHtml += `
+                   <div class="col-md-12"><h6 class="text-success">Discount Applied</h6></div>
+                   <div class="col-md-6"><strong>Discount:</strong> ${data.current_package.discount.name}</div>
+                   <div class="col-md-6"><strong>Rate:</strong> ${data.current_package.discount.rate}%</div>
+               `;
+           }
+           
+           packageHtml += `
+               <div class="col-md-6"><strong>Effective From:</strong> ${data.current_package.effective_from || 'N/A'}</div>
+               <div class="col-md-6"><strong>Effective To:</strong> ${data.current_package.effective_to || 'Current'}</div>
+           `;
+           packageHtml += '</div>';
+           
+           $('#current_package_info').html(packageHtml);
+       } else {
+           $('#current_package_info').html('<p class="text-muted">No package information found.</p>');
+       }
+       
+       // Attendance Statistics
+       $('#attendance_percentage').text(data.attendance_stats.current_month.attendance_percentage + '%');
+       $('#days_attended').text(data.attendance_stats.current_month.days_attended);
+       $('#expected_days').text(data.attendance_stats.current_month.total_weekdays_so_far);
+       $('#current_month_year').text(data.attendance_stats.current_month.month_name + ' ' + data.attendance_stats.current_month.year);
+       
+       // Current Month Attendance
+       var attendanceHtml = '';
+       var presentCount = 0;
+       var absentCount = 0;
+       var totalDays = 0;
+       
+       if (data.attendance_stats.current_month_attendance.length > 0) {
+           data.attendance_stats.current_month_attendance.forEach(function(record) {
+               totalDays++;
+               var statusBadge = '';
+               var duration = '';
+               var rowClass = '';
+               
+               if (record.is_present) {
+                   if (record.complete_attendance) {
+                       presentCount++;
+                       duration = calculateDuration(record.in_time, record.out_time);
+                       statusBadge = '<span class="badge bg-success">Present</span>';
+                       rowClass = '';
+                   } else {
+                       statusBadge = '<span class="badge bg-warning">Incomplete</span>';
+                       rowClass = 'table-warning';
+                       duration = '-';
+                   }
+               } else {
+                   absentCount++;
+                   statusBadge = '<span class="badge bg-danger">Absent</span>';
+                   rowClass = 'table-danger';
+                   duration = '-';
+               }
+               
+               attendanceHtml += `
+                   <tr class="${rowClass}">
+                       <td><strong>${record.date}</strong></td>
+                       <td>${record.day_name}</td>
+                       <td>${record.in_time || '<span class="text-muted">-</span>'}</td>
+                       <td>${record.out_time || '<span class="text-muted">-</span>'}</td>
+                       <td><strong>${duration}</strong></td>
+                       <td>${statusBadge}</td>
+                   </tr>
+               `;
+           });
+       } else {
+           attendanceHtml = '<tr><td colspan="6" class="text-center text-muted">No attendance data for current month</td></tr>';
+       }
+       
+       $('#current_month_attendance_tbody').html(attendanceHtml);
+       $('#total_days_count').text(totalDays);
+       $('#present_days_count').text(presentCount);
+       $('#absent_days_count').text(absentCount);
+       
+       // Financial Information
+       $('#outstanding_amount').text('Rs. ' + data.financial_info.outstanding_amount.toFixed(2));
+       
+       // Outstanding Invoices
+       var outstandingHtml = '';
+       if (data.financial_info.outstanding_invoices.length > 0) {
+           data.financial_info.outstanding_invoices.forEach(function(invoice) {
+               var statusClass = invoice.status === 'PAID' ? 'success' : invoice.status === 'PARTIAL' ? 'warning' : 'danger';
+               outstandingHtml += `
+                   <tr>
+                       <td>${invoice.memo_code}</td>
+                       <td>${invoice.month_name} ${invoice.year}</td>
+                       <td>Rs. ${invoice.amount.toFixed(2)}</td>
+                       <td>Rs. ${invoice.balance.toFixed(2)}</td>
+                       <td><span class="badge bg-${statusClass}">${invoice.status}</span></td>
+                   </tr>
+               `;
+           });
+       } else {
+           outstandingHtml = '<tr><td colspan="5" class="text-center text-muted">No outstanding invoices</td></tr>';
+       }
+       $('#outstanding_invoices_tbody').html(outstandingHtml);
+       
+       // Recent Invoices
+       var recentInvoicesHtml = '';
+       if (data.financial_info.recent_invoices.length > 0) {
+           data.financial_info.recent_invoices.forEach(function(invoice) {
+               var statusClass = invoice.status === 'PAID' ? 'success' : invoice.status === 'PARTIAL' ? 'warning' : 'danger';
+               recentInvoicesHtml += `
+                   <tr>
+                       <td>${invoice.memo_code}</td>
+                       <td>${invoice.month_name} ${invoice.year}</td>
+                       <td>Rs. ${invoice.amount.toFixed(2)}</td>
+                       <td>Rs. ${invoice.payments.toFixed(2)}</td>
+                       <td>Rs. ${invoice.balance.toFixed(2)}</td>
+                       <td><span class="badge bg-${statusClass}">${invoice.status}</span></td>
+                       <td>${invoice.created_date || 'N/A'}</td>
+                   </tr>
+               `;
+           });
+       } else {
+           recentInvoicesHtml = '<tr><td colspan="7" class="text-center text-muted">No recent invoices</td></tr>';
+       }
+       $('#recent_invoices_tbody').html(recentInvoicesHtml);
+       
+       // Package History
+       var packageHistoryHtml = '';
+       if (data.package_history.length > 0) {
+           data.package_history.forEach(function(history) {
+               var statusClass = history.is_active ? 'success' : 'secondary';
+               var statusText = history.is_active ? 'Active' : 'Inactive';
+               packageHistoryHtml += `
+                   <tr>
+                       <td>${history.normal_package || '-'}</td>
+                       <td>${history.holiday_package || '-'}</td>
+                       <td>${history.flex_package || '-'}</td>
+                       <td>${history.effective_from || 'N/A'}</td>
+                       <td>${history.effective_to}</td>
+                       <td><span class="badge bg-${statusClass}">${statusText}</span></td>
+                   </tr>
+               `;
+           });
+       } else {
+           packageHistoryHtml = '<tr><td colspan="6" class="text-center text-muted">No package history</td></tr>';
+       }
+       $('#package_history_tbody').html(packageHistoryHtml);
+       
+       // Pending Requests
+       var pendingRequestsHtml = '';
+       var hasRequests = false;
+       
+       if (data.pending_requests.package_changes.length > 0) {
+           hasRequests = true;
+           pendingRequestsHtml += '<h6 class="text-warning">Package Change Requests</h6>';
+           pendingRequestsHtml += '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Old Package</th><th>New Package</th><th>Reason</th><th>Effective Date</th><th>Requested Date</th></tr></thead><tbody>';
+           
+           data.pending_requests.package_changes.forEach(function(request) {
+               pendingRequestsHtml += `
+                   <tr>
+                       <td>${request.old_package || 'N/A'}</td>
+                       <td>${request.new_package || 'N/A'}</td>
+                       <td>${request.reason}</td>
+                       <td>${request.effective_date}</td>
+                       <td>${request.requested_date}</td>
+                   </tr>
+               `;
+           });
+           pendingRequestsHtml += '</tbody></table></div>';
+       }
+       
+       if (data.pending_requests.center_changes.length > 0) {
+           hasRequests = true;
+           if (data.pending_requests.package_changes.length > 0) {
+               pendingRequestsHtml += '<hr>';
+           }
+           pendingRequestsHtml += '<h6 class="text-info">Center Change Requests</h6>';
+           pendingRequestsHtml += '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Old Center</th><th>New Center</th><th>Old Branch</th><th>New Branch</th><th>Reason</th><th>Effective Date</th></tr></thead><tbody>';
+           
+           data.pending_requests.center_changes.forEach(function(request) {
+               pendingRequestsHtml += `
+                   <tr>
+                       <td>${request.old_center || 'N/A'}</td>
+                       <td>${request.new_center || 'N/A'}</td>
+                       <td>${request.old_branch || 'N/A'}</td>
+                       <td>${request.new_branch || 'N/A'}</td>
+                       <td>${request.reason}</td>
+                       <td>${request.effective_date}</td>
+                   </tr>
+               `;
+           });
+           pendingRequestsHtml += '</tbody></table></div>';
+       }
+       
+       if (!hasRequests) {
+           pendingRequestsHtml = '<p class="text-muted">No pending requests</p>';
+       }
+       
+       $('#pending_requests_section').html(pendingRequestsHtml);
+   }
+</script>
+
+<!-- App js -->
+<script src="{% static 'assets/js/app.js' %}"></script>
+
+{% endblock %}

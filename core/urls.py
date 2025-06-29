@@ -438,4 +438,14 @@ urlpatterns = [
         views.getDetailedChargesBreakdown,
         name="get_detailed_charges_breakdown",
     ),
+    path(
+        "child_comprehensive_view/",
+        views.getChildComprehensiveView,
+        name="child_comprehensive_view",
+    ),
+    path(
+        "get_child_comprehensive_data/",
+        views.getChildComprehensiveDataJS,
+        name="get_child_comprehensive_data_js",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
