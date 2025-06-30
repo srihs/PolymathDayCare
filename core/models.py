@@ -626,63 +626,62 @@ class EnrollmentForm(BaseClass):
         return os.path.exists(self.pdf_path)
 
 
+# REDESIGNED MODELS - Replace your existing InvoiceMemo and InvoiceMemoDetail
+
+
 class InvoiceMemo(BaseClass):
+    """
+    Main invoice memo - stores only summary/totals and basic info
+    Individual month details are stored in InvoiceMemoDetail
+    """
+
     # Basic memo information
     memo_date = models.DateField()
     memo_code = models.CharField(max_length=20, unique=True)
     child = models.ForeignKey("Child", on_delete=models.CASCADE)
-    year = models.IntegerField()
-    month = models.IntegerField()
 
-    # CURRENT MONTH ONLY - What we actually store
-    package_name = models.CharField(max_length=200)
-    package_base_fee = models.DecimalField(max_digits=10, decimal_places=2)
-    days_attended = models.IntegerField(default=0)
-    expected_days = models.IntegerField(default=22)
-    attendance_percentage = models.DecimalField(
-        max_digits=5, decimal_places=2, default=0
-    )
-    is_half_charge_applied = models.BooleanField(default=False)
+    # Which month this memo is FOR (the main month)
+    memo_month = models.IntegerField()  # 1-12
+    memo_year = models.IntegerField()
 
-    # Current month charges breakdown
-    current_month_package_fee = models.DecimalField(max_digits=10, decimal_places=2)
-    extra_hours_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    holiday_attendance_days = models.IntegerField(default=0)
-    holiday_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-
-    # Discount applied this month
-    discount_applied = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-
-    # THIS MONTH'S TOTAL CHARGE (before any payments)
-    month_total_charge = models.DecimalField(max_digits=10, decimal_places=2)
-
-    # PAYMENTS RECEIVED FOR THIS MONTH
-    total_payments_received = models.DecimalField(
-        max_digits=10, decimal_places=2, default=0
-    )
-    payment_receipts = models.TextField(
-        blank=True, null=True
-    )  # JSON string of receipt numbers
-
-    # NET BALANCE FOR THIS MONTH (charge - payments)
-    month_net_balance = models.DecimalField(max_digits=10, decimal_places=2)
-
-    # NEW: ADD THESE TWO FIELDS HERE
+    # SUMMARY TOTALS ONLY
     total_outstanding = models.DecimalField(
-        max_digits=10,
+        max_digits=12,
         decimal_places=2,
         default=0,
-        help_text="Total outstanding from previous months",
+        help_text="Outstanding from 2 months ago",
     )
-    grand_total = models.DecimalField(
-        max_digits=10,
+    total_previous_month = models.DecimalField(
+        max_digits=12,
         decimal_places=2,
         default=0,
-        help_text="Final amount to pay (all 3 months combined)",
+        help_text="Previous month net amount",
+    )
+    total_current_month = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, help_text="Current month net amount"
     )
 
-    # Status tracking
+    # GRAND TOTALS
+    gross_total = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text="Total of all charges before payments",
+    )
+    total_payments = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text="Total payments across all months",
+    )
+    net_amount_due = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text="Final amount to pay (gross_total - total_payments)",
+    )
+
+    # Status and metadata
     STATUS_CHOICES = (
         ("GENERATED", "Generated"),
         ("SENT", "Sent to Parent"),
@@ -694,68 +693,174 @@ class InvoiceMemo(BaseClass):
         max_length=20, choices=STATUS_CHOICES, default="GENERATED"
     )
 
-    # Additional details
-    branch_name = models.CharField(max_length=200)
-    center_name = models.CharField(max_length=200)
+    # Additional info
     notes = models.TextField(blank=True, null=True)
 
     class Meta:
         verbose_name = "Invoice Memo"
         verbose_name_plural = "Invoice Memos"
         db_table = "dc_invoice_memos"
-        unique_together = ("child", "year", "month")
-        ordering = ["-year", "-month", "-memo_date"]
+        unique_together = ("child", "memo_year", "memo_month")
+        ordering = ["-memo_year", "-memo_month", "-memo_date"]
 
     def __str__(self):
-        return f"{self.memo_code} - {self.child.admission_number} - {self.get_month_name()} {self.year}"
+        return f"{self.memo_code} - {self.child.admission_number} - {self.get_memo_month_name()} {self.memo_year}"
 
-    def get_month_name(self):
+    def get_memo_month_name(self):
         import calendar
 
-        return calendar.month_name[self.month]
+        return calendar.month_name[self.memo_month]
+
+    def calculate_totals(self):
+        """Calculate all totals from detail records"""
+        details = self.month_details.all()
+
+        self.gross_total = sum(detail.gross_charges for detail in details)
+        self.total_payments = sum(detail.payments_received for detail in details)
+        self.net_amount_due = self.gross_total - self.total_payments
+
+        # Set individual month totals
+        for detail in details:
+            if detail.month_type == "OUTSTANDING":
+                self.total_outstanding = detail.net_balance
+            elif detail.month_type == "PREVIOUS":
+                self.total_previous_month = detail.net_balance
+            elif detail.month_type == "CURRENT":
+                self.total_current_month = detail.net_balance
+
+        # Update status based on balance
+        if self.net_amount_due <= 0:
+            self.status = "CREDIT" if self.net_amount_due < 0 else "PAID"
+        elif self.total_payments > 0:
+            self.status = "PARTIAL"
+        else:
+            self.status = "GENERATED"
+
+    def add_payment(self, amount, month_type, receipt_number=None):
+        """Add payment to specific month"""
+        detail = self.month_details.filter(month_type=month_type).first()
+        if detail:
+            detail.add_payment(amount, receipt_number)
+            self.calculate_totals()
+            self.save()
+
+
+class InvoiceMemoDetail(BaseClass):
+    """
+    Individual month details - each memo has exactly 3 records
+    """
+
+    MONTH_TYPE_CHOICES = (
+        ("OUTSTANDING", "Outstanding (2 months ago)"),
+        ("PREVIOUS", "Previous month"),
+        ("CURRENT", "Current month"),
+    )
+
+    memo = models.ForeignKey(
+        InvoiceMemo, on_delete=models.CASCADE, related_name="month_details"
+    )
+
+    # Month identification
+    month_sequence = models.IntegerField()  # 1=Outstanding, 2=Previous, 3=Current
+    month_type = models.CharField(max_length=20, choices=MONTH_TYPE_CHOICES)
+    actual_month = models.IntegerField()  # 1-12 (the actual calendar month)
+    actual_year = models.IntegerField()
+    month_name = models.CharField(max_length=20)
+
+    # DETAILED CHARGES - All stored here
+    package_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    extra_hours_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    holiday_charges = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    other_charges = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    # DEDUCTIONS
+    discount_applied = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    other_deductions = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    # CALCULATED TOTALS
+    gross_charges = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_deductions = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    net_charges = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    # PAYMENTS
+    payments_received = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    payment_receipts = models.JSONField(default=list)  # List of payment records
+
+    # FINAL BALANCE
+    net_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    # ADDITIONAL DETAILS (for attendance tracking, etc.)
+    package_name = models.CharField(max_length=200, blank=True)
+    days_attended = models.IntegerField(default=0)
+    expected_days = models.IntegerField(default=22)
+    attendance_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0
+    )
+    is_half_charge_applied = models.BooleanField(default=False)
+
+    # METADATA
+    notes = models.TextField(blank=True, null=True)
+    calculation_details = models.JSONField(
+        default=dict
+    )  # For storing breakdown details
+
+    class Meta:
+        verbose_name = "Invoice Month Detail"
+        verbose_name_plural = "Invoice Month Details"
+        db_table = "dc_invoice_memo_details"
+        ordering = ["memo", "month_sequence"]
+        unique_together = ("memo", "month_sequence")
+
+    def __str__(self):
+        return f"{self.memo.memo_code} - {self.month_name} {self.actual_year} ({self.month_type})"
+
+    def calculate_totals(self):
+        """Calculate all totals for this month"""
+        # Calculate gross charges
+        self.gross_charges = (
+            self.package_fee
+            + self.extra_hours_charge
+            + self.holiday_charges
+            + self.other_charges
+        )
+
+        # Calculate total deductions
+        self.total_deductions = self.discount_applied + self.other_deductions
+
+        # Calculate net charges (what should be paid)
+        self.net_charges = self.gross_charges - self.total_deductions
+
+        # Calculate final balance (charges - payments)
+        self.net_balance = self.net_charges - self.payments_received
 
     def add_payment(self, amount, receipt_number=None):
-        import json
+        """Add payment to this month"""
+        from datetime import datetime
         from decimal import Decimal
 
-        self.total_payments_received += Decimal(str(amount))
+        self.payments_received += Decimal(str(amount))
 
-        # Update receipt numbers
-        receipts = []
-        if self.payment_receipts:
-            receipts = json.loads(self.payment_receipts)
+        # Add to payment receipts
+        payment_record = {
+            "amount": float(amount),
+            "receipt_number": receipt_number,
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "timestamp": datetime.now().isoformat(),
+        }
 
-        if receipt_number:
-            receipts.append(
-                {
-                    "amount": float(amount),
-                    "receipt": receipt_number,
-                    "date": datetime.now().strftime("%Y-%m-%d"),
-                }
-            )
-
-        self.payment_receipts = json.dumps(receipts)
-
-        # Update net balance
-        self.month_net_balance = self.month_total_charge - self.total_payments_received
-
-        # Update status
-        if self.month_net_balance <= 0:
-            if self.month_net_balance < 0:
-                self.status = "CREDIT"
-            else:
-                self.status = "PAID"
+        if isinstance(self.payment_receipts, list):
+            self.payment_receipts.append(payment_record)
         else:
-            self.status = "PARTIAL"
+            self.payment_receipts = [payment_record]
 
+        # Recalculate totals
+        self.calculate_totals()
         self.save()
 
-    def get_payment_history(self):
-        import json
-
-        if self.payment_receipts:
-            return json.loads(self.payment_receipts)
-        return []
+    def save(self, *args, **kwargs):
+        """Auto-calculate totals on save"""
+        self.calculate_totals()
+        super().save(*args, **kwargs)
 
 
 class PaymentTransaction(BaseClass):
@@ -786,46 +891,3 @@ class PaymentTransaction(BaseClass):
 
     def __str__(self):
         return f"{self.memo.memo_code} - Rs.{self.amount} - {self.receipt_number}"
-
-
-class InvoiceMemoDetail(BaseClass):
-    """
-    Stores detailed breakdown for each month in a 3-month invoice memo
-    Each InvoiceMemo will have exactly 3 InvoiceMemoDetail records
-    """
-
-    MONTH_TYPE_CHOICES = (
-        ("OUTSTANDING", "Outstanding/Credits from Previous Month"),
-        ("CALCULATED", "Calculated with Attendance"),
-        ("ADVANCE", "Advance Payment (Full Package)"),
-    )
-
-    memo = models.ForeignKey(
-        InvoiceMemo, on_delete=models.CASCADE, related_name="details"
-    )
-
-    # Month identification
-    month_sequence = models.IntegerField()  # 1, 2, or 3
-    month = models.IntegerField()  # 1-12
-    year = models.IntegerField()
-    month_name = models.CharField(max_length=20)
-    month_type = models.CharField(max_length=20, choices=MONTH_TYPE_CHOICES)
-
-    # Financial amounts
-    charge_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    payment_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    balance_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    receipt_number = models.CharField(max_length=20, blank=True)
-
-    # Store additional details as JSON
-    calculation_details = models.JSONField(default=dict)
-
-    class Meta:
-        verbose_name = "Invoice Memo Detail"
-        verbose_name_plural = "Invoice Memo Details"
-        db_table = "dc_invoice_memo_details"
-        ordering = ["memo", "month_sequence"]
-        unique_together = ("memo", "month_sequence")
-
-    def __str__(self):
-        return f"{self.memo.memo_code} - {self.month_name} {self.year}"

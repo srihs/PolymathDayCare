@@ -91,8 +91,9 @@ from .models import (
     FixedPackage,
     FlexPackages,
     Holiday,
-    # HolidayType,
     InvoiceMemo,
+    InvoiceMemoDetail,
+    # HolidayType,
     PackageChangerequest,
     PackageExtraHoursMapping,
     PackageType,
@@ -3888,9 +3889,6 @@ def generateAndSaveInvoiceMemo(request):
                     user_created=request.user.username,
                 )
 
-                # Create 3 detail records - one for each month
-                from .models import InvoiceMemoDetail
-
                 # Month 1 - Outstanding/Credits
                 try:
                     month1_month_num = 1
@@ -4018,375 +4016,6 @@ def generateAndSaveInvoiceMemo(request):
         messages.error(request, f"Error generating invoice memo: {str(e)}")
 
     return redirect("core:view_invoice_memos")
-
-
-# Add this enhanced version to your views.py
-# This will generate the detailed breakdown on-the-fly for existing memos
-
-
-@login_required
-def getInvoiceMemoByID(request, pk):
-    """Get detailed invoice memo with 3-month data and generate breakdown on-the-fly"""
-    try:
-        memo = get_object_or_404(InvoiceMemo, pk=pk)
-
-        # Get the 3 detail records
-        details = memo.details.all().order_by("month_sequence")
-
-        if details.count() == 3:
-            # New format - return 3-month data from stored details WITH GENERATED BREAKDOWN
-            month1_detail = details[0]  # Outstanding
-            month2_detail = details[1]  # Calculated
-            month3_detail = details[2]  # Advance
-
-            # GENERATE DETAILED BREAKDOWN FOR MONTH 2 ON-THE-FLY
-            extra_charges_breakdown = []
-            holiday_charges_breakdown = []
-
-            # Try to regenerate the breakdown from attendance data
-            if month2_detail.charge_amount > 0:
-                try:
-                    # Get the date range for month2
-                    first_day = datetime(
-                        month2_detail.year, month2_detail.month, 1
-                    ).date()
-                    last_day = datetime(
-                        month2_detail.year,
-                        month2_detail.month,
-                        calendar.monthrange(month2_detail.year, month2_detail.month)[1],
-                    ).date()
-
-                    # Get attendance logs for this period
-                    attendance_logs = AttendanceLog.objects.filter(
-                        child=memo.child, date_logged__range=(first_day, last_day)
-                    ).order_by("date_logged", "time_logged")
-
-                    # Get package mapping
-                    package_mapping = (
-                        ChildPackageMapping.objects.filter(
-                            child=memo.child,
-                            effective_from__lte=last_day,
-                            is_active=True,
-                        )
-                        .filter(
-                            Q(effective_to__gte=first_day)
-                            | Q(effective_to__isnull=True)
-                        )
-                        .first()
-                    )
-
-                    if package_mapping and attendance_logs.exists():
-                        # Determine package details
-                        package = None
-                        package_end_time = None
-                        package_type = None
-
-                        if package_mapping.normal_package:
-                            package = package_mapping.normal_package
-                            package_end_time = package.to_time
-                            package_type = package.package_type
-                        elif package_mapping.holiday_package:
-                            package = package_mapping.holiday_package
-                            package_end_time = package.to_time
-                            package_type = package.package_type
-                        elif package_mapping.flex_package:
-                            package = package_mapping.flex_package
-                            package_end_time = time(17, 30)  # Default for flex
-                            package_type = package.package_type
-
-                        if package_end_time and package_type:
-                            # Get holidays for this period
-                            holidays = set(
-                                Holiday.objects.filter(
-                                    start_date__lte=last_day,
-                                    end_date__gte=first_day,
-                                    is_active=True,
-                                ).values_list("start_date", flat=True)
-                            )
-
-                            # Group logs by date
-                            logs_by_date = defaultdict(list)
-                            for log in attendance_logs:
-                                logs_by_date[log.date_logged].append(log)
-
-                            # Generate breakdown for each day
-                            for log_date, logs in logs_by_date.items():
-                                if len(logs) >= 2:  # Complete attendance
-                                    logs_sorted = sorted(
-                                        logs, key=lambda x: x.time_logged or time(0, 0)
-                                    )
-                                    time_in = logs_sorted[0].time_logged
-                                    time_out = logs_sorted[-1].time_logged
-
-                                    if (
-                                        time_out
-                                        and package_end_time
-                                        and time_out > package_end_time
-                                    ):
-                                        # Calculate extra hours
-                                        package_end_datetime = datetime.combine(
-                                            log_date, package_end_time
-                                        )
-                                        actual_out_datetime = datetime.combine(
-                                            log_date, time_out
-                                        )
-                                        extra_time_delta = (
-                                            actual_out_datetime - package_end_datetime
-                                        )
-                                        extra_hours = (
-                                            extra_time_delta.total_seconds() / 3600
-                                        )
-
-                                        # Calculate charges for this day
-                                        day_extra_charges = Decimal("0.00")
-
-                                        # Check after 5:30 charges
-                                        extra_slots = ExtraHoursAfter530.objects.filter(
-                                            package_type=package_type,
-                                            from_time__lte=time_out,
-                                            to_time__gte=time_out,
-                                            effective_from__lte=log_date,
-                                        ).filter(
-                                            Q(effective_to__gte=log_date)
-                                            | Q(effective_to__isnull=True)
-                                        )
-
-                                        for slot in extra_slots:
-                                            day_extra_charges += slot.extra_rate
-
-                                        # Check before 5:30 charges if applicable
-                                        cutoff_530 = time(17, 30)
-                                        if (
-                                            package_end_time < cutoff_530
-                                            and time_out > cutoff_530
-                                        ):
-                                            cutoff_datetime = datetime.combine(
-                                                log_date, cutoff_530
-                                            )
-                                            hours_before_530 = (
-                                                cutoff_datetime - package_end_datetime
-                                            ).total_seconds() / 3600
-                                            hour_count = int(hours_before_530) + (
-                                                1 if hours_before_530 % 1 > 0 else 0
-                                            )
-
-                                            for hour_num in range(
-                                                1, min(hour_count + 1, 7)
-                                            ):
-                                                rate_obj = (
-                                                    ExtraHoursUpTo530.objects.filter(
-                                                        hour_number=hour_num,
-                                                        effective_from__lte=log_date,
-                                                        is_active=True,
-                                                    )
-                                                    .filter(
-                                                        Q(effective_to__gte=log_date)
-                                                        | Q(effective_to__isnull=True)
-                                                    )
-                                                    .first()
-                                                )
-
-                                                if rate_obj:
-                                                    day_extra_charges += (
-                                                        rate_obj.extra_rate
-                                                    )
-
-                                        if day_extra_charges > 0:
-                                            extra_charges_breakdown.append(
-                                                {
-                                                    "date": log_date.strftime(
-                                                        "%Y-%m-%d"
-                                                    ),
-                                                    "time_in": time_in.strftime("%H:%M")
-                                                    if time_in
-                                                    else "N/A",
-                                                    "time_out": time_out.strftime(
-                                                        "%H:%M"
-                                                    ),
-                                                    "extra_hours": round(
-                                                        extra_hours, 2
-                                                    ),
-                                                    "rate": float(day_extra_charges),
-                                                    "charges": float(day_extra_charges),
-                                                }
-                                            )
-
-                                    # Check for holiday charges
-                                    if (
-                                        log_date in holidays
-                                        and package_mapping.holiday_package
-                                    ):
-                                        expected_days = (
-                                            package_mapping.holiday_package.no_days_months
-                                            or 22
-                                        )
-                                        daily_holiday_rate = (
-                                            package_mapping.holiday_package.package_total
-                                            / Decimal(expected_days)
-                                        )
-
-                                        holiday_obj = Holiday.objects.filter(
-                                            start_date__lte=log_date,
-                                            end_date__gte=log_date,
-                                            is_active=True,
-                                        ).first()
-
-                                        holiday_charges_breakdown.append(
-                                            {
-                                                "date": log_date.strftime("%Y-%m-%d"),
-                                                "holiday_name": holiday_obj.title
-                                                if holiday_obj
-                                                else "Holiday",
-                                                "rate": float(daily_holiday_rate),
-                                                "charges": float(daily_holiday_rate),
-                                            }
-                                        )
-
-                except Exception as e:
-                    print(f"Error generating breakdown: {e}")
-                    # Continue without breakdown data
-
-            memo_data = {
-                # Basic memo info
-                "id": memo.id,
-                "memo_code": memo.memo_code,
-                "memo_date": memo.memo_date.strftime("%Y-%m-%d"),
-                "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}",
-                "child_admission": memo.child.admission_number,
-                "year": memo.year,
-                "status": memo.status,
-                "branch_name": memo.branch_name,
-                "center_name": memo.center_name,
-                "notes": memo.notes or "",
-                # 3-month breakdown - ENHANCED WITH GENERATED BREAKDOWN
-                "month1": {
-                    "name": month1_detail.month_name,
-                    "year": month1_detail.year,
-                    "type": month1_detail.month_type,
-                    "charge": float(month1_detail.charge_amount),
-                    "payments": float(month1_detail.payment_amount),
-                    "balance": float(month1_detail.balance_amount),
-                    "status": "Outstanding"
-                    if month1_detail.charge_amount > 0
-                    else "No Record",
-                    "details": month1_detail.calculation_details or {},
-                },
-                "month2": {
-                    "name": month2_detail.month_name,
-                    "year": month2_detail.year,
-                    "type": month2_detail.month_type,
-                    "charge": float(month2_detail.charge_amount),
-                    "payments": float(month2_detail.payment_amount),
-                    "balance": float(month2_detail.balance_amount),
-                    "package_fee": float(
-                        month2_detail.calculation_details.get("package_fee", 0)
-                    )
-                    if month2_detail.calculation_details
-                    else float(month2_detail.charge_amount),
-                    "extra_charges": float(
-                        month2_detail.calculation_details.get("extra_charges", 0)
-                    )
-                    if month2_detail.calculation_details
-                    else 0,
-                    "holiday_charges": float(
-                        month2_detail.calculation_details.get("holiday_charges", 0)
-                    )
-                    if month2_detail.calculation_details
-                    else 0,
-                    "discount": float(
-                        month2_detail.calculation_details.get("discount_applied", 0)
-                    )
-                    if month2_detail.calculation_details
-                    else 0,
-                    "days_attended": month2_detail.calculation_details.get(
-                        "days_attended", 0
-                    )
-                    if month2_detail.calculation_details
-                    else 0,
-                    "expected_days": month2_detail.calculation_details.get(
-                        "expected_days", 22
-                    )
-                    if month2_detail.calculation_details
-                    else 22,
-                    "is_half_charge": month2_detail.calculation_details.get(
-                        "is_half_charge", False
-                    )
-                    if month2_detail.calculation_details
-                    else False,
-                    "details": month2_detail.calculation_details or {},
-                    # GENERATED BREAKDOWN DATA
-                    "extra_charges_breakdown": extra_charges_breakdown,
-                    "holiday_charges_breakdown": holiday_charges_breakdown,
-                    "package_name": month2_detail.calculation_details.get(
-                        "package_name", "Unknown Package"
-                    )
-                    if month2_detail.calculation_details
-                    else "Unknown Package",
-                },
-                "month3": {
-                    "name": month3_detail.month_name,
-                    "year": month3_detail.year,
-                    "type": month3_detail.month_type,
-                    "charge": float(month3_detail.charge_amount),
-                    "payments": float(month3_detail.payment_amount),
-                    "balance": float(month3_detail.balance_amount),
-                    "package_fee": float(
-                        month3_detail.calculation_details.get("package_fee", 0)
-                    )
-                    if month3_detail.calculation_details
-                    else float(month3_detail.charge_amount),
-                    "details": month3_detail.calculation_details or {},
-                },
-                # Summary
-                "summary": {
-                    "total_outstanding": float(memo.total_outstanding)
-                    if memo.total_outstanding
-                    else 0,
-                    "grand_total": float(memo.grand_total) if memo.grand_total else 0,
-                    "total_payments": float(memo.total_payments_received)
-                    if memo.total_payments_received
-                    else 0,
-                },
-                # Flag to indicate this is 3-month data
-                "is_three_month_format": True,
-            }
-
-        else:
-            # Fallback for old single-month format
-            memo_data = {
-                "id": memo.id,
-                "memo_code": memo.memo_code,
-                "memo_date": memo.memo_date.strftime("%Y-%m-%d"),
-                "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}",
-                "child_admission": memo.child.admission_number,
-                "month_name": calendar.month_name[memo.month]
-                if memo.month
-                else "Unknown",
-                "year": memo.year,
-                "status": memo.status,
-                "package_name": memo.package_name,
-                "days_attended": memo.days_attended,
-                "expected_days": memo.expected_days,
-                "attendance_percentage": float(memo.attendance_percentage),
-                "is_half_charge_applied": memo.is_half_charge_applied,
-                "current_month_fee": float(memo.current_month_package_fee),
-                "extra_hours_charge": float(memo.extra_hours_charge),
-                "holiday_charge": float(memo.holiday_charge),
-                "holiday_attendance_days": memo.holiday_attendance_days,
-                "discount_applied": float(memo.discount_applied),
-                "month_total_charge": float(memo.month_total_charge),
-                "total_payments_received": float(memo.total_payments_received),
-                "month_net_balance": float(memo.month_net_balance),
-                "branch_name": memo.branch_name,
-                "center_name": memo.center_name,
-                "notes": memo.notes or "",
-                "is_three_month_format": False,
-            }
-
-        return JsonResponse(memo_data)
-
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
 
 
 @login_required
@@ -8056,382 +7685,324 @@ def calculateMemoData(request):
 @login_required
 @transaction.atomic
 def saveMemoDataEntry(request):
-    """Save manually entered memo data with receipt numbers for each month"""
+    """Save manually entered memo data - MATCHES YOUR REDESIGNED MODELS"""
     try:
-        print("in the method")
         if request.method != "POST":
             messages.error(request, "Invalid request method")
             return redirect("core:memo_data_entry")
 
-        # Extract basic form data
+        # Extract form data
         child_id = request.POST.get("child")
         month = request.POST.get("month")
         year = request.POST.get("year")
 
-        # Outstanding (2 months ago) data
+        # Outstanding (2 months ago)
         outstanding_amount = Decimal(request.POST.get("outstanding_amount") or "0")
-        payment_settled = Decimal(request.POST.get("payment_settled") or "0")
-        outstanding_receipt_number = request.POST.get(
-            "outstanding_receipt_number", ""
-        ).strip()
+        outstanding_payment = Decimal(request.POST.get("payment_settled") or "0")
+        outstanding_receipt = request.POST.get("outstanding_receipt_number", "").strip()
 
-        # Previous month data
-        previous_package_fee = Decimal(request.POST.get("previous_package_fee") or "0")
-        previous_extra_hours = Decimal(request.POST.get("previous_extra_hours") or "0")
-        previous_holiday_charges = Decimal(
+        # Previous month (1 month ago)
+        prev_package_fee = Decimal(request.POST.get("previous_package_fee") or "0")
+        prev_extra_hours = Decimal(request.POST.get("previous_extra_hours") or "0")
+        prev_holiday_charges = Decimal(
             request.POST.get("previous_holiday_charges") or "0"
         )
-        previous_discount_applied = Decimal(
-            request.POST.get("previous_discount_applied") or "0"
-        )
-        previous_payment = Decimal(request.POST.get("previous_payment") or "0")
-        previous_receipt_number = request.POST.get(
-            "previous_receipt_number", ""
-        ).strip()
+        prev_discount = Decimal(request.POST.get("previous_discount_applied") or "0")
+        prev_payment = Decimal(request.POST.get("previous_payment") or "0")
+        prev_receipt = request.POST.get("previous_receipt_number", "").strip()
 
-        # Current month data
-        package_fee = Decimal(request.POST.get("package_fee") or "0")
-        extra_hours = Decimal(request.POST.get("extra_hours") or "0")
-        holiday_charges = Decimal(request.POST.get("holiday_charges") or "0")
-        discount_applied = Decimal(request.POST.get("discount_applied") or "0")
-        current_payment = Decimal(request.POST.get("current_payment") or "0")
-        current_receipt_number = request.POST.get("current_receipt_number", "").strip()
+        # Current month
+        curr_package_fee = Decimal(request.POST.get("package_fee") or "0")
+        curr_extra_hours = Decimal(request.POST.get("extra_hours") or "0")
+        curr_holiday_charges = Decimal(request.POST.get("holiday_charges") or "0")
+        curr_discount = Decimal(request.POST.get("discount_applied") or "0")
+        curr_payment = Decimal(request.POST.get("current_payment") or "0")
+        curr_receipt = request.POST.get("current_receipt_number", "").strip()
 
         # Validation
         if not all([child_id, month, year]):
             messages.error(request, "Please fill in all required fields")
             return redirect("core:memo_data_entry")
 
-        # Validate month and year
-        try:
-            month_int = int(month)
-            year_int = int(year)
-            if not (1 <= month_int <= 12):
-                raise ValueError("Invalid month")
-            if year_int < 2020 or year_int > datetime.now().year + 1:
-                raise ValueError("Invalid year")
-        except ValueError as e:
-            messages.error(request, f"Invalid date values: {str(e)}")
-            return redirect("core:memo_data_entry")
+        month_int = int(month)
+        year_int = int(year)
+        child = Child.objects.get(id=child_id, is_active=True)
 
-        # Get child
-        try:
-            child = Child.objects.get(id=child_id, is_active=True)
-        except Child.DoesNotExist:
-            messages.error(request, "Selected child not found or inactive")
-            return redirect("core:memo_data_entry")
-
-        # Check if memo already exists
-        existing_memo = InvoiceMemo.objects.filter(
-            child=child, month=month_int, year=year_int, is_active=True
-        ).first()
-
-        if existing_memo:
+        # Check if memo already exists (using correct field names)
+        if InvoiceMemo.objects.filter(
+            child=child, memo_month=month_int, memo_year=year_int
+        ).exists():
             messages.error(
                 request,
-                f"Memo already exists for {calendar.month_name[month_int]} {year_int} (Code: {existing_memo.memo_code})",
+                f"Memo already exists for {calendar.month_name[month_int]} {year_int}",
             )
             return redirect("core:memo_data_entry")
 
-        # Calculate month details
-        current_month_int = month_int
-        current_year_int = year_int
-
-        # Previous month calculation
-        if current_month_int > 1:
-            prev_month = current_month_int - 1
-            prev_year = current_year_int
-        else:
-            prev_month = 12
-            prev_year = current_year_int - 1
-
-        # Two months ago (outstanding) calculation
-        if current_month_int > 2:
-            two_months_ago = current_month_int - 2
-            two_months_ago_year = current_year_int
-        elif current_month_int == 2:
-            two_months_ago = 12
-            two_months_ago_year = current_year_int - 1
-        else:  # current_month_int == 1
-            two_months_ago = 11
-            two_months_ago_year = current_year_int - 1
-
-        # Calculate financial totals
-        remaining_balance = outstanding_amount - payment_settled
-
-        previous_month_charges = (
-            previous_package_fee
-            + previous_extra_hours
-            + previous_holiday_charges
-            - previous_discount_applied
-        )
-        previous_month_balance = previous_month_charges - previous_payment
-
-        current_month_charges = (
-            package_fee + extra_hours + holiday_charges - discount_applied
-        )
-        current_month_balance = current_month_charges - current_payment
-
-        # Calculate grand total (sum of all balances)
-        grand_total = remaining_balance + previous_month_balance + current_month_balance
-
-        # Total payments across all months
-        total_payments = payment_settled + previous_payment + current_payment
+        # Calculate month details for detail records
+        prev_month = month_int - 1 if month_int > 1 else 12
+        prev_year = year_int if month_int > 1 else year_int - 1
+        outstanding_month = month_int - 2 if month_int > 2 else (12 + month_int - 2)
+        outstanding_year = year_int if month_int > 2 else year_int - 1
 
         # Generate memo code
-        try:
-            next_memo_id = InvoiceMemo.objects.count() + 1
-            memo_code = f"MO{next_memo_id:04d}"  # Format: MO0001, MO0002, etc.
+        next_memo_id = InvoiceMemo.objects.count() + 1
+        memo_code = f"MO{next_memo_id:04d}"
+        while InvoiceMemo.objects.filter(memo_code=memo_code).exists():
+            next_memo_id += 1
+            memo_code = f"MO{next_memo_id:04d}"
 
-            # Ensure unique memo code
-            while InvoiceMemo.objects.filter(memo_code=memo_code).exists():
-                next_memo_id += 1
-                memo_code = f"MO{next_memo_id:04d}"
-
-        except Exception:
-            memo_code = f"MO{datetime.now().strftime('%Y%m%d%H%M%S')}"
-
-        # Get package and enrollment info
+        # Get child info
         package_mapping = ChildPackageMapping.objects.filter(
             child=child, is_active=True
         ).first()
-
         enrollment = ChildEnrollment.objects.filter(
             child=child, status="Approved", is_active=True
         ).first()
 
         if not package_mapping or not enrollment:
-            messages.error(
-                request, "No active package mapping or enrollment found for this child"
-            )
+            messages.error(request, "No active package mapping or enrollment found")
             return redirect("core:memo_data_entry")
 
         # Determine package name
         package_name = "Manual Entry Package"
-        expected_days = 22  # Default
-
         if package_mapping.normal_package:
             package_name = package_mapping.normal_package.package_name
-            expected_days = package_mapping.normal_package.no_days_months or 22
         elif package_mapping.holiday_package:
             package_name = f"{package_mapping.holiday_package.package_name} (Holiday)"
-            expected_days = package_mapping.holiday_package.no_days_months or 22
         elif package_mapping.flex_package:
             package_name = f"{package_mapping.flex_package.package_name} (Flex)"
-            expected_days = package_mapping.flex_package.no_days_months or 22
 
-        # Prepare payment receipts JSON
-        payment_receipts = []
-        if outstanding_receipt_number or payment_settled > 0:
-            payment_receipts.append(
-                {
-                    "month_type": "outstanding",
-                    "month_name": calendar.month_name[two_months_ago],
-                    "year": two_months_ago_year,
-                    "amount": float(payment_settled),
-                    "receipt": outstanding_receipt_number,
-                    "date": datetime.now().strftime("%Y-%m-%d"),
-                    "manually_entered": True,
-                }
-            )
-
-        if previous_receipt_number or previous_payment > 0:
-            payment_receipts.append(
-                {
-                    "month_type": "previous",
-                    "month_name": calendar.month_name[prev_month],
-                    "year": prev_year,
-                    "amount": float(previous_payment),
-                    "receipt": previous_receipt_number,
-                    "date": datetime.now().strftime("%Y-%m-%d"),
-                    "manually_entered": True,
-                }
-            )
-
-        if current_receipt_number or current_payment > 0:
-            payment_receipts.append(
-                {
-                    "month_type": "current",
-                    "month_name": calendar.month_name[current_month_int],
-                    "year": current_year_int,
-                    "amount": float(current_payment),
-                    "receipt": current_receipt_number,
-                    "date": datetime.now().strftime("%Y-%m-%d"),
-                    "manually_entered": True,
-                }
-            )
-        payment_receipt_pairs = [
-            (payment_settled, outstanding_receipt_number, "outstanding"),
-            (previous_payment, previous_receipt_number, "previous month"),
-            (current_payment, current_receipt_number, "current month"),
-        ]
-
-        for payment, receipt, period_name in payment_receipt_pairs:
-            if payment > 0 and not receipt.strip():
-                messages.error(
-                    request, f"Receipt number is required for {period_name} payment"
-                )
-                return redirect("core:memo_data_entry")
-        # Create the memo with transaction safety
         with transaction.atomic():
-            # Create main memo record
+            # Create main memo record using your REDESIGNED model
             memo = InvoiceMemo.objects.create(
-                # Basic information
                 memo_date=datetime.now().date(),
                 memo_code=memo_code,
                 child=child,
-                year=current_year_int,
-                month=current_month_int,
-                # Package information
-                package_name=package_name,
-                package_base_fee=package_fee,
-                days_attended=0,  # Manual entry doesn't track attendance
-                expected_days=expected_days,
-                attendance_percentage=Decimal("0.00"),
-                is_half_charge_applied=False,
-                # Current month financial details (for backward compatibility)
-                current_month_package_fee=package_fee,
-                extra_hours_charge=extra_hours,
-                holiday_attendance_days=0,
-                holiday_charge=holiday_charges,
-                discount_applied=discount_applied,
-                discount_percentage=Decimal("0.00"),
-                # Monthly totals
-                month_total_charge=current_month_charges,
-                total_payments_received=total_payments,
-                month_net_balance=current_month_balance,
-                # 3-month summary totals
-                total_outstanding=remaining_balance,
-                grand_total=grand_total,
-                # Payment tracking
-                payment_receipts=json.dumps(payment_receipts)
-                if payment_receipts
-                else None,
-                # Status and location
+                memo_month=month_int,  # ✅ Correct field name
+                memo_year=year_int,  # ✅ Correct field name
+                # Summary totals will be calculated after creating details
                 status="GENERATED",
-                branch_name=enrollment.branch.branch_name,
-                center_name=enrollment.center.daycare_name,
-                # Notes and audit
-                notes=f"Manually entered memo on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}. "
-                f"Total outstanding: Rs.{float(remaining_balance):,.2f}, "
-                f"Grand total: Rs.{float(grand_total):,.2f}",
+                notes=f"Manually entered memo on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
                 user_created=request.user.username,
-                date_created=datetime.now(),
             )
 
-            # Create detailed records for 3-month structure
-            from .models import InvoiceMemoDetail
-
-            # Month 1 - Outstanding (2 months ago)
+            # Create Outstanding Month Detail (Month 1)
             outstanding_detail = InvoiceMemoDetail.objects.create(
                 memo=memo,
                 month_sequence=1,
-                month=two_months_ago,
-                year=two_months_ago_year,
-                month_name=calendar.month_name[two_months_ago],
                 month_type="OUTSTANDING",
-                charge_amount=outstanding_amount,
-                payment_amount=payment_settled,
-                balance_amount=remaining_balance,
-                receipt_number=outstanding_receipt_number,
+                actual_month=outstanding_month,
+                actual_year=outstanding_year,
+                month_name=calendar.month_name[outstanding_month],
+                # Outstanding is stored as package_fee for simplicity
+                package_fee=outstanding_amount,
+                extra_hours_charge=Decimal("0"),
+                holiday_charges=Decimal("0"),
+                discount_applied=Decimal("0"),
+                # Payment
+                payments_received=outstanding_payment,
+                payment_receipts=[
+                    {
+                        "amount": float(outstanding_payment),
+                        "receipt_number": outstanding_receipt,
+                        "date": datetime.now().strftime("%Y-%m-%d"),
+                        "type": "outstanding_settlement",
+                    }
+                ]
+                if outstanding_payment > 0
+                else [],
+                package_name="Outstanding Balance",
+                notes="Outstanding balance from previous periods",
                 calculation_details={
                     "manually_entered": True,
                     "original_outstanding": float(outstanding_amount),
-                    "payment_settled": float(payment_settled),
-                    "receipt_number": outstanding_receipt_number,
-                    "notes": "Outstanding balance from previous periods",
+                    "payment_settled": float(outstanding_payment),
+                    "receipt_number": outstanding_receipt,
                 },
                 user_created=request.user.username,
             )
 
-            # Month 2 - Previous month (calculated)
+            # Create Previous Month Detail (Month 2) - ALL CHARGES IN DEDICATED FIELDS ✅
             previous_detail = InvoiceMemoDetail.objects.create(
                 memo=memo,
                 month_sequence=2,
-                month=prev_month,
-                year=prev_year,
+                month_type="PREVIOUS",
+                actual_month=prev_month,
+                actual_year=prev_year,
                 month_name=calendar.month_name[prev_month],
-                month_type="CALCULATED",
-                charge_amount=previous_month_charges,
-                payment_amount=previous_payment,
-                balance_amount=previous_month_balance,
-                receipt_number=previous_receipt_number,
+                # ✅ ALL PREVIOUS MONTH CHARGES STORED IN DEDICATED FIELDS
+                package_fee=prev_package_fee,
+                extra_hours_charge=prev_extra_hours,  # ✅ STORED AS FIELD
+                holiday_charges=prev_holiday_charges,  # ✅ STORED AS FIELD
+                discount_applied=prev_discount,
+                # Payment
+                payments_received=prev_payment,
+                payment_receipts=[
+                    {
+                        "amount": float(prev_payment),
+                        "receipt_number": prev_receipt,
+                        "date": datetime.now().strftime("%Y-%m-%d"),
+                        "type": "previous_month_payment",
+                    }
+                ]
+                if prev_payment > 0
+                else [],
+                package_name=package_name,
+                expected_days=22,
+                notes=f"Previous month - Package: Rs.{prev_package_fee}, Extra Hours: Rs.{prev_extra_hours}, Holiday: Rs.{prev_holiday_charges}",
                 calculation_details={
                     "manually_entered": True,
-                    "package_fee": float(previous_package_fee),
-                    "extra_hours": float(previous_extra_hours),
-                    "holiday_charges": float(previous_holiday_charges),
-                    "discount_applied": float(previous_discount_applied),
-                    "total_charges": float(previous_month_charges),
-                    "payment_received": float(previous_payment),
-                    "receipt_number": previous_receipt_number,
-                    "notes": "Previous month charges with manual calculations",
+                    "breakdown": {
+                        "package_fee": float(prev_package_fee),
+                        "extra_hours": float(prev_extra_hours),
+                        "holiday_charges": float(prev_holiday_charges),
+                        "discount": float(prev_discount),
+                    },
                 },
                 user_created=request.user.username,
             )
 
-            # Month 3 - Current month
+            # Create Current Month Detail (Month 3) - ALL CHARGES IN DEDICATED FIELDS ✅
             current_detail = InvoiceMemoDetail.objects.create(
                 memo=memo,
                 month_sequence=3,
-                month=current_month_int,
-                year=current_year_int,
-                month_name=calendar.month_name[current_month_int],
                 month_type="CURRENT",
-                charge_amount=current_month_charges,
-                payment_amount=current_payment,
-                balance_amount=current_month_balance,
-                receipt_number=current_receipt_number,
+                actual_month=month_int,
+                actual_year=year_int,
+                month_name=calendar.month_name[month_int],
+                # ✅ ALL CURRENT MONTH CHARGES STORED IN DEDICATED FIELDS
+                package_fee=curr_package_fee,
+                extra_hours_charge=curr_extra_hours,  # ✅ STORED AS FIELD
+                holiday_charges=curr_holiday_charges,  # ✅ STORED AS FIELD
+                discount_applied=curr_discount,
+                # Payment
+                payments_received=curr_payment,
+                payment_receipts=[
+                    {
+                        "amount": float(curr_payment),
+                        "receipt_number": curr_receipt,
+                        "date": datetime.now().strftime("%Y-%m-%d"),
+                        "type": "current_month_payment",
+                    }
+                ]
+                if curr_payment > 0
+                else [],
+                package_name=package_name,
+                expected_days=22,
+                notes=f"Current month - Package: Rs.{curr_package_fee}, Extra Hours: Rs.{curr_extra_hours}, Holiday: Rs.{curr_holiday_charges}",
                 calculation_details={
                     "manually_entered": True,
-                    "package_name": package_name,
-                    "package_fee": float(package_fee),
-                    "extra_hours": float(extra_hours),
-                    "holiday_charges": float(holiday_charges),
-                    "discount_applied": float(discount_applied),
-                    "total_charges": float(current_month_charges),
-                    "payment_received": float(current_payment),
-                    "receipt_number": current_receipt_number,
-                    "expected_days": expected_days,
-                    "notes": "Current month charges with manual entry",
+                    "breakdown": {
+                        "package_fee": float(curr_package_fee),
+                        "extra_hours": float(curr_extra_hours),
+                        "holiday_charges": float(curr_holiday_charges),
+                        "discount": float(curr_discount),
+                    },
                 },
                 user_created=request.user.username,
             )
 
-        # Success message with details
+            # Calculate memo totals automatically using the model method
+            memo.calculate_totals()
+            memo.save()
+
+        # Success message with detailed breakdown
         success_message = (
-            f"Memo {memo_code} created successfully for {child.child_first_name} {child.child_last_name} "
-            f"({calendar.month_name[current_month_int]} {current_year_int}). "
-            f"Grand Total: Rs.{float(grand_total):,.2f}"
+            f"Memo {memo_code} created successfully! "
+            f"Outstanding: Rs.{outstanding_detail.net_balance:,.2f}, "
+            f"Previous: Rs.{previous_detail.net_balance:,.2f}, "
+            f"Current: Rs.{current_detail.net_balance:,.2f}, "
+            f"Total Due: Rs.{memo.net_amount_due:,.2f}"
         )
         messages.success(request, success_message)
 
-        # Clear any draft data from session
-        if "memo_draft" in request.session:
-            del request.session["memo_draft"]
-            request.session.modified = True
-
-        return redirect("core:memo_data_entry")
-
-    except ValueError as e:
-        messages.error(request, f"Invalid data provided: {str(e)}")
-        return redirect("core:memo_data_entry")
-
-    except IntegrityError as e:
-        messages.error(
-            request, f"Database error: This memo may already exist. {str(e)}"
-        )
-        return redirect("core:memo_data_entry")
-
-    except Child.DoesNotExist:
-        messages.error(request, "Selected child not found")
         return redirect("core:memo_data_entry")
 
     except Exception as e:
-        # Log the full error for debugging
+        import traceback
 
+        traceback.print_exc()  # Print full error for debugging
         messages.error(request, f"Error saving memo: {str(e)}")
         return redirect("core:memo_data_entry")
+
+
+# Updated retrieval function for your redesigned models
+@login_required
+def getInvoiceMemoByID(request, pk):
+    """Get memo data - REDESIGNED MODEL VERSION"""
+    try:
+        memo = get_object_or_404(InvoiceMemo, pk=pk)
+        details = memo.month_details.all().order_by("month_sequence")
+
+        if details.count() == 3:
+            outstanding_detail = details[0]
+            previous_detail = details[1]
+            current_detail = details[2]
+
+            memo_data = {
+                "id": memo.id,
+                "memo_code": memo.memo_code,
+                "memo_date": memo.memo_date.strftime("%Y-%m-%d"),
+                "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}",
+                "child_admission": memo.child.admission_number,
+                "year": memo.memo_year,
+                "status": memo.status,
+                # Clean 3-month structure with DIRECT FIELD ACCESS
+                "outstanding_month": {
+                    "name": outstanding_detail.month_name,
+                    "year": outstanding_detail.actual_year,
+                    "gross_charges": float(outstanding_detail.gross_charges),
+                    "payments": float(outstanding_detail.payments_received),
+                    "balance": float(outstanding_detail.net_balance),
+                },
+                "previous_month": {
+                    "name": previous_detail.month_name,
+                    "year": previous_detail.actual_year,
+                    "package_fee": float(previous_detail.package_fee),
+                    "extra_hours": float(
+                        previous_detail.extra_hours_charge
+                    ),  # ✅ DIRECT ACCESS
+                    "holiday_charges": float(
+                        previous_detail.holiday_charges
+                    ),  # ✅ DIRECT ACCESS
+                    "discount": float(previous_detail.discount_applied),
+                    "gross_charges": float(previous_detail.gross_charges),
+                    "payments": float(previous_detail.payments_received),
+                    "balance": float(previous_detail.net_balance),
+                    "package_name": previous_detail.package_name,
+                },
+                "current_month": {
+                    "name": current_detail.month_name,
+                    "year": current_detail.actual_year,
+                    "package_fee": float(current_detail.package_fee),
+                    "extra_hours": float(
+                        current_detail.extra_hours_charge
+                    ),  # ✅ DIRECT ACCESS
+                    "holiday_charges": float(
+                        current_detail.holiday_charges
+                    ),  # ✅ DIRECT ACCESS
+                    "discount": float(current_detail.discount_applied),
+                    "gross_charges": float(current_detail.gross_charges),
+                    "payments": float(current_detail.payments_received),
+                    "balance": float(current_detail.net_balance),
+                    "package_name": current_detail.package_name,
+                },
+                # Summary totals from model
+                "totals": {
+                    "gross_total": float(memo.gross_total),
+                    "total_payments": float(memo.total_payments),
+                    "net_amount_due": float(memo.net_amount_due),
+                    "total_outstanding": float(memo.total_outstanding),
+                    "total_previous_month": float(memo.total_previous_month),
+                    "total_current_month": float(memo.total_current_month),
+                },
+                "is_redesigned_format": True,
+            }
+
+        return JsonResponse(memo_data)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 @login_required
