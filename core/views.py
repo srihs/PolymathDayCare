@@ -4676,11 +4676,12 @@ def calculate_three_month_display_data(child, current_month, current_year):
 
 
 def calculate_current_month_charges(child, package_mapping, enrollment, month, year):
-    """Calculate current month charges (fresh calculation)"""
+    """Calculate current month charges (fresh calculation) - FIXED VERSION"""
     try:
         import calendar
         from collections import defaultdict
         from datetime import datetime, time
+        from decimal import Decimal
 
         from django.db.models import Q
 
@@ -4724,30 +4725,120 @@ def calculate_current_month_charges(child, package_mapping, enrollment, month, y
 
         present_days = 0
         holiday_attendance_days = 0
-        extra_hours_charge = Decimal("0.00")
+        extra_hours_charge = Decimal("0.00")  # WILL BE CALCULATED WITH CORRECTED LOGIC
         holiday_charge = Decimal("0.00")
 
-        # Process each attendance day
+        # Get package details for extra hours calculation
+        package_end_time = None
+        package_type = None
+
+        if package_mapping.normal_package:
+            package_end_time = package_mapping.normal_package.to_time
+            package_type = package_mapping.normal_package.package_type
+        elif package_mapping.holiday_package:
+            package_end_time = package_mapping.holiday_package.to_time
+            package_type = package_mapping.holiday_package.package_type
+        elif package_mapping.flex_package:
+            package_end_time = time(17, 30)  # Default for flex
+            package_type = package_mapping.flex_package.package_type
+
+        # Process each attendance day with CORRECTED LOGIC
         for log_date, logs in logs_by_date.items():
             logs_sorted = sorted(logs, key=lambda x: x.time_logged or time(0, 0))
 
             if len(logs_sorted) >= 2:  # Complete attendance (in and out)
                 present_days += 1
                 last_log = logs_sorted[-1]
+                time_out = last_log.time_logged
 
                 is_holiday_day = log_date in holidays
 
-                # Calculate extra hours charges
-                log_time_out = last_log.time_logged or time(0, 0)
-                extra_slots = ExtraHoursAfter530.objects.filter(
-                    package_type=package.package_type,
-                    from_time__lte=log_time_out,
-                    to_time__gte=log_time_out,
-                    effective_from__lte=log_date,
-                ).filter(Q(effective_to__gte=log_date) | Q(effective_to__isnull=True))
+                # ===== CORRECTED CUMULATIVE EXTRA HOURS CALCULATION =====
+                if time_out and package_end_time and time_out > package_end_time:
+                    day_extra_charges = Decimal("0.00")
+                    cutoff_530 = time(17, 30)
 
-                for slot in extra_slots:
-                    extra_hours_charge += slot.extra_rate
+                    # 1. Handle charges BEFORE 5:30 PM
+                    if package_end_time < cutoff_530 and time_out > package_end_time:
+                        end_time_for_before_530 = min(time_out, cutoff_530)
+
+                        if end_time_for_before_530 > package_end_time:
+                            package_end_datetime = datetime.combine(
+                                log_date, package_end_time
+                            )
+                            before_530_datetime = datetime.combine(
+                                log_date, end_time_for_before_530
+                            )
+                            hours_before_530 = (
+                                before_530_datetime - package_end_datetime
+                            ).total_seconds() / 3600
+
+                            hour_count = int(hours_before_530)
+                            if hours_before_530 % 1 > 0:
+                                hour_count += 1
+
+                            for hour_num in range(1, min(hour_count + 1, 7)):
+                                rate_obj = (
+                                    ExtraHoursUpTo530.objects.filter(
+                                        hour_number=hour_num,
+                                        effective_from__lte=log_date,
+                                        is_active=True,
+                                    )
+                                    .filter(
+                                        Q(effective_to__gte=log_date)
+                                        | Q(effective_to__isnull=True)
+                                    )
+                                    .first()
+                                )
+
+                                if rate_obj:
+                                    day_extra_charges += rate_obj.extra_rate
+
+                    # 2. Handle charges AFTER 5:30 PM (CUMULATIVE)
+                    if time_out > cutoff_530:
+                        start_time_after_530 = max(package_end_time, cutoff_530)
+
+                        # Get ALL applicable slots (CUMULATIVE - KEY FIX)
+                        applicable_slots = (
+                            ExtraHoursAfter530.objects.filter(
+                                package_type=package_type,
+                                from_time__gte=start_time_after_530,
+                                from_time__lt=time_out,
+                                effective_from__lte=log_date,
+                            )
+                            .filter(
+                                Q(effective_to__gte=log_date)
+                                | Q(effective_to__isnull=True)
+                            )
+                            .order_by("from_time")
+                        )
+
+                        # Add charges for ALL applicable slots
+                        for slot in applicable_slots:
+                            day_extra_charges += slot.extra_rate
+
+                        # Handle partial slot
+                        partial_slot = (
+                            ExtraHoursAfter530.objects.filter(
+                                package_type=package_type,
+                                from_time__lt=time_out,
+                                to_time__gt=time_out,
+                                from_time__gte=start_time_after_530,
+                                effective_from__lte=log_date,
+                            )
+                            .filter(
+                                Q(effective_to__gte=log_date)
+                                | Q(effective_to__isnull=True)
+                            )
+                            .first()
+                        )
+
+                        if partial_slot and partial_slot not in [
+                            slot for slot in applicable_slots
+                        ]:
+                            day_extra_charges += partial_slot.extra_rate
+
+                    extra_hours_charge += day_extra_charges
 
                 # Holiday attendance charge
                 if is_holiday_day and package_mapping.holiday_package:
@@ -4792,7 +4883,7 @@ def calculate_current_month_charges(child, package_mapping, enrollment, month, y
             "attendance_percentage": round(attendance_percentage, 2),
             "is_half_charge": is_half_charge,
             "package_fee": package_fee,
-            "extra_charges": extra_hours_charge,
+            "extra_charges": extra_hours_charge,  # ✅ NOW USES CORRECTED CALCULATION
             "holiday_attendance_days": holiday_attendance_days,
             "holiday_charges": holiday_charge,
             "discount": discount_amount,
@@ -5384,7 +5475,7 @@ def get_month_outstanding_credits(child, month, year):
 
 
 def calculate_month_with_attendance(child, package_mapping, enrollment, month, year):
-    """Calculate month charges with full attendance logic"""
+    """Calculate month charges with full attendance logic - COMPLETE FIXED VERSION"""
     try:
         import calendar
         from collections import defaultdict
@@ -5402,6 +5493,9 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
         package = (
             package_mapping.flex_package if is_flex else package_mapping.normal_package
         )
+
+        if not package:
+            raise Exception("No valid package assigned.")
 
         expected_days = package.no_days_months or 22
         package_total = package.package_total or Decimal("0.00")
@@ -5428,34 +5522,139 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
         extra_hours_charge = Decimal("0.00")
         holiday_charge = Decimal("0.00")
 
-        # Process each attendance day
+        # Get package details for extra hours calculation
+        package_end_time = None
+        package_type = None
+
+        if package_mapping.normal_package:
+            package_end_time = package_mapping.normal_package.to_time
+            package_type = package_mapping.normal_package.package_type
+        elif package_mapping.holiday_package:
+            package_end_time = package_mapping.holiday_package.to_time
+            package_type = package_mapping.holiday_package.package_type
+        elif package_mapping.flex_package:
+            package_end_time = time(17, 30)  # Default for flex
+            package_type = package_mapping.flex_package.package_type
+
+        # Process each attendance day with CORRECTED CUMULATIVE LOGIC
         for log_date, logs in logs_by_date.items():
             logs_sorted = sorted(logs, key=lambda x: x.time_logged or time(0, 0))
 
             if len(logs_sorted) >= 2:  # Complete attendance (in and out)
                 present_days += 1
                 last_log = logs_sorted[-1]
+                time_out = last_log.time_logged
 
                 is_holiday_day = log_date in holidays
 
-                # Calculate extra hours charges
-                log_time_out = last_log.time_logged or time(0, 0)
-                extra_slots = ExtraHoursAfter530.objects.filter(
-                    package_type=package.package_type,
-                    from_time__lte=log_time_out,
-                    to_time__gte=log_time_out,
-                    effective_from__lte=log_date,
-                ).filter(Q(effective_to__gte=log_date) | Q(effective_to__isnull=True))
+                # ===== CORRECTED CUMULATIVE EXTRA HOURS CALCULATION =====
+                if time_out and package_end_time and time_out > package_end_time:
+                    package_end_datetime = datetime.combine(log_date, package_end_time)
+                    actual_out_datetime = datetime.combine(log_date, time_out)
+                    extra_time_delta = actual_out_datetime - package_end_datetime
+                    extra_hours = extra_time_delta.total_seconds() / 3600
 
-                for slot in extra_slots:
-                    extra_hours_charge += slot.extra_rate
+                    day_extra_charges = Decimal("0.00")
+                    cutoff_530 = time(17, 30)
 
-                # Holiday attendance charge
+                    # 1. Handle charges BEFORE 5:30 PM (if package ends before 5:30)
+                    if package_end_time < cutoff_530 and time_out > package_end_time:
+                        # Calculate time between package end and 5:30 PM (or actual out time if earlier)
+                        end_time_for_before_530 = min(time_out, cutoff_530)
+
+                        if end_time_for_before_530 > package_end_time:
+                            before_530_datetime = datetime.combine(
+                                log_date, end_time_for_before_530
+                            )
+                            hours_before_530 = (
+                                before_530_datetime - package_end_datetime
+                            ).total_seconds() / 3600
+
+                            # Calculate number of complete + partial hours
+                            hour_count = int(hours_before_530)
+                            if hours_before_530 % 1 > 0:  # Has partial hour
+                                hour_count += 1
+
+                            # Add charges for each hour before 5:30 PM
+                            for hour_num in range(
+                                1, min(hour_count + 1, 7)
+                            ):  # Max 6 hours
+                                rate_obj = (
+                                    ExtraHoursUpTo530.objects.filter(
+                                        hour_number=hour_num,
+                                        effective_from__lte=log_date,
+                                        is_active=True,
+                                    )
+                                    .filter(
+                                        Q(effective_to__gte=log_date)
+                                        | Q(effective_to__isnull=True)
+                                    )
+                                    .first()
+                                )
+
+                                if rate_obj:
+                                    day_extra_charges += rate_obj.extra_rate
+
+                    # 2. Handle charges AFTER 5:30 PM (cumulative slot-by-slot)
+                    if time_out > cutoff_530:
+                        # Determine start time for after-5:30 charging
+                        start_time_after_530 = max(package_end_time, cutoff_530)
+
+                        # Get ALL time slots from start_time to actual out_time
+                        # This is the key fix - get ALL applicable slots, not just the final one
+                        applicable_slots = (
+                            ExtraHoursAfter530.objects.filter(
+                                package_type=package_type,
+                                from_time__gte=start_time_after_530,  # Slot starts after our start time
+                                from_time__lt=time_out,  # Slot starts before child leaves
+                                effective_from__lte=log_date,
+                            )
+                            .filter(
+                                Q(effective_to__gte=log_date)
+                                | Q(effective_to__isnull=True)
+                            )
+                            .order_by("from_time")
+                        )  # Order by time to ensure sequential processing
+
+                        # Add charges for ALL applicable slots (CUMULATIVE)
+                        for slot in applicable_slots:
+                            day_extra_charges += slot.extra_rate
+
+                        # Also check if child's out_time falls within any slot that starts before out_time
+                        # but ends after out_time (partial slot charging)
+                        partial_slot = (
+                            ExtraHoursAfter530.objects.filter(
+                                package_type=package_type,
+                                from_time__lt=time_out,  # Slot starts before child leaves
+                                to_time__gt=time_out,  # Slot ends after child leaves
+                                from_time__gte=start_time_after_530,  # Slot is relevant to our time range
+                                effective_from__lte=log_date,
+                            )
+                            .filter(
+                                Q(effective_to__gte=log_date)
+                                | Q(effective_to__isnull=True)
+                            )
+                            .first()
+                        )
+
+                        # Only add partial slot if not already included in applicable_slots
+                        if partial_slot and partial_slot not in [
+                            slot for slot in applicable_slots
+                        ]:
+                            day_extra_charges += partial_slot.extra_rate
+
+                    # Add to total extra hours charge
+                    extra_hours_charge += day_extra_charges
+
+                # Calculate holiday charges
                 if is_holiday_day and package_mapping.holiday_package:
                     holiday_attendance_days += 1
+                    expected_days_holiday = (
+                        package_mapping.holiday_package.no_days_months or 22
+                    )
                     daily_holiday_rate = (
                         package_mapping.holiday_package.package_total
-                        / Decimal(expected_days)
+                        / Decimal(expected_days_holiday)
                     )
                     holiday_charge += daily_holiday_rate
 
@@ -5493,7 +5692,7 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
             "attendance_percentage": round(attendance_percentage, 2),
             "is_half_charge": is_half_charge,
             "package_fee": package_fee,
-            "extra_charges": extra_hours_charge,
+            "extra_charges": extra_hours_charge,  # ✅ CORRECTED CUMULATIVE CALCULATION
             "holiday_attendance_days": holiday_attendance_days,
             "holiday_charges": holiday_charge,
             "discount": discount_amount,
@@ -5762,14 +5961,6 @@ def get_enhanced_outstanding_data(child, month, year):
 def calculate_enhanced_month_with_attendance(
     child, package_mapping, enrollment, month, year
 ):
-    """Enhanced calculation with detailed breakdown and payment tracking"""
-    import calendar
-    from collections import defaultdict
-    from datetime import datetime, time
-    from decimal import Decimal
-
-    from django.db.models import Q
-
     # Get the date range for the month
     first_day = datetime(year, month, 1).date()
     last_day = datetime(year, month, calendar.monthrange(year, month)[1]).date()
@@ -5802,19 +5993,28 @@ def calculate_enhanced_month_with_attendance(
 
     present_days = 0
     holiday_attendance_days = 0
-    extra_hours_charge = Decimal("0.00")
+    extra_hours_charge = Decimal("0.00")  # Will be calculated with CORRECTED logic
     holiday_charge = Decimal("0.00")
+
+    # Get package details for extra hours calculation
+    package_end_time = None
+    package_type = None
+
+    if package_mapping.normal_package:
+        package_end_time = package_mapping.normal_package.to_time
+        package_type = package_mapping.normal_package.package_type
+    elif package_mapping.holiday_package:
+        package_end_time = package_mapping.holiday_package.to_time
+        package_type = package_mapping.holiday_package.package_type
+    elif package_mapping.flex_package:
+        package_end_time = time(17, 30)  # Default for flex
+        package_type = package_mapping.flex_package.package_type
 
     # DETAILED BREAKDOWN LISTS
     extra_charges_breakdown = []
     holiday_charges_breakdown = []
-    breakdown_summary = {
-        "total_extra_instances": 0,
-        "total_holiday_days": 0,
-        "average_extra_hours": 0,
-    }
 
-    # Process each attendance day
+    # Process each attendance day with CORRECTED CUMULATIVE LOGIC
     for log_date, logs in logs_by_date.items():
         logs_sorted = sorted(logs, key=lambda x: x.time_logged or time(0, 0))
 
@@ -5827,9 +6027,9 @@ def calculate_enhanced_month_with_attendance(
             time_out = last_log.time_logged
             is_holiday_day = log_date in holidays
 
-            # Calculate extra hours charges with detailed breakdown
-            if time_out and package.to_time and time_out > package.to_time:
-                package_end_datetime = datetime.combine(log_date, package.to_time)
+            # ===== CORRECTED CUMULATIVE EXTRA HOURS CALCULATION =====
+            if time_out and package_end_time and time_out > package_end_time:
+                package_end_datetime = datetime.combine(log_date, package_end_time)
                 actual_out_datetime = datetime.combine(log_date, time_out)
                 extra_time_delta = actual_out_datetime - package_end_datetime
                 extra_hours = extra_time_delta.total_seconds() / 3600
@@ -5837,68 +6037,124 @@ def calculate_enhanced_month_with_attendance(
                 day_extra_charges = Decimal("0.00")
                 applied_rates = []
 
-                # Check for extra hours after 5:30 PM charges
-                extra_slots_after_530 = ExtraHoursAfter530.objects.filter(
-                    package_type=package.package_type,
-                    from_time__lte=time_out,
-                    to_time__gte=time_out,
-                    effective_from__lte=log_date,
-                ).filter(Q(effective_to__gte=log_date) | Q(effective_to__isnull=True))
-
-                for slot in extra_slots_after_530:
-                    day_extra_charges += slot.extra_rate
-                    applied_rates.append(
-                        {
-                            "time_slot": f"{slot.from_time.strftime('%H:%M')} - {slot.to_time.strftime('%H:%M')}",
-                            "rate": float(slot.extra_rate),
-                            "type": "After 5:30 PM",
-                        }
-                    )
-
-                # Check for extra hours before 5:30 PM if applicable
+                # 1. Handle charges BEFORE 5:30 PM
                 cutoff_530 = time(17, 30)
-                if package.to_time < cutoff_530 and time_out > cutoff_530:
-                    cutoff_datetime = datetime.combine(log_date, cutoff_530)
-                    hours_before_530 = (
-                        cutoff_datetime - package_end_datetime
-                    ).total_seconds() / 3600
+                if package_end_time < cutoff_530 and time_out > package_end_time:
+                    end_time_for_before_530 = min(time_out, cutoff_530)
 
-                    hour_count = int(hours_before_530) + (
-                        1 if hours_before_530 % 1 > 0 else 0
+                    if end_time_for_before_530 > package_end_time:
+                        before_530_datetime = datetime.combine(
+                            log_date, end_time_for_before_530
+                        )
+                        hours_before_530 = (
+                            before_530_datetime - package_end_datetime
+                        ).total_seconds() / 3600
+
+                        hour_count = int(hours_before_530)
+                        if hours_before_530 % 1 > 0:
+                            hour_count += 1
+
+                        for hour_num in range(1, min(hour_count + 1, 7)):
+                            rate_obj = (
+                                ExtraHoursUpTo530.objects.filter(
+                                    hour_number=hour_num,
+                                    effective_from__lte=log_date,
+                                    is_active=True,
+                                )
+                                .filter(
+                                    Q(effective_to__gte=log_date)
+                                    | Q(effective_to__isnull=True)
+                                )
+                                .first()
+                            )
+
+                            if rate_obj:
+                                day_extra_charges += rate_obj.extra_rate
+                                applied_rates.append(
+                                    {
+                                        "time_slot": f"Hour {hour_num} (before 5:30 PM)",
+                                        "rate": float(rate_obj.extra_rate),
+                                        "type": "Before 5:30 PM",
+                                    }
+                                )
+
+                # 2. Handle charges AFTER 5:30 PM (CUMULATIVE - KEY FIX)
+                if time_out > cutoff_530:
+                    start_time_after_530 = max(package_end_time, cutoff_530)
+
+                    # Get ALL applicable slots (CUMULATIVE)
+                    applicable_slots = (
+                        ExtraHoursAfter530.objects.filter(
+                            package_type=package_type,
+                            from_time__gte=start_time_after_530,
+                            from_time__lt=time_out,
+                            effective_from__lte=log_date,
+                        )
+                        .filter(
+                            Q(effective_to__gte=log_date) | Q(effective_to__isnull=True)
+                        )
+                        .order_by("from_time")
                     )
-                    for hour_num in range(1, min(hour_count + 1, 7)):
-                        rate_obj = (
-                            ExtraHoursUpTo530.objects.filter(
-                                hour_number=hour_num,
-                                effective_from__lte=log_date,
-                                is_active=True,
-                            )
-                            .filter(
-                                Q(effective_to__gte=log_date)
-                                | Q(effective_to__isnull=True)
-                            )
-                            .first()
+
+                    # Add charges for ALL applicable slots
+                    for slot in applicable_slots:
+                        day_extra_charges += slot.extra_rate
+                        applied_rates.append(
+                            {
+                                "time_slot": f"{slot.from_time.strftime('%H:%M')} - {slot.to_time.strftime('%H:%M')}",
+                                "rate": float(slot.extra_rate),
+                                "type": "After 5:30 PM",
+                            }
                         )
 
-                        if rate_obj:
-                            day_extra_charges += rate_obj.extra_rate
-                            applied_rates.append(
-                                {
-                                    "time_slot": f"Hour {hour_num} (before 5:30 PM)",
-                                    "rate": float(rate_obj.extra_rate),
-                                    "type": "Before 5:30 PM",
-                                }
-                            )
+                    # Handle partial slot
+                    partial_slot = (
+                        ExtraHoursAfter530.objects.filter(
+                            package_type=package_type,
+                            from_time__lt=time_out,
+                            to_time__gt=time_out,
+                            from_time__gte=start_time_after_530,
+                            effective_from__lte=log_date,
+                        )
+                        .filter(
+                            Q(effective_to__gte=log_date) | Q(effective_to__isnull=True)
+                        )
+                        .first()
+                    )
+
+                    if partial_slot and partial_slot not in [
+                        slot for slot in applicable_slots
+                    ]:
+                        day_extra_charges += partial_slot.extra_rate
+                        applied_rates.append(
+                            {
+                                "time_slot": f"{partial_slot.from_time.strftime('%H:%M')} - {partial_slot.to_time.strftime('%H:%M')} (partial)",
+                                "rate": float(partial_slot.extra_rate),
+                                "type": "After 5:30 PM (Partial)",
+                            }
+                        )
 
                 if day_extra_charges > 0:
+                    # Convert decimal hours to hours and minutes format
+                    total_minutes = int(extra_hours * 60)
+                    hours_part = total_minutes // 60
+                    minutes_part = total_minutes % 60
+
+                    if hours_part > 0:
+                        extra_hours_display = f"{hours_part} hr{'s' if hours_part != 1 else ''} {minutes_part} min{'s' if minutes_part != 1 else ''}"
+                    else:
+                        extra_hours_display = (
+                            f"{minutes_part} min{'s' if minutes_part != 1 else ''}"
+                        )
+
                     extra_charges_breakdown.append(
                         {
                             "date": log_date.strftime("%Y-%m-%d"),
                             "time_in": time_in.strftime("%H:%M") if time_in else "N/A",
                             "time_out": time_out.strftime("%H:%M"),
                             "extra_hours": round(extra_hours, 2),
-                            "rate": float(day_extra_charges),
-                            "time_slot": f"Extended until {time_out.strftime('%H:%M')}",
+                            "extra_hours_display": extra_hours_display,
+                            "charges": float(day_extra_charges),
                             "applied_rates": applied_rates,
                         }
                     )
@@ -5916,7 +6172,6 @@ def calculate_enhanced_month_with_attendance(
                 )
                 holiday_charge += daily_holiday_rate
 
-                # Get holiday name
                 holiday_obj = Holiday.objects.filter(
                     start_date__lte=log_date, end_date__gte=log_date, is_active=True
                 ).first()
@@ -5928,21 +6183,6 @@ def calculate_enhanced_month_with_attendance(
                         "rate": float(daily_holiday_rate),
                     }
                 )
-
-    # Update breakdown summary
-    breakdown_summary.update(
-        {
-            "total_extra_instances": len(extra_charges_breakdown),
-            "total_holiday_days": len(holiday_charges_breakdown),
-            "average_extra_hours": round(
-                sum(item["extra_hours"] for item in extra_charges_breakdown)
-                / len(extra_charges_breakdown)
-                if extra_charges_breakdown
-                else 0,
-                2,
-            ),
-        }
-    )
 
     # Calculate attendance percentage and package fee
     attendance_percentage = (
@@ -5980,6 +6220,8 @@ def calculate_enhanced_month_with_attendance(
         payments_received = existing_memo.total_payments_received
         if existing_memo.payment_receipts:
             try:
+                import json
+
                 payment_details = json.loads(existing_memo.payment_receipts)
             except:
                 payment_details = []
@@ -5992,7 +6234,7 @@ def calculate_enhanced_month_with_attendance(
         "attendance_percentage": round(attendance_percentage, 2),
         "is_half_charge": is_half_charge,
         "package_fee": package_fee,
-        "extra_charges": extra_hours_charge,
+        "extra_charges": extra_hours_charge,  # ✅ NOW USES CORRECTED CUMULATIVE CALCULATION
         "holiday_attendance_days": holiday_attendance_days,
         "holiday_charges": holiday_charge,
         "discount": discount_amount,
@@ -6002,7 +6244,17 @@ def calculate_enhanced_month_with_attendance(
         # ENHANCED BREAKDOWN DATA
         "extra_charges_breakdown": extra_charges_breakdown,
         "holiday_charges_breakdown": holiday_charges_breakdown,
-        "breakdown_summary": breakdown_summary,
+        "breakdown_summary": {
+            "total_extra_instances": len(extra_charges_breakdown),
+            "total_holiday_days": len(holiday_charges_breakdown),
+            "average_extra_hours": round(
+                sum(item["extra_hours"] for item in extra_charges_breakdown)
+                / len(extra_charges_breakdown)
+                if extra_charges_breakdown
+                else 0,
+                2,
+            ),
+        },
     }
 
 
@@ -8159,7 +8411,7 @@ def saveMemoDataEntry(request):
             del request.session["memo_draft"]
             request.session.modified = True
 
-        return redirect("core:view_invoice_memos")
+        return redirect("core:memo_data_entry")
 
     except ValueError as e:
         messages.error(request, f"Invalid data provided: {str(e)}")
@@ -8471,7 +8723,7 @@ def calculate_month_attendance_summary(child, month, year):
 
 @login_required
 def getDetailedChargesBreakdown(request):
-    """Get detailed breakdown of extra hours and holiday charges for a specific month"""
+    """Get detailed breakdown of extra hours and holiday charges for a specific month - CORRECTED VERSION"""
     try:
         child_id = request.GET.get("child_id")
         month = request.GET.get("month")
@@ -8562,7 +8814,7 @@ def getDetailedChargesBreakdown(request):
 
             is_holiday = log_date in holiday_dates
 
-            # Calculate extra hours charges
+            # ===== CORRECTED CUMULATIVE EXTRA HOURS CALCULATION =====
             if time_out > package_end_time:
                 package_end_datetime = datetime.combine(log_date, package_end_time)
                 actual_out_datetime = datetime.combine(log_date, time_out)
@@ -8572,60 +8824,126 @@ def getDetailedChargesBreakdown(request):
                 day_extra_charges = Decimal("0.00")
                 applied_rates = []
 
-                # Check for extra hours after 5:30 PM charges
-                extra_slots_after_530 = ExtraHoursAfter530.objects.filter(
-                    package_type=package_type,
-                    from_time__lte=time_out,
-                    to_time__gte=time_out,
-                    effective_from__lte=log_date,
-                ).filter(Q(effective_to__gte=log_date) | Q(effective_to__isnull=True))
-
-                for slot in extra_slots_after_530:
-                    day_extra_charges += slot.extra_rate
-                    applied_rates.append(
-                        {
-                            "time_slot": f"{slot.from_time.strftime('%H:%M')} - {slot.to_time.strftime('%H:%M')}",
-                            "rate": float(slot.extra_rate),
-                            "type": "After 5:30 PM",
-                        }
-                    )
-
-                # Check for extra hours before 5:30 PM if applicable
+                # === CUMULATIVE CHARGING LOGIC ===
+                # 1. Handle charges BEFORE 5:30 PM (if package ends before 5:30)
                 cutoff_530 = time(17, 30)
-                if package_end_time < cutoff_530 and time_out > cutoff_530:
-                    cutoff_datetime = datetime.combine(log_date, cutoff_530)
-                    hours_before_530 = (
-                        cutoff_datetime - package_end_datetime
-                    ).total_seconds() / 3600
 
-                    hour_count = int(hours_before_530) + (
-                        1 if hours_before_530 % 1 > 0 else 0
-                    )
-                    for hour_num in range(1, min(hour_count + 1, 7)):
-                        rate_obj = (
-                            ExtraHoursUpTo530.objects.filter(
-                                hour_number=hour_num,
-                                effective_from__lte=log_date,
-                                is_active=True,
+                if package_end_time < cutoff_530 and time_out > package_end_time:
+                    # Calculate time between package end and 5:30 PM (or actual out time if earlier)
+                    end_time_for_before_530 = min(time_out, cutoff_530)
+
+                    if end_time_for_before_530 > package_end_time:
+                        before_530_datetime = datetime.combine(
+                            log_date, end_time_for_before_530
+                        )
+                        hours_before_530 = (
+                            before_530_datetime - package_end_datetime
+                        ).total_seconds() / 3600
+
+                        # Calculate number of complete + partial hours
+                        hour_count = int(hours_before_530)
+                        if hours_before_530 % 1 > 0:  # Has partial hour
+                            hour_count += 1
+
+                        # Add charges for each hour before 5:30 PM
+                        for hour_num in range(1, min(hour_count + 1, 7)):  # Max 6 hours
+                            rate_obj = (
+                                ExtraHoursUpTo530.objects.filter(
+                                    hour_number=hour_num,
+                                    effective_from__lte=log_date,
+                                    is_active=True,
+                                )
+                                .filter(
+                                    Q(effective_to__gte=log_date)
+                                    | Q(effective_to__isnull=True)
+                                )
+                                .first()
                             )
-                            .filter(
-                                Q(effective_to__gte=log_date)
-                                | Q(effective_to__isnull=True)
-                            )
-                            .first()
+
+                            if rate_obj:
+                                day_extra_charges += rate_obj.extra_rate
+                                applied_rates.append(
+                                    {
+                                        "time_slot": f"Hour {hour_num} (before 5:30 PM)",
+                                        "rate": float(rate_obj.extra_rate),
+                                        "type": "Before 5:30 PM",
+                                    }
+                                )
+
+                # 2. Handle charges AFTER 5:30 PM (cumulative slot-by-slot)
+                if time_out > cutoff_530:
+                    # Determine start time for after-5:30 charging
+                    start_time_after_530 = max(package_end_time, cutoff_530)
+
+                    # Get ALL time slots from start_time to actual out_time
+                    # This is the key fix - get ALL applicable slots, not just the final one
+                    applicable_slots = (
+                        ExtraHoursAfter530.objects.filter(
+                            package_type=package_type,
+                            from_time__gte=start_time_after_530,  # Slot starts after our start time
+                            from_time__lt=time_out,  # Slot starts before child leaves
+                            effective_from__lte=log_date,
+                        )
+                        .filter(
+                            Q(effective_to__gte=log_date) | Q(effective_to__isnull=True)
+                        )
+                        .order_by("from_time")
+                    )  # Order by time to ensure sequential processing
+
+                    # Add charges for ALL applicable slots (CUMULATIVE)
+                    for slot in applicable_slots:
+                        day_extra_charges += slot.extra_rate
+                        applied_rates.append(
+                            {
+                                "time_slot": f"{slot.from_time.strftime('%H:%M')} - {slot.to_time.strftime('%H:%M')}",
+                                "rate": float(slot.extra_rate),
+                                "type": "After 5:30 PM",
+                            }
                         )
 
-                        if rate_obj:
-                            day_extra_charges += rate_obj.extra_rate
-                            applied_rates.append(
-                                {
-                                    "time_slot": f"Hour {hour_num} (before 5:30 PM)",
-                                    "rate": float(rate_obj.extra_rate),
-                                    "type": "Before 5:30 PM",
-                                }
-                            )
+                    # Also check if child's out_time falls within any slot that starts before out_time
+                    # but ends after out_time (partial slot charging)
+                    partial_slot = (
+                        ExtraHoursAfter530.objects.filter(
+                            package_type=package_type,
+                            from_time__lt=time_out,  # Slot starts before child leaves
+                            to_time__gt=time_out,  # Slot ends after child leaves
+                            from_time__gte=start_time_after_530,  # Slot is relevant to our time range
+                            effective_from__lte=log_date,
+                        )
+                        .filter(
+                            Q(effective_to__gte=log_date) | Q(effective_to__isnull=True)
+                        )
+                        .first()
+                    )
+
+                    # Only add partial slot if not already included in applicable_slots
+                    if partial_slot and partial_slot not in [
+                        slot for slot in applicable_slots
+                    ]:
+                        day_extra_charges += partial_slot.extra_rate
+                        applied_rates.append(
+                            {
+                                "time_slot": f"{partial_slot.from_time.strftime('%H:%M')} - {partial_slot.to_time.strftime('%H:%M')} (partial)",
+                                "rate": float(partial_slot.extra_rate),
+                                "type": "After 5:30 PM (Partial)",
+                            }
+                        )
 
                 if day_extra_charges > 0:
+                    # Convert decimal hours to hours and minutes format
+                    total_minutes = int(extra_hours * 60)
+                    hours_part = total_minutes // 60
+                    minutes_part = total_minutes % 60
+
+                    # Format as "X hrs Y mins" or just "Y mins" if less than 1 hour
+                    if hours_part > 0:
+                        extra_hours_display = f"{hours_part} hr{'s' if hours_part != 1 else ''} {minutes_part} min{'s' if minutes_part != 1 else ''}"
+                    else:
+                        extra_hours_display = (
+                            f"{minutes_part} min{'s' if minutes_part != 1 else ''}"
+                        )
+
                     extra_hours_breakdown.append(
                         {
                             "date": log_date.strftime("%Y-%m-%d"),
@@ -8633,7 +8951,10 @@ def getDetailedChargesBreakdown(request):
                             "time_in": time_in.strftime("%H:%M") if time_in else "N/A",
                             "time_out": time_out.strftime("%H:%M"),
                             "package_end_time": package_end_time.strftime("%H:%M"),
-                            "extra_hours": round(extra_hours, 2),
+                            "extra_hours": round(
+                                extra_hours, 2
+                            ),  # Keep decimal for calculations
+                            "extra_hours_display": extra_hours_display,  # Human-readable format
                             "charges": float(day_extra_charges),
                             "applied_rates": applied_rates,
                             "is_holiday": is_holiday,
@@ -8641,7 +8962,7 @@ def getDetailedChargesBreakdown(request):
                     )
                     total_extra_charges += day_extra_charges
 
-            # Calculate holiday charges
+            # Calculate holiday charges (unchanged)
             if is_holiday and package_mapping.holiday_package:
                 expected_days = package_mapping.holiday_package.no_days_months or 22
                 daily_holiday_rate = (
@@ -8660,6 +8981,21 @@ def getDetailedChargesBreakdown(request):
                 )
                 total_holiday_charges += daily_holiday_rate
 
+        # Calculate total extra hours in hours and minutes format
+        total_extra_hours_decimal = sum(
+            item["extra_hours"] for item in extra_hours_breakdown
+        )
+        total_extra_minutes = int(total_extra_hours_decimal * 60)
+        total_hours_part = total_extra_minutes // 60
+        total_minutes_part = total_extra_minutes % 60
+
+        if total_hours_part > 0:
+            total_extra_hours_display = f"{total_hours_part} hr{'s' if total_hours_part != 1 else ''} {total_minutes_part} min{'s' if total_minutes_part != 1 else ''}"
+        else:
+            total_extra_hours_display = (
+                f"{total_minutes_part} min{'s' if total_minutes_part != 1 else ''}"
+            )
+
         return JsonResponse(
             {
                 "success": True,
@@ -8673,6 +9009,8 @@ def getDetailedChargesBreakdown(request):
                 "extra_hours": {
                     "breakdown": extra_hours_breakdown,
                     "total": float(total_extra_charges),
+                    "total_hours_decimal": round(total_extra_hours_decimal, 2),
+                    "total_hours_display": total_extra_hours_display,
                     "days_count": len(extra_hours_breakdown),
                 },
                 "holiday_charges": {
@@ -8686,6 +9024,7 @@ def getDetailedChargesBreakdown(request):
                     "combined_total": float(
                         total_extra_charges + total_holiday_charges
                     ),
+                    "total_extra_hours_display": total_extra_hours_display,
                 },
             }
         )

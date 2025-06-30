@@ -143,7 +143,6 @@
         margin-top: 0.25rem;
     }
 
-    /* Enhanced breakdown styles */
     .breakdown-section {
         border-top: 1px solid #e9ecef;
         padding-top: 1rem;
@@ -197,7 +196,6 @@
         font-size: 0.65rem;
     }
 
-    /* Responsive adjustments */
     @media (max-width: 768px) {
         .breakdown-table {
             font-size: 0.75rem;
@@ -222,13 +220,24 @@
 
 <!-- Main Form Card -->
 <div class="main-card">
+    <div class="alert alert-dismissible" role="alert">
+        {% if messages %} {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show" role="alert">
+            <strong>
+                <center>{{ message }}</center>
+            </strong>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %} {% endif %}
+    </div>
+
     <h4 class="mb-4">Generate New Invoice Memo</h4>
     
     <form id="memoDataForm" method="post" action="{% url 'core:save_memo_data_entry' %}">
         {% csrf_token %}
         
         <!-- Basic Information -->
-        <div class="row form-row">
+        <div class="row form-row">  
             <div class="col-12">
                 <label class="form-label">Child *</label>
                 <select class="form-control" name="child" id="child" required>
@@ -337,7 +346,6 @@
                 </div>
             </div>
             <div class="section-body">
-                <!-- Original form fields -->
                 <div class="row">
                     <div class="col-md-4">
                         <div class="form-row">
@@ -549,7 +557,6 @@ function formatDate(dateString) {
     });
 }
 
-// Function to load and display detailed breakdown inline
 function loadPreviousMonthBreakdown() {
     const childId = $('#child').val();
     const month = $('#month').val();
@@ -582,30 +589,79 @@ function loadPreviousMonthBreakdown() {
             $('#breakdown-loading').hide();
             
             if (response.success) {
-                // Update form fields
+                // Set all previous month fields with proper values
+                
+                // 1. Package Fee (from current month or existing value)
+                const currentPackageFee = parseFloat($('#package_fee').val()) || 0;
+                $('#previous_package_fee').val(currentPackageFee.toFixed(2));
+                
+                // 2. Extra Hours - KEY FIX: Set this value from breakdown
                 $('#previous_extra_hours').val(response.extra_hours.total.toFixed(2));
+                
+                // 3. Holiday Charges - KEY FIX: Set this value from breakdown  
                 $('#previous_holiday_charges').val(response.holiday_charges.total.toFixed(2));
                 
-                // Display breakdown table
+                // 4. Discount (from current month if applicable)
+                const discountAmount = parseFloat($('#discount_applied').val()) || 0;
+                $('#previous_discount_applied').val(discountAmount.toFixed(2));
+                
+                // 5. Display breakdown table
                 displayBreakdownTable(response);
                 
-                // Show the breakdown section
+                // 6. Show the breakdown section
                 $('#breakdown-content').show();
                 
-                // Recalculate totals
-                calculateTotals();
+                // 7. CRITICAL: Force trigger change events to ensure calculation
+                $('#previous_extra_hours').trigger('change');
+                $('#previous_holiday_charges').trigger('change');
+                $('#previous_package_fee').trigger('change');
+                $('#previous_discount_applied').trigger('change');
+                
+                // 8. Recalculate totals with multiple attempts
+                setTimeout(function() {
+                    calculateTotals();
+                }, 50);
+                
+                setTimeout(function() {
+                    calculateTotals();
+                }, 200);
+                
             } else {
+                // Clear previous month fields if no data
+                $('#previous_extra_hours').val('0.00');
+                $('#previous_holiday_charges').val('0.00');
+                
                 $('#breakdown-content').html('<p class="text-muted">No breakdown data available for this month.</p>').show();
+                
+                // Trigger change events
+                $('#previous_extra_hours').trigger('change');
+                $('#previous_holiday_charges').trigger('change');
+                
+                setTimeout(function() {
+                    calculateTotals();
+                }, 100);
             }
         },
         error: function() {
             $('#breakdown-loading').hide();
+            
+            // Set default values on error
+            $('#previous_extra_hours').val('0.00');
+            $('#previous_holiday_charges').val('0.00');
+            
             $('#breakdown-content').html('<p class="text-danger">Error loading breakdown data.</p>').show();
+            
+            // Trigger change events
+            $('#previous_extra_hours').trigger('change');
+            $('#previous_holiday_charges').trigger('change');
+            
+            setTimeout(function() {
+                calculateTotals();
+            }, 100);
         }
     });
 }
 
-// Function to display breakdown in tabular format
 function displayBreakdownTable(data) {
     let tableHtml = `
         <div class="breakdown-section mt-3">
@@ -642,6 +698,8 @@ function displayBreakdownTable(data) {
         
         data.extra_hours.breakdown.forEach(function(item) {
             const isHoliday = item.is_holiday ? ' <span class="badge bg-warning text-dark">Holiday</span>' : '';
+            const extraHoursDisplay = item.extra_hours_display || formatHoursMinutes(item.extra_hours);
+            
             tableHtml += `
                                 <tr>
                                     <td>
@@ -654,18 +712,26 @@ function displayBreakdownTable(data) {
                                         ${item.time_out}<br>
                                         <small class="text-muted">(Pkg: ${item.package_end_time})</small>
                                     </td>
-                                    <td class="text-center">${item.extra_hours.toFixed(2)}</td>
+                                    <td class="text-center">
+                                        ${item.extra_hours_display || formatHoursMinutes(item.extra_hours)}
+                                    </td>
                                     <td class="text-end">
                                         <strong>${formatCurrency(item.charges)}</strong>
-                                        ${item.applied_rates.length > 1 ? '<br><small class="text-muted">Multiple rates</small>' : ''}
+                                        ${item.applied_rates && item.applied_rates.length > 1 ? '<br><small class="text-success">Multiple rates</small>' : ''}
                                     </td>
                                 </tr>
             `;
         });
         
+        const totalHoursDisplay = data.extra_hours.total_hours_display || formatHoursMinutes(data.extra_hours.total_hours_decimal);
+        
         tableHtml += `
                                 <tr class="table-info">
-                                    <td colspan="4"><strong>Total Extra Hours Charges</strong></td>
+                                    <td colspan="3"><strong>Total Extra Hours Charges</strong></td>
+                                    <td class="text-center">
+                                        <strong>${totalHoursDisplay}</strong>
+                                        <br><small class="text-muted">(${data.extra_hours.days_count} days)</small>
+                                    </td>
                                     <td class="text-end"><strong>${formatCurrency(data.extra_hours.total)}</strong></td>
                                 </tr>
                             </tbody>
@@ -673,68 +739,10 @@ function displayBreakdownTable(data) {
                     </div>
                 </div>
         `;
-    } else {
-        tableHtml += `
-                <div class="col-md-7">
-                    <div class="alert alert-light">
-                        <i class="ri-information-line me-2"></i>
-                        No extra hours charges for this month
-                    </div>
-                </div>
-        `;
     }
     
-    // Holiday Charges Table
-    if (data.holiday_charges.breakdown.length > 0) {
-        tableHtml += `
-                <div class="col-md-5">
-                    <div class="table-responsive">
-                        <table class="table table-sm table-bordered breakdown-table">
-                            <thead class="table-warning">
-                                <tr>
-                                    <th>Holiday Date</th>
-                                    <th class="text-end">Amount (Rs.)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-        `;
-        
-        data.holiday_charges.breakdown.forEach(function(item) {
-            tableHtml += `
-                                <tr>
-                                    <td>
-                                        <strong>${formatDate(item.date)}</strong><br>
-                                        <small class="text-muted">${item.day_name}</small>
-                                    </td>
-                                    <td class="text-end">
-                                        <strong>${formatCurrency(item.charges)}</strong>
-                                    </td>
-                                </tr>
-            `;
-        });
-        
-        tableHtml += `
-                                <tr class="table-warning">
-                                    <td><strong>Total Holiday Charges</strong></td>
-                                    <td class="text-end"><strong>${formatCurrency(data.holiday_charges.total)}</strong></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-        `;
-    } else {
-        tableHtml += `
-                <div class="col-md-5">
-                    <div class="alert alert-light">
-                        <i class="ri-information-line me-2"></i>
-                        No holiday charges for this month
-                    </div>
-                </div>
-        `;
-    }
+    const grandTotalHours = data.summary.total_extra_hours_display || formatHoursMinutes(data.extra_hours.total_hours_decimal);
     
-    // Summary section
     tableHtml += `
             </div>
             
@@ -744,7 +752,9 @@ function displayBreakdownTable(data) {
                         <div class="row text-center">
                             <div class="col-md-4">
                                 <h6 class="text-primary mb-1">${formatCurrency(data.extra_hours.total)}</h6>
-                                <small class="text-muted">Extra Hours Total<br>(${data.extra_hours.days_count} days)</small>
+                                <small class="text-muted">Extra Hours Total<br>
+                                    <strong>${grandTotalHours}</strong> (${data.extra_hours.days_count} days)
+                                </small>
                             </div>
                             <div class="col-md-4">
                                 <h6 class="text-warning mb-1">${formatCurrency(data.holiday_charges.total)}</h6>
@@ -764,16 +774,28 @@ function displayBreakdownTable(data) {
     $('#breakdown-content').html(tableHtml);
 }
 
-// Define function in separate script block
+function formatHoursMinutes(decimalHours) {
+    if (!decimalHours || decimalHours === 0) return "0 mins";
+    
+    const totalMinutes = Math.round(decimalHours * 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    
+    if (hours > 0) {
+        const hourText = hours === 1 ? "hr" : "hrs";
+        const minText = minutes === 1 ? "min" : "mins";
+        return minutes > 0 ? `${hours} ${hourText} ${minutes} ${minText}` : `${hours} ${hourText}`;
+    } else {
+        const minText = minutes === 1 ? "min" : "mins";
+        return `${minutes} ${minText}`;
+    }
+}
+
 function updateMonthDisplays() {
-    console.log('Function called');
     const month = parseInt($('#month').val());
     const year = parseInt($('#year').val());
     
-    console.log('Month:', month, 'Year:', year);
-    
     if (!month || !year) {
-        console.log('No month or year selected');
         return;
     }
     
@@ -796,27 +818,14 @@ function updateMonthDisplays() {
         previousYear = year - 1;
     }
     
-    console.log('Calculated months:', {
-        outstanding: monthNames[outstandingMonth] + ' ' + outstandingYear,
-        previous: monthNames[previousMonth] + ' ' + previousYear,
-        current: monthNames[month] + ' ' + year
-    });
-    
     // Update displays
     $('#outstanding_month_display').text('(' + monthNames[outstandingMonth] + ' ' + outstandingYear + ')');
     $('#previous_month_display').text('(' + monthNames[previousMonth] + ' ' + previousYear + ')');
     $('#current_month_display').text('(' + monthNames[month] + ' ' + year + ')');
-    
-    console.log('Updated displays');
 }
 
-// Make it global
 window.updateMonthDisplays = updateMonthDisplays;
 
-console.log('Function defined and made global');
-</script>
-
-<script>
 // Payment validation functions
 function validatePaymentAndReceipt() {
     let isValid = true;
@@ -865,7 +874,6 @@ function validatePaymentAndReceipt() {
     return isValid;
 }
 
-// Enhanced calculateTotals function with thousand separators
 function calculateTotals() {
     // Get all values
     const outstandingAmount = parseFloat($('#outstanding_amount').val()) || 0;
@@ -883,22 +891,22 @@ function calculateTotals() {
     const discountApplied = parseFloat($('#discount_applied').val()) || 0;
     const currentPayment = parseFloat($('#current_payment').val()) || 0;
     
-    // Calculate balances with discount properly applied
+    // Calculate balances with ALL components included
     const remainingBalance = outstandingAmount - paymentSettled;
     $('#remaining_balance').val(remainingBalance.toFixed(2));
     
-    // Previous month: charges - discount, then subtract payment
-    const prevMonthCharges = prevPackageFee + prevExtraHours + prevHolidayCharges - prevDiscountApplied;
-    const prevMonthBalance = prevMonthCharges - prevPayment;
+    // Previous month: package + extra hours + holiday - discount, then subtract payment
+    const prevMonthTotalCharges = prevPackageFee + prevExtraHours + prevHolidayCharges - prevDiscountApplied;
+    const prevMonthBalance = prevMonthTotalCharges - prevPayment;
     
-    // Current month: charges - discount, then subtract payment  
-    const currentMonthCharges = packageFee + extraHours + holidayCharges - discountApplied;
-    const currentMonthBalance = currentMonthCharges - currentPayment;
+    // Current month: package + extra hours + holiday - discount, then subtract payment  
+    const currentMonthTotalCharges = packageFee + extraHours + holidayCharges - discountApplied;
+    const currentMonthBalance = currentMonthTotalCharges - currentPayment;
     
     // Grand total is sum of all balances
     const grandTotal = remainingBalance + prevMonthBalance + currentMonthBalance;
     
-    // Update displays with thousand separators
+    // Update summary display
     $('#summary_outstanding').text('Rs. ' + formatCurrency(remainingBalance));
     $('#summary_previous').text('Rs. ' + formatCurrency(prevMonthBalance));
     $('#summary_current').text('Rs. ' + formatCurrency(currentMonthBalance));
@@ -914,122 +922,105 @@ function calculateTotals() {
     } else {
         floatingTotal.css('background', '#3b82f6');
     }
-    
-    // Debug logging to verify calculations
-    console.log('=== CALCULATION BREAKDOWN ===');
-    console.log('Outstanding Balance:', remainingBalance);
-    console.log('Previous Month - Package Fee:', prevPackageFee, 'Extra Hours:', prevExtraHours, 'Holiday:', prevHolidayCharges, 'Discount:', prevDiscountApplied);
-    console.log('Previous Month - Total Charges:', prevMonthCharges, 'Payment:', prevPayment, 'Balance:', prevMonthBalance);
-    console.log('Current Month - Package Fee:', packageFee, 'Extra Hours:', extraHours, 'Holiday:', holidayCharges, 'Discount:', discountApplied);
-    console.log('Current Month - Total Charges:', currentMonthCharges, 'Payment:', currentPayment, 'Balance:', currentMonthBalance);
-    console.log('GRAND TOTAL:', grandTotal);
 }
 
-// Add event listeners for payment fields
-$(document).ready(function() {
-    $('#child').select2({
-        placeholder: 'Search by admission number or child name...',
-        allowClear: true,
-        width: '100%'
-    });
+function loadChildDetails() {
+    const childId = $('#child').val();
+    if (!childId) {
+        return;
+    }
     
-    // Set current year and month as default
-    const now = new Date();
-    const currentMonth = now.getMonth() + 1;
-    const currentYear = now.getFullYear();
+    const month = $('#month').val();
+    const year = $('#year').val();
     
-    $('#year').val(currentYear);
-    updateMonthOptions();
-    $('#month').val(currentMonth);
+    if (!month || !year) {
+        alert('Please select month and year first');
+        $('#child').val('').trigger('change');
+        return;
+    }
     
-    // Initial call to update month names
-    setTimeout(function() {
-        console.log('Initial updateMonthNames call');
-        updateMonthNames();
-    }, 500);
-    
-    // Event listeners
-    $('#child').on('change', loadChildDetails);
-    
-    // Month/Year change listeners with debugging
-    $('#month').on('change', function() {
-        console.log('Month changed to:', $(this).val());
-        setTimeout(updateMonthNames, 100); // Add small delay
-        if ($('#child').val()) {
-            loadChildDetails();
-            setTimeout(loadPreviousMonthBreakdown, 300);
-        }
-    });
-    
-    $('#year').on('change', function() {
-        console.log('Year changed to:', $(this).val());
-        updateMonthOptions();
-        setTimeout(updateMonthNames, 100); // Add small delay
-        if ($('#child').val()) {
-            loadChildDetails();
-            setTimeout(loadPreviousMonthBreakdown, 300);
-        }
-    });
-    
-    // Enhanced child change listener with complete field clearing
-    $('#child').on('change', function() {
-        if ($(this).val()) {
-            // Child selected - clear all fields first, then load data
-            clearAllManualFields();
-            
-            if ($('#month').val() && $('#year').val()) {
+    // Load child package details first
+    $.ajax({
+        url: "{% url 'core:get_child_package_details' %}",
+        data: { child_id: childId },
+        success: function(response) {
+            if (response.package_fee) {
+                // Set current month package fee
+                $('#package_fee').val(response.package_fee);
+                
+                // Store discount info
+                window.childDiscountRate = response.discount_rate || 0;
+                window.childDiscountName = response.discount_name || '';
+                
+                // Apply discount for current month
+                if (response.discount_rate && response.discount_rate > 0) {
+                    const packageFee = parseFloat(response.package_fee);
+                    const discountAmount = (packageFee * response.discount_rate) / 100;
+                    $('#discount_applied').val(discountAmount.toFixed(2));
+                    
+                    showDiscountInfo(response.discount_name, response.discount_rate);
+                }
+                
+                // Load previous month breakdown
                 setTimeout(function() {
-                    loadChildDetails();
                     loadPreviousMonthBreakdown();
-                }, 500);
+                }, 200);
             }
-        } else {
-            // No child selected - clear everything
-            clearAllManualFields();
+        },
+        error: function() {
+            setTimeout(function() {
+                loadPreviousMonthBreakdown();
+            }, 200);
         }
     });
+}
+
+function showDiscountInfo(discountName, discountRate) {
+    // Create or update discount info display
+    let discountInfo = $('#discount_info');
+    if (discountInfo.length === 0) {
+        discountInfo = $('<div id="discount_info" class="alert alert-info mt-2"></div>');
+        $('#child').parent().append(discountInfo);
+    }
     
-    // Add payment validation event listeners
-    $('#payment_settled, #outstanding_receipt_number').on('blur', function() {
-        validatePaymentField('outstanding');
-    });
+    discountInfo.html(`
+        <i class="ri-discount-percent-line me-2"></i>
+        <strong>Discount Applied:</strong> ${discountName} (${discountRate}%)
+        <small class="d-block">This discount will be automatically applied to package fees</small>
+    `);
+}
+
+function clearAllManualFields() {
+    // Clear all amount fields
+    $('#outstanding_amount, #payment_settled, #remaining_balance').val('');
+    $('#previous_package_fee, #previous_extra_hours, #previous_holiday_charges, #previous_discount_applied, #previous_payment').val('');
+    $('#package_fee, #extra_hours, #holiday_charges, #discount_applied, #current_payment').val('');
     
-    $('#previous_payment, #previous_receipt_number').on('blur', function() {
-        validatePaymentField('previous');
-    });
+    // Clear all receipt fields
+    $('#outstanding_receipt_number, #previous_receipt_number, #current_receipt_number').val('');
     
-    $('#current_payment, #current_receipt_number').on('blur', function() {
-        validatePaymentField('current');
-    });
+    // Clear validation states
+    $('input').removeClass('is-invalid');
     
-    // Add calculation triggers for all amount fields
-    $('input[type="number"]').on('input change', calculateTotals);
+    // Clear discount info
+    $('#discount_info').remove();
+    window.childDiscountRate = 0;
+    window.childDiscountName = '';
     
-    // Manual refresh button
-    $('#refresh-breakdown').on('click', function() {
-        loadPreviousMonthBreakdown();
-    });
+    // Clear breakdown
+    $('#breakdown-content').hide().html('');
+    $('#breakdown-loading').hide();
     
-    // Toggle breakdown visibility
-    $('#toggle-breakdown').on('click', function() {
-        const content = $('#breakdown-content');
-        const icon = $(this).find('i');
-        const textSpan = $(this).find('span');
-        
-        if (content.is(':visible')) {
-            content.slideUp();
-            icon.removeClass('ri-eye-off-line').addClass('ri-eye-line');
-            textSpan.text('Show Breakdown');
-        } else {
-            content.slideDown();
-            icon.removeClass('ri-eye-line').addClass('ri-eye-off-line');
-            textSpan.text('Hide Breakdown');
-        }
-    });
+    // Reset toggle button state
+    const toggleBtn = $('#toggle-breakdown');
+    const icon = toggleBtn.find('i');
+    const textSpan = toggleBtn.find('span');
+    icon.removeClass('ri-eye-off-line').addClass('ri-eye-line');
+    textSpan.text('Show Breakdown');
     
-    // Make updateMonthNames available globally for testing
-    window.updateMonthNames = updateMonthNames;
-});
+    // Recalculate totals
+    calculateTotals();
+}
 
 function validatePaymentField(type) {
     let paymentField, receiptField;
@@ -1069,12 +1060,10 @@ function updateMonthOptions() {
     const monthSelect = $('#month');
     const monthOptions = monthSelect.find('option');
     
-    // Clear current month selection if it becomes invalid
     const currentSelectedMonth = parseInt(monthSelect.val());
     
     if (selectedYear) {
         if (selectedYear === currentYear) {
-            // Current year: enable months up to current month
             monthOptions.each(function(index) {
                 const option = $(this);
                 const monthValue = parseInt(option.val());
@@ -1086,15 +1075,12 @@ function updateMonthOptions() {
                 }
             });
             
-            // If selected month is greater than current month, clear it
             if (currentSelectedMonth > currentMonth) {
                 monthSelect.val('');
             }
         } else if (selectedYear < currentYear) {
-            // Previous year: enable all months
             monthOptions.prop('disabled', false).show();
         } else {
-            // Future year: disable all months (shouldn't happen with proper year range)
             monthOptions.each(function() {
                 const option = $(this);
                 if (option.val()) {
@@ -1104,7 +1090,6 @@ function updateMonthOptions() {
             monthSelect.val('');
         }
     } else {
-        // No year selected: disable all months except placeholder
         monthOptions.each(function() {
             const option = $(this);
             if (option.val()) {
@@ -1153,232 +1138,7 @@ function updateMonthNames() {
     $('#previous_month_name').text(months[previousMonth] + ' ' + previousYear);
     $('#current_month_name').text(months[month] + ' ' + year);
 
-    updateMonthDisplays()
-}
-
-function loadChildDetails() {
-    const childId = $('#child').val();
-    if (!childId) {
-        return;
-    }
-    
-    const month = $('#month').val();
-    const year = $('#year').val();
-    
-    if (!month || !year) {
-        alert('Please select month and year first');
-        $('#child').val('').trigger('change');
-        return;
-    }
-    
-    // Load child package details
-    $.ajax({
-        url: "{% url 'core:get_child_package_details' %}",
-        data: { child_id: childId },
-        success: function(response) {
-            if (response.package_fee) {
-                $('#package_fee').val(response.package_fee);
-                $('#previous_package_fee').val(response.package_fee);
-                
-                // Store discount rate globally for use in other calculations
-                window.childDiscountRate = response.discount_rate || 0;
-                window.childDiscountName = response.discount_name || '';
-                
-                // Handle discount for current month
-                if (response.discount_rate && response.discount_rate > 0) {
-                    const packageFee = parseFloat(response.package_fee);
-                    const discountAmount = (packageFee * response.discount_rate) / 100;
-                    $('#discount_applied').val(discountAmount.toFixed(2));
-                    $('#previous_discount_applied').val(discountAmount.toFixed(2));
-                    
-                    // Show discount info to user
-                    showDiscountInfo(response.discount_name, response.discount_rate);
-                }
-                
-                calculateTotals();
-            }
-        },
-        error: function() {
-            console.log('Error loading child details');
-        }
-    });
-    
-    // Load historical data for the selected months
-    loadHistoricalData(childId, month, year);
-}
-
-function showDiscountInfo(discountName, discountRate) {
-    // Create or update discount info display
-    let discountInfo = $('#discount_info');
-    if (discountInfo.length === 0) {
-        discountInfo = $('<div id="discount_info" class="alert alert-info mt-2"></div>');
-        $('#child').parent().append(discountInfo);
-    }
-    
-    discountInfo.html(`
-        <i class="ri-discount-percent-line me-2"></i>
-        <strong>Discount Applied:</strong> ${discountName} (${discountRate}%)
-        <small class="d-block">This discount will be automatically applied to package fees</small>
-    `);
-}
-
-function clearAllManualFields() {
-    // Clear all amount fields
-    $('#outstanding_amount, #payment_settled, #remaining_balance').val('');
-    $('#previous_package_fee, #previous_extra_hours, #previous_holiday_charges, #previous_discount_applied, #previous_payment').val('');
-    $('#package_fee, #extra_hours, #holiday_charges, #discount_applied, #current_payment').val('');
-    
-    // Clear all receipt fields
-    $('#outstanding_receipt_number, #previous_receipt_number, #current_receipt_number').val('');
-    
-    // Clear validation states
-    $('input').removeClass('is-invalid');
-    
-    // Clear discount info
-    $('#discount_info').remove();
-    window.childDiscountRate = 0;
-    window.childDiscountName = '';
-    
-    // Clear breakdown
-    $('#breakdown-content').hide().html('');
-    $('#breakdown-loading').hide();
-    
-    // Reset toggle button state
-    const toggleBtn = $('#toggle-breakdown');
-    const icon = toggleBtn.find('i');
-    const textSpan = toggleBtn.find('span');
-    icon.removeClass('ri-eye-off-line').addClass('ri-eye-line');
-    textSpan.text('Show Breakdown');
-    
-    // Recalculate totals (will show all zeros)
-    calculateTotals();
-}
-
-function loadHistoricalData(childId, month, year) {
-    // Calculate previous months
-    const selectedMonth = parseInt(month);
-    const selectedYear = parseInt(year);
-    
-    let outstandingMonth = selectedMonth - 2;
-    let outstandingYear = selectedYear;
-    if (outstandingMonth <= 0) {
-        outstandingMonth = 12 + outstandingMonth;
-        outstandingYear = selectedYear - 1;
-    }
-    
-    let previousMonth = selectedMonth - 1;
-    let previousYear = selectedYear;
-    if (previousMonth === 0) {
-        previousMonth = 12;
-        previousYear = selectedYear - 1;
-    }
-    
-    // Load outstanding month data
-    $.ajax({
-        url: "{% url 'core:get_historical_memo_data' %}",
-        data: { 
-            child_id: childId, 
-            month: outstandingMonth, 
-            year: outstandingYear 
-        },
-        success: function(response) {
-            if (response.success && response.data) {
-                $('#outstanding_amount').val(response.data.net_balance || 0);
-            } else {
-                $('#outstanding_amount').val(0);
-            }
-            calculateTotals();
-        },
-        error: function() {
-            $('#outstanding_amount').val(0);
-            calculateTotals();
-        }
-    });
-    
-    // Load previous month data with discount calculation
-    $.ajax({
-        url: "{% url 'core:get_historical_memo_data' %}",
-        data: { 
-            child_id: childId, 
-            month: previousMonth, 
-            year: previousYear,
-            calculate_with_discount: true,
-            include_breakdown: true
-        },
-        success: function(response) {
-            if (response.success && response.data) {
-                $('#previous_package_fee').val(response.data.package_fee || 0);
-                $('#previous_extra_hours').val(response.data.extra_hours || 0);
-                $('#previous_holiday_charges').val(response.data.holiday_charges || 0);
-                $('#previous_discount_applied').val(response.data.discount_applied || 0);
-            } else {
-                // No historical data - calculate based on current package and attendance
-                calculatePreviousMonthFromAttendance(childId, previousMonth, previousYear);
-            }
-            calculateTotals();
-        },
-        error: function() {
-            // No data - calculate based on attendance
-            calculatePreviousMonthFromAttendance(childId, previousMonth, previousYear);
-        }
-    });
-}
-
-function calculatePreviousMonthFromAttendance(childId, month, year) {
-    // Get attendance summary for previous month
-    $.ajax({
-        url: "{% url 'core:get_attendance_summary' %}",
-        data: { 
-            child_id: childId, 
-            month: month, 
-            year: year 
-        },
-        success: function(attendanceResponse) {
-            // Get child package details (which includes discount info)
-            const packageFee = parseFloat($('#package_fee').val()) || 0;
-            
-            if (attendanceResponse.attendance_percentage !== undefined && packageFee > 0) {
-                const attendancePercentage = attendanceResponse.attendance_percentage;
-                let calculatedPackageFee = packageFee;
-                
-                // Apply attendance-based rules
-                if (attendancePercentage === 0) {
-                    calculatedPackageFee = 0; // No attendance = no charge
-                } else if (attendancePercentage < 50) {
-                    calculatedPackageFee = packageFee / 2; // Less than 50% = half charge
-                }
-                
-                $('#previous_package_fee').val(calculatedPackageFee.toFixed(2));
-                
-                // Calculate discount on the attendance-adjusted fee
-                const discountRate = window.childDiscountRate || 0;
-                if (discountRate > 0) {
-                    const discountAmount = (calculatedPackageFee * discountRate) / 100;
-                    $('#previous_discount_applied').val(discountAmount.toFixed(2));
-                }
-                
-                // Set other charges to 0 for months without data
-                $('#previous_extra_hours').val(0);
-                $('#previous_holiday_charges').val(0);
-            } else {
-                // No attendance data - set all to 0
-                $('#previous_package_fee').val(0);
-                $('#previous_extra_hours').val(0);
-                $('#previous_holiday_charges').val(0);
-                $('#previous_discount_applied').val(0);
-            }
-            
-            calculateTotals();
-        },
-        error: function() {
-            // No attendance data - set to 0
-            $('#previous_package_fee').val(0);
-            $('#previous_extra_hours').val(0);
-            $('#previous_holiday_charges').val(0);
-            $('#previous_discount_applied').val(0);
-            calculateTotals();
-        }
-    });
+    updateMonthDisplays();
 }
 
 function clearForm() {
@@ -1400,6 +1160,135 @@ function clearForm() {
         clearAllManualFields();
     }
 }
+
+// Test function to manually set values and check calculation
+function testCalculation() {
+    // Set test values
+    $('#previous_package_fee').val('18000.00');
+    $('#previous_extra_hours').val('1275.00');
+    $('#previous_holiday_charges').val('0.00');
+    $('#previous_discount_applied').val('0.00');
+    $('#previous_payment').val('0.00');
+    
+    // Trigger calculation
+    calculateTotals();
+    
+    // Show results in alert
+    const prevMonthTotal = 
+        (parseFloat($('#previous_package_fee').val()) || 0) +
+        (parseFloat($('#previous_extra_hours').val()) || 0) +
+        (parseFloat($('#previous_holiday_charges').val()) || 0) -
+        (parseFloat($('#previous_discount_applied').val()) || 0) -
+        (parseFloat($('#previous_payment').val()) || 0);
+    
+    alert('Previous Month Net should be Rs. 19,275.00\nCalculated: Rs. ' + prevMonthTotal.toLocaleString('en-US', {minimumFractionDigits: 2}));
+}
+
+// Make it available globally for testing
+window.testCalculation = testCalculation;
+
+$(document).ready(function() {
+    $('#child').select2({
+        placeholder: 'Search by admission number or child name...',
+        allowClear: true,
+        width: '100%'
+    });
+    
+    // Set current year and month as default
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    
+    $('#year').val(currentYear);
+    updateMonthOptions();
+    $('#month').val(currentMonth);
+    
+    // Initial call to update month names
+    setTimeout(function() {
+        updateMonthNames();
+    }, 500);
+    
+    // Event listeners
+    $('#child').on('change', function() {
+        if ($(this).val()) {
+            clearAllManualFields();
+            
+            if ($('#month').val() && $('#year').val()) {
+                setTimeout(function() {
+                    loadChildDetails();
+                }, 300);
+            }
+        } else {
+            clearAllManualFields();
+        }
+    });
+    
+    $('#month').on('change', function() {
+        setTimeout(updateMonthNames, 100);
+        if ($('#child').val()) {
+            setTimeout(function() {
+                loadChildDetails();
+            }, 300);
+        }
+    });
+    
+    $('#year').on('change', function() {
+        updateMonthOptions();
+        setTimeout(updateMonthNames, 100);
+        if ($('#child').val()) {
+            setTimeout(function() {
+                loadChildDetails();
+            }, 300);
+        }
+    });
+    
+    // Add payment validation event listeners
+    $('#payment_settled, #outstanding_receipt_number').on('blur', function() {
+        validatePaymentField('outstanding');
+    });
+    
+    $('#previous_payment, #previous_receipt_number').on('blur', function() {
+        validatePaymentField('previous');
+    });
+    
+    $('#current_payment, #current_receipt_number').on('blur', function() {
+        validatePaymentField('current');
+    });
+    
+    // Add calculation triggers for all amount fields - ENHANCED
+    $('input[type="number"]').on('input change keyup blur', function() {
+        calculateTotals();
+    });
+    
+    // Specific triggers for the breakdown fields
+    $('#previous_extra_hours, #previous_holiday_charges').on('input change keyup blur', function() {
+        calculateTotals();
+    });
+    
+    // Manual refresh button
+    $('#refresh-breakdown').on('click', function() {
+        loadPreviousMonthBreakdown();
+    });
+    
+    // Toggle breakdown visibility
+    $('#toggle-breakdown').on('click', function() {
+        const content = $('#breakdown-content');
+        const icon = $(this).find('i');
+        const textSpan = $(this).find('span');
+        
+        if (content.is(':visible')) {
+            content.slideUp();
+            icon.removeClass('ri-eye-off-line').addClass('ri-eye-line');
+            textSpan.text('Show Breakdown');
+        } else {
+            content.slideDown();
+            icon.removeClass('ri-eye-line').addClass('ri-eye-off-line');
+            textSpan.text('Hide Breakdown');
+        }
+    });
+    
+    window.updateMonthNames = updateMonthNames;
+});
 
 // Form submission validation
 $('#memoDataForm').on('submit', function(e) {
@@ -1425,8 +1314,7 @@ $('#memoDataForm').on('submit', function(e) {
     $(this).find('button[type="submit"]').html('<i class="ri-loader-4-line ri-spin me-1"></i>Saving...').prop('disabled', true);
 });
 
-// Calculation trigger for all amount fields
-$('.amount-field').on('input change', calculateTotals);
+
 </script>
 
 {% endblock %}
