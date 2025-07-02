@@ -384,4 +384,32 @@ urlpatterns = [
         views.getChildComprehensiveDataJS,
         name="get_child_comprehensive_data_js",
     ),
+    path("load_invoice_memo/", views.loadInvoiceMemo, name="load_invoice_memo"),
+    path("search_invoice_memo/", views.searchInvoiceMemo, name="search_invoice_memo"),
+    path(
+        "get_all_invoice_memos/", views.getAllInvoiceMemos, name="get_all_invoice_memos"
+    ),
+    path(
+        "preview_invoice_memo/<int:memo_id>/",
+        views.previewInvoiceMemo,
+        name="preview_invoice_memo",
+    ),
+    path(
+        "download_invoice_memo_pdf/",
+        views.downloadInvoiceMemoPDF,
+        name="download_invoice_memo_pdf",
+    ),
+    path(
+        "get_memo_preview_data/", views.getMemoPreviewData, name="get_memo_preview_data"
+    ),
+    path(
+        "generate_memo_preview/",
+        views.generateMemoPreview,
+        name="generate_memo_preview",
+    ),
+    path(
+        "get_invoice_memo_by_id/<int:pk>/",
+        views.getInvoiceMemoByID,
+        name="get_invoice_memo_by_id",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

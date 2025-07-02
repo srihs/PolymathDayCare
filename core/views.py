@@ -57,12 +57,13 @@ from .forms import (
     CreateFlexPackagesForm,
     CreateOtherhHolidayForm,
     CreatePackageChangeRequestForm,
-    # CreateHolidayTypesForm,
     CreatePackageTypeForm,
     CreatePolymathHolidayForm,
     CreatePublicHolidayForm,
     ExtraHoursReportForm,
     GenerateInvoiceForm,
+    # CreateHolidayTypesForm,
+    LoadInvoiceMemoForm,
     SearchForm,
     UpdateBranchForm,
     UpdateChildForm,
@@ -8048,5 +8049,638 @@ def getChildComprehensiveDataJS(request):
 
     except Child.DoesNotExist:
         return JsonResponse({"error": "Child not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+########################### invoice
+
+
+@login_required
+def loadInvoiceMemo(request):
+    """Display memo load form"""
+    try:
+        form = LoadInvoiceMemoForm()
+
+        context = {
+            "form": form,
+            "UserName": request.user.username,
+        }
+
+        return render(request, "../templates/invoice.html", context)
+
+    except Exception as e:
+        messages.error(request, f"Error loading memo form: {str(e)}")
+        return redirect("core:memo_data_entry")
+
+
+@login_required
+def searchInvoiceMemo(request):
+    """Search for existing invoice memo"""
+    try:
+        if request.method != "GET":
+            return JsonResponse({"error": "GET method required"}, status=400)
+
+        child_id = request.GET.get("child_id")
+        month = request.GET.get("month")
+        year = request.GET.get("year")
+
+        if not all([child_id, month, year]):
+            return JsonResponse({"error": "Missing required parameters"}, status=400)
+
+        # Get child info
+        child = get_object_or_404(Child, id=child_id)
+        month_int = int(month)
+        year_int = int(year)
+        month_name = calendar.month_name[month_int]
+
+        # Search for existing memo
+        memo = InvoiceMemo.objects.filter(
+            child=child, memo_month=month_int, memo_year=year_int, is_active=True
+        ).first()
+
+        if memo:
+            # Memo found - return memo data
+            memo_data = {
+                "id": memo.id,
+                "memo_code": memo.memo_code,
+                "child_id": child.id,
+                "child_name": f"{child.child_first_name} {child.child_last_name}",
+                "child_admission": child.admission_number,
+                "memo_month": memo.memo_month,
+                "memo_year": memo.memo_year,
+                "total_outstanding": float(memo.total_outstanding),
+                "total_previous_month": float(memo.total_previous_month),
+                "total_current_month": float(memo.total_current_month),
+                "gross_total": float(memo.gross_total),
+                "total_payments": float(memo.total_payments),
+                "net_amount_due": float(memo.net_amount_due),
+                "status": memo.status,
+                "date_created": memo.date_created.isoformat()
+                if memo.date_created
+                else None,
+                "notes": memo.notes or "",
+            }
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "memo": memo_data,
+                    "child_name": f"{child.child_first_name} {child.child_last_name}",
+                    "month_name": month_name,
+                    "year": year_int,
+                }
+            )
+        else:
+            # No memo found
+            return JsonResponse(
+                {
+                    "success": True,
+                    "memo": None,
+                    "child_name": f"{child.child_first_name} {child.child_last_name}",
+                    "month_name": month_name,
+                    "year": year_int,
+                }
+            )
+
+    except Child.DoesNotExist:
+        return JsonResponse({"error": "Child not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def previewInvoiceMemo(request, memo_id):
+    """Preview invoice memo - TEMPORARY SIMPLE VERSION"""
+    try:
+        memo = get_object_or_404(InvoiceMemo, pk=memo_id)
+
+        # For now, just show a simple message and redirect
+        # You can replace this with the full preview template later
+        messages.info(
+            request,
+            f"Preview for memo {memo.memo_code} will be shown here. Memo ID: {memo_id}",
+        )
+
+        # For testing, redirect back to load form
+        return redirect("core:load_invoice_memo")
+
+    except Exception as e:
+        messages.error(request, f"Error loading memo: {str(e)}")
+        return redirect("core:load_invoice_memo")
+
+
+@login_required
+def downloadInvoiceMemoPDF(request):
+    """Generate and download PDF - COMPLETE IMPLEMENTATION"""
+    try:
+        if request.method != "POST":
+            return JsonResponse({"error": "POST method required"}, status=400)
+
+        data = json.loads(request.body)
+        memo_code = data.get("memo_code")
+        child_id = data.get("child_id")
+
+        if not memo_code:
+            return JsonResponse({"error": "Memo code required"}, status=400)
+
+        # Get memo by code
+        memo = InvoiceMemo.objects.filter(memo_code=memo_code, is_active=True).first()
+        if not memo:
+            return JsonResponse({"error": "Memo not found"}, status=404)
+
+        # Prepare memo data for PDF
+        memo_data = prepare_memo_display_data(memo)
+
+        # Generate PDF
+        pdf_buffer = generate_memo_pdf(memo_data)
+
+        # Create response
+        response = HttpResponse(pdf_buffer.getvalue(), content_type="application/pdf")
+        filename = (
+            f"Invoice_Memo_{memo_data['memo_code']}_{memo_data['child_admission']}.pdf"
+        )
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+        return response
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+def generate_memo_pdf(memo_data):
+    """Generate PDF using ReportLab - Exact replica of the attached PDF"""
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=20 * mm,
+        leftMargin=20 * mm,
+        topMargin=15 * mm,
+        bottomMargin=15 * mm,
+    )
+
+    # Get styles
+    styles = getSampleStyleSheet()
+
+    # Custom styles
+    header_style = ParagraphStyle(
+        "CustomHeader",
+        parent=styles["Heading1"],
+        fontSize=16,
+        spaceAfter=6,
+        alignment=1,  # Center
+        fontName="Helvetica-Bold",
+    )
+
+    address_style = ParagraphStyle(
+        "AddressStyle",
+        parent=styles["Normal"],
+        fontSize=9,
+        alignment=1,  # Center
+        spaceAfter=12,
+    )
+
+    # Story to hold content
+    story = []
+
+    # Header
+    story.append(Paragraph("POLYMATH KIDS DIVISION - MEMO", header_style))
+    story.append(
+        Paragraph(
+            "No 452/3 High Level Road, Nawinna, Maharagama<br/>PV 63200 | Phone 0112802554",
+            address_style,
+        )
+    )
+
+    # Add horizontal line
+    story.append(HRFlowable(width="100%", thickness=1, color=colors.black))
+    story.append(Spacer(1, 12))
+
+    # Memo info section
+    memo_info_data = [
+        [
+            f"Name: {memo_data['child_name']}\nPackage: {memo_data['package_name']}",
+            f"Child ID: {memo_data['child_admission']}\nDue Date: {memo_data['due_date']}",
+        ]
+    ]
+
+    memo_info_table = Table(memo_info_data, colWidths=[100 * mm, 70 * mm])
+    memo_info_table.setStyle(
+        TableStyle(
+            [
+                ("FONTSIZE", (0, 0), (-1, -1), 10),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+            ]
+        )
+    )
+
+    story.append(memo_info_table)
+    story.append(Spacer(1, 15))
+
+    # Main table data
+    table_data = [["Description", "Amount (Rs.)"]]
+
+    # Outstanding section
+    table_data.append(
+        [
+            f"{memo_data['outstanding_month']['name']} {memo_data['outstanding_month']['year']} • OUTSTANDING",
+            "",
+        ]
+    )
+    table_data.append(
+        [
+            f"No outstanding from {memo_data['outstanding_month']['name']}",
+            f"{memo_data['outstanding_month']['charge']:.2f}",
+        ]
+    )
+
+    # Previous month section
+    table_data.append(
+        [
+            f"{memo_data['previous_month']['name']} {memo_data['previous_month']['year']} • CALCULATED",
+            "",
+        ]
+    )
+    table_data.append(
+        [
+            f"Day Care Monthly fee - {memo_data['previous_month']['name']} ({memo_data['previous_month']['days_attended']}/{memo_data['previous_month']['expected_days']} days attended)",
+            f"{memo_data['previous_month']['package_fee']:.2f}",
+        ]
+    )
+
+    # Extra hours if any
+    if memo_data["previous_month"]["extra_charges"] > 0:
+        extra_hours_text = "Extra Hours Charges"
+        if memo_data["extra_hours_summary"]["total_instances"] > 0:
+            extra_hours_text += (
+                f" {memo_data['extra_hours_summary']['total_instances']} instances"
+            )
+
+        # Add breakdown details
+        for detail in memo_data["extra_hours_breakdown"][
+            :6
+        ]:  # Limit to 6 entries like in the PDF
+            extra_hours_text += f"\n{detail['date']} -> {detail['time_out']} ({detail.get('extra_hours_display', detail.get('extra_hours', ''))} extra)"
+
+        table_data.append(
+            [extra_hours_text, f"{memo_data['previous_month']['extra_charges']:.2f}"]
+        )
+
+    # Holiday charges if any
+    if memo_data["previous_month"]["holiday_charges"] > 0:
+        table_data.append(
+            [
+                "Holiday Attendance Charges",
+                f"{memo_data['previous_month']['holiday_charges']:.2f}",
+            ]
+        )
+
+    # Previous month total
+    table_data.append(
+        [
+            f"Total for {memo_data['previous_month']['name']} {memo_data['previous_month']['year']}",
+            f"{memo_data['previous_month']['gross_charges']:.2f}",
+        ]
+    )
+
+    # Current month section
+    table_data.append(
+        [
+            f"{memo_data['current_month']['name']} {memo_data['current_month']['year']} • ADVANCE",
+            "",
+        ]
+    )
+    table_data.append(
+        [
+            f"Day Care Monthly fee - {memo_data['current_month']['name']} {memo_data['current_month']['year']} (Full Package)\nAdvance charge for upcoming month",
+            f"{memo_data['current_month']['package_fee']:.2f}",
+        ]
+    )
+
+    # Final total
+    table_data.append(
+        ["TOTAL AMOUNT TO PAY", f"Rs. {memo_data['totals']['grand_total']:.2f}"]
+    )
+
+    # Create table
+    main_table = Table(table_data, colWidths=[120 * mm, 35 * mm])
+
+    # Table styling
+    table_style_commands = [
+        # Basic styling
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),  # Right align amounts
+        # Header row
+        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+        ("FONTSIZE", (0, 0), (-1, 0), 10),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        # Section headers styling
+        (
+            "BACKGROUND",
+            (0, 1),
+            (-1, 1),
+            colors.Color(1, 0.9, 0.9),
+        ),  # Outstanding - light red
+        ("FONTNAME", (0, 1), (-1, 1), "Helvetica-Bold"),
+        (
+            "BACKGROUND",
+            (0, 3),
+            (-1, 3),
+            colors.Color(0.9, 1, 0.9),
+        ),  # Calculated - light green
+        ("FONTNAME", (0, 3), (-1, 3), "Helvetica-Bold"),
+        (
+            "BACKGROUND",
+            (0, -4),
+            (-1, -4),
+            colors.Color(0.9, 0.95, 1),
+        ),  # Advance - light blue
+        ("FONTNAME", (0, -4), (-1, -4), "Helvetica-Bold"),
+        # Total row styling
+        ("BACKGROUND", (0, -1), (-1, -1), colors.Color(1, 0.95, 0.8)),  # Light orange
+        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("FONTSIZE", (0, -1), (-1, -1), 11),
+    ]
+
+    # Find and style the "Total for" row
+    for i, row in enumerate(table_data):
+        if row[0].startswith("Total for"):
+            table_style_commands.append(
+                ("BACKGROUND", (0, i), (-1, i), colors.Color(1, 0.98, 0.9))
+            )
+            table_style_commands.append(("FONTNAME", (0, i), (-1, i), "Helvetica-Bold"))
+            break
+
+    main_table.setStyle(TableStyle(table_style_commands))
+
+    story.append(main_table)
+    story.append(Spacer(1, 20))
+
+    # Footer note
+    note_text = (
+        "<b>Please note that,</b> Only the payments made before the invoice date is indicated. "
+        f"If there is any outstanding amount please settle on or before {memo_data['due_date']}. "
+        "Ignore this message if you have already settled that outstanding."
+    )
+
+    note_style = ParagraphStyle(
+        "NoteStyle", parent=styles["Normal"], fontSize=8, spaceAfter=12
+    )
+
+    story.append(Paragraph(note_text, note_style))
+
+    # Signature
+    signature_text = "<b>Thank you,</b><br/><b>The Management,</b>"
+    story.append(Paragraph(signature_text, note_style))
+    story.append(Spacer(1, 12))
+
+    # Account details box
+    account_details = [
+        ["Account Details"],
+        ["Account Name - Polymath College (PVT) Ltd"],
+        ["Bank - Peoples Bank"],
+        ["Branch - Gangodawila"],
+        ["Account Number - 097100130026495"],
+        ["Whatsapp - 0705565858"],
+    ]
+
+    account_table = Table(account_details, colWidths=[170 * mm])
+    account_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.Color(0.97, 0.97, 0.97)),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("FONTNAME", (0, 0), (0, 0), "Helvetica-Bold"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ]
+        )
+    )
+
+    story.append(account_table)
+
+    # Build PDF
+    doc.build(story)
+    buffer.seek(0)
+
+    return buffer
+
+
+def prepare_memo_display_data(memo):
+    """Prepare memo data for display - matches your redesigned model structure"""
+    try:
+        details = memo.month_details.all().order_by("month_sequence")
+
+        if details.count() != 3:
+            # Handle case where memo doesn't have 3 month details
+            # Create basic structure with available data
+            memo_data = {
+                "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}",
+                "child_admission": memo.child.admission_number,
+                "child_id": memo.child.id,
+                "package_name": "Package Not Specified",
+                "due_date": (memo.memo_date + timedelta(days=7)).strftime("%d/%m/%Y"),
+                "memo_code": memo.memo_code,
+                "outstanding_month": {
+                    "name": "Outstanding",
+                    "year": memo.memo_year,
+                    "charge": float(memo.total_outstanding),
+                },
+                "previous_month": {
+                    "name": calendar.month_name[
+                        memo.memo_month - 1 if memo.memo_month > 1 else 12
+                    ],
+                    "year": memo.memo_year
+                    if memo.memo_month > 1
+                    else memo.memo_year - 1,
+                    "package_fee": float(memo.total_previous_month),
+                    "extra_charges": 0.0,
+                    "holiday_charges": 0.0,
+                    "discount": 0.0,
+                    "gross_charges": float(memo.total_previous_month),
+                    "days_attended": 0,
+                    "expected_days": 22,
+                },
+                "current_month": {
+                    "name": calendar.month_name[memo.memo_month],
+                    "year": memo.memo_year,
+                    "package_fee": float(memo.total_current_month),
+                    "extra_charges": 0.0,
+                    "holiday_charges": 0.0,
+                    "discount": 0.0,
+                    "gross_charges": float(memo.total_current_month),
+                },
+                "totals": {
+                    "grand_total": float(memo.net_amount_due),
+                    "total_outstanding": float(memo.total_outstanding),
+                    "total_previous_month": float(memo.total_previous_month),
+                    "total_current_month": float(memo.total_current_month),
+                },
+                "extra_hours_breakdown": [],
+                "extra_hours_summary": {"total_instances": 0},
+            }
+
+            return memo_data
+
+        outstanding_detail = details[0]  # OUTSTANDING
+        previous_detail = details[1]  # PREVIOUS
+        current_detail = details[2]  # CURRENT
+
+        # Calculate due date (7 days from memo date)
+        due_date = (memo.memo_date + timedelta(days=7)).strftime("%d/%m/%Y")
+
+        # Get extra hours breakdown from calculation_details if available
+        extra_hours_breakdown = []
+        extra_hours_summary = {"total_instances": 0}
+
+        if (
+            hasattr(previous_detail, "calculation_details")
+            and previous_detail.calculation_details
+        ):
+            breakdown_data = previous_detail.calculation_details.get(
+                "extra_hours_breakdown", []
+            )
+            extra_hours_breakdown = breakdown_data
+            extra_hours_summary["total_instances"] = len(breakdown_data)
+
+        memo_data = {
+            "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}",
+            "child_admission": memo.child.admission_number,
+            "child_id": memo.child.id,
+            "package_name": previous_detail.package_name or "Package Not Specified",
+            "due_date": due_date,
+            "memo_code": memo.memo_code,
+            "outstanding_month": {
+                "name": outstanding_detail.month_name,
+                "year": outstanding_detail.actual_year,
+                "charge": float(outstanding_detail.net_balance),
+            },
+            "previous_month": {
+                "name": previous_detail.month_name,
+                "year": previous_detail.actual_year,
+                "package_fee": float(previous_detail.package_fee),
+                "extra_charges": float(previous_detail.extra_hours_charge),
+                "holiday_charges": float(previous_detail.holiday_charges),
+                "discount": float(previous_detail.discount_applied),
+                "gross_charges": float(previous_detail.net_charges),
+                "days_attended": previous_detail.days_attended,
+                "expected_days": previous_detail.expected_days,
+            },
+            "current_month": {
+                "name": current_detail.month_name,
+                "year": current_detail.actual_year,
+                "package_fee": float(current_detail.package_fee),
+                "extra_charges": float(current_detail.extra_hours_charge),
+                "holiday_charges": float(current_detail.holiday_charges),
+                "discount": float(current_detail.discount_applied),
+                "gross_charges": float(current_detail.net_charges),
+            },
+            "totals": {
+                "grand_total": float(memo.net_amount_due),
+                "total_outstanding": float(memo.total_outstanding),
+                "total_previous_month": float(memo.total_previous_month),
+                "total_current_month": float(memo.total_current_month),
+            },
+            "extra_hours_breakdown": extra_hours_breakdown,
+            "extra_hours_summary": extra_hours_summary,
+        }
+
+        return memo_data
+
+    except Exception as e:
+        raise Exception(f"Error preparing memo display data: {str(e)}")
+
+
+@login_required
+def getMemoPreviewData(request):
+    """Get memo preview data - TEMPORARY VERSION"""
+    try:
+        memo_id = request.GET.get("memo_id")
+        if not memo_id:
+            return JsonResponse({"error": "Memo ID required"}, status=400)
+
+        memo = get_object_or_404(InvoiceMemo, pk=memo_id)
+
+        # Return basic memo data
+        return JsonResponse(
+            {
+                "success": True,
+                "memo_code": memo.memo_code,
+                "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}",
+            }
+        )
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def generateMemoPreview(request):
+    """Generate memo preview - TEMPORARY VERSION"""
+    try:
+        return JsonResponse({"message": "Preview generation coming soon"})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getAllInvoiceMemos(request):
+    """Get all invoice memos for listing"""
+    try:
+        # Get filter parameters
+        child_id = request.GET.get("child_id")
+        month = request.GET.get("month")
+        year = request.GET.get("year")
+        status = request.GET.get("status")
+
+        # Build query
+        memos = InvoiceMemo.objects.filter(is_active=True)
+
+        if child_id:
+            memos = memos.filter(child_id=child_id)
+        if month:
+            memos = memos.filter(memo_month=int(month))
+        if year:
+            memos = memos.filter(memo_year=int(year))
+        if status:
+            memos = memos.filter(status=status)
+
+        # Order by most recent first
+        memos = memos.order_by("-memo_year", "-memo_month", "-date_created")
+
+        # Prepare data
+        memo_list = []
+        for memo in memos:
+            memo_list.append(
+                {
+                    "id": memo.id,
+                    "memo_code": memo.memo_code,
+                    "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}",
+                    "child_admission": memo.child.admission_number,
+                    "month_name": calendar.month_name[memo.memo_month],
+                    "memo_month": memo.memo_month,
+                    "memo_year": memo.memo_year,
+                    "gross_total": float(memo.gross_total),
+                    "total_payments": float(memo.total_payments),
+                    "net_amount_due": float(memo.net_amount_due),
+                    "status": memo.status,
+                    "date_created": memo.date_created.strftime("%Y-%m-%d %H:%M")
+                    if memo.date_created
+                    else "",
+                    "user_created": memo.user_created,
+                }
+            )
+
+        return JsonResponse(memo_list, safe=False)
+
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)

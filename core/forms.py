@@ -2594,3 +2594,84 @@ class ExtraHoursReportForm(forms.Form):
         required=False,
         widget=forms.Select(attrs={"class": "form-control", "id": "center"}),
     )
+
+
+# Add this form to your forms.py file
+
+from datetime import datetime
+
+from django import forms
+
+from .models import Child
+
+
+class LoadInvoiceMemoForm(forms.Form):
+    """Form for loading existing invoice memos"""
+
+    child = forms.ModelChoiceField(
+        queryset=Child.objects.filter(
+            is_active=True, enrollement_approved=True
+        ).order_by("admission_number"),
+        empty_label="-Select Child -",
+        required=True,
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "id": "load_child",
+                "required": "required",
+                "data-live-search": "true",
+                "data-size": "10",
+            }
+        ),
+        help_text="Search by typing admission number or child name",
+    )
+
+    month = forms.ChoiceField(
+        choices=[
+            ("1", "January"),
+            ("2", "February"),
+            ("3", "March"),
+            ("4", "April"),
+            ("5", "May"),
+            ("6", "June"),
+            ("7", "July"),
+            ("8", "August"),
+            ("9", "September"),
+            ("10", "October"),
+            ("11", "November"),
+            ("12", "December"),
+        ],
+        initial=datetime.now().month,
+        required=True,
+        widget=forms.Select(
+            attrs={"class": "form-control", "id": "load_month", "required": "required"}
+        ),
+    )
+
+    year = forms.ChoiceField(
+        choices=[(i, i) for i in range(2020, 2030)],
+        initial=datetime.now().year,
+        required=True,
+        widget=forms.Select(
+            attrs={"class": "form-control", "id": "load_year", "required": "required"}
+        ),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set current month and year as defaults
+        current_date = datetime.now()
+        self.fields["month"].initial = current_date.month
+        self.fields["year"].initial = current_date.year
+
+        # Update year choices to include past and future years
+        current_year = current_date.year
+        year_choices = [(i, i) for i in range(current_year - 2, current_year + 3)]
+        self.fields["year"].choices = year_choices
+
+        # Customize child queryset to include admission number in display
+        self.fields["child"].label_from_instance = self.child_label_from_instance
+
+    @staticmethod
+    def child_label_from_instance(obj):
+        return f"{obj.admission_number} - {obj.child_first_name} {obj.child_last_name}"
