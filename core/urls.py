@@ -305,58 +305,6 @@ urlpatterns = [
         name="get_center_change_requestsJs",
     ),
     path(
-        "get_invoices/",
-        views.getInvoice,
-        name="get_invoices",
-    ),
-    path(
-        "generate_invoices/",
-        views.generateInvoiceEligibilityJS,
-        name="generate_invoices_eligibilityJS",
-    ),
-    path(
-        "generateinvoicesJS/",
-        views.generateInvoiceJS,
-        name="generateinvoicesJS",
-    ),
-    path("invoice_memos/", views.getInvoiceMemos, name="view_invoice_memos"),
-    path("get_invoice_memos_js/", views.getInvoiceMemosJS, name="get_invoice_memos_js"),
-    path(
-        "generate_save_invoice_memo/",
-        views.generateAndSaveInvoiceMemo,
-        name="generate_save_invoice_memo",
-    ),
-    path(
-        "preview_invoice_memo/", views.previewInvoiceMemo, name="preview_invoice_memo"
-    ),
-    path(
-        "get_invoice_memo_by_id/<int:pk>/",
-        views.getInvoiceMemoByID,
-        name="get_invoice_memo_by_id",
-    ),
-    path(
-        "delete_invoice_memo/<int:pk>/",
-        views.deleteInvoiceMemo,
-        name="delete_invoice_memo",
-    ),
-    path(
-        "preview_three_month_invoice/",
-        views.previewThreeMonthInvoice,
-        name="preview_three_month_invoice",
-    ),
-    path("record_payment/", views.recordPayment, name="record_payment"),
-    path(
-        "get_child_outstanding_summary/",
-        views.getChildOutstandingSummary,
-        name="get_child_outstanding_summary",
-    ),
-    path("get_record_payment/", views.get_record_payment, name="get_record_payment"),
-    path(
-        "preview_three_month_invoice_updated/",
-        views.previewThreeMonthInvoiceUpdated,
-        name="preview_three_month_invoice_updated",
-    ),
-    path(
         "extra_hours_report/",
         views.getExtraHoursReport,
         name="extra_hours_report",
@@ -420,18 +368,6 @@ urlpatterns = [
     ),
     path("calculate_memo_data/", views.calculateMemoData, name="calculate_memo_data"),
     path("save_memo_data_entry/", views.saveMemoDataEntry, name="save_memo_data_entry"),
-    path("save_memo_draft/", views.saveMemoDataDraft, name="save_memo_draft"),
-    path(
-        "get_previous_memo_data/",
-        views.getPreviousMemoData,
-        name="get_previous_memo_data",
-    ),
-    path("generate_memo_pdf/", views.generateMemoPDF, name="generate_memo_pdf"),
-    path(
-        "get_historical_memo_data/",
-        views.getHistoricalMemoData,
-        name="get_historical_memo_data",
-    ),
     # Add this to your urlpatterns in urls.py
     path(
         "get_detailed_charges_breakdown/",
