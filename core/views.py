@@ -8282,368 +8282,257 @@ def previewInvoiceMemo(request, memo_id):
         return redirect("core:load_invoice_memo")
 
 
-def generate_memo_preview_html_fixed(memo_data):
-    """Generate clean HTML preview that exactly matches PDF format"""
+def generate_memo_pdf_fixed(memo_data):
+    """Generate PDF that exactly matches the HTML preview and your desired format"""
+    try:
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=20 * mm,
+            leftMargin=20 * mm,
+            topMargin=15 * mm,
+            bottomMargin=15 * mm,
+        )
 
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Invoice Memo Preview - {memo_data["memo_code"]}</title>
-        <style>
-            body {{
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                max-width: 800px;
-                margin: 20px auto;
-                padding: 20px;
-                background: #f5f5f5;
-                font-size: 11px;
-                line-height: 1.4;
-            }}
-            
-            .memo-container {{
-                background: white;
-                padding: 30px;
-                border-radius: 8px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            }}
-            
-            .company-header {{
-                text-align: center;
-                margin-bottom: 20px;
-            }}
-            
-            .company-title {{
-                font-size: 16px;
-                font-weight: bold;
-                margin-bottom: 8px;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            }}
-            
-            .company-address {{
-                font-size: 11px;
-                color: #000;
-                margin-bottom: 15px;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            }}
-            
-            .divider {{
-                height: 1px;
-                background: #000;
-                margin: 15px 0;
-            }}
-            
-            .memo-info {{
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 20px;
-                font-size: 11px;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            }}
-            
-            .memo-table {{
-                width: 100%;
-                border-collapse: collapse;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                font-size: 11px;
-                margin-bottom: 20px;
-            }}
-            
-            .memo-table th,
-            .memo-table td {{
-                border: 1px solid #000;
-                padding: 8px;
-                text-align: left;
-                vertical-align: top;
-                font-size: 11px;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            }}
-            
-            .memo-table th {{
-                background: #e9ecef;
-                font-weight: bold;
-                font-size: 11px;
-            }}
-            
-            .memo-table .amount-col {{
-                text-align: right;
-                width: 120px;
-            }}
-            
-            .outstanding-header {{
-                background: #ffeaea !important;
-                font-weight: bold;
-            }}
-            
-            .calculated-header {{
-                background: #e6f3ff !important;
-                font-weight: bold;
-            }}
-            
-            .advance-header {{
-                background: #e6ffff !important;
-                font-weight: bold;
-            }}
-            
-            .total-row {{
-                font-weight: bold;
-            }}
-            
-            .final-total {{
-                background: #fff0cc !important;
-                font-weight: bold;
-            }}
-            
-            .memo-note {{
-                font-size: 11px;
-                margin: 15px 0;
-                line-height: 1.4;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            }}
-            
-            .account-details {{
-                border: 1px solid #000;
-                margin-top: 15px;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            }}
-            
-            .account-details .title {{
-                background: #f0f0f0;
-                font-weight: bold;
-                padding: 8px;
-                border-bottom: 1px solid #000;
-                font-size: 11px;
-            }}
-            
-            .account-details .row {{
-                padding: 6px 8px;
-                border-bottom: 1px solid #000;
-                font-size: 11px;
-            }}
-            
-            .account-details .row:last-child {{
-                border-bottom: none;
-            }}
-            
-            .action-buttons {{
-                text-align: center;
-                margin: 20px 0;
-                padding: 15px;
-                background: #f8f9fa;
-                border-radius: 5px;
-            }}
-            
-            .btn {{
-                display: inline-block;
-                padding: 8px 16px;
-                margin: 0 5px;
-                background: #007bff;
-                color: white;
-                text-decoration: none;
-                border-radius: 4px;
-                font-size: 12px;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            }}
-            
-            .btn:hover {{
-                background: #0056b3;
-                color: white;
-                text-decoration: none;
-            }}
-            
-            .btn-success {{ background: #28a745; }}
-            .btn-success:hover {{ background: #1e7e34; }}
-            
-            @media print {{
-                .action-buttons {{ display: none; }}
-                body {{ background: white; margin: 0; }}
-                .memo-container {{ box-shadow: none; }}
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="action-buttons">
-            <a href="javascript:window.print()" class="btn">🖨️ Print</a>
-            <a href="#" onclick="downloadPDF()" class="btn btn-success">📄 Download PDF</a>
-        </div>
-        
-        <div class="memo-container">
-            <!-- Company Header -->
-            <div class="company-header">
-                <div class="company-title">POLYMATH KIDS DIVISION - MEMO</div>
-                <div class="company-address">
-                    No 452/3 High Level Road, Nawinna, Maharagama<br>
-                    PV 63200 | Phone 0112802554
-                </div>
-            </div>
-            
-            <div class="divider"></div>
-            
-            <!-- Memo Info -->
-            <div class="memo-info">
-                <div>
-                    <strong>Name:</strong> {memo_data["child_name"]}<br>
-                    <strong>Package:</strong> {memo_data["package_name"]}
-                </div>
-                <div>
-                    <strong>Child ID:</strong> {memo_data["child_admission"]}<br>
-                    <strong>Due Date:</strong> {memo_data["due_date"]}
-                </div>
-            </div>
-            
-            <!-- Main Table -->
-            <table class="memo-table">
-                <thead>
-                    <tr>
-                        <th>Description</th>
-                        <th class="amount-col">Amount (Rs.)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Outstanding Section -->
-                    <tr class="outstanding-header">
-                        <td>{memo_data["outstanding_month"]["name"]} {memo_data["outstanding_month"]["year"]} • OUTSTANDING</td>
-                        <td class="amount-col"></td>
-                    </tr>
-                    <tr>
-                        <td>Outstanding from {memo_data["outstanding_month"]["name"]}</td>
-                        <td class="amount-col">{memo_data["outstanding_month"]["balance"]:,.2f}</td>
-                    </tr>
-                    
-                    <!-- Previous Month Section -->
-                    <tr class="calculated-header">
-                        <td>{memo_data["previous_month"]["name"]} {memo_data["previous_month"]["year"]} • CALCULATED</td>
-                        <td class="amount-col"></td>
-                    </tr>
-                    <tr>
-                        <td>Day Care Monthly fee - {memo_data["previous_month"]["name"]} ({memo_data["previous_month"]["days_attended"]}/{memo_data["previous_month"]["expected_days"]} days attended)</td>
-                        <td class="amount-col">{memo_data["previous_month"]["package_fee"]:,.2f}</td>
-                    </tr>"""
+        styles = getSampleStyleSheet()
 
-    # Add extra hours if any
-    if memo_data["previous_month"]["extra_charges"] > 0:
-        html_content += f"""
-                    <tr>
-                        <td>Extra Hours Charges</td>
-                        <td class="amount-col">{memo_data["previous_month"]["extra_charges"]:,.2f}</td>
-                    </tr>"""
+        # Define consistent styles using the same font
+        header_style = ParagraphStyle(
+            "CustomHeader",
+            parent=styles["Heading1"],
+            fontSize=16,
+            spaceAfter=6,
+            alignment=1,
+            fontName="Helvetica-Bold",
+        )
 
-    # Add holiday charges if any
-    if memo_data["previous_month"].get("holiday_charges", 0) > 0:
-        html_content += f"""
-                    <tr>
-                        <td>Holiday Attendance Charges</td>
-                        <td class="amount-col">{memo_data["previous_month"]["holiday_charges"]:,.2f}</td>
-                    </tr>"""
+        address_style = ParagraphStyle(
+            "AddressStyle",
+            parent=styles["Normal"],
+            fontSize=11,
+            alignment=1,
+            spaceAfter=12,
+            fontName="Helvetica",
+        )
 
-    # Continue with rest of table
-    html_content += f"""
-                    <tr class="total-row">
-                        <td><strong>Total for {memo_data["previous_month"]["name"]} {memo_data["previous_month"]["year"]}</strong></td>
-                        <td class="amount-col"><strong>{memo_data["previous_month"]["month_total"]:,.2f}</strong></td>
-                    </tr>
-                    
-                    <!-- Current Month Section -->
-                    <tr class="advance-header">
-                        <td>{memo_data["current_month"]["name"]} {memo_data["current_month"]["year"]} • ADVANCE</td>
-                        <td class="amount-col"></td>
-                    </tr>
-                    <tr>
-                        <td>Day Care Monthly fee - {memo_data["current_month"]["name"]} {memo_data["current_month"]["year"]} (Full Package)<br>Advance charge for upcoming month</td>
-                        <td class="amount-col">{memo_data["current_month"]["package_fee"]:,.2f}</td>
-                    </tr>
-                    
-                    <!-- Final Total -->
-                    <tr class="final-total">
-                        <td>
-                            <strong>TOTAL AMOUNT TO PAY</strong><br>
-                            <small>{memo_data["totals"]["final_calculation"]}</small>
-                        </td>
-                        <td class="amount-col"><strong>Rs. {memo_data["totals"]["grand_total"]:,.2f}</strong></td>
-                    </tr>
-                </tbody>
-            </table>
-            
-            <!-- Footer Note -->
-            <div class="memo-note">
-                <strong>Please note that,</strong> Only the payments made before the invoice date is indicated. 
-                If there is any outstanding amount please settle on or before {memo_data["due_date"]}. 
-                Ignore this message if you have already settled that outstanding.
-            </div>
-            
-            <div class="memo-note">
-                <strong>Thank you,</strong><br>
-                <strong>The Management,</strong>
-            </div>
-            
-            <!-- Account Details -->
-            <div class="account-details">
-                <div class="title">Account Details</div>
-                <div class="row">Account Name - Polymath College (PVT) Ltd</div>
-                <div class="row">Bank - Peoples Bank</div>
-                <div class="row">Branch - Gangodawila</div>
-                <div class="row">Account Number - 097100130026495</div>
-                <div class="row">Whatsapp - 0705565858</div>
-            </div>
-        </div>
-        
-        <script>
-            function downloadPDF() {{
-                fetch('/download_invoice_memo_pdf/', {{
-                    method: 'POST',
-                    headers: {{
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
-                    }},
-                    body: JSON.stringify({{
-                        memo_code: '{memo_data["memo_code"]}',
-                        child_id: {memo_data["child_id"]}
-                    }})
-                }})
-                .then(response => {{
-                    if (response.ok) {{
-                        return response.blob();
-                    }} else {{
-                        throw new Error('PDF generation failed');
-                    }}
-                }})
-                .then(blob => {{
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = 'Invoice_Memo_{memo_data["memo_code"]}.pdf';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                }})
-                .catch(error => {{
-                    console.error('Error:', error);
-                    alert('Error generating PDF. Please try again.');
-                }});
-            }}
-            
-            function getCookie(name) {{
-                let cookieValue = null;
-                if (document.cookie && document.cookie !== '') {{
-                    const cookies = document.cookie.split(';');
-                    for (let i = 0; i < cookies.length; i++) {{
-                        const cookie = cookies[i].trim();
-                        if (cookie.substring(0, name.length + 1) === (name + '=')) {{
-                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                            break;
-                        }}
-                    }}
-                }}
-                return cookieValue;
-            }}
-        </script>
-    </body>
-    </html>
-    """
+        normal_style = ParagraphStyle(
+            "NormalStyle",
+            parent=styles["Normal"],
+            fontSize=11,
+            fontName="Helvetica",
+        )
 
-    return html_content
+        story = []
+
+        # Header
+        story.append(Paragraph("POLYMATH KIDS DIVISION - MEMO", header_style))
+        story.append(
+            Paragraph(
+                "No 452/3 High Level Road, Nawinna, Maharagama<br/>PV 63200 | Phone 0112802554",
+                address_style,
+            )
+        )
+        story.append(HRFlowable(width="100%", thickness=1, color=colors.black))
+        story.append(Spacer(1, 12))
+
+        # Child info
+        child_info_data = [
+            [
+                f"Name: {memo_data.get('child_name', 'N/A')}",
+                f"Child ID: {memo_data.get('child_admission', 'N/A')}",
+            ],
+            [
+                f"Package: {memo_data.get('package_name', 'N/A')}",
+                f"Due Date: {memo_data.get('due_date', 'N/A')}",
+            ],
+        ]
+
+        child_info_table = Table(child_info_data, colWidths=[100 * mm, 70 * mm])
+        child_info_table.setStyle(
+            TableStyle(
+                [
+                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 11),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ]
+            )
+        )
+        story.append(child_info_table)
+        story.append(Spacer(1, 15))
+
+        # Main table data
+        table_data = [["Description", "Amount (Rs.)"]]
+
+        # Outstanding section
+        outstanding = memo_data.get("outstanding_month", {})
+        table_data.append(
+            [
+                f"{outstanding.get('name', 'Outstanding')} {outstanding.get('year', 2025)} • OUTSTANDING",
+                "",
+            ]
+        )
+        table_data.append(
+            [
+                f"Outstanding from {outstanding.get('name', 'Outstanding')}",
+                f"{outstanding.get('balance', 0):,.2f}",
+            ]
+        )
+
+        # Previous month section
+        previous = memo_data.get("previous_month", {})
+        table_data.append(
+            [
+                f"{previous.get('name', 'Previous')} {previous.get('year', 2025)} • CALCULATED",
+                "",
+            ]
+        )
+        table_data.append(
+            [
+                f"Day Care Monthly fee - {previous.get('name', 'Previous')} ({previous.get('days_attended', 0)}/{previous.get('expected_days', 22)} days attended)",
+                f"{previous.get('package_fee', 0):,.2f}",
+            ]
+        )
+
+        # Extra hours if any
+        if previous.get("extra_charges", 0) > 0:
+            table_data.append(
+                ["Extra Hours Charges", f"{previous.get('extra_charges', 0):,.2f}"]
+            )
+
+        # Holiday charges if any
+        if previous.get("holiday_charges", 0) > 0:
+            table_data.append(
+                [
+                    "Holiday Attendance Charges",
+                    f"{previous.get('holiday_charges', 0):,.2f}",
+                ]
+            )
+
+        # Previous month total
+        table_data.append(
+            [
+                f"Total for {previous.get('name', 'Previous')} {previous.get('year', 2025)}",
+                f"{previous.get('month_total', 0):,.2f}",
+            ]
+        )
+
+        # Current month section
+        current = memo_data.get("current_month", {})
+        table_data.append(
+            [
+                f"{current.get('name', 'Current')} {current.get('year', 2025)} • ADVANCE",
+                "",
+            ]
+        )
+        table_data.append(
+            [
+                f"Day Care Monthly fee - {current.get('name', 'Current')} {current.get('year', 2025)} (Full Package)\nAdvance charge for upcoming month",
+                f"{current.get('package_fee', 0):,.2f}",
+            ]
+        )
+
+        # Final total
+        totals = memo_data.get("totals", {})
+        table_data.append(
+            [
+                "TOTAL AMOUNT TO PAY\n" + totals.get("final_calculation", ""),
+                f"Rs. {totals.get('grand_total', 0):,.2f}",
+            ]
+        )
+
+        # Create and style table
+        main_table = Table(table_data, colWidths=[120 * mm, 35 * mm])
+
+        table_styles = [
+            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+            ("FONTSIZE", (0, 0), (-1, -1), 11),
+            ("GRID", (0, 0), (-1, -1), 1, colors.black),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            # Header row
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            # Section headers
+            ("BACKGROUND", (0, 1), (-1, 1), colors.Color(1, 0.9, 0.9)),
+            ("FONTNAME", (0, 1), (-1, 1), "Helvetica-Bold"),
+            ("BACKGROUND", (0, 3), (-1, 3), colors.Color(0.9, 0.95, 1)),
+            ("FONTNAME", (0, 3), (-1, 3), "Helvetica-Bold"),
+            # Find advance header dynamically
+            ("BACKGROUND", (0, -3), (-1, -3), colors.Color(0.9, 1, 1)),
+            ("FONTNAME", (0, -3), (-1, -3), "Helvetica-Bold"),
+            # Total rows
+            ("FONTNAME", (0, -2), (-1, -2), "Helvetica-Bold"),
+            ("BACKGROUND", (0, -1), (-1, -1), colors.Color(1, 0.95, 0.8)),
+            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+        ]
+
+        main_table.setStyle(TableStyle(table_styles))
+        story.append(main_table)
+        story.append(Spacer(1, 20))
+
+        # Footer note
+        story.append(
+            Paragraph(
+                f"<b>Please note that,</b> Only the payments made before the invoice date is indicated. "
+                f"If there is any outstanding amount please settle on or before {memo_data.get('due_date', 'N/A')}. "
+                "Ignore this message if you have already settled that outstanding.",
+                normal_style,
+            )
+        )
+        story.append(Spacer(1, 12))
+        story.append(
+            Paragraph("<b>Thank you,</b><br/><b>The Management,</b>", normal_style)
+        )
+        story.append(Spacer(1, 12))
+
+        # Account details
+        account_details = [
+            ["Account Details"],
+            ["Account Name - Polymath College (PVT) Ltd"],
+            ["Bank - Peoples Bank"],
+            ["Branch - Gangodawila"],
+            ["Account Number - 097100130026495"],
+            ["Whatsapp - 0705565858"],
+        ]
+
+        account_table = Table(account_details, colWidths=[170 * mm])
+        account_table.setStyle(
+            TableStyle(
+                [
+                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 11),
+                    ("FONTNAME", (0, 0), (0, 0), "Helvetica-Bold"),
+                    ("GRID", (0, 0), (-1, -1), 1, colors.black),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
+        story.append(account_table)
+
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
+
+    except Exception as e:
+        print(f"PDF Generation Error: {str(e)}")
+        # Create a simple fallback PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        styles = getSampleStyleSheet()
+        story = [Paragraph(f"Error generating memo PDF: {str(e)}", styles["Normal"])]
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
 
 
 @login_required
@@ -10244,8 +10133,401 @@ def generateEnhancedMemoFromCalculation(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+def generate_memo_preview_html_fixed(memo_data):
+    """Generate clean HTML preview that exactly matches PDF format"""
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Invoice Memo Preview - {memo_data["memo_code"]}</title>
+        <style>
+            body {{
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                max-width: 800px;
+                margin: 20px auto;
+                padding: 20px;
+                background: #f5f5f5;
+                font-size: 11px;
+                line-height: 1.4;
+            }}
+            
+            .memo-container {{
+                background: white;
+                padding: 30px;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }}
+            
+            .company-header {{
+                text-align: center;
+                margin-bottom: 20px;
+            }}
+            
+            .company-title {{
+                font-size: 16px;
+                font-weight: bold;
+                margin-bottom: 8px;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }}
+            
+            .company-address {{
+                font-size: 11px;
+                color: #000;
+                margin-bottom: 15px;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }}
+            
+            .divider {{
+                height: 1px;
+                background: #000;
+                margin: 15px 0;
+            }}
+            
+            .memo-info {{
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 20px;
+                font-size: 11px;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }}
+            
+            .memo-table {{
+                width: 100%;
+                border-collapse: collapse;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 11px;
+                margin-bottom: 20px;
+            }}
+            
+            .memo-table th,
+            .memo-table td {{
+                border: 1px solid #000;
+                padding: 8px;
+                text-align: left;
+                vertical-align: top;
+                font-size: 11px;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }}
+            
+            .memo-table th {{
+                background: #e9ecef;
+                font-weight: bold;
+                font-size: 11px;
+            }}
+            
+            .memo-table .amount-col {{
+                text-align: right;
+                width: 120px;
+            }}
+            
+            .outstanding-header {{
+                background: #ffeaea !important;
+                font-weight: bold;
+            }}
+            
+            .calculated-header {{
+                background: #e6f3ff !important;
+                font-weight: bold;
+            }}
+            
+            .advance-header {{
+                background: #e6ffff !important;
+                font-weight: bold;
+            }}
+            
+            .total-row {{
+                font-weight: bold;
+            }}
+            
+            .final-total {{
+                background: #fff0cc !important;
+                font-weight: bold;
+            }}
+            
+            .memo-note {{
+                font-size: 11px;
+                margin: 15px 0;
+                line-height: 1.4;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }}
+            
+            .account-details {{
+                border: 1px solid #000;
+                margin-top: 15px;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }}
+            
+            .account-details .title {{
+                background: #f0f0f0;
+                font-weight: bold;
+                padding: 8px;
+                border-bottom: 1px solid #000;
+                font-size: 11px;
+            }}
+            
+            .account-details .row {{
+                padding: 6px 8px;
+                border-bottom: 1px solid #000;
+                font-size: 11px;
+            }}
+            
+            .account-details .row:last-child {{
+                border-bottom: none;
+            }}
+            
+            .action-buttons {{
+                text-align: center;
+                margin: 20px 0;
+                padding: 15px;
+                background: #f8f9fa;
+                border-radius: 5px;
+            }}
+            
+            .btn {{
+                display: inline-block;
+                padding: 8px 16px;
+                margin: 0 5px;
+                background: #007bff;
+                color: white;
+                text-decoration: none;
+                border-radius: 4px;
+                font-size: 12px;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }}
+            
+            .btn:hover {{
+                background: #0056b3;
+                color: white;
+                text-decoration: none;
+            }}
+            
+            .btn-success {{ background: #28a745; }}
+            .btn-success:hover {{ background: #1e7e34; }}
+            
+            @media print {{
+                .action-buttons {{ display: none; }}
+                body {{ background: white; margin: 0; }}
+                .memo-container {{ box-shadow: none; }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="action-buttons">
+            <a href="javascript:window.print()" class="btn">🖨️ Print</a>
+            <a href="#" onclick="downloadPDF()" class="btn btn-success">📄 Download PDF</a>
+        </div>
+        
+        <div class="memo-container">
+            <!-- Company Header -->
+            <div class="company-header">
+                <div class="company-title">POLYMATH KIDS DIVISION - MEMO</div>
+                <div class="company-address">
+                    No 452/3 High Level Road, Nawinna, Maharagama<br>
+                    PV 63200 | Phone 0112802554
+                </div>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <!-- Memo Info -->
+            <div class="memo-info">
+                <div>
+                    <strong>Name:</strong> {memo_data["child_name"]}<br>
+                    <strong>Package:</strong> {memo_data["package_name"]}
+                </div>
+                <div>
+                    <strong>Child ID:</strong> {memo_data["child_admission"]}<br>
+                    <strong>Due Date:</strong> {memo_data["due_date"]}
+                </div>
+            </div>
+            
+            <!-- Main Table -->
+            <table class="memo-table">
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th class="amount-col">Amount (Rs.)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Outstanding Section -->
+                    <tr class="outstanding-header">
+                        <td>{memo_data["outstanding_month"]["name"]} {memo_data["outstanding_month"]["year"]} • OUTSTANDING</td>
+                        <td class="amount-col"></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            Outstanding from {memo_data["outstanding_month"]["name"]}<br>
+                            <span style="color: #0066cc; font-size: 10px;">Payment (Receipt: {memo_data["outstanding_month"].get("payment_receipt", "N/A")})</span><br>
+                            <span style="color: #0066cc; font-weight: bold; font-size: 10px;">Balance outstanding</span><br>
+                            <span style="color: #666; font-size: 9px; font-style: italic;">Calculation: {memo_data["outstanding_month"].get("calculation_text", "")}</span>
+                        </td>
+                        <td class="amount-col">
+                            {memo_data["outstanding_month"].get("original_charge", 0):,.2f}<br>
+                            <span style="color: #0066cc; font-size: 10px;">{memo_data["outstanding_month"].get("payment_amount", 0):,.2f}</span><br>
+                            <span style="color: #0066cc; font-weight: bold; font-size: 10px;">{memo_data["outstanding_month"]["balance"]:,.2f}</span>
+                        </td>
+                    </tr>
+                    
+                    <!-- Previous Month Section -->
+                    <tr class="calculated-header">
+                        <td>{memo_data["previous_month"]["name"]} {memo_data["previous_month"]["year"]} • CALCULATED</td>
+                        <td class="amount-col"></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            {memo_data["previous_month"]["package_description"]}<br>
+                            <span style="color: #0066cc; font-size: 10px;">Payment (Receipt: {memo_data["previous_month"].get("payment_receipt", "N/A")})</span><br>
+                            <span style="color: #666; font-size: 9px; font-style: italic;">{memo_data["previous_month"].get("payment_calculation", "")}</span>
+                        </td>
+                        <td class="amount-col">
+                            {memo_data["previous_month"]["package_fee"]:,.2f}<br>
+                            <span style="color: #0066cc; font-size: 10px;">{memo_data["previous_month"].get("payment_amount", 0):,.2f}</span><br>
+                            {memo_data["previous_month"].get("subtotal_after_payment", 0):,.2f}
+                        </td>
+                    </tr>"""
+
+    # Add extra hours if any - FIX: Define extra_hours_text here
+    if memo_data["previous_month"]["extra_charges"] > 0:
+        # Define the variable that was missing
+        extra_hours_text = memo_data["previous_month"].get(
+            "extra_hours_description", "Extra Hours Charges"
+        )
+
+        html_content += f"""
+                    <tr>
+                        <td>
+                            {extra_hours_text}<br>
+                            <span style="color: #666; font-size: 9px;">{memo_data["previous_month"].get("extra_hours_detail", "")}</span>
+                        </td>
+                        <td class="amount-col">{memo_data["previous_month"]["extra_charges"]:,.2f}</td>
+                    </tr>"""
+
+    # Add holiday charges if any
+    if memo_data["previous_month"].get("holiday_charges", 0) > 0:
+        html_content += f"""
+                    <tr>
+                        <td>Holiday Attendance Charges</td>
+                        <td class="amount-col">{memo_data["previous_month"]["holiday_charges"]:,.2f}</td>
+                    </tr>"""
+
+    # Continue with rest of table
+    html_content += f"""
+                    <tr class="total-row">
+                        <td><strong>Total for {memo_data["previous_month"]["name"]} {memo_data["previous_month"]["year"]}</strong></td>
+                        <td class="amount-col"><strong>{memo_data["previous_month"]["month_total"]:,.2f}</strong></td>
+                    </tr>
+                    
+                    <!-- Current Month Section -->
+                    <tr class="advance-header">
+                        <td>{memo_data["current_month"]["name"]} {memo_data["current_month"]["year"]} • ADVANCE</td>
+                        <td class="amount-col"></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            Day Care Monthly fee - {memo_data["current_month"]["name"]} {memo_data["current_month"]["year"]} (Full Package)<br>
+                            <span style="color: orange; font-size: 10px;">{memo_data["current_month"].get("advance_note", "Advance charge for upcoming month")}</span><br>
+                            <span style="color: #666; font-size: 9px;">{memo_data["current_month"].get("payment_status", "No payments received")}</span>
+                        </td>
+                        <td class="amount-col">{memo_data["current_month"]["package_fee"]:,.2f}</td>
+                    </tr>
+                    
+                    <!-- Final Total -->
+                    <tr class="final-total">
+                        <td>
+                            <strong>TOTAL AMOUNT TO PAY</strong><br>
+                            <small>{memo_data["totals"]["final_calculation"]}</small>
+                        </td>
+                        <td class="amount-col"><strong>Rs. {memo_data["totals"]["grand_total"]:,.2f}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <!-- Footer Note -->
+            <div class="memo-note">
+                <strong>Please note that,</strong> Only the payments made before the invoice date is indicated. 
+                If there is any outstanding amount please settle on or before {memo_data["due_date"]}. 
+                Ignore this message if you have already settled that outstanding.
+            </div>
+            
+            <div class="memo-note">
+                <strong>Thank you,</strong><br>
+                <strong>The Management,</strong>
+            </div>
+            
+            <!-- Account Details -->
+            <div class="account-details">
+                <div class="title">Account Details</div>
+                <div class="row">Account Name - Polymath College (PVT) Ltd</div>
+                <div class="row">Bank - Peoples Bank</div>
+                <div class="row">Branch - Gangodawila</div>
+                <div class="row">Account Number - 097100130026495</div>
+                <div class="row">Whatsapp - 0705565858</div>
+            </div>
+        </div>
+        
+        <script>
+            function downloadPDF() {{
+                fetch('/download_invoice_memo_pdf/', {{
+                    method: 'POST',
+                    headers: {{
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }},
+                    body: JSON.stringify({{
+                        memo_code: '{memo_data["memo_code"]}',
+                        child_id: {memo_data["child_id"]}
+                    }})
+                }})
+                .then(response => {{
+                    if (response.ok) {{
+                        return response.blob();
+                    }} else {{
+                        throw new Error('PDF generation failed');
+                    }}
+                }})
+                .then(blob => {{
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = 'Invoice_Memo_{memo_data["memo_code"]}.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                }})
+                .catch(error => {{
+                    console.error('Error:', error);
+                    alert('Error generating PDF. Please try again.');
+                }});
+            }}
+            
+            function getCookie(name) {{
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {{
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {{
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {{
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }}
+                    }}
+                }}
+                return cookieValue;
+            }}
+        </script>
+    </body>
+    </html>
+    """
+
+    return html_content
+
+
 def prepare_memo_display_data_fixed(memo):
-    """CORRECTED memo display data preparation to match exact screenshot format"""
+    """CORRECTED memo display data preparation to match exact screenshot format with calculations"""
     try:
         details = memo.month_details.all().order_by("month_sequence")
 
@@ -10272,56 +10554,62 @@ def prepare_memo_display_data_fixed(memo):
                 or "Normal Package"
             )
 
+            # Get payment receipt numbers
+            outstanding_receipt = "N/A"
+            if outstanding_detail.payment_receipts:
+                outstanding_receipt = outstanding_detail.payment_receipts[0].get(
+                    "receipt_number", "N/A"
+                )
+
+            previous_receipt = "N/A"
+            if previous_detail.payment_receipts:
+                previous_receipt = previous_detail.payment_receipts[0].get(
+                    "receipt_number", "N/A"
+                )
+
             base_data.update(
                 {
                     "package_name": package_name,
-                    # Outstanding month - EXACTLY like screenshot
+                    # Outstanding month - EXACTLY like screenshot with calculations
                     "outstanding_month": {
                         "name": outstanding_detail.month_name,
                         "year": outstanding_detail.actual_year,
                         "original_charge": float(
                             outstanding_detail.package_fee
-                        ),  # 2250
+                        ),  # Original amount
                         "payment_amount": float(
                             outstanding_detail.payments_received
-                        ),  # -1350
-                        "payment_receipt": outstanding_detail.payment_receipts[0].get(
-                            "receipt_number", "232523"
-                        )
-                        if outstanding_detail.payment_receipts
-                        else "232523",
-                        "balance": float(outstanding_detail.net_balance),  # 900
+                        ),  # Payment amount
+                        "payment_receipt": outstanding_receipt,
+                        "balance": float(
+                            outstanding_detail.net_balance
+                        ),  # Final balance
                         "calculation_text": f"Rs.{outstanding_detail.package_fee:,.2f} - Rs.{outstanding_detail.payments_received:,.2f} = Rs.{outstanding_detail.net_balance:,.2f}",
                     },
                     # Previous month - EXACTLY like screenshot with detailed breakdown
                     "previous_month": {
                         "name": previous_detail.month_name,
                         "year": previous_detail.actual_year,
-                        "package_fee": float(previous_detail.package_fee),  # 9,000.00
-                        "package_description": f"Day Care Monthly fee - {previous_detail.month_name} (0/{previous_detail.expected_days or 22} days attended)",
-                        "payment_amount": float(
-                            previous_detail.payments_received
-                        ),  # -2,750.00
-                        "payment_receipt": previous_detail.payment_receipts[0].get(
-                            "receipt_number", "12525358"
-                        )
-                        if previous_detail.payment_receipts
-                        else "12525358",
-                        "payment_calculation": f"Rs.{previous_detail.package_fee:,.2f} - Rs.{previous_detail.payments_received:,.2f} = Rs.{previous_detail.net_balance:,.2f}",
+                        "package_fee": float(previous_detail.package_fee),
+                        "package_description": f"Day Care Monthly fee - {previous_detail.month_name} ({previous_detail.days_attended or 0}/{previous_detail.expected_days or 22} days attended)",
+                        "payment_amount": float(previous_detail.payments_received),
+                        "payment_receipt": previous_receipt,
+                        "payment_calculation": f"Rs.{previous_detail.package_fee:,.2f} - Rs.{previous_detail.payments_received:,.2f} = Rs.{previous_detail.package_fee - previous_detail.payments_received:,.2f}",
                         "subtotal_after_payment": float(
-                            previous_detail.net_balance
-                        ),  # 6,250.00
+                            previous_detail.package_fee
+                            - previous_detail.payments_received
+                        ),
                         # Extra hours section
-                        "extra_charges": float(
-                            previous_detail.extra_hours_charge
-                        ),  # 500
-                        "extra_hours_description": "Extra Hours Charges (1 instances)",
+                        "extra_charges": float(previous_detail.extra_hours_charge),
+                        "extra_hours_description": f"Extra Hours Charges ({len(previous_detail.calculation_details.get('extra_hours_breakdown', []))} instances)"
+                        if previous_detail.calculation_details
+                        else "Extra Hours Charges (1 instances)",
                         "extra_hours_detail": "15/06 → Manual Entry Manual entry - detailed breakdown not available",
                         # Month total
                         "month_total": float(
                             previous_detail.net_balance
                             + previous_detail.extra_hours_charge
-                        ),  # 6,750.00
+                        ),
                         # Detailed breakdown
                         "days_attended": previous_detail.days_attended or 0,
                         "expected_days": previous_detail.expected_days or 22,
@@ -10329,34 +10617,80 @@ def prepare_memo_display_data_fixed(memo):
                             previous_detail.attendance_percentage or 0
                         ),
                         "is_half_charge": previous_detail.is_half_charge_applied,
+                        "holiday_charges": float(previous_detail.holiday_charges),
                     },
                     # Current month - EXACTLY like screenshot
                     "current_month": {
                         "name": current_detail.month_name,
                         "year": current_detail.actual_year,
-                        "package_fee": float(current_detail.package_fee),  # 9,000.00
+                        "package_fee": float(current_detail.package_fee),
                         "package_description": f"Day Care Monthly fee - {current_detail.month_name} {current_detail.actual_year} (Full Package)",
                         "advance_note": "Advance charge for upcoming month",
                         "payment_status": "No payments received",
-                        "balance": float(current_detail.net_balance),  # 9,000.00
+                        "balance": float(current_detail.net_balance),
                     },
                     # Summary totals - EXACTLY like screenshot
                     "totals": {
-                        "outstanding": float(outstanding_detail.net_balance),  # 900
+                        "outstanding": float(outstanding_detail.net_balance),
                         "previous_month": float(
                             previous_detail.net_balance
                             + previous_detail.extra_hours_charge
-                        ),  # 6,750
-                        "current_month": float(current_detail.net_balance),  # 9,000
-                        "grand_total": float(memo.net_amount_due),  # 16,650.00
+                        ),
+                        "current_month": float(current_detail.net_balance),
+                        "grand_total": float(memo.net_amount_due),
                         "final_calculation": f"Rs.{outstanding_detail.net_balance:,.2f} + Rs.{previous_detail.net_balance + previous_detail.extra_hours_charge:,.2f} + Rs.{current_detail.net_balance:,.2f} = Rs.{memo.net_amount_due:,.2f}",
                     },
-                    # Meta info for formatting
-                    "formatting": {
-                        "show_receipts": True,
-                        "show_calculations": True,
-                        "show_advance_note": True,
-                        "currency": "Rs.",
+                }
+            )
+
+        else:
+            # Fallback for incomplete data
+            base_data.update(
+                {
+                    "package_name": "Normal Package",
+                    "outstanding_month": {
+                        "name": "Outstanding",
+                        "year": 2025,
+                        "original_charge": 0,
+                        "payment_amount": 0,
+                        "payment_receipt": "N/A",
+                        "balance": 0,
+                        "calculation_text": "",
+                    },
+                    "previous_month": {
+                        "name": "Previous",
+                        "year": 2025,
+                        "package_fee": 0,
+                        "package_description": "Day Care Monthly fee",
+                        "payment_amount": 0,
+                        "payment_receipt": "N/A",
+                        "payment_calculation": "",
+                        "subtotal_after_payment": 0,
+                        "extra_charges": 0,
+                        "extra_hours_description": "Extra Hours Charges",
+                        "extra_hours_detail": "",
+                        "month_total": 0,
+                        "days_attended": 0,
+                        "expected_days": 22,
+                        "attendance_percentage": 0,
+                        "is_half_charge": False,
+                        "holiday_charges": 0,
+                    },
+                    "current_month": {
+                        "name": "Current",
+                        "year": 2025,
+                        "package_fee": 0,
+                        "package_description": "Day Care Monthly fee",
+                        "advance_note": "Advance charge for upcoming month",
+                        "payment_status": "No payments received",
+                        "balance": 0,
+                    },
+                    "totals": {
+                        "outstanding": 0,
+                        "previous_month": 0,
+                        "current_month": 0,
+                        "grand_total": 0,
+                        "final_calculation": "",
                     },
                 }
             )
@@ -10369,6 +10703,274 @@ def prepare_memo_display_data_fixed(memo):
 
         traceback.print_exc()
         return base_data
+    """Generate PDF that exactly matches the HTML preview and your desired format"""
+    try:
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=20 * mm,
+            leftMargin=20 * mm,
+            topMargin=15 * mm,
+            bottomMargin=15 * mm,
+        )
+
+        styles = getSampleStyleSheet()
+
+        # Define consistent styles using the same font
+        header_style = ParagraphStyle(
+            "CustomHeader",
+            parent=styles["Heading1"],
+            fontSize=16,
+            spaceAfter=6,
+            alignment=1,
+            fontName="Helvetica-Bold",
+        )
+
+        address_style = ParagraphStyle(
+            "AddressStyle",
+            parent=styles["Normal"],
+            fontSize=11,
+            alignment=1,
+            spaceAfter=12,
+            fontName="Helvetica",
+        )
+
+        normal_style = ParagraphStyle(
+            "NormalStyle",
+            parent=styles["Normal"],
+            fontSize=11,
+            fontName="Helvetica",
+        )
+
+        story = []
+
+        # Header
+        story.append(Paragraph("POLYMATH KIDS DIVISION - MEMO", header_style))
+        story.append(
+            Paragraph(
+                "No 452/3 High Level Road, Nawinna, Maharagama<br/>PV 63200 | Phone 0112802554",
+                address_style,
+            )
+        )
+        story.append(HRFlowable(width="100%", thickness=1, color=colors.black))
+        story.append(Spacer(1, 12))
+
+        # Child info
+        child_info_data = [
+            [
+                f"Name: {memo_data.get('child_name', 'N/A')}",
+                f"Child ID: {memo_data.get('child_admission', 'N/A')}",
+            ],
+            [
+                f"Package: {memo_data.get('package_name', 'N/A')}",
+                f"Due Date: {memo_data.get('due_date', 'N/A')}",
+            ],
+        ]
+
+        child_info_table = Table(child_info_data, colWidths=[100 * mm, 70 * mm])
+        child_info_table.setStyle(
+            TableStyle(
+                [
+                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 11),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ]
+            )
+        )
+        story.append(child_info_table)
+        story.append(Spacer(1, 15))
+
+        # Main table data
+        table_data = [["Description", "Amount (Rs.)"]]
+
+        # Outstanding section
+        outstanding = memo_data.get("outstanding_month", {})
+        table_data.append(
+            [
+                f"{outstanding.get('name', 'Outstanding')} {outstanding.get('year', 2025)} • OUTSTANDING",
+                "",
+            ]
+        )
+
+        outstanding_desc = f"Outstanding from {outstanding.get('name', 'Outstanding')}"
+        if outstanding.get("payment_amount", 0) > 0:
+            outstanding_desc += (
+                f"\nPayment (Receipt: {outstanding.get('payment_receipt', 'N/A')})"
+            )
+            outstanding_desc += "\nBalance outstanding"
+            outstanding_desc += (
+                f"\nCalculation: {outstanding.get('calculation_text', '')}"
+            )
+
+        table_data.append([outstanding_desc, f"{outstanding.get('balance', 0):,.2f}"])
+
+        # Previous month section
+        previous = memo_data.get("previous_month", {})
+        table_data.append(
+            [
+                f"{previous.get('name', 'Previous')} {previous.get('year', 2025)} • CALCULATED",
+                "",
+            ]
+        )
+
+        previous_desc = previous.get(
+            "package_description",
+            f"Day Care Monthly fee - {previous.get('name', 'Previous')} ({previous.get('days_attended', 0)}/{previous.get('expected_days', 22)} days attended)",
+        )
+        if previous.get("payment_amount", 0) > 0:
+            previous_desc += (
+                f"\nPayment (Receipt: {previous.get('payment_receipt', 'N/A')})"
+            )
+            previous_desc += f"\n{previous.get('payment_calculation', '')}"
+
+        table_data.append([previous_desc, f"{previous.get('package_fee', 0):,.2f}"])
+
+        # Extra hours if any
+        if previous.get("extra_charges", 0) > 0:
+            extra_desc = previous.get("extra_hours_description", "Extra Hours Charges")
+            if previous.get("extra_hours_detail"):
+                extra_desc += f"\n{previous.get('extra_hours_detail')}"
+            table_data.append([extra_desc, f"{previous.get('extra_charges', 0):,.2f}"])
+
+        # Holiday charges if any
+        if previous.get("holiday_charges", 0) > 0:
+            table_data.append(
+                [
+                    "Holiday Attendance Charges",
+                    f"{previous.get('holiday_charges', 0):,.2f}",
+                ]
+            )
+
+        # Previous month total
+        table_data.append(
+            [
+                f"Total for {previous.get('name', 'Previous')} {previous.get('year', 2025)}",
+                f"{previous.get('month_total', 0):,.2f}",
+            ]
+        )
+
+        # Current month section
+        current = memo_data.get("current_month", {})
+        table_data.append(
+            [
+                f"{current.get('name', 'Current')} {current.get('year', 2025)} • ADVANCE",
+                "",
+            ]
+        )
+
+        current_desc = current.get(
+            "package_description",
+            f"Day Care Monthly fee - {current.get('name', 'Current')} {current.get('year', 2025)} (Full Package)",
+        )
+        current_desc += (
+            f"\n{current.get('advance_note', 'Advance charge for upcoming month')}"
+        )
+        current_desc += f"\n{current.get('payment_status', 'No payments received')}"
+
+        table_data.append([current_desc, f"{current.get('package_fee', 0):,.2f}"])
+
+        # Final total
+        totals = memo_data.get("totals", {})
+        table_data.append(
+            [
+                "TOTAL AMOUNT TO PAY\n" + totals.get("final_calculation", ""),
+                f"Rs. {totals.get('grand_total', 0):,.2f}",
+            ]
+        )
+
+        # Create and style table
+        main_table = Table(table_data, colWidths=[120 * mm, 35 * mm])
+
+        table_styles = [
+            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+            ("FONTSIZE", (0, 0), (-1, -1), 11),
+            ("GRID", (0, 0), (-1, -1), 1, colors.black),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            # Header row
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            # Section headers
+            ("BACKGROUND", (0, 1), (-1, 1), colors.Color(1, 0.9, 0.9)),
+            ("FONTNAME", (0, 1), (-1, 1), "Helvetica-Bold"),
+            ("BACKGROUND", (0, 3), (-1, 3), colors.Color(0.9, 0.95, 1)),
+            ("FONTNAME", (0, 3), (-1, 3), "Helvetica-Bold"),
+            # Find advance header dynamically
+            ("BACKGROUND", (0, -3), (-1, -3), colors.Color(0.9, 1, 1)),
+            ("FONTNAME", (0, -3), (-1, -3), "Helvetica-Bold"),
+            # Total rows
+            ("FONTNAME", (0, -2), (-1, -2), "Helvetica-Bold"),
+            ("BACKGROUND", (0, -1), (-1, -1), colors.Color(1, 0.95, 0.8)),
+            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+        ]
+
+        main_table.setStyle(TableStyle(table_styles))
+        story.append(main_table)
+        story.append(Spacer(1, 20))
+
+        # Footer note
+        story.append(
+            Paragraph(
+                f"<b>Please note that,</b> Only the payments made before the invoice date is indicated. "
+                f"If there is any outstanding amount please settle on or before {memo_data.get('due_date', 'N/A')}. "
+                "Ignore this message if you have already settled that outstanding.",
+                normal_style,
+            )
+        )
+        story.append(Spacer(1, 12))
+        story.append(
+            Paragraph("<b>Thank you,</b><br/><b>The Management,</b>", normal_style)
+        )
+        story.append(Spacer(1, 12))
+
+        # Account details
+        account_details = [
+            ["Account Details"],
+            ["Account Name - Polymath College (PVT) Ltd"],
+            ["Bank - Peoples Bank"],
+            ["Branch - Gangodawila"],
+            ["Account Number - 097100130026495"],
+            ["Whatsapp - 0705565858"],
+        ]
+
+        account_table = Table(account_details, colWidths=[170 * mm])
+        account_table.setStyle(
+            TableStyle(
+                [
+                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 11),
+                    ("FONTNAME", (0, 0), (0, 0), "Helvetica-Bold"),
+                    ("GRID", (0, 0), (-1, -1), 1, colors.black),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
+        story.append(account_table)
+
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
+
+    except Exception as e:
+        print(f"PDF Generation Error: {str(e)}")
+        # Create a simple fallback PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        styles = getSampleStyleSheet()
+        story = [Paragraph(f"Error generating memo PDF: {str(e)}", styles["Normal"])]
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
 
 
 # Update your existing loadInvoiceMemo view to include the generate button
