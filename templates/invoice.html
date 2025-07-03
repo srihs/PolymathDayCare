@@ -357,14 +357,24 @@ function displayMemoResult(memo) {
                             <strong>Rs. ${parseFloat(memo.total_outstanding || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
                         </div>
                         <div class="col-sm-6">
-                            <small class="text-muted">Current Month:</small><br>
-                            <strong>Rs. ${parseFloat(memo.total_current_month || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
+                            <small class="text-muted">Previous Month:</small><br>
+                            <strong>Rs. ${parseFloat(memo.total_previous_month || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
                         </div>
                     </div>
                     <div class="row mt-2">
                         <div class="col-sm-6">
+                            <small class="text-muted">Current Month:</small><br>
+                            <strong>Rs. ${parseFloat(memo.total_current_month || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
+                        </div>
+                        <div class="col-sm-6">
                             <small class="text-muted">Total Payments:</small><br>
                             <strong class="text-success">Rs. ${parseFloat(memo.total_payments || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-sm-6">
+                            <small class="text-muted">Gross Total:</small><br>
+                            <strong>Rs. ${parseFloat(memo.gross_total || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</strong>
                         </div>
                         <div class="col-sm-6">
                             <small class="text-muted">Created:</small><br>
@@ -375,10 +385,20 @@ function displayMemoResult(memo) {
                 <div class="col-md-4">
                     <div class="amount-display">
                         <small class="text-muted">Net Amount Due</small><br>
-                        <span style="font-size: 1.5rem;">Rs. ${parseFloat(memo.net_amount_due || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                        <span style="font-size: 1.5rem; ${parseFloat(memo.net_amount_due || 0) < 0 ? 'color: #28a745;' : 'color: #dc2626;'}">
+                            Rs. ${parseFloat(memo.net_amount_due || 0).toLocaleString('en-US', {minimumFractionDigits: 2})}
+                        </span>
+                        ${parseFloat(memo.net_amount_due || 0) < 0 ? '<br><small class="text-success">Credit Balance</small>' : ''}
                     </div>
                 </div>
             </div>
+            
+            ${memo.notes ? `
+            <div class="mt-3">
+                <small class="text-muted">Notes:</small><br>
+                <small>${memo.notes}</small>
+            </div>
+            ` : ''}
         </div>
     `;
     

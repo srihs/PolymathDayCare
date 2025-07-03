@@ -3,6 +3,10 @@ from decimal import *
 
 from django import forms
 from django.core.validators import MinValueValidator
+import calendar
+
+from datetime import datetime
+
 
 from .models import (
     AttendanceLog,
@@ -2339,77 +2343,6 @@ class CreateCenterChangeRequestForm(forms.ModelForm):
         )
 
 
-class RecordPaymentForm(forms.Form):
-    """Form for recording payments"""
-
-    child = forms.ModelChoiceField(
-        queryset=Child.objects.filter(is_active=True, is_enrolled=True).order_by(
-            "admission_number"
-        ),
-        empty_label="-Select Child -",
-        widget=forms.Select(
-            attrs={"class": "form-control", "id": "id_child", "required": "required"}
-        ),
-    )
-
-    payment_amount = forms.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        min_value=0.01,
-        label="Payment Amount",
-        widget=forms.NumberInput(
-            attrs={
-                "class": "form-control",
-                "placeholder": "0.00",
-                "step": "0.01",
-                "required": "required",
-            }
-        ),
-    )
-
-    receipt_number = forms.CharField(
-        max_length=50,
-        required=False,
-        label="Receipt Number",
-        widget=forms.TextInput(
-            attrs={"class": "form-control", "placeholder": "Receipt Number (Optional)"}
-        ),
-    )
-
-    payment_date = forms.DateField(
-        required=True,
-        label="Payment Date",
-        initial=datetime.now().date(),
-        widget=forms.DateInput(
-            attrs={"class": "form-control", "type": "date", "required": "required"}
-        ),
-    )
-
-    payment_method = forms.ChoiceField(
-        label="Payment Method",
-        choices=[
-            ("CASH", "Cash"),
-            ("BANK_TRANSFER", "Bank Transfer"),
-            ("CHEQUE", "Cheque"),
-            ("CARD", "Card"),
-            ("OTHER", "Other"),
-        ],
-        initial="CASH",
-        widget=forms.Select(attrs={"class": "form-control"}),
-    )
-
-    notes = forms.CharField(
-        required=False,
-        label="Notes",
-        widget=forms.Textarea(
-            attrs={
-                "class": "form-control",
-                "placeholder": "Payment Notes (Optional)",
-                "rows": "3",
-            }
-        ),
-    )
-
 
 class GenerateInvoiceForm(forms.Form):
     """Simplified form for invoice generation"""
@@ -2598,80 +2531,98 @@ class ExtraHoursReportForm(forms.Form):
 
 # Add this form to your forms.py file
 
-from datetime import datetime
-
-from django import forms
-
-from .models import Child
-
-
 class LoadInvoiceMemoForm(forms.Form):
-    """Form for loading existing invoice memos"""
-
+    """Form for loading/searching invoice memos"""
+    
+    # Child selection with enhanced widget
     child = forms.ModelChoiceField(
-        queryset=Child.objects.filter(
-            is_active=True, enrollement_approved=True
-        ).order_by("admission_number"),
-        empty_label="-Select Child -",
-        required=True,
-        widget=forms.Select(
-            attrs={
-                "class": "form-control",
-                "id": "load_child",
-                "required": "required",
-                "data-live-search": "true",
-                "data-size": "10",
-            }
-        ),
-        help_text="Search by typing admission number or child name",
+        queryset=Child.objects.filter(is_active=True, is_enrolled=True).order_by('admission_number'),
+        widget=forms.Select(attrs={
+            'class': 'form-control select2',
+            'id': 'load_child',
+            'data-placeholder': 'Search by admission number or child name...'
+        }),
+        label="Child",
+        help_text="Select child to search memo for",
+        required=True
     )
-
+    
+    # Month selection
+    MONTH_CHOICES = [(i, calendar.month_name[i]) for i in range(1, 13)]
     month = forms.ChoiceField(
-        choices=[
-            ("1", "January"),
-            ("2", "February"),
-            ("3", "March"),
-            ("4", "April"),
-            ("5", "May"),
-            ("6", "June"),
-            ("7", "July"),
-            ("8", "August"),
-            ("9", "September"),
-            ("10", "October"),
-            ("11", "November"),
-            ("12", "December"),
-        ],
-        initial=datetime.now().month,
-        required=True,
-        widget=forms.Select(
-            attrs={"class": "form-control", "id": "load_month", "required": "required"}
-        ),
+        choices=MONTH_CHOICES,
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'id': 'load_month'
+        }),
+        label="Month",
+        required=True
     )
-
+    
+    # Year selection
+    current_year = datetime.now().year
+    YEAR_CHOICES = [(year, year) for year in range(current_year - 2, current_year + 2)]
     year = forms.ChoiceField(
-        choices=[(i, i) for i in range(2020, 2030)],
-        initial=datetime.now().year,
-        required=True,
-        widget=forms.Select(
-            attrs={"class": "form-control", "id": "load_year", "required": "required"}
-        ),
+        choices=YEAR_CHOICES,
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'id': 'load_year'
+        }),
+        label="Year",
+        initial=current_year,
+        required=True
     )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Set current month and year as defaults
+        # Set current month and year as default
         current_date = datetime.now()
-        self.fields["month"].initial = current_date.month
-        self.fields["year"].initial = current_date.year
+        self.fields['month'].initial = current_date.month
+        self.fields['year'].initial = current_date.year
+    """Form for loading/searching invoice memos"""
+    
+    # Child selection with enhanced widget
+    child = forms.ModelChoiceField(
+        queryset=Child.objects.filter(is_active=True, is_enrolled=True).order_by('admission_number'),
+        widget=forms.Select(attrs={
+            'class': 'form-control select2',
+            'id': 'load_child',
+            'data-placeholder': 'Search by admission number or child name...'
+        }),
+        label="Child",
+        help_text="Select child to search memo for",
+        required=True
+    )
+    
+    # Month selection
+    MONTH_CHOICES = [(i, calendar.month_name[i]) for i in range(1, 13)]
+    month = forms.ChoiceField(
+        choices=MONTH_CHOICES,
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'id': 'load_month'
+        }),
+        label="Month",
+        required=True
+    )
+    
+    # Year selection
+    current_year =datetime.now().year
+    YEAR_CHOICES = [(year, year) for year in range(current_year - 2, current_year + 2)]
+    year = forms.ChoiceField(
+        choices=YEAR_CHOICES,
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'id': 'load_year'
+        }),
+        label="Year",
+        initial=current_year,
+        required=True
+    )
 
-        # Update year choices to include past and future years
-        current_year = current_date.year
-        year_choices = [(i, i) for i in range(current_year - 2, current_year + 3)]
-        self.fields["year"].choices = year_choices
-
-        # Customize child queryset to include admission number in display
-        self.fields["child"].label_from_instance = self.child_label_from_instance
-
-    @staticmethod
-    def child_label_from_instance(obj):
-        return f"{obj.admission_number} - {obj.child_first_name} {obj.child_last_name}"
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set current month and year as default
+        current_date = datetime.now()
+        self.fields['month'].initial = current_date.month
+        self.fields['year'].initial = current_date.year
