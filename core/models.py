@@ -1,3 +1,4 @@
+import calendar
 import os
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -712,21 +713,40 @@ class InvoiceMemo(BaseClass):
         return calendar.month_name[self.memo_month]
 
     def calculate_totals(self):
-        """Calculate all totals from detail records"""
+        """Calculate all totals from detail records with FIXED logic"""
+        from decimal import Decimal
+
         details = self.month_details.all()
 
-        self.gross_total = sum(detail.gross_charges for detail in details)
-        self.total_payments = sum(detail.payments_received for detail in details)
-        self.net_amount_due = self.gross_total - self.total_payments
+        # Reset totals
+        self.total_outstanding = Decimal("0.00")
+        self.total_previous_month = Decimal("0.00")
+        self.total_current_month = Decimal("0.00")
+        self.gross_total = Decimal("0.00")
+        self.total_payments = Decimal("0.00")
 
-        # Set individual month totals
         for detail in details:
+            # Ensure detail totals are calculated first
+            detail.calculate_totals()
+
+            # Add to memo totals based on type - USE NET_BALANCE (after payments)
             if detail.month_type == "OUTSTANDING":
                 self.total_outstanding = detail.net_balance
             elif detail.month_type == "PREVIOUS":
                 self.total_previous_month = detail.net_balance
             elif detail.month_type == "CURRENT":
                 self.total_current_month = detail.net_balance
+
+            # Track gross amounts and payments for reference
+            self.gross_total += detail.gross_charges
+            self.total_payments += detail.payments_received or Decimal("0.00")
+
+        # FINAL NET AMOUNT = Sum of all net balances (already payment-adjusted)
+        self.net_amount_due = (
+            self.total_outstanding
+            + self.total_previous_month
+            + self.total_current_month
+        )
 
         # Update status based on balance
         if self.net_amount_due <= 0:
@@ -736,13 +756,26 @@ class InvoiceMemo(BaseClass):
         else:
             self.status = "GENERATED"
 
+        # Save with specific fields to prevent recursion
+        InvoiceMemo.objects.filter(pk=self.pk).update(
+            total_outstanding=self.total_outstanding,
+            total_previous_month=self.total_previous_month,
+            total_current_month=self.total_current_month,
+            gross_total=self.gross_total,
+            total_payments=self.total_payments,
+            net_amount_due=self.net_amount_due,
+            status=self.status,
+        )
+
     def add_payment(self, amount, month_type, receipt_number=None):
         """Add payment to specific month"""
         detail = self.month_details.filter(month_type=month_type).first()
         if detail:
             detail.add_payment(amount, receipt_number)
             self.calculate_totals()
-            self.save()
+
+    def get_memo_month_name(self):
+        return calendar.month_name[self.memo_month]
 
 
 class InvoiceMemoDetail(BaseClass):
@@ -815,23 +848,29 @@ class InvoiceMemoDetail(BaseClass):
         return f"{self.memo.memo_code} - {self.month_name} {self.actual_year} ({self.month_type})"
 
     def calculate_totals(self):
-        """Calculate all totals for this month"""
-        # Calculate gross charges
+        """Calculate all totals for this month with FIXED payment logic"""
+        from decimal import Decimal
+
+        # Calculate gross charges (before deductions)
         self.gross_charges = (
-            self.package_fee
-            + self.extra_hours_charge
-            + self.holiday_charges
-            + self.other_charges
+            (self.package_fee or Decimal("0.00"))
+            + (self.extra_hours_charge or Decimal("0.00"))
+            + (self.holiday_charges or Decimal("0.00"))
+            + (self.other_charges or Decimal("0.00"))
         )
 
         # Calculate total deductions
-        self.total_deductions = self.discount_applied + self.other_deductions
+        self.total_deductions = (self.discount_applied or Decimal("0.00")) + (
+            self.other_deductions or Decimal("0.00")
+        )
 
         # Calculate net charges (what should be paid)
         self.net_charges = self.gross_charges - self.total_deductions
 
-        # Calculate final balance (charges - payments)
-        self.net_balance = self.net_charges - self.payments_received
+        # Calculate final balance (charges - payments) - KEY FIX
+        self.net_balance = self.net_charges - (
+            self.payments_received or Decimal("0.00")
+        )
 
     def add_payment(self, amount, receipt_number=None):
         """Add payment to this month"""
@@ -859,7 +898,9 @@ class InvoiceMemoDetail(BaseClass):
 
     def save(self, *args, **kwargs):
         """Auto-calculate totals on save"""
-        self.calculate_totals()
+        # Only calculate if not in a recursive save
+        if "update_fields" not in kwargs:
+            self.calculate_totals()
         super().save(*args, **kwargs)
 
 

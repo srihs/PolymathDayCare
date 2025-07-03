@@ -386,7 +386,29 @@ urlpatterns = [
     ),
     path("load_invoice_memo/", views.loadInvoiceMemo, name="load_invoice_memo"),
     path("search_invoice_memo/", views.searchInvoiceMemo, name="search_invoice_memo"),
-    path("preview_invoice_memo/<int:memo_id>/", views.previewInvoiceMemo, name="preview_invoice_memo"),
-    path("download_invoice_memo_pdf/", views.downloadInvoiceMemoPDF, name="download_invoice_memo_pdf"),
-    path("get_invoice_memo_by_id/<int:pk>/", views.getInvoiceMemoByID, name="get_invoice_memo_by_id"),
+    path(
+        "preview_invoice_memo/<int:memo_id>/",
+        views.previewInvoiceMemo,
+        name="preview_invoice_memo",
+    ),
+    path(
+        "download_invoice_memo_pdf/",
+        views.downloadInvoiceMemoPDF,
+        name="download_invoice_memo_pdf",
+    ),
+    path(
+        "get_invoice_memo_by_id/<int:pk>/",
+        views.getInvoiceMemoByID,
+        name="get_invoice_memo_by_id",
+    ),
+    path(
+        "enhance_memo_breakdown/",
+        views.enhanceExistingMemoBreakdown,
+        name="enhance_memo_breakdown",
+    ),
+    path(
+        "generate_enhanced_memo/",
+        views.generateEnhancedMemoFromCalculation,
+        name="generate_enhanced_memo",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
