@@ -8,6 +8,17 @@
 
 {% block content %}
 <style>
+    .generating-memo {
+    background: #e3f2fd !important;
+    border: 2px solid #2196f3 !important;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
     .main-card {
         background: white;
         border: 1px solid #e0e0e0;
@@ -475,7 +486,7 @@ function displayNoMemoFoundWithGenerate(childName, monthName, year, childId, mon
 }
 // New function to generate enhanced memo
 
-function generateEnhancedMemo(childId, month, year, childName, monthName) {
+function displayNoMemoFoundWithGenerate(childId, month, year, childName, monthName) {
     // Show confirmation dialog
     if (!confirm(`Generate enhanced memo for ${childName} - ${monthName} ${year}?\n\nThis will create a 3-month memo with:\n• Outstanding charges (2 months ago)\n• Calculated charges with attendance (previous month)\n• Advance charges (current month)`)) {
         return;
