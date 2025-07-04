@@ -8273,9 +8273,7 @@ def previewInvoiceMemo(request, memo_id):
     try:
         memo = get_object_or_404(InvoiceMemo, pk=memo_id)
         memo_data = prepare_memo_display_data_fixed(memo)  # Use fixed function
-        preview_html = generate_memo_preview_html_fixed(
-            memo_data
-        )  # Use NEW fixed HTML generator
+        preview_html = generate_memo_preview_html_with_two_columns(memo_data)
         return HttpResponse(preview_html)
     except Exception as e:
         messages.error(request, f"Error loading memo: {str(e)}")
@@ -8600,7 +8598,7 @@ def downloadInvoiceMemoPDF(request):
             return JsonResponse({"error": "Memo not found"}, status=404)
 
         memo_data = prepare_memo_display_data_fixed(memo)
-        pdf_buffer = generate_memo_pdf_fixed(memo_data)  # Use the new function
+        pdf_buffer = generate_memo_pdf_with_two_column_breakdown(memo_data) 
 
         response = HttpResponse(pdf_buffer.getvalue(), content_type="application/pdf")
         filename = f"Invoice_Memo_{memo_data['memo_code']}_{memo_data['child_admission']}.pdf"
@@ -9170,7 +9168,7 @@ def generate_memo_preview_html(memo_data):
         breakdown_html = ""
         for item in breakdown:
             if item.get("type") == "summary":
-                breakdown_html += "<br><small class='text-muted'>Multiple extra hour instances</small>"
+                breakdown_html += "<br><small class='text-muted'>Multiple extra hour </small>"
             else:
                 date_formatted = (
                     datetime.strptime(item["date"], "%Y-%m-%d").strftime("%d/%m")
@@ -10629,7 +10627,7 @@ def format_extra_hours_for_memo_display(extra_hours_breakdown):
     # Format each line like: 2025-05-08 -> 18:10 (0.09h extra)
     formatted_lines = []
     for item in extra_hours_breakdown:
-        print(f"DEBUG: Processing item: {item}")  # Debug
+        
         
         date_str = item.get("date", "")
         time_out = item.get("time_out", "N/A")
@@ -10653,7 +10651,6 @@ def format_extra_hours_for_memo_display(extra_hours_breakdown):
             formatted_lines.append(f"N/A -> {time_out} ({extra_hours_display})")
     
     result = "\n".join(formatted_lines)
-    print(f"DEBUG: Final formatted result: {result}")  # Debug
     return result
 
 
@@ -10700,13 +10697,12 @@ def prepare_memo_display_data_fixed(memo):
 
             # Extract detailed breakdown from calculation_details - FIXED
             calc_details = previous_detail.calculation_details or {}
-            print(f"DEBUG: Calculation details: {calc_details}")  # Debug
+            
             
             extra_hours_breakdown = calc_details.get("extra_hours_breakdown", [])
             holiday_breakdown = calc_details.get("holiday_charges_breakdown", [])
             
-            print(f"DEBUG: Found {len(extra_hours_breakdown)} extra hours items")  # Debug
-            print(f"DEBUG: Found {len(holiday_breakdown)} holiday items")  # Debug
+            
             
             # Format extra hours detail text like the PDF
             extra_hours_detail_text = ""
@@ -10840,5 +10836,886 @@ def loadInvoiceMemo(request):
         return redirect("core:memo_data_entry")
 
 
-# Add this URL pattern to your urls.py
-# path("generate_enhanced_memo/", views.generateEnhancedMemoFromCalculation, name="generate_enhanced_memo"),
+def generate_memo_pdf_with_two_column_breakdown(memo_data):
+    """Generate PDF with detailed breakdown in 2-column format"""
+    try:
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=20 * mm,
+            leftMargin=20 * mm,
+            topMargin=15 * mm,
+            bottomMargin=15 * mm,
+        )
+
+        styles = getSampleStyleSheet()
+
+        # Define consistent styles
+        header_style = ParagraphStyle(
+            "CustomHeader",
+            parent=styles["Heading1"],
+            fontSize=16,
+            spaceAfter=6,
+            alignment=1,
+            fontName="Helvetica-Bold",
+        )
+
+        address_style = ParagraphStyle(
+            "AddressStyle",
+            parent=styles["Normal"],
+            fontSize=11,
+            alignment=1,
+            spaceAfter=12,
+            fontName="Helvetica",
+        )
+
+        normal_style = ParagraphStyle(
+            "NormalStyle",
+            parent=styles["Normal"],
+            fontSize=11,
+            fontName="Helvetica",
+        )
+
+        # Style for breakdown items
+        breakdown_style = ParagraphStyle(
+            "BreakdownStyle",
+            parent=styles["Normal"],
+            fontSize=9,
+            fontName="Helvetica",
+            leftIndent=10,
+            spaceAfter=2,
+        )
+
+        story = []
+
+        # Header
+        story.append(Paragraph("POLYMATH KIDS DIVISION - MEMO", header_style))
+        story.append(
+            Paragraph(
+                "No 452/3 High Level Road, Nawinna, Maharagama<br/>PV 63200 | Phone 0112802554",
+                address_style,
+            )
+        )
+        story.append(HRFlowable(width="100%", thickness=1, color=colors.black))
+        story.append(Spacer(1, 12))
+
+        # Child info
+        child_info_data = [
+            [
+                f"Name: {memo_data.get('child_name', 'N/A')}",
+                f"Child ID: {memo_data.get('child_admission', 'N/A')}",
+            ],
+            [
+                f"Package: {memo_data.get('package_name', 'N/A')}",
+                f"Due Date: {memo_data.get('due_date', 'N/A')}",
+            ],
+        ]
+
+        child_info_table = Table(child_info_data, colWidths=[100 * mm, 70 * mm])
+        child_info_table.setStyle(
+            TableStyle(
+                [
+                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 11),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ]
+            )
+        )
+        story.append(child_info_table)
+        story.append(Spacer(1, 15))
+
+        # Main table data
+        table_data = [["Description", "Amount (Rs.)"]]
+
+        # Outstanding section
+        outstanding = memo_data.get("outstanding_month", {})
+        table_data.append(
+            [
+                f"{outstanding.get('name', 'Outstanding')} {outstanding.get('year', 2025)} • OUTSTANDING",
+                "",
+            ]
+        )
+        
+        outstanding_desc = f"Outstanding from {outstanding.get('name', 'Outstanding')}"
+        table_data.append([outstanding_desc, f"{outstanding.get('balance', 0):,.2f}"])
+
+        # Previous month section
+        previous = memo_data.get("previous_month", {})
+        table_data.append(
+            [
+                f"{previous.get('name', 'Previous')} {previous.get('year', 2025)} • CALCULATED",
+                "",
+            ]
+        )
+
+        # Day care monthly fee
+        package_desc = previous.get(
+            "package_description",
+            f"Day Care Monthly fee - {previous.get('name', 'Previous')} ({previous.get('days_attended', 0)}/{previous.get('expected_days', 22)} days attended)",
+        )
+        table_data.append([package_desc, f"{previous.get('package_fee', 0):,.2f}"])
+
+        # Extra hours with 2-column detailed breakdown
+        if previous.get("extra_charges", 0) > 0:
+            extra_breakdown = previous.get("extra_hours_breakdown_list", [])
+            extra_count = len(extra_breakdown)
+            
+            extra_description = f"Extra Hours for the month"
+            
+            if extra_breakdown and len(extra_breakdown) > 0:
+                # Create 2-column breakdown table
+                breakdown_table_data = []
+                
+                # Split items into 2 columns
+                for i in range(0, len(extra_breakdown), 2):
+                    left_item = extra_breakdown[i]
+                    right_item = extra_breakdown[i + 1] if i + 1 < len(extra_breakdown) else None
+                    
+                    # Format left column
+                    left_text = format_breakdown_item(left_item)
+                    
+                    # Format right column (if exists)
+                    right_text = format_breakdown_item(right_item) if right_item else ""
+                    
+                    breakdown_table_data.append([left_text, right_text])
+                
+                # Create the breakdown table
+                breakdown_table = Table(breakdown_table_data, colWidths=[60 * mm, 60 * mm])
+                breakdown_table.setStyle(
+                    TableStyle(
+                        [
+                            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                            ("FONTSIZE", (0, 0), (-1, -1), 9),
+                            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                            ("TOPPADDING", (0, 0), (-1, -1), 2),
+                            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                            # No borders for breakdown table
+                            ("GRID", (0, 0), (-1, -1), 0, colors.white),
+                        ]
+                    )
+                )
+                
+                # Combine description with breakdown table
+                full_extra_desc = [
+                    [extra_description, f"{previous.get('extra_charges', 0):,.2f}"],
+                    [breakdown_table, ""]  # Breakdown table spans both columns
+                ]
+                
+                # Add both rows
+                table_data.extend(full_extra_desc)
+            else:
+                # Fallback if no detailed breakdown
+                table_data.append([extra_description, f"{previous.get('extra_charges', 0):,.2f}"])
+
+        # Holiday charges with 2-column breakdown
+        if previous.get("holiday_charges", 0) > 0:
+            holiday_breakdown = previous.get("holiday_breakdown_list", [])
+            holiday_count = len(holiday_breakdown)
+            
+            holiday_description = f"Holiday Attendance Charges {holiday_count} days"
+            
+            if holiday_breakdown and len(holiday_breakdown) > 0:
+                # Create 2-column breakdown for holidays
+                holiday_breakdown_data = []
+                
+                for i in range(0, len(holiday_breakdown), 2):
+                    left_item = holiday_breakdown[i]
+                    right_item = holiday_breakdown[i + 1] if i + 1 < len(holiday_breakdown) else None
+                    
+                    left_text = format_holiday_breakdown_item(left_item)
+                    right_text = format_holiday_breakdown_item(right_item) if right_item else ""
+                    
+                    holiday_breakdown_data.append([left_text, right_text])
+                
+                holiday_breakdown_table = Table(holiday_breakdown_data, colWidths=[60 * mm, 60 * mm])
+                holiday_breakdown_table.setStyle(
+                    TableStyle(
+                        [
+                            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                            ("FONTSIZE", (0, 0), (-1, -1), 9),
+                            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                            ("TOPPADDING", (0, 0), (-1, -1), 2),
+                            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                            ("GRID", (0, 0), (-1, -1), 0, colors.white),
+                        ]
+                    )
+                )
+                
+                full_holiday_desc = [
+                    [holiday_description, f"{previous.get('holiday_charges', 0):,.2f}"],
+                    [holiday_breakdown_table, ""]
+                ]
+                
+                table_data.extend(full_holiday_desc)
+            else:
+                table_data.append([holiday_description, f"{previous.get('holiday_charges', 0):,.2f}"])
+
+        # Previous month total
+        table_data.append(
+            [
+                f"Total for {previous.get('name', 'Previous')} {previous.get('year', 2025)}",
+                f"{previous.get('month_total', 0):,.2f}",
+            ]
+        )
+
+        # Current month section
+        current = memo_data.get("current_month", {})
+        table_data.append(
+            [
+                f"{current.get('name', 'Current')} {current.get('year', 2025)} • ADVANCE",
+                "",
+            ]
+        )
+
+        current_desc = current.get(
+            "package_description",
+            f"Day Care Monthly fee - {current.get('name', 'Current')} {current.get('year', 2025)} (Full Package)",
+        )
+        current_desc += f"\n{current.get('advance_note', 'Advance charge for upcoming month')}"
+        table_data.append([current_desc, f"{current.get('package_fee', 0):,.2f}"])
+
+        # Final total
+        totals = memo_data.get("totals", {})
+        table_data.append(
+            [
+                "TOTAL AMOUNT TO PAY",
+                f"Rs. {totals.get('grand_total', 0):,.2f}",
+            ]
+        )
+
+        # Create and style main table
+        main_table = Table(table_data, colWidths=[120 * mm, 35 * mm])
+
+        # Calculate row indices for styling (this gets complex with dynamic rows)
+        table_styles = [
+            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+            ("FONTSIZE", (0, 0), (-1, -1), 10),
+            ("GRID", (0, 0), (-1, -1), 1, colors.black),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            # Header row
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            # Section headers - you'll need to calculate these based on your table structure
+            ("BACKGROUND", (0, 1), (-1, 1), colors.Color(1, 0.9, 0.9)),  # Outstanding
+            ("FONTNAME", (0, 1), (-1, 1), "Helvetica-Bold"),
+            ("BACKGROUND", (0, 3), (-1, 3), colors.Color(0.9, 0.95, 1)),  # Calculated
+            ("FONTNAME", (0, 3), (-1, 3), "Helvetica-Bold"),
+            # Final total
+            ("BACKGROUND", (0, -1), (-1, -1), colors.Color(1, 0.95, 0.8)),
+            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+        ]
+
+        main_table.setStyle(TableStyle(table_styles))
+        story.append(main_table)
+        story.append(Spacer(1, 20))
+
+        # Footer note
+        story.append(
+            Paragraph(
+                f"<b>Please note that,</b> Only the payments made before the invoice date is indicated. "
+                f"If there is any outstanding amount please settle on or before {memo_data.get('due_date', 'N/A')}. "
+                "Ignore this message if you have already settled that outstanding.",
+                normal_style,
+            )
+        )
+        story.append(Spacer(1, 12))
+        story.append(
+            Paragraph("<b>Thank you,</b><br/><b>The Management,</b>", normal_style)
+        )
+        story.append(Spacer(1, 12))
+
+        # Account details
+        account_details = [
+            ["Account Details"],
+            ["Account Name - Polymath College (PVT) Ltd"],
+            ["Bank - Peoples Bank"],
+            ["Branch - Gangodawila"],
+            ["Account Number - 097100130026495"],
+            ["Whatsapp - 0705565858"],
+        ]
+
+        account_table = Table(account_details, colWidths=[170 * mm])
+        account_table.setStyle(
+            TableStyle(
+                [
+                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 10),
+                    ("FONTNAME", (0, 0), (0, 0), "Helvetica-Bold"),
+                    ("GRID", (0, 0), (-1, -1), 1, colors.black),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ]
+            )
+        )
+        story.append(account_table)
+
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
+
+    except Exception as e:
+        print(f"PDF Generation Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        # Create fallback PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        styles = getSampleStyleSheet()
+        story = [Paragraph(f"Error generating memo PDF: {str(e)}", styles["Normal"])]
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
+
+
+def format_breakdown_item(item):
+    """Format individual extra hours breakdown item"""
+    if not item:
+        return ""
+    
+    date_str = item.get("date", "")
+    time_out = item.get("time_out", "N/A")
+    extra_hours_display = item.get("extra_hours_display", "")
+    charges = item.get("charges", 0)
+    
+    # Format date
+    if date_str:
+        try:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            formatted_date = date_obj.strftime("%Y-%m-%d")
+        except:
+            formatted_date = date_str
+    else:
+        formatted_date = "N/A"
+    
+    return f"{formatted_date} -> {time_out} ({extra_hours_display})"
+
+
+def format_holiday_breakdown_item(item):
+    """Format individual holiday breakdown item"""
+    if not item:
+        return ""
+    
+    date_str = item.get("date", "")
+    holiday_name = item.get("holiday_name", "Holiday")
+    charges = item.get("charges", 0)
+    
+    # Format date
+    if date_str:
+        try:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            formatted_date = date_obj.strftime("%Y-%m-%d")
+        except:
+            formatted_date = date_str
+    else:
+        formatted_date = "N/A"
+    
+    return f"{formatted_date} -> {holiday_name} (Rs.{charges:,.2f})"
+
+
+def count_breakdown_items(memo_data):
+    """Count extra hours and holiday breakdown items"""
+    previous = memo_data.get("previous_month", {})
+    
+    extra_breakdown = previous.get("extra_hours_breakdown_list", [])
+    holiday_breakdown = previous.get("holiday_breakdown_list", [])
+    
+    return {
+        "extra_hours_count": len(extra_breakdown),
+        "holiday_days_count": len(holiday_breakdown),
+        "extra_breakdown_items": extra_breakdown,
+        "holiday_breakdown_items": holiday_breakdown
+    }
+
+def generate_memo_preview_html_with_two_columns(memo_data):
+    """Generate HTML preview with 2-column breakdown display"""
+
+    # Process breakdown data
+    previous = memo_data.get("previous_month", {})
+    extra_breakdown = previous.get("extra_hours_breakdown_list", [])
+    holiday_breakdown = previous.get("holiday_breakdown_list", [])
+    
+    # Generate extra hours HTML with 2-column layout
+    extra_hours_html = ""
+    if previous.get("extra_charges", 0) > 0:
+        extra_count = len(extra_breakdown)
+        extra_description = f"Extra Hours Charges for the month"
+        
+        # Create 2-column breakdown
+        breakdown_html = ""
+        if extra_breakdown:
+            breakdown_html = '<div class="breakdown-grid">'
+            for i in range(0, len(extra_breakdown), 2):
+                left_item = extra_breakdown[i]
+                right_item = extra_breakdown[i + 1] if i + 1 < len(extra_breakdown) else None
+                
+                left_text = format_breakdown_item_html(left_item)
+                right_text = format_breakdown_item_html(right_item) if right_item else ""
+                
+                breakdown_html += f'''
+                <div class="breakdown-row">
+                    <div class="breakdown-col">{left_text}</div>
+                    <div class="breakdown-col">{right_text}</div>
+                </div>'''
+            breakdown_html += '</div>'
+        
+        extra_hours_html = f"""
+                    <tr>
+                        <td>
+                            {extra_description}
+                            {breakdown_html}
+                        </td>
+                        <td class="amount-col">{previous.get('extra_charges', 0):,.2f}</td>
+                    </tr>"""
+
+    # Generate holiday charges HTML with 2-column layout
+    holiday_charges_html = ""
+    if previous.get("holiday_charges", 0) > 0:
+        holiday_count = len(holiday_breakdown)
+        holiday_description = f"Holiday Attendance Charges {holiday_count} days"
+        
+        # Create 2-column breakdown for holidays
+        holiday_breakdown_html = ""
+        if holiday_breakdown:
+            holiday_breakdown_html = '<div class="breakdown-grid">'
+            for i in range(0, len(holiday_breakdown), 2):
+                left_item = holiday_breakdown[i]
+                right_item = holiday_breakdown[i + 1] if i + 1 < len(holiday_breakdown) else None
+                
+                left_text = format_holiday_breakdown_item_html(left_item)
+                right_text = format_holiday_breakdown_item_html(right_item) if right_item else ""
+                
+                holiday_breakdown_html += f'''
+                <div class="breakdown-row">
+                    <div class="breakdown-col">{left_text}</div>
+                    <div class="breakdown-col">{right_text}</div>
+                </div>'''
+            holiday_breakdown_html += '</div>'
+        
+        holiday_charges_html = f"""
+                    <tr>
+                        <td>
+                            {holiday_description}
+                            {holiday_breakdown_html}
+                        </td>
+                        <td class="amount-col">{previous.get('holiday_charges', 0):,.2f}</td>
+                    </tr>"""
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Invoice Memo Preview - {memo_data["memo_code"]}</title>
+        <style>
+            body {{
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                max-width: 800px;
+                margin: 20px auto;
+                padding: 20px;
+                background: #f5f5f5;
+                font-size: 11px;
+                line-height: 1.4;
+            }}
+            
+            .memo-container {{
+                background: white;
+                padding: 30px;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }}
+            
+            .company-header {{
+                text-align: center;
+                margin-bottom: 20px;
+            }}
+            
+            .company-title {{
+                font-size: 16px;
+                font-weight: bold;
+                margin-bottom: 8px;
+            }}
+            
+            .company-address {{
+                font-size: 11px;
+                color: #000;
+                margin-bottom: 15px;
+            }}
+            
+            .divider {{
+                height: 1px;
+                background: #000;
+                margin: 15px 0;
+            }}
+            
+            .memo-info {{
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 20px;
+                font-size: 11px;
+            }}
+            
+            .memo-table {{
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 11px;
+                margin-bottom: 20px;
+            }}
+            
+            .memo-table th,
+            .memo-table td {{
+                border: 1px solid #000;
+                padding: 8px;
+                text-align: left;
+                vertical-align: top;
+                font-size: 11px;
+            }}
+            
+            .memo-table th {{
+                background: #e9ecef;
+                font-weight: bold;
+            }}
+            
+            .memo-table .amount-col {{
+                text-align: right;
+                width: 120px;
+            }}
+            
+            .outstanding-header {{
+                background: #ffeaea !important;
+                font-weight: bold;
+            }}
+            
+            .calculated-header {{
+                background: #e6f3ff !important;
+                font-weight: bold;
+            }}
+            
+            .advance-header {{
+                background: #e6ffff !important;
+                font-weight: bold;
+            }}
+            
+            .total-row {{
+                font-weight: bold;
+            }}
+            
+            .final-total {{
+                background: #fff0cc !important;
+                font-weight: bold;
+            }}
+            
+            /* 2-Column Breakdown Styles */
+            .breakdown-grid {{
+                margin-top: 8px;
+                font-size: 9px;
+                color: #666;
+                font-style: italic;
+            }}
+            
+            .breakdown-row {{
+                display: flex;
+                margin-bottom: 3px;
+            }}
+            
+            .breakdown-col {{
+                flex: 1;
+                padding-right: 10px;
+                line-height: 1.3;
+            }}
+            
+            .breakdown-col:last-child {{
+                padding-right: 0;
+            }}
+            
+            .memo-note {{
+                font-size: 11px;
+                margin: 15px 0;
+                line-height: 1.4;
+            }}
+            
+            .account-details {{
+                border: 1px solid #000;
+                margin-top: 15px;
+            }}
+            
+            .account-details .title {{
+                background: #f0f0f0;
+                font-weight: bold;
+                padding: 8px;
+                border-bottom: 1px solid #000;
+                font-size: 11px;
+            }}
+            
+            .account-details .row {{
+                padding: 6px 8px;
+                border-bottom: 1px solid #000;
+                font-size: 11px;
+            }}
+            
+            .account-details .row:last-child {{
+                border-bottom: none;
+            }}
+            
+            .action-buttons {{
+                text-align: center;
+                margin: 20px 0;
+                padding: 15px;
+                background: #f8f9fa;
+                border-radius: 5px;
+            }}
+            
+            .btn {{
+                display: inline-block;
+                padding: 8px 16px;
+                margin: 0 5px;
+                background: #007bff;
+                color: white;
+                text-decoration: none;
+                border-radius: 4px;
+                font-size: 12px;
+            }}
+            
+            .btn:hover {{
+                background: #0056b3;
+                color: white;
+                text-decoration: none;
+            }}
+            
+            .btn-success {{ background: #28a745; }}
+            .btn-success:hover {{ background: #1e7e34; }}
+            
+            @media print {{
+                .action-buttons {{ display: none; }}
+                body {{ background: white; margin: 0; }}
+                .memo-container {{ box-shadow: none; }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="action-buttons">
+            <a href="javascript:window.print()" class="btn">🖨️ Print</a>
+            <a href="#" onclick="downloadPDF()" class="btn btn-success">📄 Download PDF</a>
+        </div>
+        
+        <div class="memo-container">
+            <!-- Company Header -->
+            <div class="company-header">
+                <div class="company-title">POLYMATH KIDS DIVISION - MEMO</div>
+                <div class="company-address">
+                    No 452/3 High Level Road, Nawinna, Maharagama<br>
+                    PV 63200 | Phone 0112802554
+                </div>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <!-- Memo Info -->
+            <div class="memo-info">
+                <div>
+                    <strong>Name:</strong> {memo_data["child_name"]}<br>
+                    <strong>Package:</strong> {memo_data["package_name"]}
+                </div>
+                <div>
+                    <strong>Child ID:</strong> {memo_data["child_admission"]}<br>
+                    <strong>Due Date:</strong> {memo_data["due_date"]}
+                </div>
+            </div>
+            
+            <!-- Main Table -->
+            <table class="memo-table">
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th class="amount-col">Amount (Rs.)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Outstanding Section -->
+                    <tr class="outstanding-header">
+                        <td>{memo_data["outstanding_month"]["name"]} {memo_data["outstanding_month"]["year"]} • OUTSTANDING</td>
+                        <td class="amount-col"></td>
+                    </tr>
+                    <tr>
+                        <td>Outstanding from {memo_data["outstanding_month"]["name"]}</td>
+                        <td class="amount-col">{memo_data["outstanding_month"]["balance"]:,.2f}</td>
+                    </tr>
+                    
+                    <!-- Previous Month Section -->
+                    <tr class="calculated-header">
+                        <td>{memo_data["previous_month"]["name"]} {memo_data["previous_month"]["year"]} • CALCULATED</td>
+                        <td class="amount-col"></td>
+                    </tr>
+                    <tr>
+                        <td>{memo_data["previous_month"]["package_description"]}</td>
+                        <td class="amount-col">{memo_data["previous_month"]["package_fee"]:,.2f}</td>
+                    </tr>
+                    
+                    {extra_hours_html}
+                    
+                    {holiday_charges_html}
+                    
+                    <tr class="total-row">
+                        <td><strong>Total for {memo_data["previous_month"]["name"]} {memo_data["previous_month"]["year"]}</strong></td>
+                        <td class="amount-col"><strong>{memo_data["previous_month"]["month_total"]:,.2f}</strong></td>
+                    </tr>
+                    
+                    <!-- Current Month Section -->
+                    <tr class="advance-header">
+                        <td>{memo_data["current_month"]["name"]} {memo_data["current_month"]["year"]} • ADVANCE</td>
+                        <td class="amount-col"></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            {memo_data["current_month"]["package_description"]}<br>
+                            <span style="color: orange; font-size: 10px;">{memo_data["current_month"]["advance_note"]}</span>
+                        </td>
+                        <td class="amount-col">{memo_data["current_month"]["package_fee"]:,.2f}</td>
+                    </tr>
+                    
+                    <!-- Final Total -->
+                    <tr class="final-total">
+                        <td>
+                            <strong>TOTAL AMOUNT TO PAY</strong>
+                        </td>
+                        <td class="amount-col"><strong>Rs. {memo_data["totals"]["grand_total"]:,.2f}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <!-- Footer Note -->
+            <div class="memo-note">
+                <strong>Please note that,</strong> Only the payments made before the invoice date is indicated. 
+                If there is any outstanding amount please settle on or before {memo_data["due_date"]}. 
+                Ignore this message if you have already settled that outstanding.
+            </div>
+            
+            <div class="memo-note">
+                <strong>Thank you,</strong><br>
+                <strong>The Management,</strong>
+            </div>
+            
+            <!-- Account Details -->
+            <div class="account-details">
+                <div class="title">Account Details</div>
+                <div class="row">Account Name - Polymath College (PVT) Ltd</div>
+                <div class="row">Bank - Peoples Bank</div>
+                <div class="row">Branch - Gangodawila</div>
+                <div class="row">Account Number - 097100130026495</div>
+                <div class="row">Whatsapp - 0705565858</div>
+            </div>
+        </div>
+        
+        <script>
+            function downloadPDF() {{
+                fetch('/download_invoice_memo_pdf/', {{
+                    method: 'POST',
+                    headers: {{
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }},
+                    body: JSON.stringify({{
+                        memo_code: '{memo_data["memo_code"]}',
+                        child_id: {memo_data["child_id"]}
+                    }})
+                }})
+                .then(response => {{
+                    if (response.ok) {{
+                        return response.blob();
+                    }} else {{
+                        throw new Error('PDF generation failed');
+                    }}
+                }})
+                .then(blob => {{
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = 'Invoice_Memo_{memo_data["memo_code"]}.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                }})
+                .catch(error => {{
+                    console.error('Error:', error);
+                    alert('Error generating PDF. Please try again.');
+                }});
+            }}
+            
+            function getCookie(name) {{
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {{
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {{
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {{
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }}
+                    }}
+                }}
+                return cookieValue;
+            }}
+        </script>
+    </body>
+    </html>
+    """
+
+    return html_content
+
+
+def format_breakdown_item_html(item):
+    """Format individual extra hours breakdown item for HTML"""
+    if not item:
+        return ""
+    
+    date_str = item.get("date", "")
+    time_out = item.get("time_out", "N/A")
+    extra_hours_display = item.get("extra_hours_display", "")
+    
+    # Format date
+    if date_str:
+        try:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            formatted_date = date_obj.strftime("%Y-%m-%d")
+        except:
+            formatted_date = date_str
+    else:
+        formatted_date = "N/A"
+    
+    return f"{formatted_date} → {time_out} ({extra_hours_display})"
+
+
+def format_holiday_breakdown_item_html(item):
+    """Format individual holiday breakdown item for HTML"""
+    if not item:
+        return ""
+    
+    date_str = item.get("date", "")
+    holiday_name = item.get("holiday_name", "Holiday")
+    charges = item.get("charges", 0)
+    
+    # Format date
+    if date_str:
+        try:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            formatted_date = date_obj.strftime("%Y-%m-%d")
+        except:
+            formatted_date = date_str
+    else:
+        formatted_date = "N/A"
+    
+    return f"{formatted_date} → {holiday_name} (Rs.{charges:,.2f})"
