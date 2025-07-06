@@ -411,4 +411,9 @@ urlpatterns = [
         views.generateEnhancedMemoFromCalculation,
         name="generate_enhanced_memo",
     ),
+    path(
+        "check_missing_attendance_for_memo/",
+        views.checkMissingAttendanceForMemo,
+        name="check_missing_attendance_for_memo",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

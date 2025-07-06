@@ -196,6 +196,44 @@
         font-size: 0.65rem;
     }
 
+    /* Loading states CSS */
+    .loading-state {
+        opacity: 0.6;
+        pointer-events: none;
+        position: relative;
+    }
+
+    .loading-state::after {
+        content: "Loading...";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(255, 255, 255, 0.9);
+        padding: 5px 10px;
+        border-radius: 3px;
+        font-size: 12px;
+        color: #666;
+        border: 1px solid #ddd;
+    }
+
+    #child.loading {
+        background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzk5OSIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgICA8Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSI4IiBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWRhc2hhcnJheT0iMTIgNTAiPgogICAgICAgIDxhbmltYXRlVHJhbnNmb3JtIGF0dHJpYnV0ZU5hbWU9InRyYW5zZm9ybSIgdHlwZT0icm90YXRlIiB2YWx1ZXM9IjAgMTAgMTA7MzYwIDEwIDEwIiBkdXI9IjFzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIvPgogICAgPC9jaXJjbGU+Cjwvc3ZnPg==');
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-size: 16px 16px;
+    }
+
+    /* Disable form while loading */
+    .form-loading {
+        pointer-events: none;
+        opacity: 0.7;
+    }
+
+    .form-loading .form-control {
+        background-color: #f8f9fa;
+    }
+
     @media (max-width: 768px) {
         .breakdown-table {
             font-size: 0.75rem;
@@ -344,7 +382,7 @@
                         <i class="ri-eye-line me-1"></i><span>Show Breakdown</span>
                     </button>
                     <input type="hidden" name="previous_days_attended" id="previous_days_attended">
-<input type="hidden" name="previous_expected_days" id="previous_expected_days">
+                    <input type="hidden" name="previous_expected_days" id="previous_expected_days">
                 </div>
             </div>
             <div class="section-body">
@@ -526,13 +564,13 @@
 
         <!-- Action Buttons -->
         <div class="d-flex justify-content-end mt-4">
-            <button type="button" class="btn btn-outline-secondary btn-action" onclick="clearForm()">
-                <i class="ri-refresh-line me-1"></i>Clear
-            </button>
-            <button type="submit" class="btn btn-success btn-action">
-                <i class="ri-save-line me-1"></i>Generate & Save Memo
-            </button>
-        </div>
+    <button type="button" class="btn btn-outline-secondary btn-action" onclick="clearForm()">
+        <i class="ri-refresh-line me-1"></i>Clear
+    </button>
+    <button type="button" id="saveMemoBtn" class="btn btn-success btn-action">
+        <i class="ri-save-line me-1"></i>Generate & Save Memo
+    </button>
+</div>
     </form>
 </div>
 
@@ -543,6 +581,11 @@
 </div>
 
 <script>
+// Global variables for request management
+let pendingAttendanceCheck = false;
+let pendingBreakdownLoad = false;
+let monthYearChangeTimeout;
+
 // Utility functions for formatting
 function formatCurrency(amount) {
     return parseFloat(amount || 0).toLocaleString('en-US', {
@@ -559,7 +602,36 @@ function formatDate(dateString) {
     });
 }
 
+// Loading state helpers
+function showFormLoading() {
+    $('#memoDataForm').addClass('form-loading');
+    $('#child').addClass('loading');
+}
+
+function hideFormLoading() {
+    $('#memoDataForm').removeClass('form-loading');
+    $('#child').removeClass('loading');
+}
+
+// Debug logging
+function debugLog(message) {
+    const timestamp = new Date().toLocaleTimeString();
+    console.log(`[${timestamp}] ${message}`);
+}
+
+// Clear all flags
+function clearAllFlags() {
+    pendingAttendanceCheck = false;
+    pendingBreakdownLoad = false;
+    clearTimeout(monthYearChangeTimeout);
+}
+
 function loadPreviousMonthBreakdown() {
+    if (pendingBreakdownLoad) {
+        debugLog('Skipped breakdown load - already pending');
+        return;
+    }
+    
     const childId = $('#child').val();
     const month = $('#month').val();
     const year = $('#year').val();
@@ -567,6 +639,9 @@ function loadPreviousMonthBreakdown() {
     if (!childId || !month || !year) {
         return;
     }
+    
+    pendingBreakdownLoad = true;
+    debugLog(`Loading breakdown for child ${childId}, month ${month}, year ${year}`);
     
     // Calculate previous month
     let prevMonth = parseInt(month) - 1;
@@ -641,6 +716,13 @@ function loadPreviousMonthBreakdown() {
         error: function() {
             // Fallback if package data not available
             loadChargesBreakdown(childId, prevMonth, prevYear);
+        },
+        complete: function() {
+            // Reset the flag after completion
+            setTimeout(function() {
+                pendingBreakdownLoad = false;
+                debugLog('Breakdown load completed');
+            }, 500);
         }
     });
 }
@@ -1018,7 +1100,8 @@ function calculateTotals() {
 
 function loadChildDetails() {
     const childId = $('#child').val();
-    if (!childId) {
+    if (!childId || pendingAttendanceCheck) {
+        debugLog('Skipped loadChildDetails - no child or already pending');
         return;
     }
     
@@ -1030,6 +1113,10 @@ function loadChildDetails() {
         $('#child').val('').trigger('change');
         return;
     }
+    
+    pendingAttendanceCheck = true;
+    showFormLoading();
+    debugLog(`Loading child details for ${childId}`);
     
     // Load child package details first
     $.ajax({
@@ -1063,6 +1150,14 @@ function loadChildDetails() {
             setTimeout(function() {
                 loadPreviousMonthBreakdown();
             }, 200);
+        },
+        complete: function() {
+            hideFormLoading();
+            // Reset the flag after a delay to prevent rapid requests
+            setTimeout(function() {
+                pendingAttendanceCheck = false;
+                debugLog('Child details load completed');
+            }, 1000);
         }
     });
 }
@@ -1109,6 +1204,9 @@ function clearAllManualFields() {
     const textSpan = toggleBtn.find('span');
     icon.removeClass('ri-eye-off-line').addClass('ri-eye-line');
     textSpan.text('Show Breakdown');
+    
+    // Clear attendance info
+    $('#attendance-info').remove();
     
     // Recalculate totals
     calculateTotals();
@@ -1235,6 +1333,8 @@ function updateMonthNames() {
 
 function clearForm() {
     if (confirm('Clear all entered data?')) {
+        clearAllFlags(); // Clear all request flags
+        
         $('#memoDataForm')[0].reset();
         $('#child').val('').trigger('change');
         
@@ -1280,6 +1380,8 @@ function testCalculation() {
 window.testCalculation = testCalculation;
 
 $(document).ready(function() {
+    clearAllFlags(); // Initialize with clear flags
+    
     $('#child').select2({
         placeholder: 'Search by admission number or child name...',
         allowClear: true,
@@ -1300,14 +1402,26 @@ $(document).ready(function() {
         updateMonthNames();
     }, 500);
     
-    // Event listeners
-    $('#child').on('change', function() {
-        if ($(this).val()) {
+    // Event listeners with namespaced events to prevent duplicate handlers
+    $('#child').off('change.memo').on('change.memo', function() {
+        const childId = $(this).val();
+        debugLog(`Child changed to: ${childId}`);
+        
+        if (childId) {
             clearAllManualFields();
             
-            if ($('#month').val() && $('#year').val()) {
+            const month = $('#month').val();
+            const year = $('#year').val();
+            
+            if (month && year) {
+                debugLog(`Loading details for child ${childId}, month ${month}, year ${year}`);
+                // Add a small delay to prevent rapid-fire requests
                 setTimeout(function() {
-                    loadChildDetails();
+                    if (!pendingAttendanceCheck) {
+                        loadChildDetails();
+                    } else {
+                        debugLog('Skipped loadChildDetails - already pending');
+                    }
                 }, 300);
             }
         } else {
@@ -1315,23 +1429,19 @@ $(document).ready(function() {
         }
     });
     
-    $('#month').on('change', function() {
-        setTimeout(updateMonthNames, 100);
-        if ($('#child').val()) {
-            setTimeout(function() {
-                loadChildDetails();
-            }, 300);
-        }
-    });
-    
-    $('#year').on('change', function() {
-        updateMonthOptions();
-        setTimeout(updateMonthNames, 100);
-        if ($('#child').val()) {
-            setTimeout(function() {
-                loadChildDetails();
-            }, 300);
-        }
+    // Month and year change handlers with debouncing
+    $('#month, #year').off('change.memo').on('change.memo', function() {
+        clearTimeout(monthYearChangeTimeout);
+        
+        monthYearChangeTimeout = setTimeout(function() {
+            updateMonthNames();
+            const childId = $('#child').val();
+            if (childId && !pendingAttendanceCheck) {
+                setTimeout(function() {
+                    loadChildDetails();
+                }, 300);
+            }
+        }, 500); // Wait 500ms after user stops changing month/year
     });
     
     // Add payment validation event listeners
@@ -1347,7 +1457,7 @@ $(document).ready(function() {
         validatePaymentField('current');
     });
     
-    // Add calculation triggers for all amount fields - ENHANCED
+    // Add calculation triggers for all amount fields
     $('input[type="number"]').on('input change keyup blur', function() {
         calculateTotals();
     });
@@ -1378,8 +1488,30 @@ $(document).ready(function() {
             textSpan.text('Hide Breakdown');
         }
     });
+
+    $('#generateMemoBtn').off('click').on('click', function(e) {
+        e.preventDefault();
+        const childId = $('#child').val();
+        const month = $('#month').val();
+        const year = $('#year').val();
+        
+        generateEnhancedMemo(childId, month, year);
+    });
+    
+    // Replace existing manual save button click
+    $('#saveMemoBtn').off('click').on('click', function(e) {
+        e.preventDefault();
+        saveManualMemoWithAttendanceCheck();
+    });
+    
+   
     
     window.updateMonthNames = updateMonthNames;
+});
+
+// Clear flags when page unloads
+$(window).on('beforeunload', function() {
+    clearAllFlags();
 });
 
 // Form submission validation
@@ -1406,6 +1538,447 @@ $('#memoDataForm').on('submit', function(e) {
     $(this).find('button[type="submit"]').html('<i class="ri-loader-4-line ri-spin me-1"></i>Saving...').prop('disabled', true);
 });
 
+function checkMissingAttendanceBeforeGeneration(childId, month, year) {
+    return new Promise((resolve, reject) => {
+        $.ajax({
+            url: "{% url 'core:check_missing_attendance_for_memo' %}",
+            method: 'GET',
+            data: {
+                child_id: childId,
+                month: month,
+                year: year
+            },
+            success: function(response) {
+                resolve(response);
+            },
+            error: function(xhr, status, error) {
+                reject({
+                    error: 'Failed to check attendance',
+                    details: xhr.responseJSON || { error: error }
+                });
+            }
+        });
+    });
+}
+
+// Function to show missing attendance modal
+function showMissingAttendanceModal(missingData) {
+    let modalContent = `
+        <div class="modal fade" id="missingAttendanceModal" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning">
+                        <h5 class="modal-title">
+                            <i class="ri-error-warning-line me-2"></i>
+                            Missing Attendance Records Found
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning">
+                            <strong>Cannot Generate Memo!</strong><br>
+                            Child <strong>${missingData.child_admission}</strong> has 
+                            <strong>${missingData.missing_count}</strong> missing attendance records 
+                            for <strong>${missingData.check_month_name} ${missingData.check_year}</strong>.
+                        </div>
+                        
+                        <h6>Missing Records Details:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Day</th>
+                                        <th>In Time</th>
+                                        <th>Out Time</th>
+                                        <th>Missing</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+    
+    missingData.missing_records.forEach(record => {
+        let missingBadge = '';
+        switch(record.missing_record) {
+            case 'IN':
+                missingBadge = '<span class="badge bg-danger">IN Missing</span>';
+                break;
+            case 'OUT':
+                missingBadge = '<span class="badge bg-warning">OUT Missing</span>';
+                break;
+            default:
+                missingBadge = '<span class="badge bg-secondary">Unknown</span>';
+                break;
+        }
+        
+        modalContent += `
+            <tr>
+                <td>${record.date}</td>
+                <td>${record.day_name}</td>
+                <td>${record.in_time}</td>
+                <td>${record.out_time}</td>
+                <td>${missingBadge}</td>
+            </tr>`;
+    });
+    
+    modalContent += `
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3">
+                            <strong>What to do:</strong><br>
+                            Go and complete the missing records<br>
+                           
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="ri-close-line me-1"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-warning" onclick="openAttendanceReports()">
+                            <i class="ri-file-list-line me-1"></i>Fix Attendance
+                        </button>
+                       
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    
+    // Remove existing modal if any
+    $('#missingAttendanceModal').remove();
+    
+    // Add to body and show
+    $('body').append(modalContent);
+    $('#missingAttendanceModal').modal('show');
+}
+
+// Function to open attendance reports
+function openAttendanceReports() {
+    window.open("{% url 'core:view_check_ins' %}", '_blank');
+}
+
+// Global variable to store current memo data for force generation
+let currentMemoData = null;
+
+// Function to force generate memo
+function forceGenerateMemo() {
+    if (!currentMemoData) {
+        alert('No memo data available for force generation');
+        return;
+    }
+    
+    // Add force_generate flag
+    currentMemoData.force_generate = true;
+    
+    // Show loading
+    showLoadingOverlay('Force generating memo...');
+    
+    // Call the generation function with force flag
+    generateMemoWithForce(currentMemoData);
+}
+
+// Enhanced memo generation function with attendance check
+function generateEnhancedMemo(childId, month, year) {
+    if (!childId || !month || !year) {
+        alert('Please select child, month and year');
+        return;
+    }
+    
+    // Store current data for potential force generation
+    currentMemoData = {
+        child_id: childId,
+        month: month,
+        year: year
+    };
+    
+    // Show loading
+    showLoadingOverlay('Checking attendance records...');
+    
+    // First check for missing attendance
+    checkMissingAttendanceBeforeGeneration(childId, month, year)
+        .then(attendanceResponse => {
+            hideLoadingOverlay();
+            
+            if (attendanceResponse.has_missing) {
+                // Show missing attendance modal
+                showMissingAttendanceModal(attendanceResponse);
+            } else {
+                // No missing attendance, proceed with generation
+                showLoadingOverlay('Generating memo...');
+                generateMemoWithForce(currentMemoData);
+            }
+        })
+        .catch(error => {
+            hideLoadingOverlay();
+            console.error('Attendance check failed:', error);
+            alert('Failed to check attendance records. Please try again.');
+        });
+}
+
+// Function to actually generate memo (with or without force)
+function generateMemoWithForce(memoData) {
+    $.ajax({
+        url: "{% url 'core:generate_enhanced_memo' %}",
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        data: JSON.stringify(memoData),
+        success: function(response) {
+            hideLoadingOverlay();
+            
+            if (response.success) {
+                let successMessage = `
+                    <div class="alert alert-success">
+                        <h5><i class="ri-check-circle-line me-2"></i>Memo Generated Successfully!</h5>
+                        <p><strong>Memo Code:</strong> ${response.memo_code}</p>
+                        <p><strong>Child:</strong> ${response.child_name}</p>
+                        <p><strong>Month:</strong> ${response.month_name} ${response.year}</p>
+                        <p><strong>Total Amount Due:</strong> Rs. ${response.net_amount_due.toLocaleString()}</p>
+                        ${response.forced_generation ? '<p class="text-warning"><strong>Note:</strong> This memo was force generated despite missing attendance records.</p>' : ''}
+                    </div>
+                    <div class="text-center mt-3">
+                        <button class="btn btn-primary me-2" onclick="previewMemo(${response.memo_id})">
+                            <i class="ri-eye-line me-1"></i>Preview Memo
+                        </button>
+                        <button class="btn btn-success" onclick="downloadMemoPDF('${response.memo_code}')">
+                            <i class="ri-download-line me-1"></i>Download PDF
+                        </button>
+                    </div>`;
+                
+                showSuccessModal('Memo Generated', successMessage);
+                
+                // Clear form if needed
+                if (typeof clearForm === 'function') {
+                    clearForm();
+                }
+            }
+        },
+        error: function(xhr, status, error) {
+            hideLoadingOverlay();
+            
+            let errorResponse = xhr.responseJSON || {};
+            
+            if (errorResponse.requires_confirmation) {
+                // This shouldn't happen since we check attendance first,
+                // but handle it just in case
+                showMissingAttendanceModal(errorResponse);
+            } else {
+                alert('Error generating memo: ' + (errorResponse.error || error));
+            }
+        }
+    });
+}
+
+// Enhanced manual memo save with attendance check
+function saveManualMemoWithAttendanceCheck() {
+    const childId = $('#child').val();
+    const month = $('#month').val();
+    const year = $('#year').val();
+    
+    if (!childId || !month || !year) {
+        alert('Please select child, month and year');
+        return;
+    }
+    
+    // Show loading
+    showLoadingOverlay('Checking attendance records...');
+    
+    // Check attendance first
+    checkMissingAttendanceBeforeGeneration(childId, month, year)
+        .then(attendanceResponse => {
+            hideLoadingOverlay();
+            
+            if (attendanceResponse.has_missing) {
+                // Show modal with option to force save
+                showMissingAttendanceModalForManualSave(attendanceResponse);
+            } else {
+                // No missing attendance, proceed with normal save
+                $('#memoDataForm').submit();
+            }
+        })
+        .catch(error => {
+            hideLoadingOverlay();
+            console.error('Attendance check failed:', error);
+            alert('Failed to check attendance records. Please try again.');
+        });
+}
+
+// Function to show missing attendance modal for manual save
+function showMissingAttendanceModalForManualSave(missingData) {
+    // Similar to above but with force save option instead of force generate
+    let modalContent = `
+        <div class="modal fade" id="missingAttendanceModal" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning">
+                        <h5 class="modal-title">
+                            <i class="ri-error-warning-line me-2"></i>
+                            Missing Attendance Records Found
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning">
+                            <strong>Cannot Save Memo!</strong><br>
+                            Child <strong>${missingData.child_admission}</strong> has 
+                            <strong>${missingData.missing_count}</strong> missing attendance records 
+                            for <strong>${missingData.check_month_name} ${missingData.check_year}</strong>.
+                        </div>
+                        
+                        <!-- Same table content as above -->
+                        <h6>Missing Records Details:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Day</th>
+                                        <th>In Time</th>
+                                        <th>Out Time</th>
+                                        <th>Missing</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+    
+    missingData.missing_records.forEach(record => {
+        let missingBadge = '';
+        switch(record.missing_record) {
+            case 'IN':
+                missingBadge = '<span class="badge bg-danger">IN Missing</span>';
+                break;
+            case 'OUT':
+                missingBadge = '<span class="badge bg-warning">OUT Missing</span>';
+                break;
+            case 'BOTH':
+                missingBadge = '<span class="badge bg-dark">Both Missing</span>';
+                break;
+        }
+        
+        modalContent += `
+            <tr>
+                <td>${record.date}</td>
+                <td>${record.day_name}</td>
+                <td>${record.in_time}</td>
+                <td>${record.out_time}</td>
+                <td>${missingBadge}</td>
+            </tr>`;
+    });
+    
+    modalContent += `
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3">
+                            <strong>What to do:</strong><br>
+                            Go and complete the missing records and refresh this page.<br>
+                            
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="ri-close-line me-1"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-warning" onclick="openAttendanceReports()">
+                            <i class="ri-file-list-line me-1"></i>Fix Attendance
+                        </button>
+                        
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    
+    // Remove existing modal if any
+    $('#missingAttendanceModal').remove();
+    
+    // Add to body and show
+    $('body').append(modalContent);
+    $('#missingAttendanceModal').modal('show');
+}
+
+// Function to force save manual memo
+function forceSaveManualMemo() {
+    // Add hidden field to form to indicate force save
+    if ($('#force_save').length === 0) {
+        $('#memoDataForm').append('<input type="hidden" id="force_save" name="force_save" value="true">');
+    }
+    
+    // Submit the form
+    $('#memoDataForm').submit();
+}
+
+// Utility functions
+function showLoadingOverlay(message) {
+    let overlay = `
+        <div id="loadingOverlay" style="
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 18px;
+        ">
+            <div class="text-center">
+                <div class="spinner-border text-light" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-2">${message}</div>
+            </div>
+        </div>`;
+    
+    $('body').append(overlay);
+}
+
+function hideLoadingOverlay() {
+    $('#loadingOverlay').remove();
+}
+
+function showSuccessModal(title, content) {
+    let modal = `
+        <div class="modal fade" id="successModal" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title">${title}</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        ${content}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    
+    $('#successModal').remove();
+    $('body').append(modal);
+    $('#successModal').modal('show');
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
 
 </script>
 

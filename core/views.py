@@ -6829,7 +6829,7 @@ def getMemoDataEntry(request):
 
     except Exception as e:
         messages.error(request, f"Error loading page: {str(e)}")
-        return redirect("core:view_invoice_memos")
+        return redirect("core:load_invoice_memo")
 
 
 @login_required
@@ -6988,7 +6988,7 @@ def calculateMemoData(request):
 @login_required
 @transaction.atomic
 def saveMemoDataEntry(request):
-    """Enhanced save manually entered memo data with breakdown storage"""
+    """Enhanced save manually entered memo data with breakdown storage - WITH ATTENDANCE CHECK"""
     try:
         if request.method != "POST":
             messages.error(request, "Invalid request method")
@@ -6998,6 +6998,9 @@ def saveMemoDataEntry(request):
         child_id = request.POST.get("child")
         month = request.POST.get("month")
         year = request.POST.get("year")
+        force_save = (
+            request.POST.get("force_save") == "true"
+        )  # Hidden field for override
 
         # Outstanding (2 months ago)
         outstanding_amount = Decimal(request.POST.get("outstanding_amount") or "0")
@@ -7013,10 +7016,6 @@ def saveMemoDataEntry(request):
         prev_discount = Decimal(request.POST.get("previous_discount_applied") or "0")
         prev_payment = Decimal(request.POST.get("previous_payment") or "0")
         prev_receipt = request.POST.get("previous_receipt_number", "").strip()
-        prev_days_attended = int(request.POST.get("previous_days_attended") or "0")
-        prev_expected_days = int(request.POST.get("previous_expected_days") or "22")
-
-        # Get attendance data for previous month
         prev_days_attended = int(request.POST.get("previous_days_attended") or "0")
         prev_expected_days = int(request.POST.get("previous_expected_days") or "22")
 
@@ -7036,6 +7035,89 @@ def saveMemoDataEntry(request):
         month_int = int(month)
         year_int = int(year)
         child = Child.objects.get(id=child_id, is_active=True)
+
+        # CHECK FOR MISSING ATTENDANCE (unless forced)
+        if not force_save:
+            # Calculate previous month (what gets calculated in memo)
+            if month_int > 1:
+                check_month = month_int - 1
+                check_year = year_int
+            else:
+                check_month = 12
+                check_year = year_int - 1
+
+            # Use same logic to check missing attendance
+            from_date = datetime(check_year, check_month, 1).date()
+            last_day = datetime(
+                check_year, check_month, calendar.monthrange(check_year, check_month)[1]
+            ).date()
+
+            attendance_records = AttendanceLog.objects.filter(
+                child=child, date_logged__range=(from_date, last_day)
+            ).values_list("date_logged", "time_logged")
+
+            attendance_dict = {}
+            for date_logged, time_logged in attendance_records:
+                attendance_dict.setdefault(date_logged, []).append(time_logged)
+
+            cutoff_time = time(15, 0)
+            missing_count = 0
+            missing_details = []
+
+            # Count missing IN/OUT records
+            for date_logged, time_logs in attendance_dict.items():
+                if len(time_logs) == 1:
+                    missing_count += 1
+                    single_time = time_logs[0]
+                    if single_time > cutoff_time:
+                        missing_type = "IN"
+                    else:
+                        missing_type = "OUT"
+                    missing_details.append(
+                        f"{date_logged.strftime('%Y-%m-%d')} (Missing {missing_type})"
+                    )
+
+            # Note: We only count missing IN/OUT records, not completely absent days
+            # If child didn't attend at all, that's not considered "missing" attendance
+
+            if missing_count > 0:
+                missing_summary = "; ".join(missing_details[:5])  # Show first 5
+                if len(missing_details) > 5:
+                    missing_summary += f" and {len(missing_details) - 5} more..."
+
+                messages.error(
+                    request,
+                    f"Cannot save memo: {missing_count} missing attendance records found for {calendar.month_name[check_month]} {check_year}. "
+                    f"Details: {missing_summary}. Please complete attendance data first.",
+                )
+
+                # Store the form data in session for later use
+                request.session["memo_form_data"] = {
+                    "child_id": child_id,
+                    "month": month,
+                    "year": year,
+                    "outstanding_amount": str(outstanding_amount),
+                    "outstanding_payment": str(outstanding_payment),
+                    "outstanding_receipt": outstanding_receipt,
+                    "prev_package_fee": str(prev_package_fee),
+                    "prev_extra_hours": str(prev_extra_hours),
+                    "prev_holiday_charges": str(prev_holiday_charges),
+                    "prev_discount": str(prev_discount),
+                    "prev_payment": str(prev_payment),
+                    "prev_receipt": prev_receipt,
+                    "curr_package_fee": str(curr_package_fee),
+                    "curr_extra_hours": str(curr_extra_hours),
+                    "curr_holiday_charges": str(curr_holiday_charges),
+                    "curr_discount": str(curr_discount),
+                    "curr_payment": str(curr_payment),
+                    "curr_receipt": curr_receipt,
+                    "missing_count": missing_count,
+                    "check_month": calendar.month_name[check_month],
+                    "check_year": check_year,
+                }
+                request.session.modified = True
+
+                return redirect("core:memo_data_entry")
 
         # Check if memo already exists
         if InvoiceMemo.objects.filter(
@@ -7098,7 +7180,7 @@ def saveMemoDataEntry(request):
                 memo_month=month_int,
                 memo_year=year_int,
                 status="GENERATED",
-                notes=f"Manually entered memo on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                notes=f"Manually entered memo {'(FORCED)' if force_save else ''} on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
                 user_created=request.user.username,
             )
 
@@ -7129,6 +7211,7 @@ def saveMemoDataEntry(request):
                 notes="Outstanding balance from previous periods",
                 calculation_details={
                     "manually_entered": True,
+                    "forced_save": force_save,
                     "original_outstanding": float(outstanding_amount),
                     "payment_settled": float(outstanding_payment),
                     "receipt_number": outstanding_receipt,
@@ -7225,9 +7308,10 @@ def saveMemoDataEntry(request):
                 if prev_payment > 0
                 else [],
                 package_name=package_name,
-                notes=f"Previous month - Package: Rs.{prev_package_fee}, Extra Hours: Rs.{prev_extra_hours}, Holiday: Rs.{prev_holiday_charges}",
+                notes=f"Previous month - Package: Rs.{prev_package_fee}, Extra Hours: Rs.{prev_extra_hours}, Holiday: Rs.{prev_holiday_charges} {'(FORCED SAVE)' if force_save else ''}",
                 calculation_details={
                     "manually_entered": True,
+                    "forced_save": force_save,
                     "breakdown": {
                         "package_fee": float(prev_package_fee),
                         "extra_hours": float(prev_extra_hours),
@@ -7268,6 +7352,7 @@ def saveMemoDataEntry(request):
                 notes=f"Current month - Package: Rs.{curr_package_fee}, Extra Hours: Rs.{curr_extra_hours}, Holiday: Rs.{curr_holiday_charges}",
                 calculation_details={
                     "manually_entered": True,
+                    "forced_save": force_save,
                     "breakdown": {
                         "package_fee": float(curr_package_fee),
                         "extra_hours": float(curr_extra_hours),
@@ -7282,9 +7367,14 @@ def saveMemoDataEntry(request):
             memo.calculate_totals()
             memo.save()
 
+        # Clear session data if it was stored
+        if "memo_form_data" in request.session:
+            del request.session["memo_form_data"]
+            request.session.modified = True
+
         # Success message with detailed breakdown
         success_message = (
-            f"Enhanced memo {memo_code} created successfully! "
+            f"Enhanced memo {memo_code} created successfully {'(FORCED)' if force_save else ''}! "
             f"Outstanding: Rs.{outstanding_detail.net_balance:,.2f}, "
             f"Previous: Rs.{previous_detail.net_balance:,.2f}, "
             f"Current: Rs.{current_detail.net_balance:,.2f}, "
@@ -8724,10 +8814,10 @@ def enhanceExistingMemoBreakdown(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-# @login_required
+@login_required
 @transaction.atomic
 def generateEnhancedMemoFromCalculation(request):
-    """Generate memo with CORRECTED detailed breakdown storage for display"""
+    """Generate memo with CORRECTED detailed breakdown storage - WITH ATTENDANCE CHECK"""
     try:
         if request.method != "POST":
             return JsonResponse({"error": "POST method required"}, status=400)
@@ -8736,6 +8826,7 @@ def generateEnhancedMemoFromCalculation(request):
         child_id = data.get("child_id")
         month = data.get("month")
         year = data.get("year")
+        force_generate = data.get("force_generate", False)  # Allow override
 
         if not all([child_id, month, year]):
             return JsonResponse({"error": "Missing required parameters"}, status=400)
@@ -8743,6 +8834,69 @@ def generateEnhancedMemoFromCalculation(request):
         child = Child.objects.get(id=child_id)
         month_int = int(month)
         year_int = int(year)
+
+        # CHECK FOR MISSING ATTENDANCE FIRST (unless forced)
+        if not force_generate:
+            # Calculate previous month (what the memo actually calculates)
+            if month_int > 1:
+                check_month = month_int - 1
+                check_year = year_int
+            else:
+                check_month = 12
+                check_year = year_int - 1
+
+            # Use the same logic as checkMissingAttendanceForMemo
+            from_date = datetime(check_year, check_month, 1).date()
+            last_day = datetime(
+                check_year, check_month, calendar.monthrange(check_year, check_month)[1]
+            ).date()
+
+            attendance_records = AttendanceLog.objects.filter(
+                child=child, date_logged__range=(from_date, last_day)
+            ).values_list("date_logged", "time_logged")
+
+            attendance_dict = {}
+            for date_logged, time_logged in attendance_records:
+                attendance_dict.setdefault(date_logged, []).append(time_logged)
+
+            cutoff_time = time(15, 0)
+            missing_count = 0
+            missing_details = []
+
+            # Count missing IN/OUT records
+            for date_logged, time_logs in attendance_dict.items():
+                if len(time_logs) == 1:
+                    missing_count += 1
+                    single_time = time_logs[0]
+                    if single_time > cutoff_time:
+                        missing_type = "IN"
+                    else:
+                        missing_type = "OUT"
+                    missing_details.append(
+                        {
+                            "date": date_logged.strftime("%Y-%m-%d"),
+                            "missing_type": missing_type,
+                        }
+                    )
+
+            # Note: We only count missing IN/OUT records, not completely absent days
+            # If child didn't attend at all, that's not considered "missing" attendance
+
+            if missing_count > 0:
+                return JsonResponse(
+                    {
+                        "error": f"Cannot generate memo: {missing_count} missing attendance records found for {calendar.month_name[check_month]} {check_year}",
+                        "missing_attendance_count": missing_count,
+                        "check_month": calendar.month_name[check_month],
+                        "check_year": check_year,
+                        "missing_details": missing_details,
+                        "child_name": f"{child.child_first_name} {child.child_last_name}",
+                        "child_admission": child.admission_number,
+                        "requires_confirmation": True,
+                        "suggestion": f"Please complete the missing attendance records in {calendar.month_name[check_month]} {check_year} before generating the memo, or use 'Force Generate' to proceed anyway.",
+                    },
+                    status=400,
+                )
 
         # Check if memo already exists
         if InvoiceMemo.objects.filter(
@@ -8797,7 +8951,7 @@ def generateEnhancedMemoFromCalculation(request):
                 memo_month=month_int,
                 memo_year=year_int,
                 status="GENERATED",
-                notes=f"Auto-generated enhanced memo with detailed breakdown on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                notes=f"Auto-generated enhanced memo {'(FORCED)' if force_generate else ''} with detailed breakdown on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
                 user_created=request.user.username,
             )
 
@@ -8856,9 +9010,10 @@ def generateEnhancedMemoFromCalculation(request):
                     str(month2_data.get("attendance_percentage", 0))
                 ),
                 is_half_charge_applied=month2_data.get("is_half_charge", False),
-                notes=f"Calculated for {month2_data['name']} - {month2_data.get('days_attended', 0)}/{month2_data.get('expected_days', 22)} days",
+                notes=f"Calculated for {month2_data['name']} - {month2_data.get('days_attended', 0)}/{month2_data.get('expected_days', 22)} days {'(FORCED GENERATION)' if force_generate else ''}",
                 calculation_details={
                     "type": "calculated",
+                    "forced_generation": force_generate,
                     # Store the detailed breakdown from automatic calculation
                     "extra_hours_breakdown": previous_month_breakdown.get(
                         "extra_hours_breakdown", []
@@ -8911,7 +9066,7 @@ def generateEnhancedMemoFromCalculation(request):
             # Calculate memo totals using model method
             memo.calculate_totals()
 
-        # Return success with corrected totals
+        # Return success with attendance check info
         return JsonResponse(
             {
                 "success": True,
@@ -8923,6 +9078,9 @@ def generateEnhancedMemoFromCalculation(request):
                 "net_amount_due": float(memo.net_amount_due),
                 "gross_total": float(memo.gross_total),
                 "total_payments": float(memo.total_payments),
+                "attendance_checked": True,
+                "forced_generation": force_generate,
+                "message": f"Memo {memo_code} generated successfully {'(FORCED)' if force_generate else ''}",
                 "breakdown": {
                     "outstanding": float(outstanding_detail.net_balance),
                     "previous_month": float(previous_detail.net_balance),
@@ -10415,3 +10573,112 @@ def previewInvoiceMemo(request, memo_id):
     except Exception as e:
         messages.error(request, f"Error loading memo: {str(e)}")
         return redirect("core:load_invoice_memo")
+
+
+@login_required
+def checkMissingAttendanceForMemo(request):
+    """
+    Check for missing attendance logs before generating memo
+    Returns missing attendance data if any found
+    Uses existing logic from processMissingAttendanceRecordsJS but for specific child/month
+    """
+    try:
+        child_id = request.GET.get("child_id")
+        month = request.GET.get("month")
+        year = request.GET.get("year")
+
+        if not all([child_id, month, year]):
+            return JsonResponse({"error": "Missing required parameters"}, status=400)
+
+        child = Child.objects.get(id=child_id)
+        month_int = int(month)
+        year_int = int(year)
+
+        # Calculate the date range for PREVIOUS month (since that's what memo calculates)
+        if month_int > 1:
+            check_month = month_int - 1
+            check_year = year_int
+        else:
+            check_month = 12
+            check_year = year_int - 1
+
+        # Create date range for the month we're checking
+        from_date = datetime(check_year, check_month, 1).date()
+        last_day = datetime(
+            check_year, check_month, calendar.monthrange(check_year, check_month)[1]
+        ).date()
+
+        # Get attendance records for the child in the target month
+        attendance_records = AttendanceLog.objects.filter(
+            child=child, date_logged__range=(from_date, last_day)
+        ).values_list("date_logged", "time_logged")
+
+        # Group attendance by date (same logic as processMissingAttendanceRecordsJS)
+        attendance_dict = {}
+        for date_logged, time_logged in attendance_records:
+            attendance_dict.setdefault(date_logged, []).append(time_logged)
+
+        cutoff_time = time(15, 0)  # 3:00 PM
+        missing_attendance = []
+
+        # Check each date for missing IN or OUT (same logic as existing function)
+        for date_logged, time_logs in attendance_dict.items():
+            if len(time_logs) == 1:
+                single_time = time_logs[0]
+                formatted_time = single_time.strftime("%H:%M")
+
+                if single_time > cutoff_time:
+                    # Logged time is OUT → IN is missing
+                    in_time = "Missing"
+                    out_time = formatted_time
+                    missing_record = "IN"
+                else:
+                    # Logged time is IN → OUT is missing
+                    in_time = formatted_time
+                    out_time = "Missing"
+                    missing_record = "OUT"
+
+                missing_attendance.append(
+                    {
+                        "date": date_logged.strftime("%Y-%m-%d"),
+                        "day_name": date_logged.strftime("%A"),
+                        "in_time": in_time,
+                        "out_time": out_time,
+                        "missing_record": missing_record,
+                        "child_name": f"{child.child_first_name} {child.child_last_name}",
+                    }
+                )
+
+        # Note: We only check for missing IN or OUT, not completely missing days
+        # If a child didn't attend at all, that's not considered "missing" attendance
+
+        if missing_attendance:
+            return JsonResponse(
+                {
+                    "has_missing": True,
+                    "child_name": f"{child.child_first_name} {child.child_last_name}",
+                    "child_admission": child.admission_number,
+                    "check_month_name": calendar.month_name[check_month],
+                    "check_year": check_year,
+                    "missing_count": len(missing_attendance),
+                    "missing_records": missing_attendance,
+                    "message": f"Cannot generate memo: {len(missing_attendance)} missing attendance records found for {calendar.month_name[check_month]} {check_year}",
+                    "detailed_message": f"Child {child.admission_number} has {len(missing_attendance)} incomplete attendance records in {calendar.month_name[check_month]} {check_year}. Please complete the attendance data before generating the memo.",
+                }
+            )
+        else:
+            return JsonResponse(
+                {
+                    "has_missing": False,
+                    "child_name": f"{child.child_first_name} {child.child_last_name}",
+                    "child_admission": child.admission_number,
+                    "check_month_name": calendar.month_name[check_month],
+                    "check_year": check_year,
+                    "message": "No missing attendance records found. Ready to generate memo.",
+                }
+            )
+
+    except Child.DoesNotExist:
+        return JsonResponse({"error": "Child not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
