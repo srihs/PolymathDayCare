@@ -6842,20 +6842,44 @@ def getChildPackageDetails(request):
 
         child = Child.objects.get(id=child_id)
 
+        # DEBUG: Check all package mappings for this child
+        all_mappings = ChildPackageMapping.objects.filter(child=child)
+        print(
+            f"DEBUG: Child {child.admission_number} has {all_mappings.count()} total package mappings"
+        )
+
+        for mapping in all_mappings:
+            print(
+                f"DEBUG: Mapping ID {mapping.id} - is_active: {mapping.is_active}, effective_from: {mapping.effective_from}, effective_to: {mapping.effective_to}"
+            )
+            print(
+                f"       Normal: {mapping.normal_package}, Holiday: {mapping.holiday_package}, Flex: {mapping.flex_package}"
+            )
+
         # Get active package mapping
         package_mapping = ChildPackageMapping.objects.filter(
             child=child, is_active=True
         ).first()
 
-        if not package_mapping:
-            return JsonResponse({"error": "No package mapping found"}, status=404)
-
-        package_mapping = ChildPackageMapping.objects.filter(
-            child=child, is_active=True
-        ).first()
+        print(f"DEBUG: Active package mapping found: {package_mapping}")
 
         if not package_mapping:
-            return JsonResponse({"error": "No package mapping found"}, status=404)
+            # Try without is_active filter
+            any_mapping = ChildPackageMapping.objects.filter(child=child).first()
+            print(f"DEBUG: Any package mapping found: {any_mapping}")
+
+            return JsonResponse(
+                {
+                    "error": "No active package mapping found",
+                    "debug_info": {
+                        "total_mappings": all_mappings.count(),
+                        "has_any_mapping": any_mapping is not None,
+                        "child_id": child_id,
+                        "child_admission": child.admission_number,
+                    },
+                },
+                status=404,
+            )
 
         # Determine which package is active
         package_name = "Unknown Package"
@@ -6896,6 +6920,10 @@ def getChildPackageDetails(request):
     except Child.DoesNotExist:
         return JsonResponse({"error": "Child not found"}, status=404)
     except Exception as e:
+        print(f"DEBUG: Exception in getChildPackageDetails: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
         return JsonResponse({"error": str(e)}, status=500)
 
 
@@ -6985,6 +7013,8 @@ def saveMemoDataEntry(request):
         prev_discount = Decimal(request.POST.get("previous_discount_applied") or "0")
         prev_payment = Decimal(request.POST.get("previous_payment") or "0")
         prev_receipt = request.POST.get("previous_receipt_number", "").strip()
+        prev_days_attended = int(request.POST.get("previous_days_attended") or "0")
+        prev_expected_days = int(request.POST.get("previous_expected_days") or "22")
 
         # Get attendance data for previous month
         prev_days_attended = int(request.POST.get("previous_days_attended") or "0")
@@ -7038,9 +7068,17 @@ def saveMemoDataEntry(request):
             child=child, status="Approved", is_active=True
         ).first()
 
-        if not package_mapping or not enrollment:
-            messages.error(request, "No active package mapping or enrollment found")
+        if not package_mapping:
+            messages.error(request, "No active package mapping found")
             return redirect("core:memo_data_entry")
+
+        if not enrollment:
+            enrollment = create_auto_enrollment(child, package_mapping)
+            if enrollment:
+                # Update child enrollment status
+                child.is_enrolled = True
+                child.enrollement_approved = True
+                child.save()
 
         # Determine package name
         package_name = "Manual Entry Package"
@@ -7166,6 +7204,15 @@ def saveMemoDataEntry(request):
                 extra_hours_charge=prev_extra_hours,
                 holiday_charges=prev_holiday_charges,
                 discount_applied=prev_discount,
+                days_attended=prev_days_attended,
+                expected_days=prev_expected_days,
+                attendance_percentage=round(
+                    (prev_days_attended / prev_expected_days * 100), 2
+                )
+                if prev_expected_days > 0
+                else 0,
+                is_half_charge_applied=prev_days_attended < (prev_expected_days * 0.5)
+                and prev_days_attended > 0,
                 payments_received=prev_payment,
                 payment_receipts=[
                     {
@@ -7178,14 +7225,6 @@ def saveMemoDataEntry(request):
                 if prev_payment > 0
                 else [],
                 package_name=package_name,
-                days_attended=prev_days_attended,
-                expected_days=prev_expected_days,
-                attendance_percentage=round(
-                    (prev_days_attended / prev_expected_days * 100), 2
-                )
-                if prev_expected_days > 0
-                else 0,
-                is_half_charge_applied=prev_days_attended < (prev_expected_days * 0.5),
                 notes=f"Previous month - Package: Rs.{prev_package_fee}, Extra Hours: Rs.{prev_extra_hours}, Holiday: Rs.{prev_holiday_charges}",
                 calculation_details={
                     "manually_entered": True,
@@ -7266,6 +7305,60 @@ def saveMemoDataEntry(request):
         traceback.print_exc()
         messages.error(request, f"Error saving memo: {str(e)}")
         return redirect("core:memo_data_entry")
+
+
+def create_auto_enrollment(child, package_mapping):
+    """
+    Create an automatic enrollment for a child who has package mapping but no enrollment
+    """
+    try:
+        from datetime import datetime
+
+        # Generate enrollment code
+        next_id = ChildEnrollment.objects.count() + 1
+        enrollment_code = f"E{next_id:04d}"
+        while ChildEnrollment.objects.filter(enrollment_code=enrollment_code).exists():
+            next_id += 1
+            enrollment_code = f"E{next_id:04d}"
+
+        # Get default branch and center (you may need to adjust this logic)
+        default_branch = Branch.objects.filter(is_active=True).first()
+        default_center = DayCare.objects.filter(is_active=True).first()
+
+        if not default_branch or not default_center:
+            print("No default branch or center found for auto-enrollment")
+            return None
+
+        # Use package mapping effective date as enrollment date
+        enrollment_date = package_mapping.effective_from or datetime.now().date()
+
+        # Create the enrollment
+        enrollment = ChildEnrollment.objects.create(
+            enrollment_code=enrollment_code,
+            enrollment_date=enrollment_date,
+            child=child,
+            branch=default_branch,
+            center=default_center,
+            discount=package_mapping.discount
+            if hasattr(package_mapping, "discount")
+            else None,
+            status="Approved",  # Auto-approve
+            is_active=True,
+            recipt_number=f"AUTO-{enrollment_code}",  # Auto-generated receipt
+            user_created="System Auto-Created",
+        )
+
+        print(
+            f"Auto-created enrollment {enrollment_code} for child {child.admission_number}"
+        )
+        return enrollment
+
+    except Exception as e:
+        print(f"Error creating auto-enrollment: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        return None
 
 
 # Updated retrieval function for your redesigned models
@@ -9095,7 +9188,7 @@ def prepare_memo_display_data_fixed(memo):
 
             # ===== ENHANCED PAYMENT PROCESSING =====
             def process_payment_data(detail, month_name):
-                """Process payment data for display"""
+                """Process payment data for display - ALWAYS SHOW PAYMENTS"""
                 payment_info = {
                     "amount": float(detail.payments_received or 0),
                     "receipt_numbers": [],
@@ -9104,8 +9197,10 @@ def prepare_memo_display_data_fixed(memo):
                     "payment_display_text": "",
                 }
 
-                if detail.payment_receipts and isinstance(
-                    detail.payment_receipts, list
+                if (
+                    detail.payment_receipts
+                    and isinstance(detail.payment_receipts, list)
+                    and len(detail.payment_receipts) > 0
                 ):
                     payment_info["has_payments"] = True
                     for payment in detail.payment_receipts:
@@ -9122,7 +9217,7 @@ def prepare_memo_display_data_fixed(memo):
                             }
                         )
 
-                    # Create display text
+                    # Create display text for actual payments
                     if len(payment_info["payment_details"]) == 1:
                         payment_info["payment_display_text"] = (
                             f"Payment Settled-{month_name} (RN {payment_info['receipt_numbers'][0]})"
@@ -9133,9 +9228,11 @@ def prepare_memo_display_data_fixed(memo):
                             f"Payments Settled-{month_name} (RN {receipts_text})"
                         )
                 else:
-                    payment_info["payment_display_text"] = (
-                        f"No payments recorded for {month_name}"
+                    # ALWAYS show payment row, even if 0.00
+                    payment_info["has_payments"] = (
+                        False  # No actual payments, but still show row
                     )
+                    payment_info["payment_display_text"] = "Payments"
 
                 return payment_info
 
@@ -9166,7 +9263,7 @@ def prepare_memo_display_data_fixed(memo):
                             "payment_display_text"
                         ],
                         "payment_details": outstanding_payments["payment_details"],
-                        "has_payments": outstanding_payments["has_payments"],
+                        "show_payments": True,  # ALWAYS show payment row
                         "balance": float(outstanding_detail.net_balance),
                         "calculation_text": f"Rs.{outstanding_detail.package_fee:,.2f} - Rs.{outstanding_detail.payments_received:,.2f} = Rs.{outstanding_detail.net_balance:,.2f}",
                     },
@@ -9184,7 +9281,7 @@ def prepare_memo_display_data_fixed(memo):
                             "payment_display_text"
                         ],
                         "payment_details": previous_payments["payment_details"],
-                        "has_payments": previous_payments["has_payments"],
+                        "show_payments": True,  # ALWAYS show payment row
                         # Extra hours section
                         "extra_charges": float(previous_detail.extra_hours_charge),
                         "extra_hours_description": "Extra Hours Charges for the month",
@@ -9220,7 +9317,7 @@ def prepare_memo_display_data_fixed(memo):
                             "payment_display_text"
                         ],
                         "payment_details": current_payments["payment_details"],
-                        "has_payments": current_payments["has_payments"],
+                        "show_payments": True,  # ALWAYS show payment row
                         "balance": float(current_detail.net_balance),
                     },
                     # Summary totals
@@ -9258,7 +9355,7 @@ def prepare_memo_display_data_fixed(memo):
                         "name": "Outstanding",
                         "year": 2025,
                         "balance": 0,
-                        "has_payments": False,
+                        "show_payments": True,
                     },
                     "previous_month": {
                         "name": "Previous",
@@ -9269,12 +9366,12 @@ def prepare_memo_display_data_fixed(memo):
                         "days_attended": 0,
                         "expected_days": 22,
                         "attendance_percentage": 0,
-                        "has_payments": False,
+                        "show_payments": True,
                     },
                     "current_month": {
                         "name": "Current",
                         "year": 2025,
-                        "has_payments": False,
+                        "show_payments": True,
                     },
                     "totals": {"grand_total": 0, "total_payments": 0},
                     "payment_summary": {"total_payments": 0, "all_payments": []},
@@ -9297,7 +9394,7 @@ def prepare_memo_display_data_fixed(memo):
             "package_name": "Normal Package",
             "memo_date": memo.memo_date.strftime("%d/%m/%Y"),
             "due_date": (memo.memo_date + timedelta(days=7)).strftime("%d/%m/%Y"),
-            "outstanding_month": {"balance": 0, "has_payments": False},
+            "outstanding_month": {"balance": 0, "show_payments": True},
             "previous_month": {
                 "extra_charges": 0,
                 "extra_hours_breakdown_list": [],
@@ -9305,36 +9402,13 @@ def prepare_memo_display_data_fixed(memo):
                 "days_attended": 0,
                 "expected_days": 22,
                 "attendance_percentage": 0,
-                "has_payments": False,
+                "show_payments": True,
             },
-            "current_month": {"has_payments": False},
+            "current_month": {"show_payments": True},
             "totals": {"grand_total": 0, "total_payments": 0},
             "payment_summary": {"total_payments": 0, "all_payments": []},
             "error": str(e),
         }
-
-
-# Update your existing loadInvoiceMemo view to include the generate button
-@login_required
-def loadInvoiceMemo(request):
-    """Enhanced load memo form with generate functionality"""
-    try:
-        form = LoadInvoiceMemoForm()
-
-        # Get children for dropdown
-        children = Child.objects.filter(
-            is_active=True, is_enrolled=True, enrollement_approved=True
-        ).order_by("admission_number")
-
-        context = {
-            "form": form,
-            "children": children,
-            "UserName": request.user.username,
-        }
-        return render(request, "../templates/invoice.html", context)
-    except Exception as e:
-        messages.error(request, f"Error loading memo form: {str(e)}")
-        return redirect("core:memo_data_entry")
 
 
 def generate_memo_pdf_with_two_column_breakdown(memo_data):
@@ -9435,18 +9509,11 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
             [outstanding_desc, f"{outstanding.get('original_charge', 0):,.2f}"]
         )
 
-        # Add outstanding payment if exists
-        if (
-            outstanding.get("has_payments", False)
-            and outstanding.get("payment_amount", 0) > 0
-        ):
-            payment_text = outstanding.get(
-                "payment_display_text",
-                f"Payment Settled-{outstanding.get('name', 'Outstanding')} (RN {outstanding.get('payment_receipt', 'N/A')})",
-            )
-            table_data.append(
-                [payment_text, f"-{outstanding.get('payment_amount', 0):,.2f}"]
-            )
+        # Add outstanding payment - ALWAYS SHOW
+        payment_text = outstanding.get("payment_display_text", "Payments")
+        table_data.append(
+            [payment_text, f"-{outstanding.get('payment_amount', 0):,.2f}"]
+        )
 
         table_data.append(
             [
@@ -9571,18 +9638,9 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
                     [holiday_description, f"{previous.get('holiday_charges', 0):,.2f}"]
                 )
 
-        # ===== ADD PREVIOUS MONTH PAYMENTS =====
-        if (
-            previous.get("has_payments", False)
-            and previous.get("payment_amount", 0) > 0
-        ):
-            payment_text = previous.get(
-                "payment_display_text",
-                f"Payments (RN {previous.get('payment_receipt', 'N/A')})",
-            )
-            table_data.append(
-                [payment_text, f"-{previous.get('payment_amount', 0):,.2f}"]
-            )
+        # ===== ADD PREVIOUS MONTH PAYMENTS - ALWAYS SHOW =====
+        payment_text = previous.get("payment_display_text", "Payments")
+        table_data.append([payment_text, f"-{previous.get('payment_amount', 0):,.2f}"])
 
         # Previous month total
         table_data.append(
@@ -9610,15 +9668,9 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
         )
         table_data.append([current_desc, f"{current.get('package_fee', 0):,.2f}"])
 
-        # ===== ADD CURRENT MONTH PAYMENTS =====
-        if current.get("has_payments", False) and current.get("payment_amount", 0) > 0:
-            payment_text = current.get(
-                "payment_display_text",
-                f"Payments (RN {current.get('payment_receipt', 'N/A')})",
-            )
-            table_data.append(
-                [payment_text, f"-{current.get('payment_amount', 0):,.2f}"]
-            )
+        # ===== ADD CURRENT MONTH PAYMENTS - ALWAYS SHOW =====
+        payment_text = current.get("payment_display_text", "Payments")
+        table_data.append([payment_text, f"-{current.get('payment_amount', 0):,.2f}"])
 
         # Final total
         totals = memo_data.get("totals", {})
@@ -9719,6 +9771,28 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
         return buffer
 
 
+@login_required
+def loadInvoiceMemo(request):
+    """Enhanced load memo form with generate functionality"""
+    try:
+        form = LoadInvoiceMemoForm()
+
+        # Get children for dropdown
+        children = Child.objects.filter(
+            is_active=True, is_enrolled=True, enrollement_approved=True
+        ).order_by("admission_number")
+
+        context = {
+            "form": form,
+            "children": children,
+            "UserName": request.user.username,
+        }
+        return render(request, "../templates/invoice.html", context)
+    except Exception as e:
+        messages.error(request, f"Error loading memo form: {str(e)}")
+        return redirect("core:memo_data_entry")
+
+
 def format_breakdown_item(item):
     """Format individual extra hours breakdown item"""
     if not item:
@@ -9777,6 +9851,50 @@ def count_breakdown_items(memo_data):
         "extra_breakdown_items": extra_breakdown,
         "holiday_breakdown_items": holiday_breakdown,
     }
+
+
+def format_breakdown_item_html(item):
+    """Format individual extra hours breakdown item for HTML"""
+    if not item:
+        return ""
+
+    date_str = item.get("date", "")
+    time_out = item.get("time_out", "N/A")
+    extra_hours_display = item.get("extra_hours_display", "")
+
+    # Format date
+    if date_str:
+        try:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            formatted_date = date_obj.strftime("%Y-%m-%d")
+        except:
+            formatted_date = date_str
+    else:
+        formatted_date = "N/A"
+
+    return f"{formatted_date} → {time_out} ({extra_hours_display})"
+
+
+def format_holiday_breakdown_item_html(item):
+    """Format individual holiday breakdown item for HTML"""
+    if not item:
+        return ""
+
+    date_str = item.get("date", "")
+    holiday_name = item.get("holiday_name", "Holiday")
+    charges = item.get("charges", 0)
+
+    # Format date
+    if date_str:
+        try:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            formatted_date = date_obj.strftime("%Y-%m-%d")
+        except:
+            formatted_date = date_str
+    else:
+        formatted_date = "N/A"
+
+    return f"{formatted_date} → {holiday_name} (Rs.{charges:,.2f})"
 
 
 def generate_memo_preview_html_with_two_columns(memo_data):
@@ -9865,46 +9983,40 @@ def generate_memo_preview_html_with_two_columns(memo_data):
     outstanding = memo_data.get("outstanding_month", {})
     current = memo_data.get("current_month", {})
 
-    # Outstanding payment HTML
-    outstanding_payment_html = ""
-    if (
-        outstanding.get("has_payments", False)
-        and outstanding.get("payment_amount", 0) > 0
-    ):
-        payment_text = outstanding.get(
-            "payment_display_text",
-            f"Payment Settled-{outstanding.get('name', 'Outstanding')} (RN {outstanding.get('payment_receipt', 'N/A')})",
-        )
-        outstanding_payment_html = f"""
+    # Outstanding payment HTML - ALWAYS SHOW
+    outstanding_payment_color = (
+        "payment-amount"
+        if outstanding.get("payment_amount", 0) > 0
+        else "payment-amount text-muted"
+    )
+    outstanding_payment_html = f"""
                     <tr>
-                        <td>{payment_text}</td>
-                        <td class="amount-col payment-amount">-{outstanding.get("payment_amount", 0):,.2f}</td>
+                        <td class="payment-row">{outstanding.get("payment_display_text", "Payments")}</td>
+                        <td class="amount-col {outstanding_payment_color}">-{outstanding.get("payment_amount", 0):,.2f}</td>
                     </tr>"""
 
-    # Previous month payment HTML
-    previous_payment_html = ""
-    if previous.get("has_payments", False) and previous.get("payment_amount", 0) > 0:
-        payment_text = previous.get(
-            "payment_display_text",
-            f"Payments (RN {previous.get('payment_receipt', 'N/A')})",
-        )
-        previous_payment_html = f"""
+    # Previous month payment HTML - ALWAYS SHOW
+    previous_payment_color = (
+        "payment-amount"
+        if previous.get("payment_amount", 0) > 0
+        else "payment-amount text-muted"
+    )
+    previous_payment_html = f"""
                     <tr>
-                        <td class="payment-row">{payment_text}</td>
-                        <td class="amount-col payment-amount">-{previous.get("payment_amount", 0):,.2f}</td>
+                        <td class="payment-row">{previous.get("payment_display_text", "Payments")}</td>
+                        <td class="amount-col {previous_payment_color}">-{previous.get("payment_amount", 0):,.2f}</td>
                     </tr>"""
 
-    # Current month payment HTML
-    current_payment_html = ""
-    if current.get("has_payments", False) and current.get("payment_amount", 0) > 0:
-        payment_text = current.get(
-            "payment_display_text",
-            f"Payments (RN {current.get('payment_receipt', 'N/A')})",
-        )
-        current_payment_html = f"""
+    # Current month payment HTML - ALWAYS SHOW
+    current_payment_color = (
+        "payment-amount"
+        if current.get("payment_amount", 0) > 0
+        else "payment-amount text-muted"
+    )
+    current_payment_html = f"""
                     <tr>
-                        <td class="payment-row">{payment_text}</td>
-                        <td class="amount-col payment-amount">-{current.get("payment_amount", 0):,.2f}</td>
+                        <td class="payment-row">{current.get("payment_display_text", "Payments")}</td>
+                        <td class="amount-col {current_payment_color}">-{current.get("payment_amount", 0):,.2f}</td>
                     </tr>"""
 
     html_content = f"""
@@ -10290,50 +10402,6 @@ def generate_memo_preview_html_with_two_columns(memo_data):
     """
 
     return html_content
-
-
-def format_breakdown_item_html(item):
-    """Format individual extra hours breakdown item for HTML"""
-    if not item:
-        return ""
-
-    date_str = item.get("date", "")
-    time_out = item.get("time_out", "N/A")
-    extra_hours_display = item.get("extra_hours_display", "")
-
-    # Format date
-    if date_str:
-        try:
-            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-            formatted_date = date_obj.strftime("%Y-%m-%d")
-        except:
-            formatted_date = date_str
-    else:
-        formatted_date = "N/A"
-
-    return f"{formatted_date} → {time_out} ({extra_hours_display})"
-
-
-def format_holiday_breakdown_item_html(item):
-    """Format individual holiday breakdown item for HTML"""
-    if not item:
-        return ""
-
-    date_str = item.get("date", "")
-    holiday_name = item.get("holiday_name", "Holiday")
-    charges = item.get("charges", 0)
-
-    # Format date
-    if date_str:
-        try:
-            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-            formatted_date = date_obj.strftime("%Y-%m-%d")
-        except:
-            formatted_date = date_str
-    else:
-        formatted_date = "N/A"
-
-    return f"{formatted_date} → {holiday_name} (Rs.{charges:,.2f})"
 
 
 # UPDATED PREVIEW FUNCTION - Use the debug version temporarily

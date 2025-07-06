@@ -8,6 +8,20 @@
 
 {% block content %}
 <style>
+    .payment-amount {
+    font-weight: bold;
+}
+
+/* Green for actual payments */
+.payment-amount:not([data-amount="0"]) {
+    color: #28a745 !important;
+}
+
+/* Gray for zero payments */
+.payment-amount[data-amount="0"]) {
+    color: #6c757d !important;
+}
+
     .generating-memo {
     background: #e3f2fd !important;
     border: 2px solid #2196f3 !important;
