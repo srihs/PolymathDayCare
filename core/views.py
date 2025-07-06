@@ -8952,9 +8952,8 @@ def format_extra_hours_for_memo_display(extra_hours_breakdown):
     return result
 
 
-# UPDATED FUNCTIONS TO HANDLE MANUAL ENTRY FORMAT
 def prepare_memo_display_data_fixed(memo):
-    """FIXED to handle both automatic and manual entry breakdown formats with CORRECT ATTENDANCE"""
+    """FIXED to handle payments display properly in memo preview"""
     try:
         details = memo.month_details.all().order_by("month_sequence")
 
@@ -8982,7 +8981,6 @@ def prepare_memo_display_data_fixed(memo):
             )
 
             # ===== FIX ATTENDANCE CALCULATION =====
-            # First try to get from stored data
             days_attended = previous_detail.days_attended or 0
             expected_days = previous_detail.expected_days or 22
             attendance_percentage = float(previous_detail.attendance_percentage or 0)
@@ -8994,7 +8992,6 @@ def prepare_memo_display_data_fixed(memo):
                 and previous_detail.actual_year
             ):
                 try:
-                    # Calculate attendance for the previous month
                     calculated_attendance = calculate_month_attendance_summary(
                         memo.child,
                         previous_detail.actual_month,
@@ -9006,7 +9003,6 @@ def prepare_memo_display_data_fixed(memo):
                         "attendance_percentage", 0
                     )
 
-                    # Update the detail record with calculated attendance
                     previous_detail.days_attended = days_attended
                     previous_detail.expected_days = expected_days
                     previous_detail.attendance_percentage = Decimal(
@@ -9022,59 +9018,38 @@ def prepare_memo_display_data_fixed(memo):
 
                 except Exception as e:
                     print(f"Error calculating attendance: {str(e)}")
-                    # Fallback values
                     days_attended = 0
                     expected_days = 22
                     attendance_percentage = 0
 
-            # Extract breakdown data - HANDLE DIFFERENT FORMATS
+            # Extract breakdown data
             calc_details = previous_detail.calculation_details or {}
-
-            # Check if this is manual entry vs automatic
             is_manual_entry = calc_details.get("manually_entered", False)
-
-            # Get breakdown data from the correct location
             extra_hours_breakdown = calc_details.get("extra_hours_breakdown", [])
             holiday_breakdown = calc_details.get("holiday_charges_breakdown", [])
-
-            print(f"DEBUG: Manual entry: {is_manual_entry}")
-            print(f"DEBUG: Raw extra breakdown: {extra_hours_breakdown}")
-            print(
-                f"DEBUG: Attendance - Days: {days_attended}/{expected_days} ({attendance_percentage}%)"
-            )
 
             # Convert manual entry format to detailed format for display
             if is_manual_entry and extra_hours_breakdown:
                 detailed_breakdown = []
-
                 for item in extra_hours_breakdown:
                     if item.get("type") == "manual_summary":
-                        # Convert manual summary to multiple realistic entries
                         total_charge = float(item.get("charges", 0))
-
-                        # Create realistic daily breakdown (assuming Rs.150 per instance)
                         if total_charge > 0:
-                            daily_rate = 150.0  # Standard rate per instance
+                            daily_rate = 150.0
                             num_instances = int(total_charge / daily_rate)
-
-                            # Generate realistic dates for the month
                             month = previous_detail.actual_month
                             year = previous_detail.actual_year
 
-                            # Create entries for working days
-                            # Get working days in the month
                             working_days = []
                             last_day = calendar.monthrange(year, month)[1]
 
                             for day in range(1, last_day + 1):
                                 date_obj = date(year, month, day)
-                                if date_obj.weekday() < 5:  # Monday to Friday
+                                if date_obj.weekday() < 5:
                                     working_days.append(date_obj)
 
-                            # Create breakdown entries
                             for i in range(min(num_instances, len(working_days))):
                                 work_day = working_days[i]
-                                # Vary the times slightly for realism
                                 times = [
                                     "18:02",
                                     "18:05",
@@ -9086,8 +9061,6 @@ def prepare_memo_display_data_fixed(memo):
                                     "18:20",
                                 ]
                                 time_out = times[i % len(times)]
-
-                                # Vary extra hours slightly
                                 extra_hours = round(0.6 + (i * 0.03), 2)
 
                                 detailed_breakdown.append(
@@ -9102,19 +9075,15 @@ def prepare_memo_display_data_fixed(memo):
                                     }
                                 )
                     else:
-                        # Keep automatic entries as-is
                         detailed_breakdown.append(item)
-
                 extra_hours_breakdown = detailed_breakdown
-                print(f"DEBUG: Converted to {len(detailed_breakdown)} detailed entries")
 
-            # Handle holiday breakdown similarly
+            # Handle holiday breakdown
             if (
                 is_manual_entry
                 and previous_detail.holiday_charges > 0
                 and not holiday_breakdown
             ):
-                # Create sample holiday breakdown if none exists
                 holiday_breakdown = [
                     {
                         "date": f"{previous_detail.actual_year}-{previous_detail.actual_month:02d}-15",
@@ -9124,68 +9093,134 @@ def prepare_memo_display_data_fixed(memo):
                     }
                 ]
 
-            # Get payment receipt numbers
-            outstanding_receipt = "N/A"
-            if outstanding_detail.payment_receipts:
-                outstanding_receipt = outstanding_detail.payment_receipts[0].get(
-                    "receipt_number", "N/A"
-                )
+            # ===== ENHANCED PAYMENT PROCESSING =====
+            def process_payment_data(detail, month_name):
+                """Process payment data for display"""
+                payment_info = {
+                    "amount": float(detail.payments_received or 0),
+                    "receipt_numbers": [],
+                    "payment_details": [],
+                    "has_payments": False,
+                    "payment_display_text": "",
+                }
 
-            previous_receipt = "N/A"
-            if previous_detail.payment_receipts:
-                previous_receipt = previous_detail.payment_receipts[0].get(
-                    "receipt_number", "N/A"
-                )
+                if detail.payment_receipts and isinstance(
+                    detail.payment_receipts, list
+                ):
+                    payment_info["has_payments"] = True
+                    for payment in detail.payment_receipts:
+                        receipt_num = payment.get("receipt_number", "N/A")
+                        amount = float(payment.get("amount", 0))
+                        payment_date = payment.get("date", "N/A")
+
+                        payment_info["receipt_numbers"].append(receipt_num)
+                        payment_info["payment_details"].append(
+                            {
+                                "receipt_number": receipt_num,
+                                "amount": amount,
+                                "date": payment_date,
+                            }
+                        )
+
+                    # Create display text
+                    if len(payment_info["payment_details"]) == 1:
+                        payment_info["payment_display_text"] = (
+                            f"Payment Settled-{month_name} (RN {payment_info['receipt_numbers'][0]})"
+                        )
+                    else:
+                        receipts_text = ", ".join(payment_info["receipt_numbers"])
+                        payment_info["payment_display_text"] = (
+                            f"Payments Settled-{month_name} (RN {receipts_text})"
+                        )
+                else:
+                    payment_info["payment_display_text"] = (
+                        f"No payments recorded for {month_name}"
+                    )
+
+                return payment_info
+
+            # Process payments for each month
+            outstanding_payments = process_payment_data(
+                outstanding_detail, outstanding_detail.month_name
+            )
+            previous_payments = process_payment_data(
+                previous_detail, previous_detail.month_name
+            )
+            current_payments = process_payment_data(
+                current_detail, current_detail.month_name
+            )
 
             base_data.update(
                 {
                     "package_name": package_name,
-                    # Outstanding month
+                    # Outstanding month with ENHANCED PAYMENT DATA
                     "outstanding_month": {
                         "name": outstanding_detail.month_name,
                         "year": outstanding_detail.actual_year,
                         "original_charge": float(outstanding_detail.package_fee),
-                        "payment_amount": float(outstanding_detail.payments_received),
-                        "payment_receipt": outstanding_receipt,
+                        "payment_amount": outstanding_payments["amount"],
+                        "payment_receipt": outstanding_payments["receipt_numbers"][0]
+                        if outstanding_payments["receipt_numbers"]
+                        else "N/A",
+                        "payment_display_text": outstanding_payments[
+                            "payment_display_text"
+                        ],
+                        "payment_details": outstanding_payments["payment_details"],
+                        "has_payments": outstanding_payments["has_payments"],
                         "balance": float(outstanding_detail.net_balance),
                         "calculation_text": f"Rs.{outstanding_detail.package_fee:,.2f} - Rs.{outstanding_detail.payments_received:,.2f} = Rs.{outstanding_detail.net_balance:,.2f}",
                     },
-                    # Previous month - WITH CONVERTED BREAKDOWN AND FIXED ATTENDANCE
+                    # Previous month with ENHANCED PAYMENT DATA
                     "previous_month": {
                         "name": previous_detail.month_name,
                         "year": previous_detail.actual_year,
                         "package_fee": float(previous_detail.package_fee),
-                        # ===== FIXED ATTENDANCE DISPLAY =====
                         "package_description": f"Day Care Monthly fee - {previous_detail.month_name} ({days_attended}/{expected_days} days attended)",
-                        "payment_amount": float(previous_detail.payments_received),
-                        "payment_receipt": previous_receipt,
-                        # Extra hours section with CONVERTED breakdown
+                        "payment_amount": previous_payments["amount"],
+                        "payment_receipt": previous_payments["receipt_numbers"][0]
+                        if previous_payments["receipt_numbers"]
+                        else "N/A",
+                        "payment_display_text": previous_payments[
+                            "payment_display_text"
+                        ],
+                        "payment_details": previous_payments["payment_details"],
+                        "has_payments": previous_payments["has_payments"],
+                        # Extra hours section
                         "extra_charges": float(previous_detail.extra_hours_charge),
                         "extra_hours_description": "Extra Hours Charges for the month",
-                        "extra_hours_breakdown_list": extra_hours_breakdown,  # ✅ NOW HAS DETAILED DATA
+                        "extra_hours_breakdown_list": extra_hours_breakdown,
                         # Holiday charges section
                         "holiday_charges": float(previous_detail.holiday_charges),
                         "holiday_description": "Holiday Attendance Charges",
-                        "holiday_breakdown_list": holiday_breakdown,  # ✅ NOW HAS DATA
+                        "holiday_breakdown_list": holiday_breakdown,
                         # Month total
                         "month_total": float(
                             previous_detail.net_balance
                             + previous_detail.extra_hours_charge
                             + previous_detail.holiday_charges
                         ),
-                        # ===== FIXED ATTENDANCE DETAILS =====
+                        # Attendance details
                         "days_attended": days_attended,
                         "expected_days": expected_days,
                         "attendance_percentage": float(attendance_percentage),
                         "is_half_charge": previous_detail.is_half_charge_applied,
                     },
-                    # Current month
+                    # Current month with ENHANCED PAYMENT DATA
                     "current_month": {
                         "name": current_detail.month_name,
                         "year": current_detail.actual_year,
                         "package_fee": float(current_detail.package_fee),
                         "package_description": f"Day Care Monthly fee - {current_detail.month_name} {current_detail.actual_year} (Full Package)",
                         "advance_note": "Advance charge for upcoming month",
+                        "payment_amount": current_payments["amount"],
+                        "payment_receipt": current_payments["receipt_numbers"][0]
+                        if current_payments["receipt_numbers"]
+                        else "N/A",
+                        "payment_display_text": current_payments[
+                            "payment_display_text"
+                        ],
+                        "payment_details": current_payments["payment_details"],
+                        "has_payments": current_payments["has_payments"],
                         "balance": float(current_detail.net_balance),
                     },
                     # Summary totals
@@ -9198,7 +9233,18 @@ def prepare_memo_display_data_fixed(memo):
                         ),
                         "current_month": float(current_detail.net_balance),
                         "grand_total": float(memo.net_amount_due),
+                        "total_payments": float(memo.total_payments),
                         "final_calculation": f"Rs.{outstanding_detail.net_balance:,.2f} + Rs.{previous_detail.net_balance + previous_detail.extra_hours_charge + previous_detail.holiday_charges:,.2f} + Rs.{current_detail.net_balance:,.2f} = Rs.{memo.net_amount_due:,.2f}",
+                    },
+                    # ===== ENHANCED PAYMENT SUMMARY =====
+                    "payment_summary": {
+                        "total_payments": float(memo.total_payments),
+                        "outstanding_payments": outstanding_payments,
+                        "previous_payments": previous_payments,
+                        "current_payments": current_payments,
+                        "all_payments": outstanding_payments["payment_details"]
+                        + previous_payments["payment_details"]
+                        + current_payments["payment_details"],
                     },
                 }
             )
@@ -9212,6 +9258,7 @@ def prepare_memo_display_data_fixed(memo):
                         "name": "Outstanding",
                         "year": 2025,
                         "balance": 0,
+                        "has_payments": False,
                     },
                     "previous_month": {
                         "name": "Previous",
@@ -9222,9 +9269,15 @@ def prepare_memo_display_data_fixed(memo):
                         "days_attended": 0,
                         "expected_days": 22,
                         "attendance_percentage": 0,
+                        "has_payments": False,
                     },
-                    "current_month": {"name": "Current", "year": 2025},
-                    "totals": {"grand_total": 0},
+                    "current_month": {
+                        "name": "Current",
+                        "year": 2025,
+                        "has_payments": False,
+                    },
+                    "totals": {"grand_total": 0, "total_payments": 0},
+                    "payment_summary": {"total_payments": 0, "all_payments": []},
                 }
             )
 
@@ -9236,7 +9289,6 @@ def prepare_memo_display_data_fixed(memo):
 
         traceback.print_exc()
 
-        # Return minimal fallback data
         return {
             "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}",
             "child_admission": memo.child.admission_number,
@@ -9245,7 +9297,7 @@ def prepare_memo_display_data_fixed(memo):
             "package_name": "Normal Package",
             "memo_date": memo.memo_date.strftime("%d/%m/%Y"),
             "due_date": (memo.memo_date + timedelta(days=7)).strftime("%d/%m/%Y"),
-            "outstanding_month": {"balance": 0},
+            "outstanding_month": {"balance": 0, "has_payments": False},
             "previous_month": {
                 "extra_charges": 0,
                 "extra_hours_breakdown_list": [],
@@ -9253,9 +9305,11 @@ def prepare_memo_display_data_fixed(memo):
                 "days_attended": 0,
                 "expected_days": 22,
                 "attendance_percentage": 0,
+                "has_payments": False,
             },
-            "current_month": {},
-            "totals": {"grand_total": 0},
+            "current_month": {"has_payments": False},
+            "totals": {"grand_total": 0, "total_payments": 0},
+            "payment_summary": {"total_payments": 0, "all_payments": []},
             "error": str(e),
         }
 
@@ -9284,7 +9338,7 @@ def loadInvoiceMemo(request):
 
 
 def generate_memo_pdf_with_two_column_breakdown(memo_data):
-    """Generate PDF with detailed breakdown in 2-column format"""
+    """Generate PDF with detailed breakdown in 2-column format and PAYMENTS"""
     try:
         buffer = BytesIO()
         doc = SimpleDocTemplate(
@@ -9322,16 +9376,6 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
             parent=styles["Normal"],
             fontSize=11,
             fontName="Helvetica",
-        )
-
-        # Style for breakdown items
-        breakdown_style = ParagraphStyle(
-            "BreakdownStyle",
-            parent=styles["Normal"],
-            fontSize=9,
-            fontName="Helvetica",
-            leftIndent=10,
-            spaceAfter=2,
         )
 
         story = []
@@ -9387,7 +9431,29 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
         )
 
         outstanding_desc = f"Outstanding from {outstanding.get('name', 'Outstanding')}"
-        table_data.append([outstanding_desc, f"{outstanding.get('balance', 0):,.2f}"])
+        table_data.append(
+            [outstanding_desc, f"{outstanding.get('original_charge', 0):,.2f}"]
+        )
+
+        # Add outstanding payment if exists
+        if (
+            outstanding.get("has_payments", False)
+            and outstanding.get("payment_amount", 0) > 0
+        ):
+            payment_text = outstanding.get(
+                "payment_display_text",
+                f"Payment Settled-{outstanding.get('name', 'Outstanding')} (RN {outstanding.get('payment_receipt', 'N/A')})",
+            )
+            table_data.append(
+                [payment_text, f"-{outstanding.get('payment_amount', 0):,.2f}"]
+            )
+
+        table_data.append(
+            [
+                f"Outstanding from {outstanding.get('name', 'Outstanding')}",
+                f"{outstanding.get('balance', 0):,.2f}",
+            ]
+        )
 
         # Previous month section
         previous = memo_data.get("previous_month", {})
@@ -9408,30 +9474,23 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
         # Extra hours with 2-column detailed breakdown
         if previous.get("extra_charges", 0) > 0:
             extra_breakdown = previous.get("extra_hours_breakdown_list", [])
-            extra_count = len(extra_breakdown)
-
             extra_description = "Extra Hours for the month"
 
             if extra_breakdown and len(extra_breakdown) > 0:
                 # Create 2-column breakdown table
                 breakdown_table_data = []
 
-                # Split items into 2 columns
                 for i in range(0, len(extra_breakdown), 2):
                     left_item = extra_breakdown[i]
                     right_item = (
                         extra_breakdown[i + 1] if i + 1 < len(extra_breakdown) else None
                     )
 
-                    # Format left column
                     left_text = format_breakdown_item(left_item)
-
-                    # Format right column (if exists)
                     right_text = format_breakdown_item(right_item) if right_item else ""
 
                     breakdown_table_data.append([left_text, right_text])
 
-                # Create the breakdown table
                 breakdown_table = Table(
                     breakdown_table_data, colWidths=[60 * mm, 60 * mm]
                 )
@@ -9445,22 +9504,17 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
                             ("RIGHTPADDING", (0, 0), (-1, -1), 4),
                             ("TOPPADDING", (0, 0), (-1, -1), 2),
                             ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-                            # No borders for breakdown table
                             ("GRID", (0, 0), (-1, -1), 0, colors.white),
                         ]
                     )
                 )
 
-                # Combine description with breakdown table
                 full_extra_desc = [
                     [extra_description, f"{previous.get('extra_charges', 0):,.2f}"],
-                    [breakdown_table, ""],  # Breakdown table spans both columns
+                    [breakdown_table, ""],
                 ]
-
-                # Add both rows
                 table_data.extend(full_extra_desc)
             else:
-                # Fallback if no detailed breakdown
                 table_data.append(
                     [extra_description, f"{previous.get('extra_charges', 0):,.2f}"]
                 )
@@ -9469,11 +9523,9 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
         if previous.get("holiday_charges", 0) > 0:
             holiday_breakdown = previous.get("holiday_breakdown_list", [])
             holiday_count = len(holiday_breakdown)
-
             holiday_description = f"Holiday Attendance Charges {holiday_count} days"
 
             if holiday_breakdown and len(holiday_breakdown) > 0:
-                # Create 2-column breakdown for holidays
                 holiday_breakdown_data = []
 
                 for i in range(0, len(holiday_breakdown), 2):
@@ -9513,12 +9565,24 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
                     [holiday_description, f"{previous.get('holiday_charges', 0):,.2f}"],
                     [holiday_breakdown_table, ""],
                 ]
-
                 table_data.extend(full_holiday_desc)
             else:
                 table_data.append(
                     [holiday_description, f"{previous.get('holiday_charges', 0):,.2f}"]
                 )
+
+        # ===== ADD PREVIOUS MONTH PAYMENTS =====
+        if (
+            previous.get("has_payments", False)
+            and previous.get("payment_amount", 0) > 0
+        ):
+            payment_text = previous.get(
+                "payment_display_text",
+                f"Payments (RN {previous.get('payment_receipt', 'N/A')})",
+            )
+            table_data.append(
+                [payment_text, f"-{previous.get('payment_amount', 0):,.2f}"]
+            )
 
         # Previous month total
         table_data.append(
@@ -9546,6 +9610,16 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
         )
         table_data.append([current_desc, f"{current.get('package_fee', 0):,.2f}"])
 
+        # ===== ADD CURRENT MONTH PAYMENTS =====
+        if current.get("has_payments", False) and current.get("payment_amount", 0) > 0:
+            payment_text = current.get(
+                "payment_display_text",
+                f"Payments (RN {current.get('payment_receipt', 'N/A')})",
+            )
+            table_data.append(
+                [payment_text, f"-{current.get('payment_amount', 0):,.2f}"]
+            )
+
         # Final total
         totals = memo_data.get("totals", {})
         table_data.append(
@@ -9558,7 +9632,6 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
         # Create and style main table
         main_table = Table(table_data, colWidths=[120 * mm, 35 * mm])
 
-        # Calculate row indices for styling (this gets complex with dynamic rows)
         table_styles = [
             ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
             ("FONTSIZE", (0, 0), (-1, -1), 10),
@@ -9572,11 +9645,9 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
             # Header row
             ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            # Section headers - you'll need to calculate these based on your table structure
+            # Section headers
             ("BACKGROUND", (0, 1), (-1, 1), colors.Color(1, 0.9, 0.9)),  # Outstanding
             ("FONTNAME", (0, 1), (-1, 1), "Helvetica-Bold"),
-            ("BACKGROUND", (0, 3), (-1, 3), colors.Color(0.9, 0.95, 1)),  # Calculated
-            ("FONTNAME", (0, 3), (-1, 3), "Helvetica-Bold"),
             # Final total
             ("BACKGROUND", (0, -1), (-1, -1), colors.Color(1, 0.95, 0.8)),
             ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
@@ -9637,6 +9708,7 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
         import traceback
 
         traceback.print_exc()
+
         # Create fallback PDF
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4)
@@ -9708,7 +9780,7 @@ def count_breakdown_items(memo_data):
 
 
 def generate_memo_preview_html_with_two_columns(memo_data):
-    """Generate HTML preview with 2-column breakdown display"""
+    """Generate HTML preview with 2-column breakdown display and PAYMENTS"""
 
     # Process breakdown data
     previous = memo_data.get("previous_month", {})
@@ -9789,6 +9861,52 @@ def generate_memo_preview_html_with_two_columns(memo_data):
                         <td class="amount-col">{previous.get("holiday_charges", 0):,.2f}</td>
                     </tr>"""
 
+    # ===== GENERATE PAYMENT HTML SECTIONS =====
+    outstanding = memo_data.get("outstanding_month", {})
+    current = memo_data.get("current_month", {})
+
+    # Outstanding payment HTML
+    outstanding_payment_html = ""
+    if (
+        outstanding.get("has_payments", False)
+        and outstanding.get("payment_amount", 0) > 0
+    ):
+        payment_text = outstanding.get(
+            "payment_display_text",
+            f"Payment Settled-{outstanding.get('name', 'Outstanding')} (RN {outstanding.get('payment_receipt', 'N/A')})",
+        )
+        outstanding_payment_html = f"""
+                    <tr>
+                        <td>{payment_text}</td>
+                        <td class="amount-col payment-amount">-{outstanding.get("payment_amount", 0):,.2f}</td>
+                    </tr>"""
+
+    # Previous month payment HTML
+    previous_payment_html = ""
+    if previous.get("has_payments", False) and previous.get("payment_amount", 0) > 0:
+        payment_text = previous.get(
+            "payment_display_text",
+            f"Payments (RN {previous.get('payment_receipt', 'N/A')})",
+        )
+        previous_payment_html = f"""
+                    <tr>
+                        <td class="payment-row">{payment_text}</td>
+                        <td class="amount-col payment-amount">-{previous.get("payment_amount", 0):,.2f}</td>
+                    </tr>"""
+
+    # Current month payment HTML
+    current_payment_html = ""
+    if current.get("has_payments", False) and current.get("payment_amount", 0) > 0:
+        payment_text = current.get(
+            "payment_display_text",
+            f"Payments (RN {current.get('payment_receipt', 'N/A')})",
+        )
+        current_payment_html = f"""
+                    <tr>
+                        <td class="payment-row">{payment_text}</td>
+                        <td class="amount-col payment-amount">-{current.get("payment_amount", 0):,.2f}</td>
+                    </tr>"""
+
     html_content = f"""
     <!DOCTYPE html>
     <html>
@@ -9866,6 +9984,17 @@ def generate_memo_preview_html_with_two_columns(memo_data):
             .memo-table .amount-col {{
                 text-align: right;
                 width: 120px;
+            }}
+            
+            /* Payment styling */
+            .payment-amount {{
+                color: #28a745 !important;
+                font-weight: bold;
+            }}
+            
+            .payment-row {{
+                font-style: italic;
+                color: #666;
             }}
             
             .outstanding-header {{
@@ -10025,7 +10154,14 @@ def generate_memo_preview_html_with_two_columns(memo_data):
                     </tr>
                     <tr>
                         <td>Outstanding from {memo_data["outstanding_month"]["name"]}</td>
-                        <td class="amount-col">{memo_data["outstanding_month"]["balance"]:,.2f}</td>
+                        <td class="amount-col">{memo_data["outstanding_month"].get("original_charge", 0):,.2f}</td>
+                    </tr>
+                    
+                    {outstanding_payment_html}
+                    
+                    <tr>
+                        <td><strong>Outstanding from {memo_data["outstanding_month"]["name"]}</strong></td>
+                        <td class="amount-col"><strong>{memo_data["outstanding_month"]["balance"]:,.2f}</strong></td>
                     </tr>
                     
                     <!-- Previous Month Section -->
@@ -10041,6 +10177,8 @@ def generate_memo_preview_html_with_two_columns(memo_data):
                     {extra_hours_html}
                     
                     {holiday_charges_html}
+                    
+                    {previous_payment_html}
                     
                     <tr class="total-row">
                         <td><strong>Total for {memo_data["previous_month"]["name"]} {memo_data["previous_month"]["year"]}</strong></td>
@@ -10059,6 +10197,8 @@ def generate_memo_preview_html_with_two_columns(memo_data):
                         </td>
                         <td class="amount-col">{memo_data["current_month"]["package_fee"]:,.2f}</td>
                     </tr>
+                    
+                    {current_payment_html}
                     
                     <!-- Final Total -->
                     <tr class="final-total">

@@ -485,6 +485,94 @@ function displayNoMemoFoundWithGenerate(childName, monthName, year, childId, mon
     $('#memoContent').html(noMemoHtml);
 }
 // New function to generate enhanced memo
+// Add this JavaScript function to your template for generating enhanced memos
+function generateEnhancedMemo(childId, month, year, childName, monthName) {
+    // Show confirmation dialog
+    if (!confirm(`Generate enhanced memo for ${childName} - ${monthName} ${year}?\n\nThis will create a 3-month memo with:\n• Outstanding charges (2 months ago)\n• Calculated charges with attendance (previous month)\n• Advance charges (current month)`)) {
+        return;
+    }
+    
+    // Show loading
+    const generateBtn = event.target;
+    const originalContent = generateBtn.innerHTML;
+    generateBtn.innerHTML = '<i class="ri-loader-4-line ri-spin me-1"></i>Generating...';
+    generateBtn.disabled = true;
+    generateBtn.classList.add('generating-memo');
+    
+    // Generate memo
+    fetch("{% url 'core:generate_enhanced_memo' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            child_id: childId,
+            month: month,
+            year: year
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => Promise.reject(err));
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message with memo details
+            const successHtml = `
+                <div class="memo-generated-success">
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <h5 class="alert-heading"><i class="ri-check-circle-line me-2"></i>Enhanced Memo Generated Successfully!</h5>
+                        <p class="mb-2"><strong>Memo Code:</strong> ${data.memo_code}</p>
+                        <p class="mb-2"><strong>Child:</strong> ${data.child_name}</p>
+                        <p class="mb-2"><strong>Period:</strong> ${data.month_name} ${data.year}</p>
+                        <p class="mb-3"><strong>Net Amount Due:</strong> Rs.${data.net_amount_due.toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
+                        
+                        <div class="breakdown-summary mb-3">
+                            <h6>3-Month Breakdown:</h6>
+                            <ul class="list-unstyled mb-0">
+                                <li>• Outstanding: Rs.${data.breakdown.outstanding.toLocaleString('en-US', {minimumFractionDigits: 2})}</li>
+                                <li>• Previous Month: Rs.${data.breakdown.previous_month.toLocaleString('en-US', {minimumFractionDigits: 2})}</li>
+                                <li>• Current Month: Rs.${data.breakdown.current_month.toLocaleString('en-US', {minimumFractionDigits: 2})}</li>
+                                <li><strong>• Total: Rs.${data.breakdown.total.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></li>
+                            </ul>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="previewMemo(${data.memo_id})">
+                                <i class="ri-eye-line me-1"></i>Preview
+                            </button>
+                            <button type="button" class="btn btn-primary btn-sm" onclick="downloadMemoByCode('${data.memo_code}', ${childId})">
+                                <i class="ri-download-line me-1"></i>Download PDF
+                            </button>
+                            <button type="button" class="btn btn-success btn-sm" onclick="searchMemo()">
+                                <i class="ri-refresh-line me-1"></i>Refresh Search
+                            </button>
+                        </div>
+                        
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+            
+            $('#memoContent').html(successHtml);
+        } else {
+            alert('Error generating memo: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error generating memo: ' + (error.error || error.message || 'Unknown error'));
+    })
+    .finally(() => {
+        // Restore button
+        generateBtn.innerHTML = originalContent;
+        generateBtn.disabled = false;
+        generateBtn.classList.remove('generating-memo');
+    });
+}
 
 function displayNoMemoFoundWithGenerate(childId, month, year, childName, monthName) {
     // Show confirmation dialog
