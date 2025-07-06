@@ -8953,10 +8953,8 @@ def format_extra_hours_for_memo_display(extra_hours_breakdown):
 
 
 # UPDATED FUNCTIONS TO HANDLE MANUAL ENTRY FORMAT
-
-
 def prepare_memo_display_data_fixed(memo):
-    """FIXED to handle both automatic and manual entry breakdown formats"""
+    """FIXED to handle both automatic and manual entry breakdown formats with CORRECT ATTENDANCE"""
     try:
         details = memo.month_details.all().order_by("month_sequence")
 
@@ -8983,6 +8981,52 @@ def prepare_memo_display_data_fixed(memo):
                 or "Normal Package"
             )
 
+            # ===== FIX ATTENDANCE CALCULATION =====
+            # First try to get from stored data
+            days_attended = previous_detail.days_attended or 0
+            expected_days = previous_detail.expected_days or 22
+            attendance_percentage = float(previous_detail.attendance_percentage or 0)
+
+            # If no stored attendance data, calculate it dynamically
+            if (
+                days_attended == 0
+                and previous_detail.actual_month
+                and previous_detail.actual_year
+            ):
+                try:
+                    # Calculate attendance for the previous month
+                    calculated_attendance = calculate_month_attendance_summary(
+                        memo.child,
+                        previous_detail.actual_month,
+                        previous_detail.actual_year,
+                    )
+                    days_attended = calculated_attendance.get("days_attended", 0)
+                    expected_days = calculated_attendance.get("expected_days", 22)
+                    attendance_percentage = calculated_attendance.get(
+                        "attendance_percentage", 0
+                    )
+
+                    # Update the detail record with calculated attendance
+                    previous_detail.days_attended = days_attended
+                    previous_detail.expected_days = expected_days
+                    previous_detail.attendance_percentage = Decimal(
+                        str(attendance_percentage)
+                    )
+                    previous_detail.save(
+                        update_fields=[
+                            "days_attended",
+                            "expected_days",
+                            "attendance_percentage",
+                        ]
+                    )
+
+                except Exception as e:
+                    print(f"Error calculating attendance: {str(e)}")
+                    # Fallback values
+                    days_attended = 0
+                    expected_days = 22
+                    attendance_percentage = 0
+
             # Extract breakdown data - HANDLE DIFFERENT FORMATS
             calc_details = previous_detail.calculation_details or {}
 
@@ -8995,6 +9039,9 @@ def prepare_memo_display_data_fixed(memo):
 
             print(f"DEBUG: Manual entry: {is_manual_entry}")
             print(f"DEBUG: Raw extra breakdown: {extra_hours_breakdown}")
+            print(
+                f"DEBUG: Attendance - Days: {days_attended}/{expected_days} ({attendance_percentage}%)"
+            )
 
             # Convert manual entry format to detailed format for display
             if is_manual_entry and extra_hours_breakdown:
@@ -9015,7 +9062,6 @@ def prepare_memo_display_data_fixed(memo):
                             year = previous_detail.actual_year
 
                             # Create entries for working days
-
                             # Get working days in the month
                             working_days = []
                             last_day = calendar.monthrange(year, month)[1]
@@ -9104,12 +9150,13 @@ def prepare_memo_display_data_fixed(memo):
                         "balance": float(outstanding_detail.net_balance),
                         "calculation_text": f"Rs.{outstanding_detail.package_fee:,.2f} - Rs.{outstanding_detail.payments_received:,.2f} = Rs.{outstanding_detail.net_balance:,.2f}",
                     },
-                    # Previous month - WITH CONVERTED BREAKDOWN
+                    # Previous month - WITH CONVERTED BREAKDOWN AND FIXED ATTENDANCE
                     "previous_month": {
                         "name": previous_detail.month_name,
                         "year": previous_detail.actual_year,
                         "package_fee": float(previous_detail.package_fee),
-                        "package_description": f"Day Care Monthly fee - {previous_detail.month_name} ({previous_detail.days_attended or 0}/{previous_detail.expected_days or 22} days attended)",
+                        # ===== FIXED ATTENDANCE DISPLAY =====
+                        "package_description": f"Day Care Monthly fee - {previous_detail.month_name} ({days_attended}/{expected_days} days attended)",
                         "payment_amount": float(previous_detail.payments_received),
                         "payment_receipt": previous_receipt,
                         # Extra hours section with CONVERTED breakdown
@@ -9126,12 +9173,10 @@ def prepare_memo_display_data_fixed(memo):
                             + previous_detail.extra_hours_charge
                             + previous_detail.holiday_charges
                         ),
-                        # Attendance details
-                        "days_attended": previous_detail.days_attended or 0,
-                        "expected_days": previous_detail.expected_days or 22,
-                        "attendance_percentage": float(
-                            previous_detail.attendance_percentage or 0
-                        ),
+                        # ===== FIXED ATTENDANCE DETAILS =====
+                        "days_attended": days_attended,
+                        "expected_days": expected_days,
+                        "attendance_percentage": float(attendance_percentage),
                         "is_half_charge": previous_detail.is_half_charge_applied,
                     },
                     # Current month
@@ -9174,6 +9219,9 @@ def prepare_memo_display_data_fixed(memo):
                         "extra_charges": 0,
                         "extra_hours_breakdown_list": [],
                         "holiday_breakdown_list": [],
+                        "days_attended": 0,
+                        "expected_days": 22,
+                        "attendance_percentage": 0,
                     },
                     "current_month": {"name": "Current", "year": 2025},
                     "totals": {"grand_total": 0},
@@ -9202,6 +9250,9 @@ def prepare_memo_display_data_fixed(memo):
                 "extra_charges": 0,
                 "extra_hours_breakdown_list": [],
                 "holiday_breakdown_list": [],
+                "days_attended": 0,
+                "expected_days": 22,
+                "attendance_percentage": 0,
             },
             "current_month": {},
             "totals": {"grand_total": 0},
