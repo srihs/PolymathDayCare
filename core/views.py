@@ -10682,3 +10682,467 @@ def checkMissingAttendanceForMemo(request):
         return JsonResponse({"error": "Child not found"}, status=404)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+# Add this enhanced view to your views.py file
+
+@login_required
+def getEnhancedCheckIns(request):
+    """Enhanced check-ins view with missing attendance search functionality"""
+    try:
+        enrollment_form = CreateCheckInForm()
+        
+        # Get search parameters if any
+        search_type = request.GET.get('search_type', 'date_range')
+        
+        context = {
+            "form": enrollment_form,
+            "UserName": request.user.username,
+            "search_type": search_type,
+        }
+        
+        return render(request, "../templates/checkin.html", context)
+        
+    except Exception as e:
+        messages.error(request, f"Error loading check-ins page: {str(e)}")
+        return redirect("core:view_check_ins")
+
+
+@login_required 
+def getEnhancedMissingAttendanceJS(request):
+    """Enhanced missing attendance with flexible search options"""
+    try:
+        # Get search parameters
+        child_admission = request.GET.get('child')
+        from_date = request.GET.get('from_date')
+        to_date = request.GET.get('to_date')
+        
+        # Set default date range if not provided
+        if not from_date or not to_date:
+            today = datetime.now().date()
+            if not from_date:
+                from_date = (today - timedelta(days=1)).strftime('%Y-%m-%d')  # Yesterday
+            if not to_date:
+                to_date = (today - timedelta(days=1)).strftime('%Y-%m-%d')   # Yesterday
+        
+        # Parse dates
+        from_date_obj = datetime.strptime(from_date, "%Y-%m-%d").date()
+        to_date_obj = datetime.strptime(to_date, "%Y-%m-%d").date()
+        
+        # Build base query
+        filters = Q(date_logged__range=(from_date_obj, to_date_obj))
+        
+        # Add child filter if specified
+        if child_admission:
+            try:
+                # Try to find child by admission number
+                child = Child.objects.get(
+                    admission_number=child_admission, 
+                    is_active=True, 
+                    enrollement_approved=True
+                )
+                filters &= Q(child=child)
+                
+                # Expand date range for single child search
+                from_date_obj = (datetime.now().date() - timedelta(days=30))
+                to_date_obj = datetime.now().date() - timedelta(days=1)
+                filters = Q(date_logged__range=(from_date_obj, to_date_obj)) & Q(child=child)
+                
+            except Child.DoesNotExist:
+                return JsonResponse({
+                    "error": f"Child with admission number '{child_admission}' not found",
+                    "missing_records": []
+                }, status=404)
+        else:
+            # For date range search, only include enrolled children
+            active_children = Child.objects.filter(
+                is_active=True, 
+                enrollement_approved=True, 
+                is_enrolled=True
+            ).values_list('id', flat=True)
+            filters &= Q(child_id__in=active_children)
+
+        # Get attendance records
+        attendance_records = AttendanceLog.objects.filter(filters).values_list(
+            'child_id', 'date_logged', 'time_logged'
+        )
+        
+        # Group attendance by child and date
+        attendance_dict = defaultdict(list)
+        for child_id, date_logged, time_logged in attendance_records:
+            attendance_dict[(child_id, date_logged)].append(time_logged)
+        
+        # Define cutoff time to determine if time is IN or OUT
+        cutoff_time = time(15, 0)  # 3:00 PM
+        
+        # Find incomplete attendance records
+        incomplete_attendance_data = []
+        
+        for (child_id, date_logged), time_logs in attendance_dict.items():
+            if len(time_logs) == 1:  # Only one time entry (missing either IN or OUT)
+                try:
+                    child = Child.objects.get(id=child_id)
+                    single_time = time_logs[0]
+                    
+                    # Determine what's missing based on time
+                    if single_time > cutoff_time:
+                        # Late time = OUT time, missing IN
+                        in_time = "Missing"
+                        out_time = single_time.strftime("%H:%M")
+                        missing_record = "IN"
+                        existing_record = f"OUT: {out_time}"
+                    else:
+                        # Early time = IN time, missing OUT  
+                        in_time = single_time.strftime("%H:%M")
+                        out_time = "Missing"
+                        missing_record = "OUT"
+                        existing_record = f"IN: {in_time}"
+                    
+                    incomplete_attendance_data.append({
+                        "child_id": child.id,
+                        "child_name": f"{child.admission_number} - {child.child_first_name} {child.child_last_name}",
+                        "admission_number": child.admission_number,
+                        "date_logged": date_logged.strftime("%Y-%m-%d"),
+                        "day_name": date_logged.strftime("%A"),
+                        "in_time": in_time,
+                        "out_time": out_time,
+                        "missing_record": missing_record,
+                        "existing_record": existing_record,
+                        "single_time": single_time.strftime("%H:%M"),
+                        "needs_fix": True
+                    })
+                    
+                except Child.DoesNotExist:
+                    continue
+        
+        # Sort by date (newest first) then by child name
+        incomplete_attendance_data.sort(
+            key=lambda x: (x["date_logged"], x["child_name"]), 
+            reverse=True
+        )
+        
+        # Add summary information
+        response_data = {
+            "success": True,
+            "search_params": {
+                "from_date": from_date_obj.strftime("%Y-%m-%d"),
+                "to_date": to_date_obj.strftime("%Y-%m-%d"),
+                "child": child_admission if child_admission else "All Children",
+                "total_days": (to_date_obj - from_date_obj).days + 1
+            },
+            "summary": {
+                "total_missing": len(incomplete_attendance_data),
+                "missing_in": len([x for x in incomplete_attendance_data if x["missing_record"] == "IN"]),
+                "missing_out": len([x for x in incomplete_attendance_data if x["missing_record"] == "OUT"]),
+                "unique_children": len(set(x["child_id"] for x in incomplete_attendance_data)),
+                "date_range": f"{from_date_obj.strftime('%B %d, %Y')} to {to_date_obj.strftime('%B %d, %Y')}"
+            },
+            "missing_records": incomplete_attendance_data
+        }
+        
+        return JsonResponse(incomplete_attendance_data, safe=False)
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            "error": f"Error processing missing attendance: {str(e)}",
+            "missing_records": []
+        }, status=500)
+
+
+@login_required
+def saveEnhancedAttendance(request):
+    """Enhanced attendance saving with better validation and feedback"""
+    if request.method == "POST":
+        try:
+            child_admission = request.POST.get("child")
+            date_logged = request.POST.get("date_logged") 
+            time_logged = request.POST.get("time_logged")
+            
+            # Validation
+            if not all([child_admission, date_logged, time_logged]):
+                messages.error(request, "All fields are required")
+                return redirect("core:enhanced_check_ins")
+            
+            # Get child object
+            try:
+                child = Child.objects.get(
+                    admission_number=child_admission,
+                    is_active=True,
+                    enrollement_approved=True
+                )
+            except Child.DoesNotExist:
+                messages.error(request, f"Child with admission number '{child_admission}' not found or not enrolled")
+                return redirect("core:enhanced_check_ins")
+            
+            # Parse and validate date
+            try:
+                log_date = datetime.strptime(date_logged, "%Y-%m-%d").date()
+            except ValueError:
+                messages.error(request, "Invalid date format")
+                return redirect("core:enhanced_check_ins")
+            
+            # Parse and validate time
+            try:
+                log_time = datetime.strptime(time_logged, "%H:%M").time()
+            except ValueError:
+                messages.error(request, "Invalid time format")
+                return redirect("core:enhanced_check_ins")
+            
+            # Check if child was enrolled on that date
+            if child.admission_date and child.admission_date > log_date:
+                messages.error(
+                    request,
+                    f"Attendance date is invalid. Child was not enrolled on {log_date.strftime('%Y-%m-%d')}. "
+                    f"Admission date: {child.admission_date.strftime('%Y-%m-%d')}"
+                )
+                return redirect("core:enhanced_check_ins")
+            
+            # Check for duplicate entry (same child, date, and time)
+            existing_entry = AttendanceLog.objects.filter(
+                child=child,
+                date_logged=log_date,
+                time_logged=log_time
+            ).first()
+            
+            if existing_entry:
+                messages.warning(
+                    request,
+                    f"Duplicate entry detected. {child.child_first_name} already has a record for "
+                    f"{log_date.strftime('%Y-%m-%d')} at {log_time.strftime('%H:%M')}"
+                )
+                return redirect("core:enhanced_check_ins")
+            
+            # Get enrollment for branch/center info
+            enrollment = ChildEnrollment.objects.filter(
+                child=child, 
+                status="Approved", 
+                is_active=True
+            ).first()
+            
+            # Create attendance record
+            attendance = AttendanceLog.objects.create(
+                child=child,
+                date_logged=log_date,
+                time_logged=log_time,
+                user_created=request.user.username
+            )
+            
+            # Count existing records for this date to determine if this completes the attendance
+            existing_records = AttendanceLog.objects.filter(
+                child=child,
+                date_logged=log_date
+            ).count()
+            
+            # Create success message based on completion status
+            if existing_records == 1:
+                record_type = "First record (IN/OUT)"
+                status_msg = "⚠️ Child still needs one more time entry to complete attendance for this day"
+            elif existing_records == 2:
+                record_type = "Second record - Attendance COMPLETE"
+                status_msg = "✅ Attendance is now complete for this day"
+            else:
+                record_type = f"Additional record ({existing_records} total)"
+                status_msg = f"ℹ️ Child now has {existing_records} time entries for this day"
+            
+            messages.success(
+                request,
+                f"✅ Attendance saved successfully!\n"
+                f"Child: {child.child_first_name} {child.child_last_name} ({child.admission_number})\n"
+                f"Date: {log_date.strftime('%A, %B %d, %Y')}\n"
+                f"Time: {log_time.strftime('%I:%M %p')}\n"
+                f"Status: {record_type}\n"
+                f"{status_msg}"
+            )
+            
+            return redirect("core:enhanced_check_ins")
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            messages.error(request, f"Error saving attendance: {str(e)}")
+            return redirect("core:enhanced_check_ins")
+    
+    else:
+        messages.error(request, "Invalid request method")
+        return redirect("core:enhanced_check_ins")
+
+
+@login_required  
+def getAttendanceStatsSummary(request):
+    """Get attendance statistics for dashboard/summary"""
+    try:
+        child_id = request.GET.get('child_id')
+        days_back = int(request.GET.get('days_back', 7))
+        
+        # Calculate date range
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=days_back)
+        
+        # Base query
+        filters = Q(date_logged__range=(start_date, end_date))
+        
+        if child_id:
+            filters &= Q(child_id=child_id)
+        else:
+            # Only enrolled children
+            active_children = Child.objects.filter(
+                is_active=True, 
+                enrollement_approved=True, 
+                is_enrolled=True
+            ).values_list('id', flat=True)
+            filters &= Q(child_id__in=active_children)
+        
+        # Get attendance records
+        attendance_records = AttendanceLog.objects.filter(filters).values_list(
+            'child_id', 'date_logged', 'time_logged'
+        )
+        
+        # Group by child and date
+        attendance_by_child_date = defaultdict(list)
+        for child_id, date_logged, time_logged in attendance_records:
+            attendance_by_child_date[(child_id, date_logged)].append(time_logged)
+        
+        # Calculate statistics
+        total_days = 0
+        complete_days = 0
+        incomplete_days = 0
+        missing_in = 0
+        missing_out = 0
+        
+        cutoff_time = time(15, 0)  # 3:00 PM
+        
+        for (child_id, date_logged), time_logs in attendance_by_child_date.items():
+            total_days += 1
+            
+            if len(time_logs) >= 2:
+                complete_days += 1
+            elif len(time_logs) == 1:
+                incomplete_days += 1
+                single_time = time_logs[0]
+                if single_time > cutoff_time:
+                    missing_in += 1  # Has OUT, missing IN
+                else:
+                    missing_out += 1  # Has IN, missing OUT
+        
+        statistics = {
+            "period": {
+                "start_date": start_date.strftime("%Y-%m-%d"),
+                "end_date": end_date.strftime("%Y-%m-%d"),
+                "days_covered": days_back
+            },
+            "totals": {
+                "total_attendance_days": total_days,
+                "complete_days": complete_days,
+                "incomplete_days": incomplete_days,
+                "completion_rate": round((complete_days / total_days * 100), 1) if total_days > 0 else 0
+            },
+            "missing_breakdown": {
+                "missing_in_count": missing_in,
+                "missing_out_count": missing_out,
+                "total_missing": missing_in + missing_out
+            }
+        }
+        
+        return JsonResponse(statistics)
+        
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def bulkFixAttendance(request):
+    """Bulk fix multiple missing attendance records"""
+    if request.method == "POST":
+        try:
+            import json
+            
+            # Get bulk fix data from request
+            bulk_data = json.loads(request.body)
+            fixes = bulk_data.get('fixes', [])
+            
+            if not fixes:
+                return JsonResponse({"error": "No fixes provided"}, status=400)
+            
+            success_count = 0
+            error_count = 0
+            errors = []
+            
+            with transaction.atomic():
+                for fix in fixes:
+                    try:
+                        child_admission = fix.get('child_admission')
+                        date_logged = fix.get('date_logged')
+                        time_logged = fix.get('time_logged')
+                        
+                        # Validate data
+                        if not all([child_admission, date_logged, time_logged]):
+                            errors.append({
+                                "child": child_admission,
+                                "error": "Missing required fields"
+                            })
+                            error_count += 1
+                            continue
+                        
+                        # Get child
+                        child = Child.objects.get(
+                            admission_number=child_admission,
+                            is_active=True,
+                            enrollement_approved=True
+                        )
+                        
+                        # Parse date and time
+                        log_date = datetime.strptime(date_logged, "%Y-%m-%d").date()
+                        log_time = datetime.strptime(time_logged, "%H:%M").time()
+                        
+                        # Check for duplicates
+                        if AttendanceLog.objects.filter(
+                            child=child,
+                            date_logged=log_date,
+                            time_logged=log_time
+                        ).exists():
+                            errors.append({
+                                "child": child_admission,
+                                "error": "Duplicate entry"
+                            })
+                            error_count += 1
+                            continue
+                        
+                        # Create attendance record
+                        AttendanceLog.objects.create(
+                            child=child,
+                            date_logged=log_date,
+                            time_logged=log_time,
+                            user_created=request.user.username
+                        )
+                        
+                        success_count += 1
+                        
+                    except Child.DoesNotExist:
+                        errors.append({
+                            "child": child_admission,
+                            "error": "Child not found"
+                        })
+                        error_count += 1
+                    except Exception as e:
+                        errors.append({
+                            "child": child_admission,
+                            "error": str(e)
+                        })
+                        error_count += 1
+            
+            return JsonResponse({
+                "success": True,
+                "summary": {
+                    "total_processed": len(fixes),
+                    "success_count": success_count,
+                    "error_count": error_count
+                },
+                "errors": errors
+            })
+            
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "Invalid request method"}, status=405)

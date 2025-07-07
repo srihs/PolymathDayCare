@@ -416,4 +416,9 @@ urlpatterns = [
         views.checkMissingAttendanceForMemo,
         name="check_missing_attendance_for_memo",
     ),
+path("enhanced_check_ins/", views.getEnhancedCheckIns, name="enhanced_check_ins"),
+path("enhanced_missing_attendance_js/", views.getEnhancedMissingAttendanceJS, name="enhanced_missing_attendance_js"),
+path("save_enhanced_attendance/", views.saveEnhancedAttendance, name="save_enhanced_attendance"),
+path("attendance_stats_summary/", views.getAttendanceStatsSummary, name="attendance_stats_summary"),
+path("bulk_fix_attendance/", views.bulkFixAttendance, name="bulk_fix_attendance"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -2626,3 +2626,289 @@ class LoadInvoiceMemoForm(forms.Form):
         current_date = datetime.now()
         self.fields['month'].initial = current_date.month
         self.fields['year'].initial = current_date.year
+
+
+
+
+# Add these enhanced forms to your forms.py file
+
+class EnhancedCheckInForm(forms.ModelForm):
+    """Enhanced check-in form with better validation"""
+    
+    SEARCH_TYPE_CHOICES = [
+        ('date_range', 'Date Range'),
+        ('child', 'Specific Child'),
+    ]
+    
+    search_type = forms.ChoiceField(
+        choices=SEARCH_TYPE_CHOICES,
+        initial='date_range',
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'id': 'search_type'
+        }),
+        label='Search Type'
+    )
+    
+    child = forms.CharField(
+        max_length=250,
+        required=True,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control", 
+                "placeholder": "Search by admission number or name", 
+                "list": "children",
+                "autocomplete": "off"
+            }
+        ),
+        label="Child"
+    )
+
+    date_logged = forms.DateField(
+        required=True,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "required": "true",
+                "id": "date_logged",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+                "placeholder": "Select Date",
+            }
+        ),
+        label="Date"
+    )
+
+    time_logged = forms.TimeField(
+        required=True,
+        widget=forms.TimeInput(
+            attrs={
+                "autocomplete": "off",
+                "id": "time_logged",
+                "class": "form-control",
+                "placeholder": "Select Time",
+                "required": "required",
+            }
+        ),
+        label="Time"
+    )
+    
+    from_date = forms.DateField(
+        required=False,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "from_date",
+                "placeholder": "From Date",
+                "max": datetime.now().strftime('%Y-%m-%d')
+            }
+        ),
+        label="From Date"
+    )
+    
+    to_date = forms.DateField(
+        required=False,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "to_date", 
+                "placeholder": "To Date",
+                "max": datetime.now().strftime('%Y-%m-%d')
+            }
+        ),
+        label="To Date"
+    )
+
+    class Meta:
+        model = AttendanceLog
+        fields = ("child", "date_logged", "time_logged")
+        
+    def clean_child(self):
+        """Validate child admission number"""
+        child_input = self.cleaned_data.get('child')
+        
+        if not child_input:
+            raise forms.ValidationError("Child selection is required")
+        
+        # Extract admission number if input contains full name
+        if ' - ' in child_input:
+            admission_number = child_input.split(' - ')[0].strip()
+        else:
+            admission_number = child_input.strip()
+        
+        try:
+            child = Child.objects.get(
+                admission_number=admission_number,
+                is_active=True,
+                enrollement_approved=True
+            )
+            return admission_number
+        except Child.DoesNotExist:
+            raise forms.ValidationError(
+                f"Child with admission number '{admission_number}' not found or not enrolled"
+            )
+    
+    def clean_date_logged(self):
+        """Validate attendance date"""
+        date_logged = self.cleaned_data.get('date_logged')
+        
+        if not date_logged:
+            raise forms.ValidationError("Date is required")
+        
+        # Cannot be future date
+        if date_logged > datetime.now().date():
+            raise forms.ValidationError("Cannot log attendance for future dates")
+        
+        # Cannot be more than 30 days old
+        thirty_days_ago = datetime.now().date() - timedelta(days=30)
+        if date_logged < thirty_days_ago:
+            raise forms.ValidationError("Cannot log attendance more than 30 days old")
+        
+        return date_logged
+    
+    def clean(self):
+        """Cross-field validation"""
+        cleaned_data = super().clean()
+        child_admission = cleaned_data.get('child')
+        date_logged = cleaned_data.get('date_logged')
+        time_logged = cleaned_data.get('time_logged')
+        
+        if child_admission and date_logged:
+            try:
+                child = Child.objects.get(admission_number=child_admission)
+                
+                # Check if child was enrolled on this date
+                if child.admission_date and child.admission_date > date_logged:
+                    raise forms.ValidationError(
+                        f"Child was not enrolled on {date_logged}. "
+                        f"Admission date: {child.admission_date}"
+                    )
+                
+                # Check for exact duplicate
+                if time_logged and AttendanceLog.objects.filter(
+                    child=child,
+                    date_logged=date_logged,
+                    time_logged=time_logged
+                ).exists():
+                    raise forms.ValidationError(
+                        f"Duplicate entry: {child.child_first_name} already has "
+                        f"a record for {date_logged} at {time_logged}"
+                    )
+                    
+            except Child.DoesNotExist:
+                pass  # Already handled in clean_child
+        
+        return cleaned_data
+
+
+class MissingAttendanceSearchForm(forms.Form):
+    """Form for searching missing attendance records"""
+    
+    SEARCH_TYPE_CHOICES = [
+        ('date_range', 'Date Range'),
+        ('child', 'Specific Child'),
+    ]
+    
+    search_type = forms.ChoiceField(
+        choices=SEARCH_TYPE_CHOICES,
+        initial='date_range',
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'id': 'search_type'
+        }),
+        label='Search Type'
+    )
+    
+    child = forms.ModelChoiceField(
+        queryset=Child.objects.filter(
+            is_active=True, 
+            enrollement_approved=True
+        ).order_by('admission_number'),
+        empty_label="-Select Child-",
+        required=False,
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'id': 'child_select'
+        }),
+        label='Child'
+    )
+    
+    from_date = forms.DateField(
+        required=False,
+        widget=MyDateInput(attrs={
+            'class': 'form-control',
+            'id': 'from_date',
+            'placeholder': 'From Date'
+        }),
+        label='From Date'
+    )
+    
+    to_date = forms.DateField(
+        required=False,
+        widget=MyDateInput(attrs={
+            'class': 'form-control',
+            'id': 'to_date',
+            'placeholder': 'To Date'
+        }),
+        label='To Date'
+    )
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        search_type = cleaned_data.get('search_type')
+        child = cleaned_data.get('child')
+        from_date = cleaned_data.get('from_date')
+        to_date = cleaned_data.get('to_date')
+        
+        if search_type == 'child' and not child:
+            raise forms.ValidationError("Please select a child for child-specific search")
+        
+        if search_type == 'date_range':
+            if not from_date or not to_date:
+                raise forms.ValidationError("Please select both from and to dates for date range search")
+            
+            if from_date > to_date:
+                raise forms.ValidationError("From date cannot be after to date")
+        
+        return cleaned_data
+
+
+class BulkAttendanceFixForm(forms.Form):
+    """Form for bulk fixing attendance records"""
+    
+    fixes_data = forms.CharField(
+        widget=forms.HiddenInput(),
+        required=True
+    )
+    
+    def clean_fixes_data(self):
+        import json
+        
+        fixes_data = self.cleaned_data.get('fixes_data')
+        
+        try:
+            fixes = json.loads(fixes_data)
+            
+            if not isinstance(fixes, list):
+                raise forms.ValidationError("Invalid fixes data format")
+            
+            if len(fixes) == 0:
+                raise forms.ValidationError("No fixes provided")
+            
+            if len(fixes) > 100:  # Reasonable limit
+                raise forms.ValidationError("Too many fixes (maximum 100 allowed)")
+            
+            # Validate each fix
+            for i, fix in enumerate(fixes):
+                if not isinstance(fix, dict):
+                    raise forms.ValidationError(f"Fix {i+1}: Invalid format")
+                
+                required_fields = ['child_admission', 'date_logged', 'time_logged']
+                for field in required_fields:
+                    if field not in fix or not fix[field]:
+                        raise forms.ValidationError(f"Fix {i+1}: Missing {field}")
+            
+            return fixes
+            
+        except json.JSONDecodeError:
+            raise forms.ValidationError("Invalid JSON format")

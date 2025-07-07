@@ -1,74 +1,138 @@
 {% extends "base.html" %} {% load static %} {% block UserName %} {{ UserName}}
-{% block PageTitle %}Attendance{% endblock %}
-{% endblock %} {% block Title %} TRANSACTIONS {% endblock %} {% block functionTitle%}CHECK-IN/CHECK-OUT{% endblock %}
+{% block PageTitle %}Missing Attendance{% endblock %}
+{% endblock %} {% block Title %} TRANSACTIONS {% endblock %} {% block functionTitle%}MISSING ATTENDANCE MANAGER{% endblock %}
+
 {% block content %}
 
-<!-- Data Table-->
-<div class="card">
+<!-- Search and Filter Card -->
+<div class="card mb-3">
+  <div class="alert alert-dismissible" role="alert" id="messagesDiv">
+  {% if messages %} {% for message in messages %}
+  <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show" role="alert">
+    <strong><center>{{ message }}</center></strong>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %} {% endif %}
+</div>
   <div class="card-header border-0">
     <div class="d-flex align-items-center">
-      <h5 class="card-title mb-0 flex-grow-1">Manual time adjustments</h5>
-      <div class="flex-shrink-0">
-     
-      </div>
+      <h5 class="card-title mb-0 flex-grow-1">Search Missing Attendance</h5>
     </div>
   </div>
-
   <div class="card-body">
-    <div class="alert alert-dismissible" role="alert">
-      {% if messages %} {% for message in messages %}
-      <!-- Danger Alert -->
-      <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show" role="alert">
-        <strong>
-          <center>{{ message }}</center>
-        </strong>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
-      {% endfor %} {% endif %}
-      <!-- end row -->
-    </div>
-
     <div class="row">
-      <form action="{% url 'core:save_Attendance' %}" method="post" class="tablelist-form" autocomplete="off">
-        {% csrf_token %}
-        <div class="row gy-4">
-          <div class="col-xxl-4 col-md-6">{{form.child}}</div>
-          <datalist id='children'></datalist>
-          <div class="col-xxl-3 col-md-6">{{form.date_logged}}</div>
-          <div class="col-xxl-3 col-md-6">{{form.time_logged}}</div>
-        
-        <div class="col-xxl-2 col-md-6">
-          <button class="btn btn-secondary" type="submit">Save</button>
-        </div>
-        </div>
-      </form>
+      <div class="col-md-3">
+        <label class="form-label">Search Type</label>
+        <select id="searchType" class="form-control">
+          <option value="date_range">Date Range</option>
+          <option value="child">Specific Child</option>
+        </select>
+      </div>
+      <div class="col-md-3" id="childSearchDiv" style="display: none;">
+        <label class="form-label">Select Child</label>
+        <input type="text" id="childSearch" class="form-control" placeholder="Select Child" list="children">
+        <datalist id='children'></datalist>
+      </div>
+      <div class="col-md-3" id="fromDateDiv">
+        <label class="form-label">From Date</label>
+        <input type="date" id="fromDate" class="form-control">
+      </div>
+      <div class="col-md-3" id="toDateDiv">
+        <label class="form-label">To Date</label>
+        <input type="date" id="toDate" class="form-control">
+      </div>
+      <div class="col-md-12 mt-3">
+        <button id="searchBtn" class="btn btn-primary">
+          <i class="fas fa-search"></i> Search Missing Records
+        </button>
+        <button id="loadYesterdayBtn" class="btn btn-secondary">
+          <i class="fas fa-calendar-day"></i> Load Yesterday's Missing
+        </button>
+      </div>
     </div>
-
-
+  </br>
+      <table id="missingAttendanceTable" class="table table-striped table-hover" style="width: 100%;">
+        <thead class="table-light">
+          <tr>
+            <th style="min-width: 150px;">Child</th>
+            <th style="min-width: 100px;">Date</th>
+            <th style="min-width: 80px;">Day</th>
+            <th style="min-width: 120px;">Current Record</th>
+            <th style="min-width: 100px;">Missing Type</th>
+            <th style="min-width: 120px;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
   </div>
-  <!-- end card-body -->
 </div>
 
-{% endblock %} {% block modals %}
+<!-- Loading Indicator -->
+<div id="loadingIndicator" class="text-center py-4" style="display: none;">
+  <div class="spinner-border text-primary" role="status">
+    <span class="visually-hidden">Loading...</span>
+  </div>
+  <p class="mt-2">Searching for missing attendance records...</p>
+</div>
 
-<div class="modal fade zoomIn" id="showModal" tabindex="-1" aria-labelledby="exampleModalLabel" style="display: none"
-  aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content border-0">
-      <div class="modal-header p-3 bg-secondary-subtle">
-        <h5 class="modal-title" id="exampleModalLabels">Add Child</h5>
-        <button type="button" class="btn-close" data-bs-target="#showModalCreate" data-bs-dismiss="modal"
-          aria-label="Close" id="close-modalAdd"></button>
+
+
+<!-- Fix Missing Time Modal -->
+<div class="modal fade" id="fixTimeModal" tabindex="-1" aria-labelledby="fixTimeModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="fixTimeModalLabel">Fix Missing Time Entry</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="fixTimeForm">
+          {% csrf_token %}
+          <input type="hidden" id="fixChildName" name="child">
+          <input type="hidden" id="fixDate" name="date_logged">
+          
+          <div class="mb-3">
+            <label class="form-label">Child</label>
+            <input type="text" id="fixChildDisplay" class="form-control" readonly>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Date</label>
+            <input type="text" id="fixDateDisplay" class="form-control" readonly>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Missing Time Type</label>
+            <input type="text" id="fixMissingType" class="form-control" readonly>
+          </div>
+          
+          <div class="mb-3">
+            <label for="fixTime" class="form-label">Enter Missing Time</label>
+            <input type="time" id="fixTime" name="time_logged" class="form-control" required>
+          </div>
+          
+          <div class="mb-3">
+            <small class="text-muted">
+              <i class="fas fa-info-circle"></i> 
+              <span id="timeHelp">Enter the missing IN or OUT time for this child.</span>
+            </small>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="saveFixedTime">
+          <i class="fas fa-save"></i> Save Fixed Time
+        </button>
       </div>
     </div>
   </div>
 </div>
 
+{% endblock %}
 
-
-
-
-{% endblock %} {% block scripts %}
+{% block scripts %}
 <!-- jQuery -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <!--datatable js-->
@@ -82,6 +146,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
 
+<!-- DataTables CSS for responsive design -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.2.9/css/responsive.bootstrap5.min.css">
+
 <script src="{% static 'assets/js/pages/datatables.init.js' %}"></script>
 <script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
 <script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
@@ -92,115 +159,468 @@
 
 <script>
   var $ = jQuery;
-  var id;
-  var dataTable;
+  var missingDataTable;
 
   jQuery(document).ready(function () {
+    
+    // Initialize date pickers
+    initializeDatePickers();
+    
+    // Load children data
+    loadChildrenData();
+    
+    // Set default dates (yesterday)
+    setDefaultDates();
+    
+    // Load yesterday's missing records automatically
+    loadYesterdayMissing();
+    
+    // Event handlers
+    setupEventHandlers();
+    
+    // Auto-hide messages
+    setupMessageAutoHide();
+  });
 
+  function initializeDatePickers() {
+    // Date range pickers
+    jQuery('#fromDate').attr('max', getYesterday());
+    jQuery('#toDate').attr('max', getYesterday());
+    
+    // Form date picker
     jQuery('#date_logged').flatpickr({
       minDate: new Date().fp_incr(-30),
       maxDate: "today",
       defaultDate: new Date(),
-
     });
 
-    // Load the Child into the text box
+    // Time picker for manual entry
+    jQuery("#time_logged").flatpickr({
+      enableTime: true,
+      noCalendar: true,
+      enableSeconds: false,
+      dateFormat: "H:i",
+      allowInput: true,
+    });
+    
+    // Time picker for fix modal
+    jQuery("#fixTime").flatpickr({
+      enableTime: true,
+      noCalendar: true,
+      enableSeconds: false,
+      dateFormat: "H:i",
+      allowInput: true,
+    });
+  }
+
+  function loadChildrenData() {
     jQuery.ajax({
       type: "GET",
       url: "{% url 'core:getChildWithEnrolementsJson' %}",
       beforeSend: function () { },
       success: function (response) {
-        console.log(response);
+        console.log('Loaded children:', response.length);
         for (var i in response) {
           child = response[i];
-          jQuery("#children").append(`<option value="${child.admission_number}">${child.child_first_name + "  " + child.child_last_name}</option>`);
+          jQuery("#children").append(`<option value="${child.admission_number}">${child.child_first_name + "  " + child.child_last_name + " (" + child.admission_number + ")"}</option>`);
         }
       },
       error: function (xhr, textStatus, errorThrown) {
-        alert("Error: " + xhr.status + ", " + xhr.statusText);
+        showMessage("Error loading children data", "danger");
       },
     });
+  }
 
+  function setDefaultDates() {
+    var yesterday = getYesterday();
+    jQuery('#fromDate').val(yesterday);
+    jQuery('#toDate').val(yesterday);
+  }
 
+  function getYesterday() {
+    var yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday.toISOString().split('T')[0];
+  }
+
+  function setupEventHandlers() {
+    // Search type change
+    jQuery('#searchType').on('change', function() {
+      var searchType = jQuery(this).val();
+      if (searchType === 'child') {
+        jQuery('#childSearchDiv').show();
+        jQuery('#fromDateDiv, #toDateDiv').hide();
+      } else {
+        jQuery('#childSearchDiv').hide();
+        jQuery('#fromDateDiv, #toDateDiv').show();
+      }
+    });
+
+    // Search button
+    jQuery('#searchBtn').on('click', function() {
+      searchMissingRecords();
+    });
+
+    // Load yesterday button
+    jQuery('#loadYesterdayBtn').on('click', function() {
+      loadYesterdayMissing();
+    });
+
+    // Save fixed time
+    jQuery('#saveFixedTime').on('click', function() {
+      saveFixedTime();
+    });
+
+    // Handle window resize
+    jQuery(window).on('resize', function() {
+      if (missingDataTable) {
+        missingDataTable.columns.adjust().responsive.recalc();
+      }
+    });
+  }
+
+  function loadYesterdayMissing() {
+    var yesterday = getYesterday();
+    jQuery('#fromDate').val(yesterday);
+    jQuery('#toDate').val(yesterday);
+    jQuery('#searchType').val('date_range');
+    jQuery('#childSearchDiv').hide();
+    jQuery('#fromDateDiv, #toDateDiv').show();
+    
+    searchMissingRecords();
+  }
+
+  function searchMissingRecords() {
+    var searchType = jQuery('#searchType').val();
+    var params = {};
+    
+    if (searchType === 'child') {
+      var childValue = jQuery('#childSearch').val();
+      if (!childValue) {
+        showMessage("Please select a child", "warning");
+        return;
+      }
+      params.child = childValue;
+      // Set a wide date range for child search
+      var thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      params.from_date = thirtyDaysAgo.toISOString().split('T')[0];
+      params.to_date = getYesterday();
+    } else {
+      var fromDate = jQuery('#fromDate').val();
+      var toDate = jQuery('#toDate').val();
+      
+      if (!fromDate || !toDate) {
+        showMessage("Please select both from and to dates", "warning");
+        return;
+      }
+      
+      if (new Date(fromDate) > new Date(toDate)) {
+        showMessage("From date cannot be after to date", "warning");
+        return;
+      }
+      
+      params.from_date = fromDate;
+      params.to_date = toDate;
+    }
+
+    // Show loading
+    showLoading(true);
+    jQuery('#missingRecordsCard').hide();
+
+    jQuery.ajax({
+      type: "GET",
+      url: "{% url 'core:enhanced_missing_attendance_js' %}",
+      data: params,
+      success: function (response) {
+        showLoading(false);
+        displayMissingRecords(response);
+      },
+      error: function (xhr, textStatus, errorThrown) {
+        showLoading(false);
+        showMessage("Error searching for missing records: " + textStatus, "danger");
+      }
+    });
+  }
+
+  function displayMissingRecords(data) {
+  if (missingDataTable) {
+    missingDataTable.destroy();
+  }
+
+  // Always initialize the DataTable, regardless of data length
+  missingDataTable = jQuery("#missingAttendanceTable").DataTable({
+    destroy: true,
+    responsive: true,
+    scrollX: true,
+    scrollCollapse: true,
+    data: data,
+    columnDefs: [
+      { 
+        targets: [0], // Child name column
+        className: "text-nowrap",
+        responsivePriority: 1
+      },
+      { 
+        targets: [1], // Date column
+        responsivePriority: 2
+      },
+      { 
+        targets: [-1], // Action column (last column)
+        responsivePriority: 3,
+        orderable: false
+      },
+      { 
+        targets: [2, 3, 4], // Day, Current Record, Missing Type
+        responsivePriority: 4
+      }
+    ],
+    columns: [
+      { 
+        data: "child_name",
+        title: "Child",
+        render: function(data, type, row) {
+          if (type === 'display' && data) {
+            return '<div class="d-flex align-items-center">' +
+                   '<i class="fas fa-user-circle text-primary me-2"></i>' +
+                   '<strong class="text-nowrap">' + data + '</strong>' +
+                   '</div>';
+          }
+          return data || '';
+        }
+      },
+      { 
+        data: "date_logged",
+        title: "Date",
+        render: function(data, type, row) {
+          if (type === 'display' && data) {
+            return new Date(data).toLocaleDateString();
+          }
+          return data || '';
+        }
+      },
+      { 
+        data: "day_name",
+        title: "Day"
+      },
+      {
+        data: null,
+        title: "Current Record",
+        render: function(data, type, row) {
+          if (type === 'display' && row) {
+            if (row.in_time !== "Missing" && row.out_time !== "Missing") {
+              return '<span class="badge bg-success">Complete</span>';
+            }
+            var html = '';
+            if (row.in_time !== "Missing") {
+              html += '<span class="badge bg-info me-1">IN: ' + row.in_time + '</span>';
+            }
+            if (row.out_time !== "Missing") {
+              html += '<span class="badge bg-info">OUT: ' + row.out_time + '</span>';
+            }
+            return html || '<span class="badge bg-warning">No records</span>';
+          }
+          return '';
+        }
+      },
+      { 
+        data: "missing_record",
+        title: "Missing Type",
+        render: function(data, type, row) {
+          if (type === 'display' && data) {
+            return '<span class="badge bg-danger">' + data + ' Missing</span>';
+          }
+          return data || '';
+        }
+      },
+      {
+        data: null,
+        title: "Action",
+        render: function(data, type, row) {
+          if (type === 'display' && row && row.child_name) {
+            return '<button class="btn btn-sm btn-primary fix-time-btn text-nowrap" ' +
+                   'data-child="' + row.child_name + '" ' +
+                   'data-date="' + row.date_logged + '" ' +
+                   'data-missing="' + row.missing_record + '">' +
+                   '<i class="fas fa-edit"></i> Fix ' + row.missing_record +
+                   '</button>';
+          }
+          return '';
+        }
+      }
+    ],
+    dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+         '<"row"<"col-sm-12"B>>' +
+         '<"row"<"col-sm-12"tr>>' +
+         '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+    pageLength: 15,
+    lengthMenu: [[10, 15, 25, 50, -1], [10, 15, 25, 50, "All"]],
+    buttons: [
+      {
+        extend: 'excel',
+        className: 'btn btn-success btn-sm me-1',
+        text: '<i class="fas fa-file-excel"></i> Excel',
+        exportOptions: {
+          columns: [0, 1, 2, 4]
+        }
+      },
+      {
+        extend: 'print',
+        className: 'btn btn-info btn-sm',
+        text: '<i class="fas fa-print"></i> Print',
+        exportOptions: {
+          columns: [0, 1, 2, 4]
+        }
+      }
+    ],
+    order: [[ 1, "desc" ]],
+    language: {
+      emptyTable: "No missing attendance records found",
+      search: "Search records:",
+      lengthMenu: "Show _MENU_ records per page",
+      info: "Showing _START_ to _END_ of _TOTAL_ records",
+      infoEmpty: "No records available",
+      infoFiltered: "(filtered from _MAX_ total records)",
+      zeroRecords: "No matching records found",
+      paginate: {
+        first: "First",
+        last: "Last",
+        next: "Next",
+        previous: "Previous"
+      }
+    },
+    initComplete: function() {
+      this.api().columns.adjust().responsive.recalc();
+    }
+  });
+
+  // Handle fix button clicks
+  jQuery('#missingAttendanceTable').on('click', '.fix-time-btn', function() {
+    var childName = jQuery(this).data('child');
+    var date = jQuery(this).data('date');
+    var missingType = jQuery(this).data('missing');
+    
+    openFixModal(childName, date, missingType);
+  });
+
+  // Show appropriate message
+  if (data.length === 0) {
+    showMessage("No missing attendance records found for the selected criteria", "info");
+  } else {
+    showMessage(data.length + " missing attendance records found", "info");
+  }
+  
+  // Force column adjustment after a short delay
+  setTimeout(function() {
+    if (missingDataTable) {
+      missingDataTable.columns.adjust().responsive.recalc();
+    }
+  }, 100);
+}
+
+  function openFixModal(childName, date, missingType) {
+    // Extract admission number from child name
+    var admissionMatch = childName.match(/([A-Z0-9]+)\s*-/);
+    var admissionNumber = admissionMatch ? admissionMatch[1] : childName;
+    
+    jQuery('#fixChildName').val(admissionNumber);
+    jQuery('#fixChildDisplay').val(childName);
+    jQuery('#fixDate').val(date);
+    jQuery('#fixDateDisplay').val(new Date(date).toLocaleDateString());
+    jQuery('#fixMissingType').val(missingType + ' Time');
+    
+    // Set help text
+    var helpText = missingType === 'IN' ? 
+      'Enter the time when the child arrived (check-in time)' : 
+      'Enter the time when the child left (check-out time)';
+    jQuery('#timeHelp').text(helpText);
+    
+    // Clear previous time
+    jQuery('#fixTime').val('');
+    
+    // Show modal
+    var modal = new bootstrap.Modal(document.getElementById('fixTimeModal'));
+    modal.show();
+  }
+
+  function saveFixedTime() {
+    var formData = {
+      child: jQuery('#fixChildName').val(),
+      date_logged: jQuery('#fixDate').val(),
+      time_logged: jQuery('#fixTime').val(),
+      csrfmiddlewaretoken: jQuery('[name=csrfmiddlewaretoken]').val()
+    };
+
+    if (!formData.time_logged) {
+      showMessage("Please enter the time", "warning");
+      return;
+    }
+
+    jQuery.ajax({
+      type: "POST",
+      url: "{% url 'core:save_enhanced_attendance' %}",
+      data: formData,
+      beforeSend: function() {
+        jQuery('#saveFixedTime').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Saving...');
+      },
+      success: function (response) {
+        jQuery('#saveFixedTime').prop('disabled', false).html('<i class="fas fa-save"></i> Save Fixed Time');
+        
+        // Close modal
+        var modal = bootstrap.Modal.getInstance(document.getElementById('fixTimeModal'));
+        modal.hide();
+        
+        showMessage("Time entry saved successfully!", "success");
+        
+        // Refresh the missing records
+        setTimeout(function() {
+          searchMissingRecords();
+        }, 1000);
+      },
+      error: function (xhr, textStatus, errorThrown) {
+        jQuery('#saveFixedTime').prop('disabled', false).html('<i class="fas fa-save"></i> Save Fixed Time');
+        showMessage("Error saving time entry: " + textStatus, "danger");
+      }
+    });
+  }
+
+  function showLoading(show) {
+    if (show) {
+      jQuery('#loadingIndicator').show();
+    } else {
+      jQuery('#loadingIndicator').hide();
+    }
+  }
+
+  function showMessage(message, type) {
+    var alertClass = 'alert-' + type;
+    var alertHtml = '<div class="alert ' + alertClass + ' alert-dismissible border-2 bg-body-secondary fade show" role="alert">' +
+                    '<strong><center>' + message + '</center></strong>' +
+                    '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                    '</div>';
+    
+    jQuery('#messagesDiv').html(alertHtml);
+    
+    // Auto-hide success messages
+    if (type === 'success' || type === 'info') {
+      setTimeout(function() {
+        jQuery('#messagesDiv .alert').fadeOut();
+      }, 3000);
+    }
+  }
+
+  function setupMessageAutoHide() {
     window.setTimeout(function () {
-      // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"
       var alertDiv = jQuery(".alert");
-
-      // Check if the inner div contains a success message
       var successMessageFound = alertDiv.find(".alert-success").length > 0;
-
-      // If a success message is found, apply the fade-out effect
+      
       if (successMessageFound) {
         alertDiv.fadeTo(1000, 0).slideUp(1000, function () {
           jQuery(this).remove();
         });
       }
     }, 2000);
-
-    var table = $("#attendanceList").DataTable({
-      responsive: true,
-      ajax: {
-        processing: true,
-        url: "{% url 'core:get_all_attendance_JS' %}",
-        dataSrc: "",
-      },
-      columns: [
-        { data: "child_name" },
-        { data: "date_logged" },
-        { data: "time_logged" },
-
-      ],
-      dom: "Bfrtip",
-      pageLength: 15,
-      buttons: ["excel", "print"],
-      order: [[ 1, "desc" ]],
-     
-
-    });
-  });
-
-
-
-  jQuery("#time_logged").flatpickr({
-    enableTime: true,
-    noCalendar: true,
-    enableSeconds: false,
-    dateFormat: "H:i",
-    allowInput: true,
-  });
-
-
-  var url = "";
-
-
-  // Add an event listener to the "to_time" field
-  jQuery(document).on('change', '#to_time', function () {
-
-    // Get the values of "from_time" and "to_time"
-    var fromTime = jQuery('#from_time').val();
-    var toTime = jQuery(this).val();
-
-
-    // Make an Ajax request to calculate the duration
-    jQuery.ajax({
-      url: "{% url 'core:calculate_duration' %}",
-      method: 'GET',
-      data: {
-        'from_time': fromTime,
-        'to_time': toTime,
-      },
-      success: function (data) {
-        // Combine hours and minutes with a dot separator
-        var durationFormatted = data.duration_hours + '.' + (data.duration_minutes < 10 ? '0' : '') + data.duration_minutes;
-
-        // Update the "no_hours" field with the formatted duration
-        jQuery('#no_hours').val(durationFormatted);
-      },
-      error: function () {
-        console.error('Error calculating duration.');
-      }
-    });
-  });
+  }
 
 </script>
 
