@@ -180,6 +180,19 @@
     
     // Auto-hide messages
     setupMessageAutoHide();
+
+    jQuery('#fixTimeModal').on('hidden.bs.modal', function () {
+        clearFixModalForm();
+        console.log('Modal hidden event - form cleared');
+    });
+    
+    // Handle escape key
+    jQuery(document).on('keydown', function(e) {
+        if (e.key === 'Escape' && jQuery('#fixTimeModal').hasClass('show')) {
+            closeFixModal();
+        }
+    });
+    
   });
 
   function initializeDatePickers() {
@@ -344,245 +357,503 @@
   }
 
   function displayMissingRecords(data) {
-  if (missingDataTable) {
-    missingDataTable.destroy();
-  }
-
-  // Always initialize the DataTable, regardless of data length
-  missingDataTable = jQuery("#missingAttendanceTable").DataTable({
-    destroy: true,
-    responsive: true,
-    scrollX: true,
-    scrollCollapse: true,
-    data: data,
-    columnDefs: [
-      { 
-        targets: [0], // Child name column
-        className: "text-nowrap",
-        responsivePriority: 1
-      },
-      { 
-        targets: [1], // Date column
-        responsivePriority: 2
-      },
-      { 
-        targets: [-1], // Action column (last column)
-        responsivePriority: 3,
-        orderable: false
-      },
-      { 
-        targets: [2, 3, 4], // Day, Current Record, Missing Type
-        responsivePriority: 4
-      }
-    ],
-    columns: [
-      { 
-        data: "child_name",
-        title: "Child",
-        render: function(data, type, row) {
-          if (type === 'display' && data) {
-            return '<div class="d-flex align-items-center">' +
-                   '<i class="fas fa-user-circle text-primary me-2"></i>' +
-                   '<strong class="text-nowrap">' + data + '</strong>' +
-                   '</div>';
-          }
-          return data || '';
-        }
-      },
-      { 
-        data: "date_logged",
-        title: "Date",
-        render: function(data, type, row) {
-          if (type === 'display' && data) {
-            return new Date(data).toLocaleDateString();
-          }
-          return data || '';
-        }
-      },
-      { 
-        data: "day_name",
-        title: "Day"
-      },
-      {
-        data: null,
-        title: "Current Record",
-        render: function(data, type, row) {
-          if (type === 'display' && row) {
-            if (row.in_time !== "Missing" && row.out_time !== "Missing") {
-              return '<span class="badge bg-success">Complete</span>';
-            }
-            var html = '';
-            if (row.in_time !== "Missing") {
-              html += '<span class="badge bg-info me-1">IN: ' + row.in_time + '</span>';
-            }
-            if (row.out_time !== "Missing") {
-              html += '<span class="badge bg-info">OUT: ' + row.out_time + '</span>';
-            }
-            return html || '<span class="badge bg-warning">No records</span>';
-          }
-          return '';
-        }
-      },
-      { 
-        data: "missing_record",
-        title: "Missing Type",
-        render: function(data, type, row) {
-          if (type === 'display' && data) {
-            return '<span class="badge bg-danger">' + data + ' Missing</span>';
-          }
-          return data || '';
-        }
-      },
-      {
-        data: null,
-        title: "Action",
-        render: function(data, type, row) {
-          if (type === 'display' && row && row.child_name) {
-            return '<button class="btn btn-sm btn-primary fix-time-btn text-nowrap" ' +
-                   'data-child="' + row.child_name + '" ' +
-                   'data-date="' + row.date_logged + '" ' +
-                   'data-missing="' + row.missing_record + '">' +
-                   '<i class="fas fa-edit"></i> Fix ' + row.missing_record +
-                   '</button>';
-          }
-          return '';
-        }
-      }
-    ],
-    dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-         '<"row"<"col-sm-12"B>>' +
-         '<"row"<"col-sm-12"tr>>' +
-         '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-    pageLength: 15,
-    lengthMenu: [[10, 15, 25, 50, -1], [10, 15, 25, 50, "All"]],
-    buttons: [
-      {
-        extend: 'excel',
-        className: 'btn btn-success btn-sm me-1',
-        text: '<i class="fas fa-file-excel"></i> Excel',
-        exportOptions: {
-          columns: [0, 1, 2, 4]
-        }
-      },
-      {
-        extend: 'print',
-        className: 'btn btn-info btn-sm',
-        text: '<i class="fas fa-print"></i> Print',
-        exportOptions: {
-          columns: [0, 1, 2, 4]
-        }
-      }
-    ],
-    order: [[ 1, "desc" ]],
-    language: {
-      emptyTable: "No missing attendance records found",
-      search: "Search records:",
-      lengthMenu: "Show _MENU_ records per page",
-      info: "Showing _START_ to _END_ of _TOTAL_ records",
-      infoEmpty: "No records available",
-      infoFiltered: "(filtered from _MAX_ total records)",
-      zeroRecords: "No matching records found",
-      paginate: {
-        first: "First",
-        last: "Last",
-        next: "Next",
-        previous: "Previous"
-      }
-    },
-    initComplete: function() {
-      this.api().columns.adjust().responsive.recalc();
-    }
-  });
-
-  // Handle fix button clicks
-  jQuery('#missingAttendanceTable').on('click', '.fix-time-btn', function() {
-    var childName = jQuery(this).data('child');
-    var date = jQuery(this).data('date');
-    var missingType = jQuery(this).data('missing');
-    
-    openFixModal(childName, date, missingType);
-  });
-
-  // Show appropriate message
-  if (data.length === 0) {
-    showMessage("No missing attendance records found for the selected criteria", "info");
-  } else {
-    showMessage(data.length + " missing attendance records found", "info");
-  }
-  
-  // Force column adjustment after a short delay
-  setTimeout(function() {
     if (missingDataTable) {
-      missingDataTable.columns.adjust().responsive.recalc();
+        missingDataTable.destroy();
     }
-  }, 100);
+
+    jQuery('#recordCount').text(data.length + ' records');
+    
+    if (data.length === 0) {
+        showMessage("No missing attendance records found for the selected criteria", "success");
+        
+        // Show empty table with "No records" message
+        jQuery('#missingRecordsCard').show();
+        missingDataTable = jQuery("#missingAttendanceTable").DataTable({
+            destroy: true,
+            responsive: true,
+            data: [],
+            columns: [
+                { data: "child_name", title: "Child" },
+                { data: "date_logged", title: "Date" },
+                { data: "day_name", title: "Day" },
+                { data: null, title: "Current Record" },
+                { data: "missing_record", title: "Missing Type" },
+                { data: null, title: "Action" }
+            ],
+            language: {
+                emptyTable: "No missing attendance records found",
+                info: "Showing 0 to 0 of 0 records",
+                infoEmpty: "No records available",
+                infoFiltered: ""
+            },
+            dom: '<"row"<"col-sm-12"tr>>',
+            searching: false,
+            paging: false,
+            ordering: false
+        });
+        return;
+    }
+
+    jQuery('#missingRecordsCard').show();
+
+    // FIXED: Enhanced DataTable configuration for better layout
+    missingDataTable = jQuery("#missingAttendanceTable").DataTable({
+        destroy: true,
+        responsive: {
+            details: {
+                type: 'column',
+                target: 'tr'
+            }
+        },
+        scrollX: true,
+        scrollY: '60vh', // ADDED: Vertical scrolling
+        scrollCollapse: true,
+        data: data,
+        columnDefs: [
+            { 
+                targets: [0], // Child name column
+                className: "text-nowrap",
+                responsivePriority: 1,
+                width: "25%"
+            },
+            { 
+                targets: [1], // Date column
+                responsivePriority: 2,
+                width: "12%"
+            },
+            { 
+                targets: [2], // Day column
+                responsivePriority: 4,
+                width: "10%"
+            },
+            { 
+                targets: [3], // Current Record column
+                responsivePriority: 3,
+                width: "20%"
+            },
+            { 
+                targets: [4], // Missing Type column
+                responsivePriority: 3,
+                width: "12%"
+            },
+            { 
+                targets: [-1], // Action column (last column)
+                responsivePriority: 1,
+                orderable: false,
+                width: "15%",
+                className: "text-center"
+            }
+        ],
+        columns: [
+            { 
+                data: "child_name",
+                title: "Child",
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        return '<div class="d-flex align-items-center">' +
+                               '<i class="fas fa-user-circle text-primary me-2"></i>' +
+                               '<span class="fw-bold text-nowrap" style="font-size: 0.9em;">' + data + '</span>' +
+                               '</div>';
+                    }
+                    return data;
+                }
+            },
+            { 
+                data: "date_logged",
+                title: "Date",
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        return '<span class="text-nowrap">' + new Date(data).toLocaleDateString() + '</span>';
+                    }
+                    return data;
+                }
+            },
+            { 
+                data: "day_name",
+                title: "Day",
+                render: function(data, type, row) {
+                    return '<span class="text-nowrap">' + data + '</span>';
+                }
+            },
+            {
+                data: null,
+                title: "Current Record",
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        if (row.in_time !== "Missing" && row.out_time !== "Missing") {
+                            return '<span class="badge bg-success">Complete</span>';
+                        }
+                        var html = '<div class="d-flex flex-wrap gap-1">';
+                        if (row.in_time !== "Missing") {
+                            html += '<span class="badge bg-info text-nowrap">IN: ' + row.in_time + '</span>';
+                        }
+                        if (row.out_time !== "Missing") {
+                            html += '<span class="badge bg-info text-nowrap">OUT: ' + row.out_time + '</span>';
+                        }
+                        html += '</div>';
+                        return html || '<span class="badge bg-warning">No records</span>';
+                    }
+                    return '';
+                }
+            },
+            { 
+                data: "missing_record",
+                title: "Missing Type",
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        var badgeClass = data === 'IN' ? 'bg-danger' : 'bg-warning';
+                        return '<span class="badge ' + badgeClass + ' text-nowrap">' + data + ' Missing</span>';
+                    }
+                    return data;
+                }
+            },
+            {
+                data: null,
+                title: "Action",
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        return '<button class="btn btn-sm btn-primary fix-time-btn text-nowrap" ' +
+                               'data-child="' + row.child_name + '" ' +
+                               'data-date="' + row.date_logged + '" ' +
+                               'data-missing="' + row.missing_record + '">' +
+                               '<i class="fas fa-edit"></i> Fix ' + row.missing_record +
+                               '</button>';
+                    }
+                    return '';
+                }
+            }
+        ],
+        // FIXED: Better DOM layout for responsive design
+        dom: '<"row"<"col-12 col-md-6"l><"col-12 col-md-6"f>>' +
+             '<"row"<"col-12"B>>' +
+             '<"row"<"col-12"t>>' + // Table
+             '<"row"<"col-12 col-md-5"i><"col-12 col-md-7"p>>',
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+        buttons: [
+            {
+                extend: 'excel',
+                className: 'btn btn-success btn-sm me-1 mb-2',
+                text: '<i class="fas fa-file-excel"></i> Excel',
+                exportOptions: {
+                    columns: [0, 1, 2, 4] // Export Child, Date, Day, Missing Type
+                }
+            },
+            {
+                extend: 'print',
+                className: 'btn btn-info btn-sm mb-2',
+                text: '<i class="fas fa-print"></i> Print',
+                exportOptions: {
+                    columns: [0, 1, 2, 4] // Print Child, Date, Day, Missing Type
+                }
+            }
+        ],
+        order: [[ 1, "desc" ]], // Order by date descending
+        language: {
+            search: "Search records:",
+            lengthMenu: "Show _MENU_ records",
+            info: "Showing _START_ to _END_ of _TOTAL_ records",
+            infoEmpty: "No records available",
+            infoFiltered: "(filtered from _MAX_ total records)",
+            paginate: {
+                first: "First",
+                last: "Last",
+                next: "Next",
+                previous: "Previous"
+            },
+            processing: "Processing...",
+            loadingRecords: "Loading...",
+            zeroRecords: "No matching records found"
+        },
+        initComplete: function() {
+            // Adjust columns after initialization
+            this.api().columns.adjust().responsive.recalc();
+            
+            // ADDED: Re-enable page scrolling
+            jQuery('body').css('overflow', 'auto');
+            
+            console.log('DataTable initialized with ' + data.length + ' records');
+        },
+        drawCallback: function(settings) {
+            // Ensure buttons are properly styled after draw
+            jQuery('.dt-buttons .btn').addClass('btn-sm');
+        }
+    });
+
+    // Handle fix button clicks with improved event delegation
+    jQuery('#missingAttendanceTable').off('click', '.fix-time-btn').on('click', '.fix-time-btn', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        var childName = jQuery(this).data('child');
+        var date = jQuery(this).data('date');
+        var missingType = jQuery(this).data('missing');
+        
+        openFixModal(childName, date, missingType);
+    });
+
+    // ADDED: Handle window resize for better responsiveness
+    jQuery(window).off('resize.missingTable').on('resize.missingTable', function() {
+        if (missingDataTable) {
+            setTimeout(function() {
+                missingDataTable.columns.adjust().responsive.recalc();
+            }, 100);
+        }
+    });
+
+    // Show success message with count
+    showMessage(data.length + " missing attendance records found", "info");
+    
+    // ADDED: Force layout recalculation after a short delay
+    setTimeout(function() {
+        if (missingDataTable) {
+            missingDataTable.columns.adjust().responsive.recalc();
+            
+            // Ensure container scrolling works
+            jQuery('#missingRecordsCard .card-body').css({
+                'overflow-x': 'auto',
+                'overflow-y': 'visible'
+            });
+        }
+    }, 200);
 }
 
-  function openFixModal(childName, date, missingType) {
-    // Extract admission number from child name
-    var admissionMatch = childName.match(/([A-Z0-9]+)\s*-/);
-    var admissionNumber = admissionMatch ? admissionMatch[1] : childName;
-    
-    jQuery('#fixChildName').val(admissionNumber);
-    jQuery('#fixChildDisplay').val(childName);
-    jQuery('#fixDate').val(date);
-    jQuery('#fixDateDisplay').val(new Date(date).toLocaleDateString());
-    jQuery('#fixMissingType').val(missingType + ' Time');
-    
-    // Set help text
-    var helpText = missingType === 'IN' ? 
-      'Enter the time when the child arrived (check-in time)' : 
-      'Enter the time when the child left (check-out time)';
-    jQuery('#timeHelp').text(helpText);
-    
-    // Clear previous time
-    jQuery('#fixTime').val('');
-    
-    // Show modal
-    var modal = new bootstrap.Modal(document.getElementById('fixTimeModal'));
-    modal.show();
-  }
+function openFixModal(childName, date, missingType) {
+    try {
+        // First, ensure any existing modal is properly closed
+        closeFixModal();
+        
+        // Wait a moment before opening new modal
+        setTimeout(function() {
+            // Extract admission number from child name
+            var admissionMatch = childName.match(/([A-Z0-9]+)\s*-/);
+            var admissionNumber = admissionMatch ? admissionMatch[1] : childName;
+            
+            // Clear form first
+            clearFixModalForm();
+            
+            // Set form values
+            jQuery('#fixChildName').val(admissionNumber);
+            jQuery('#fixChildDisplay').val(childName);
+            jQuery('#fixDate').val(date);
+            jQuery('#fixDateDisplay').val(new Date(date).toLocaleDateString());
+            jQuery('#fixMissingType').val(missingType + ' Time');
+            
+            // Set help text
+            var helpText = missingType === 'IN' ? 
+                'Enter the time when the child arrived (check-in time)' : 
+                'Enter the time when the child left (check-out time)';
+            jQuery('#timeHelp').text(helpText);
+            
+            // Ensure time field is empty and focused
+            jQuery('#fixTime').val('').focus();
+            
+            // Show modal with proper error handling
+            try {
+                var modalElement = document.getElementById('fixTimeModal');
+                
+                // Remove any existing modal instance
+                var existingModal = bootstrap.Modal.getInstance(modalElement);
+                if (existingModal) {
+                    existingModal.dispose();
+                }
+                
+                // Create new modal instance
+                var modal = new bootstrap.Modal(modalElement, {
+                    backdrop: 'static',
+                    keyboard: false
+                });
+                
+                modal.show();
+                
+                // Focus on time input after modal is shown
+                jQuery('#fixTimeModal').on('shown.bs.modal', function () {
+                    jQuery('#fixTime').focus();
+                });
+                
+                console.log('Modal opened successfully');
+                
+            } catch (modalError) {
+                console.error('Error opening modal:', modalError);
+                showMessage("Error opening time entry form", "danger");
+            }
+            
+        }, 200); // Small delay to ensure cleanup is complete
+        
+    } catch (error) {
+        console.error('Error in openFixModal:', error);
+        showMessage("Error opening time entry form", "danger");
+    }
+}
 
+  
+  
+  
   function saveFixedTime() {
     var formData = {
-      child: jQuery('#fixChildName').val(),
-      date_logged: jQuery('#fixDate').val(),
-      time_logged: jQuery('#fixTime').val(),
-      csrfmiddlewaretoken: jQuery('[name=csrfmiddlewaretoken]').val()
+        child: jQuery('#fixChildName').val(),
+        date_logged: jQuery('#fixDate').val(),
+        time_logged: jQuery('#fixTime').val(),
+        csrfmiddlewaretoken: jQuery('[name=csrfmiddlewaretoken]').val()
     };
 
     if (!formData.time_logged) {
-      showMessage("Please enter the time", "warning");
-      return;
+        showMessage("Please enter the time", "warning");
+        return;
     }
 
     jQuery.ajax({
-      type: "POST",
-      url: "{% url 'core:save_enhanced_attendance' %}",
-      data: formData,
-      beforeSend: function() {
-        jQuery('#saveFixedTime').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Saving...');
-      },
-      success: function (response) {
-        jQuery('#saveFixedTime').prop('disabled', false).html('<i class="fas fa-save"></i> Save Fixed Time');
+        type: "POST",
+        url: "{% url 'core:save_enhanced_attendance' %}",
+        data: formData,
+        beforeSend: function() {
+            jQuery('#saveFixedTime').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Saving...');
+        },
+        success: function (response) {
+            jQuery('#saveFixedTime').prop('disabled', false).html('<i class="fas fa-save"></i> Save Fixed Time');
+            
+            // FIXED: Proper modal cleanup
+            closeFixModal();
+            
+            showMessage("Time entry saved successfully!", "success");
+            
+            // Refresh the missing records after a short delay
+            setTimeout(function() {
+                searchMissingRecords();
+            }, 1000);
+        },
+        error: function (xhr, textStatus, errorThrown) {
+            jQuery('#saveFixedTime').prop('disabled', false).html('<i class="fas fa-save"></i> Save Fixed Time');
+            showMessage("Error saving time entry: " + textStatus, "danger");
+        }
+    });
+}
+
+// NEW: Dedicated function to properly close the modal
+function closeFixModal() {
+    try {
+        console.log('Closing fix modal...');
         
-        // Close modal
-        var modal = bootstrap.Modal.getInstance(document.getElementById('fixTimeModal'));
+        // Get the modal instance
+        var modalElement = document.getElementById('fixTimeModal');
+        var modal = bootstrap.Modal.getInstance(modalElement);
+        
+        // If no instance exists, create one and then hide it
+        if (!modal) {
+            modal = new bootstrap.Modal(modalElement);
+        }
+        
+        // Hide the modal properly
         modal.hide();
         
-        showMessage("Time entry saved successfully!", "success");
+        // Clear the form completely
+        clearFixModalForm();
         
-        // Refresh the missing records
+        // Force cleanup of any remaining backdrop/overlay
         setTimeout(function() {
-          searchMissingRecords();
+            // Remove any remaining backdrops
+            jQuery('.modal-backdrop').remove();
+            
+            // Ensure body classes are cleaned up
+            jQuery('body').removeClass('modal-open').css({
+                'overflow': '',
+                'padding-right': ''
+            });
+            
+            // Reset modal state
+            jQuery('#fixTimeModal').removeClass('show').css('display', 'none');
+            
+            console.log('Modal cleanup completed');
+        }, 100);
+        
+    } catch (error) {
+        console.error('Error closing modal:', error);
+        // Fallback to emergency cleanup
+        window.clearModalOverlay();
+    }
+}
+
+window.clearModalOverlay = function() {
+    console.log('Emergency modal cleanup starting...');
+    
+    try {
+        // Remove focus from everything
+        if (document.activeElement && document.activeElement.blur) {
+            document.activeElement.blur();
+        }
+        
+        // Get modal element
+        var modalElement = document.getElementById('fixTimeModal');
+        
+        // Try to dispose of modal instance properly first
+        try {
+            var modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.dispose();
+            }
+        } catch (e) {
+            console.log('Could not dispose modal instance:', e);
+        }
+        
+        // Force hide modal
+        jQuery('#fixTimeModal').removeClass('show fade').css('display', 'none').attr('aria-hidden', 'true');
+        
+        // Remove all backdrops
+        jQuery('.modal-backdrop').remove();
+        
+        // Clean up body
+        jQuery('body').removeClass('modal-open').css({
+            'overflow': '',
+            'padding-right': ''
+        });
+        
+        // Clear form
+        clearFixModalForm();
+        
+        // Remove any event listeners that might interfere
+        jQuery('#fixTimeModal').off('shown.bs.modal');
+        
+        console.log('Emergency modal cleanup completed');
+        
+    } catch (error) {
+        console.error('Emergency cleanup error:', error);
+        // Last resort - page reload after delay
+        setTimeout(function() {
+            if (confirm('Modal cleanup failed. Reload page to fix the issue?')) {
+                location.reload();
+            }
         }, 1000);
-      },
-      error: function (xhr, textStatus, errorThrown) {
-        jQuery('#saveFixedTime').prop('disabled', false).html('<i class="fas fa-save"></i> Save Fixed Time');
-        showMessage("Error saving time entry: " + textStatus, "danger");
-      }
-    });
-  }
+    }
+};
+
+
+// NEW: Dedicated function to clear the form
+function clearFixModalForm() {
+    try {
+        // Clear all form fields
+        jQuery('#fixChildName').val('');
+        jQuery('#fixChildDisplay').val('');
+        jQuery('#fixDate').val('');
+        jQuery('#fixDateDisplay').val('');
+        jQuery('#fixMissingType').val('');
+        jQuery('#fixTime').val(''); // IMPORTANT: Clear the time field
+        jQuery('#timeHelp').text('Enter the missing IN or OUT time for this child.');
+        
+        // If using flatpickr, clear it properly
+        if (jQuery('#fixTime')[0]._flatpickr) {
+            jQuery('#fixTime')[0]._flatpickr.clear();
+        }
+        
+        // Reset form validation states
+        jQuery('#fixTimeForm').removeClass('was-validated');
+        jQuery('#fixTimeForm .is-invalid').removeClass('is-invalid');
+        jQuery('#fixTimeForm .invalid-feedback').hide();
+        
+        console.log('Form cleared successfully');
+    } catch (error) {
+        console.error('Error clearing form:', error);
+    }
+}
 
   function showLoading(show) {
     if (show) {
