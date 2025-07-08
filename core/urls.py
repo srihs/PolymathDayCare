@@ -421,4 +421,8 @@ path("enhanced_missing_attendance_js/", views.getEnhancedMissingAttendanceJS, na
 path("save_enhanced_attendance/", views.saveEnhancedAttendance, name="save_enhanced_attendance"),
 path("attendance_stats_summary/", views.getAttendanceStatsSummary, name="attendance_stats_summary"),
 path("bulk_fix_attendance/", views.bulkFixAttendance, name="bulk_fix_attendance"),
+path("process_payment/", views.process_payment, name="process_payment"),
+path("apply_payment/", views.get_apply_payment_page, name="apply_payment_page"),    
+path("search_memo_for_payment/", views.search_memo_for_payment, name="search_memo_for_payment"),
+path("process_payment/", views.process_payment, name="process_payment"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

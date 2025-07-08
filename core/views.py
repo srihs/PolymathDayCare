@@ -97,7 +97,7 @@ from .models import (
     Holiday,
     InvoiceMemo,
     InvoiceMemoDetail,
-    # HolidayType,
+    PaymentTransaction,
     PackageChangerequest,
     PackageExtraHoursMapping,
     PackageType,
@@ -11146,3 +11146,324 @@ def bulkFixAttendance(request):
             return JsonResponse({"error": str(e)}, status=500)
     
     return JsonResponse({"error": "Invalid request method"}, status=405)
+
+
+@login_required
+def get_apply_payment_page(request):
+    """
+    Renders the page for applying payments to memos.
+    Allows searching for memos and entering payment details.
+    """
+    children = Child.objects.filter(is_active=True, is_enrolled=True).order_by("admission_number")
+    current_year = datetime.now().year
+    year_range = [current_year - 2, current_year - 1, current_year, current_year + 1]
+
+    context = {
+        "children": children,
+        "year_range": year_range,
+        "UserName": request.user.username,
+    }
+    return render(request, "../templates/apply_payment.html", context)
+
+
+@login_required
+def search_memo_for_payment(request):
+    """
+    Searches for an InvoiceMemo based on child, month, and year.
+    Returns memo details for payment application.
+    """
+    if request.method == "GET":
+        child_id = request.GET.get("child_id")
+        month = request.GET.get("month")
+        year = request.GET.get("year")
+
+        if not all([child_id, month, year]):
+            return JsonResponse({"error": "Child, month, and year are required for search."}, status=400)
+
+        try:
+            child = get_object_or_404(Child, id=child_id)
+            month_int = int(month)
+            year_int = int(year)
+            month_name = calendar.month_name[month_int]
+
+            memo = InvoiceMemo.objects.filter(
+                child=child, memo_month=month_int, memo_year=year_int, is_active=True
+            ).first()
+
+            if memo:
+                # Prepare memo details for the frontend
+                memo_data = {
+                    "id": memo.id,
+                    "memo_code": memo.memo_code,
+                    "child_name": f"{child.child_first_name} {child.child_last_name}",
+                    "child_admission": child.admission_number,
+                    "memo_month": memo.memo_month,
+                    "memo_year": memo.memo_year,
+                    "month_name": month_name,
+                    "net_amount_due": float(memo.net_amount_due),
+                    "total_payments_received": float(memo.total_payments),
+                    "status": memo.status,
+                    "date_created": memo.date_created.strftime("%Y-%m-%d %H:%M") if memo.date_created else None,
+                    "notes": memo.notes or "",
+                }
+
+                # Get details for each month (Outstanding, Previous, Current)
+                details = memo.month_details.all().order_by("month_sequence")
+                detailed_breakdown = []
+                for detail in details:
+                    detailed_breakdown.append({
+                        "month_type": detail.month_type,
+                        "month_name": detail.month_name,
+                        "actual_year": detail.actual_year,
+                        "gross_charges": float(detail.gross_charges),
+                        "payments_received": float(detail.payments_received),
+                        "net_balance": float(detail.net_balance),
+                        "package_fee": float(detail.package_fee),
+                        "extra_hours_charge": float(detail.extra_hours_charge),
+                        "holiday_charges": float(detail.holiday_charges),
+                        "discount_applied": float(detail.discount_applied),
+                    })
+                memo_data["detailed_breakdown"] = detailed_breakdown
+
+                return JsonResponse({"success": True, "memo": memo_data})
+            else:
+                return JsonResponse({
+                    "success": False,
+                    "message": f"No active memo found for {month_name} {year} for {child.child_first_name} {child.child_last_name}.",
+                    "child_name": f"{child.child_first_name} {child.child_last_name}",
+                    "month_name": month_name,
+                    "year": year_int,
+                })
+
+        except Child.DoesNotExist:
+            return JsonResponse({"error": "Child not found."}, status=404)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    else:
+        return JsonResponse({"error": "Invalid request method. Only GET is allowed."}, status=405)
+
+
+# ... (Keep your existing process_payment view function here) ...
+@login_required
+@transaction.atomic
+def process_payment(request):
+    """
+    Processes a payment for a given memo, applying it hierarchically:
+    Outstanding -> Previous Month -> Current Month (as advanced payment).
+    """
+    if request.method == "POST":
+        try:
+            # Extract data from the request
+            # Assuming these are sent via AJAX or a form
+            memo_id = request.POST.get("memo_id")
+            payment_amount_str = request.POST.get("payment_amount")
+            receipt_number = request.POST.get("receipt_number", "").strip()
+            payment_date_str = request.POST.get("payment_date", datetime.now().strftime("%Y-%m-%d"))
+            payment_method = request.POST.get("payment_method", "BANK_TRANSFER") # Default or get from form
+
+            # Basic validation
+            if not all([memo_id, payment_amount_str]):
+                return JsonResponse({"error": "Missing memo ID or payment amount"}, status=400)
+
+            try:
+                payment_amount = Decimal(payment_amount_str)
+                if payment_amount <= 0:
+                    return JsonResponse({"error": "Payment amount must be positive"}, status=400)
+            except InvalidOperation:
+                return JsonResponse({"error": "Invalid payment amount format"}, status=400)
+
+            try:
+                payment_date = datetime.strptime(payment_date_str, "%Y-%m-%d").date()
+            except ValueError:
+                return JsonResponse({"error": "Invalid payment date format. Use YYYY-MM-DD."}, status=400)
+
+            # Retrieve the memo and its details
+            memo = get_object_or_404(InvoiceMemo, id=memo_id)
+            remaining_payment = payment_amount
+
+            # Get month details in the correct sequence
+            # month_sequence: 1=Outstanding, 2=Previous, 3=Current
+            outstanding_detail = memo.month_details.filter(month_sequence=1).first()
+            previous_detail = memo.month_details.filter(month_sequence=2).first()
+            current_detail = memo.month_details.filter(month_sequence=3).first()
+
+            # Apply payment hierarchically: Outstanding -> Previous -> Current
+            
+            # 1. Apply to Outstanding balance
+            if outstanding_detail and outstanding_detail.net_balance > 0:
+                amount_to_apply = min(remaining_payment, outstanding_detail.net_balance)
+                outstanding_detail.add_payment(amount_to_apply, receipt_number)
+                remaining_payment -= amount_to_apply
+                outstanding_detail.save() # Save the detail to update its net_balance
+
+            # 2. Apply to Previous month's balance
+            if remaining_payment > 0 and previous_detail and previous_detail.net_balance > 0:
+                amount_to_apply = min(remaining_payment, previous_detail.net_balance)
+                previous_detail.add_payment(amount_to_apply, receipt_number)
+                remaining_payment -= amount_to_apply
+                previous_detail.save()
+
+            # 3. Apply to Current month's balance (as advanced payment if it creates a credit)
+            if remaining_payment > 0 and current_detail:
+                # Apply up to the current month's net charges, any excess becomes "advanced"
+                amount_to_apply = min(remaining_payment, current_detail.net_balance) # This will be 0 if current_detail.net_balance is already 0 or negative
+                
+                # If current month has a positive balance, apply payment to it
+                if current_detail.net_balance > 0:
+                    current_detail.add_payment(amount_to_apply, receipt_number)
+                    remaining_payment -= amount_to_apply
+                    current_detail.save()
+                # If current month is already paid or has credit, the entire remaining_payment is an advance
+                elif current_detail.net_balance <= 0 and remaining_payment > 0:
+                    # Treat the entire remaining_payment as an "advance" for the current month detail
+                    # This will make its net_balance more negative (a larger credit)
+                    current_detail.add_payment(remaining_payment, receipt_number)
+                    remaining_payment = Decimal('0.00') # All payment applied
+                    current_detail.save()
+
+
+            # Update overall memo totals and status after applying payments to details
+            memo.calculate_totals()
+            memo.save() # Save the memo to persist updated totals and status
+
+            # Create a record in the PaymentTransaction model for the overall payment
+            PaymentTransaction.objects.create(
+                memo=memo,
+                amount=payment_amount,
+                receipt_number=receipt_number,
+                payment_date=payment_date,
+                payment_method=payment_method,
+                user_created=request.user.username, # Use the logged-in user
+                is_active=True # Assuming active by default
+            )
+
+            messages.success(request, f"Payment of Rs.{payment_amount:,.2f} applied successfully to memo {memo.memo_code}.")
+            return JsonResponse({
+                "success": True,
+                "message": "Payment processed successfully.",
+                "memo_code": memo.memo_code,
+                "new_net_amount_due": float(memo.net_amount_due),
+                "remaining_payment_unapplied": float(remaining_payment) # Should be 0 if all applied
+            })
+
+        except InvoiceMemo.DoesNotExist:
+            messages.error(request, "Invoice Memo not found.")
+            return JsonResponse({"error": "Invoice Memo not found"}, status=404)
+        except Exception as e:
+            # Log the full traceback for debugging
+            import traceback
+            traceback.print_exc()
+            messages.error(request, f"Error processing payment: {str(e)}")
+            return JsonResponse({"error": str(e)}, status=500)
+    else:
+        return JsonResponse({"error": "Invalid request method. Only POST is allowed."}, status=405)
+    """
+    Processes a payment for a given memo, applying it hierarchically:
+    Outstanding -> Previous Month -> Current Month (as advanced payment).
+    """
+    if request.method == "POST":
+        try:
+            # Extract data from the request
+            # Assuming these are sent via AJAX or a form
+            memo_id = request.POST.get("memo_id")
+            payment_amount_str = request.POST.get("payment_amount")
+            receipt_number = request.POST.get("receipt_number", "").strip()
+            payment_date_str = request.POST.get("payment_date", datetime.now().strftime("%Y-%m-%d"))
+            payment_method = request.POST.get("payment_method", "BANK_TRANSFER") # Default or get from form
+
+            # Basic validation
+            if not all([memo_id, payment_amount_str]):
+                return JsonResponse({"error": "Missing memo ID or payment amount"}, status=400)
+
+            try:
+                payment_amount = Decimal(payment_amount_str)
+                if payment_amount <= 0:
+                    return JsonResponse({"error": "Payment amount must be positive"}, status=400)
+            except InvalidOperation:
+                return JsonResponse({"error": "Invalid payment amount format"}, status=400)
+
+            try:
+                payment_date = datetime.strptime(payment_date_str, "%Y-%m-%d").date()
+            except ValueError:
+                return JsonResponse({"error": "Invalid payment date format. Use YYYY-MM-DD."}, status=400)
+
+            # Retrieve the memo and its details
+            memo = get_object_or_404(InvoiceMemo, id=memo_id)
+            remaining_payment = payment_amount
+
+            # Get month details in the correct sequence
+            # month_sequence: 1=Outstanding, 2=Previous, 3=Current
+            outstanding_detail = memo.month_details.filter(month_sequence=1).first()
+            previous_detail = memo.month_details.filter(month_sequence=2).first()
+            current_detail = memo.month_details.filter(month_sequence=3).first()
+
+            # Apply payment hierarchically: Outstanding -> Previous -> Current
+            
+            # 1. Apply to Outstanding balance
+            if outstanding_detail and outstanding_detail.net_balance > 0:
+                amount_to_apply = min(remaining_payment, outstanding_detail.net_balance)
+                outstanding_detail.add_payment(amount_to_apply, receipt_number)
+                remaining_payment -= amount_to_apply
+                outstanding_detail.save() # Save the detail to update its net_balance
+
+            # 2. Apply to Previous month's balance
+            if remaining_payment > 0 and previous_detail and previous_detail.net_balance > 0:
+                amount_to_apply = min(remaining_payment, previous_detail.net_balance)
+                previous_detail.add_payment(amount_to_apply, receipt_number)
+                remaining_payment -= amount_to_apply
+                previous_detail.save()
+
+            # 3. Apply to Current month's balance (as advanced payment if it creates a credit)
+            if remaining_payment > 0 and current_detail:
+                # Apply up to the current month's net charges, any excess becomes "advanced"
+                amount_to_apply = min(remaining_payment, current_detail.net_balance) # This will be 0 if current_detail.net_balance is already 0 or negative
+                
+                # If current month has a positive balance, apply payment to it
+                if current_detail.net_balance > 0:
+                    current_detail.add_payment(amount_to_apply, receipt_number)
+                    remaining_payment -= amount_to_apply
+                    current_detail.save()
+                # If current month is already paid or has credit, the entire remaining_payment is an advance
+                elif current_detail.net_balance <= 0 and remaining_payment > 0:
+                    # Treat the entire remaining_payment as an "advance" for the current month detail
+                    # This will make its net_balance more negative (a larger credit)
+                    current_detail.add_payment(remaining_payment, receipt_number)
+                    remaining_payment = Decimal('0.00') # All payment applied
+                    current_detail.save()
+
+
+            # Update overall memo totals and status after applying payments to details
+            memo.calculate_totals()
+            memo.save() # Save the memo to persist updated totals and status
+
+            # Create a record in the PaymentTransaction model for the overall payment
+            PaymentTransaction.objects.create(
+                memo=memo,
+                amount=payment_amount,
+                receipt_number=receipt_number,
+                payment_date=payment_date,
+                payment_method=payment_method,
+                user_created=request.user.username, # Use the logged-in user
+                is_active=True # Assuming active by default
+            )
+
+            messages.success(request, f"Payment of Rs.{payment_amount:,.2f} applied successfully to memo {memo.memo_code}.")
+            return JsonResponse({
+                "success": True,
+                "message": "Payment processed successfully.",
+                "memo_code": memo.memo_code,
+                "new_net_amount_due": float(memo.net_amount_due),
+                "remaining_payment_unapplied": float(remaining_payment) # Should be 0 if all applied
+            })
+
+        except InvoiceMemo.DoesNotExist:
+            messages.error(request, "Invoice Memo not found.")
+            return JsonResponse({"error": "Invoice Memo not found"}, status=404)
+        except Exception as e:
+            # Log the full traceback for debugging
+            import traceback
+            traceback.print_exc()
+            messages.error(request, f"Error processing payment: {str(e)}")
+            return JsonResponse({"error": str(e)}, status=500)
+    else:
+        return JsonResponse({"error": "Invalid request method. Only POST is allowed."}, status=405)

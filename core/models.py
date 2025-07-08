@@ -904,9 +904,22 @@ class InvoiceMemoDetail(BaseClass):
         super().save(*args, **kwargs)
 
 
-class PaymentTransaction(BaseClass):
+# In core/models.py
+
+from django.db import models
+from datetime import datetime, timedelta
+from decimal import Decimal
+import calendar
+from django.utils import timezone
+import os
+
+# Assuming BaseClass, InvoiceMemo, and InvoiceMemoDetail are already defined as you provided.
+# Just add this new model to your existing models.py file.
+
+class PaymentTransaction(models.Model):
+    id = models.AutoField(primary_key=True)
     memo = models.ForeignKey(
-        InvoiceMemo, on_delete=models.CASCADE, related_name="payments"
+        'InvoiceMemo', on_delete=models.CASCADE, related_name='payments'
     )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     receipt_number = models.CharField(max_length=50, blank=True, null=True)
@@ -923,6 +936,11 @@ class PaymentTransaction(BaseClass):
         default="CASH",
     )
     notes = models.TextField(blank=True, null=True)
+    date_created = models.DateTimeField(auto_now_add=True)
+    user_created = models.CharField(max_length=50, default='system') # Added default for simplicity, adjust as needed
+    date_updated = models.DateTimeField(auto_now=True)
+    user_updated = models.CharField(max_length=50, default='system') # Added default for simplicity, adjust as needed
+    is_active = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = "Payment Transaction"
@@ -932,3 +950,4 @@ class PaymentTransaction(BaseClass):
 
     def __str__(self):
         return f"{self.memo.memo_code} - Rs.{self.amount} - {self.receipt_number}"
+
