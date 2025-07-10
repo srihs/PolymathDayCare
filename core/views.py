@@ -97,10 +97,10 @@ from .models import (
     Holiday,
     InvoiceMemo,
     InvoiceMemoDetail,
-    PaymentTransaction,
     PackageChangerequest,
     PackageExtraHoursMapping,
     PackageType,
+    PaymentTransaction,
 )
 
 
@@ -10686,104 +10686,110 @@ def checkMissingAttendanceForMemo(request):
 
 # Add this enhanced view to your views.py file
 
+
 @login_required
 def getEnhancedCheckIns(request):
     """Enhanced check-ins view with missing attendance search functionality"""
     try:
         enrollment_form = CreateCheckInForm()
-        
+
         # Get search parameters if any
-        search_type = request.GET.get('search_type', 'date_range')
-        
+        search_type = request.GET.get("search_type", "date_range")
+
         context = {
             "form": enrollment_form,
             "UserName": request.user.username,
             "search_type": search_type,
         }
-        
+
         return render(request, "../templates/checkin.html", context)
-        
+
     except Exception as e:
         messages.error(request, f"Error loading check-ins page: {str(e)}")
         return redirect("core:view_check_ins")
 
 
-@login_required 
+@login_required
 def getEnhancedMissingAttendanceJS(request):
     """Enhanced missing attendance with flexible search options"""
     try:
         # Get search parameters
-        child_admission = request.GET.get('child')
-        from_date = request.GET.get('from_date')
-        to_date = request.GET.get('to_date')
-        
+        child_admission = request.GET.get("child")
+        from_date = request.GET.get("from_date")
+        to_date = request.GET.get("to_date")
+
         # Set default date range if not provided
         if not from_date or not to_date:
             today = datetime.now().date()
             if not from_date:
-                from_date = (today - timedelta(days=1)).strftime('%Y-%m-%d')  # Yesterday
+                from_date = (today - timedelta(days=1)).strftime(
+                    "%Y-%m-%d"
+                )  # Yesterday
             if not to_date:
-                to_date = (today - timedelta(days=1)).strftime('%Y-%m-%d')   # Yesterday
-        
+                to_date = (today - timedelta(days=1)).strftime("%Y-%m-%d")  # Yesterday
+
         # Parse dates
         from_date_obj = datetime.strptime(from_date, "%Y-%m-%d").date()
         to_date_obj = datetime.strptime(to_date, "%Y-%m-%d").date()
-        
+
         # Build base query
         filters = Q(date_logged__range=(from_date_obj, to_date_obj))
-        
+
         # Add child filter if specified
         if child_admission:
             try:
                 # Try to find child by admission number
                 child = Child.objects.get(
-                    admission_number=child_admission, 
-                    is_active=True, 
-                    enrollement_approved=True
+                    admission_number=child_admission,
+                    is_active=True,
+                    enrollement_approved=True,
                 )
                 filters &= Q(child=child)
-                
+
                 # Expand date range for single child search
-                from_date_obj = (datetime.now().date() - timedelta(days=30))
+                from_date_obj = datetime.now().date() - timedelta(days=30)
                 to_date_obj = datetime.now().date() - timedelta(days=1)
-                filters = Q(date_logged__range=(from_date_obj, to_date_obj)) & Q(child=child)
-                
+                filters = Q(date_logged__range=(from_date_obj, to_date_obj)) & Q(
+                    child=child
+                )
+
             except Child.DoesNotExist:
-                return JsonResponse({
-                    "error": f"Child with admission number '{child_admission}' not found",
-                    "missing_records": []
-                }, status=404)
+                return JsonResponse(
+                    {
+                        "error": f"Child with admission number '{child_admission}' not found",
+                        "missing_records": [],
+                    },
+                    status=404,
+                )
         else:
             # For date range search, only include enrolled children
             active_children = Child.objects.filter(
-                is_active=True, 
-                enrollement_approved=True, 
-                is_enrolled=True
-            ).values_list('id', flat=True)
+                is_active=True, enrollement_approved=True, is_enrolled=True
+            ).values_list("id", flat=True)
             filters &= Q(child_id__in=active_children)
 
         # Get attendance records
         attendance_records = AttendanceLog.objects.filter(filters).values_list(
-            'child_id', 'date_logged', 'time_logged'
+            "child_id", "date_logged", "time_logged"
         )
-        
+
         # Group attendance by child and date
         attendance_dict = defaultdict(list)
         for child_id, date_logged, time_logged in attendance_records:
             attendance_dict[(child_id, date_logged)].append(time_logged)
-        
+
         # Define cutoff time to determine if time is IN or OUT
         cutoff_time = time(15, 0)  # 3:00 PM
-        
+
         # Find incomplete attendance records
         incomplete_attendance_data = []
-        
+
         for (child_id, date_logged), time_logs in attendance_dict.items():
             if len(time_logs) == 1:  # Only one time entry (missing either IN or OUT)
                 try:
                     child = Child.objects.get(id=child_id)
                     single_time = time_logs[0]
-                    
+
                     # Determine what's missing based on time
                     if single_time > cutoff_time:
                         # Late time = OUT time, missing IN
@@ -10792,35 +10798,36 @@ def getEnhancedMissingAttendanceJS(request):
                         missing_record = "IN"
                         existing_record = f"OUT: {out_time}"
                     else:
-                        # Early time = IN time, missing OUT  
+                        # Early time = IN time, missing OUT
                         in_time = single_time.strftime("%H:%M")
                         out_time = "Missing"
                         missing_record = "OUT"
                         existing_record = f"IN: {in_time}"
-                    
-                    incomplete_attendance_data.append({
-                        "child_id": child.id,
-                        "child_name": f"{child.admission_number} - {child.child_first_name} {child.child_last_name}",
-                        "admission_number": child.admission_number,
-                        "date_logged": date_logged.strftime("%Y-%m-%d"),
-                        "day_name": date_logged.strftime("%A"),
-                        "in_time": in_time,
-                        "out_time": out_time,
-                        "missing_record": missing_record,
-                        "existing_record": existing_record,
-                        "single_time": single_time.strftime("%H:%M"),
-                        "needs_fix": True
-                    })
-                    
+
+                    incomplete_attendance_data.append(
+                        {
+                            "child_id": child.id,
+                            "child_name": f"{child.admission_number} - {child.child_first_name} {child.child_last_name}",
+                            "admission_number": child.admission_number,
+                            "date_logged": date_logged.strftime("%Y-%m-%d"),
+                            "day_name": date_logged.strftime("%A"),
+                            "in_time": in_time,
+                            "out_time": out_time,
+                            "missing_record": missing_record,
+                            "existing_record": existing_record,
+                            "single_time": single_time.strftime("%H:%M"),
+                            "needs_fix": True,
+                        }
+                    )
+
                 except Child.DoesNotExist:
                     continue
-        
+
         # Sort by date (newest first) then by child name
         incomplete_attendance_data.sort(
-            key=lambda x: (x["date_logged"], x["child_name"]), 
-            reverse=True
+            key=lambda x: (x["date_logged"], x["child_name"]), reverse=True
         )
-        
+
         # Add summary information
         response_data = {
             "success": True,
@@ -10828,27 +10835,45 @@ def getEnhancedMissingAttendanceJS(request):
                 "from_date": from_date_obj.strftime("%Y-%m-%d"),
                 "to_date": to_date_obj.strftime("%Y-%m-%d"),
                 "child": child_admission if child_admission else "All Children",
-                "total_days": (to_date_obj - from_date_obj).days + 1
+                "total_days": (to_date_obj - from_date_obj).days + 1,
             },
             "summary": {
                 "total_missing": len(incomplete_attendance_data),
-                "missing_in": len([x for x in incomplete_attendance_data if x["missing_record"] == "IN"]),
-                "missing_out": len([x for x in incomplete_attendance_data if x["missing_record"] == "OUT"]),
-                "unique_children": len(set(x["child_id"] for x in incomplete_attendance_data)),
-                "date_range": f"{from_date_obj.strftime('%B %d, %Y')} to {to_date_obj.strftime('%B %d, %Y')}"
+                "missing_in": len(
+                    [
+                        x
+                        for x in incomplete_attendance_data
+                        if x["missing_record"] == "IN"
+                    ]
+                ),
+                "missing_out": len(
+                    [
+                        x
+                        for x in incomplete_attendance_data
+                        if x["missing_record"] == "OUT"
+                    ]
+                ),
+                "unique_children": len(
+                    set(x["child_id"] for x in incomplete_attendance_data)
+                ),
+                "date_range": f"{from_date_obj.strftime('%B %d, %Y')} to {to_date_obj.strftime('%B %d, %Y')}",
             },
-            "missing_records": incomplete_attendance_data
+            "missing_records": incomplete_attendance_data,
         }
-        
+
         return JsonResponse(incomplete_attendance_data, safe=False)
-        
+
     except Exception as e:
         import traceback
+
         traceback.print_exc()
-        return JsonResponse({
-            "error": f"Error processing missing attendance: {str(e)}",
-            "missing_records": []
-        }, status=500)
+        return JsonResponse(
+            {
+                "error": f"Error processing missing attendance: {str(e)}",
+                "missing_records": [],
+            },
+            status=500,
+        )
 
 
 @login_required
@@ -10857,84 +10882,82 @@ def saveEnhancedAttendance(request):
     if request.method == "POST":
         try:
             child_admission = request.POST.get("child")
-            date_logged = request.POST.get("date_logged") 
+            date_logged = request.POST.get("date_logged")
             time_logged = request.POST.get("time_logged")
-            
+
             # Validation
             if not all([child_admission, date_logged, time_logged]):
                 messages.error(request, "All fields are required")
                 return redirect("core:enhanced_check_ins")
-            
+
             # Get child object
             try:
                 child = Child.objects.get(
                     admission_number=child_admission,
                     is_active=True,
-                    enrollement_approved=True
+                    enrollement_approved=True,
                 )
             except Child.DoesNotExist:
-                messages.error(request, f"Child with admission number '{child_admission}' not found or not enrolled")
+                messages.error(
+                    request,
+                    f"Child with admission number '{child_admission}' not found or not enrolled",
+                )
                 return redirect("core:enhanced_check_ins")
-            
+
             # Parse and validate date
             try:
                 log_date = datetime.strptime(date_logged, "%Y-%m-%d").date()
             except ValueError:
                 messages.error(request, "Invalid date format")
                 return redirect("core:enhanced_check_ins")
-            
+
             # Parse and validate time
             try:
                 log_time = datetime.strptime(time_logged, "%H:%M").time()
             except ValueError:
                 messages.error(request, "Invalid time format")
                 return redirect("core:enhanced_check_ins")
-            
+
             # Check if child was enrolled on that date
             if child.admission_date and child.admission_date > log_date:
                 messages.error(
                     request,
                     f"Attendance date is invalid. Child was not enrolled on {log_date.strftime('%Y-%m-%d')}. "
-                    f"Admission date: {child.admission_date.strftime('%Y-%m-%d')}"
+                    f"Admission date: {child.admission_date.strftime('%Y-%m-%d')}",
                 )
                 return redirect("core:enhanced_check_ins")
-            
+
             # Check for duplicate entry (same child, date, and time)
             existing_entry = AttendanceLog.objects.filter(
-                child=child,
-                date_logged=log_date,
-                time_logged=log_time
+                child=child, date_logged=log_date, time_logged=log_time
             ).first()
-            
+
             if existing_entry:
                 messages.warning(
                     request,
                     f"Duplicate entry detected. {child.child_first_name} already has a record for "
-                    f"{log_date.strftime('%Y-%m-%d')} at {log_time.strftime('%H:%M')}"
+                    f"{log_date.strftime('%Y-%m-%d')} at {log_time.strftime('%H:%M')}",
                 )
                 return redirect("core:enhanced_check_ins")
-            
+
             # Get enrollment for branch/center info
             enrollment = ChildEnrollment.objects.filter(
-                child=child, 
-                status="Approved", 
-                is_active=True
+                child=child, status="Approved", is_active=True
             ).first()
-            
+
             # Create attendance record
             attendance = AttendanceLog.objects.create(
                 child=child,
                 date_logged=log_date,
                 time_logged=log_time,
-                user_created=request.user.username
+                user_created=request.user.username,
             )
-            
+
             # Count existing records for this date to determine if this completes the attendance
             existing_records = AttendanceLog.objects.filter(
-                child=child,
-                date_logged=log_date
+                child=child, date_logged=log_date
             ).count()
-            
+
             # Create success message based on completion status
             if existing_records == 1:
                 record_type = "First record (IN/OUT)"
@@ -10944,8 +10967,10 @@ def saveEnhancedAttendance(request):
                 status_msg = "✅ Attendance is now complete for this day"
             else:
                 record_type = f"Additional record ({existing_records} total)"
-                status_msg = f"ℹ️ Child now has {existing_records} time entries for this day"
-            
+                status_msg = (
+                    f"ℹ️ Child now has {existing_records} time entries for this day"
+                )
+
             messages.success(
                 request,
                 f"✅ Attendance saved successfully!\n"
@@ -10953,69 +10978,68 @@ def saveEnhancedAttendance(request):
                 f"Date: {log_date.strftime('%A, %B %d, %Y')}\n"
                 f"Time: {log_time.strftime('%I:%M %p')}\n"
                 f"Status: {record_type}\n"
-                f"{status_msg}"
+                f"{status_msg}",
             )
-            
+
             return redirect("core:enhanced_check_ins")
-            
+
         except Exception as e:
             import traceback
+
             traceback.print_exc()
             messages.error(request, f"Error saving attendance: {str(e)}")
             return redirect("core:enhanced_check_ins")
-    
+
     else:
         messages.error(request, "Invalid request method")
         return redirect("core:enhanced_check_ins")
 
 
-@login_required  
+@login_required
 def getAttendanceStatsSummary(request):
     """Get attendance statistics for dashboard/summary"""
     try:
-        child_id = request.GET.get('child_id')
-        days_back = int(request.GET.get('days_back', 7))
-        
+        child_id = request.GET.get("child_id")
+        days_back = int(request.GET.get("days_back", 7))
+
         # Calculate date range
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=days_back)
-        
+
         # Base query
         filters = Q(date_logged__range=(start_date, end_date))
-        
+
         if child_id:
             filters &= Q(child_id=child_id)
         else:
             # Only enrolled children
             active_children = Child.objects.filter(
-                is_active=True, 
-                enrollement_approved=True, 
-                is_enrolled=True
-            ).values_list('id', flat=True)
+                is_active=True, enrollement_approved=True, is_enrolled=True
+            ).values_list("id", flat=True)
             filters &= Q(child_id__in=active_children)
-        
+
         # Get attendance records
         attendance_records = AttendanceLog.objects.filter(filters).values_list(
-            'child_id', 'date_logged', 'time_logged'
+            "child_id", "date_logged", "time_logged"
         )
-        
+
         # Group by child and date
         attendance_by_child_date = defaultdict(list)
         for child_id, date_logged, time_logged in attendance_records:
             attendance_by_child_date[(child_id, date_logged)].append(time_logged)
-        
+
         # Calculate statistics
         total_days = 0
         complete_days = 0
         incomplete_days = 0
         missing_in = 0
         missing_out = 0
-        
+
         cutoff_time = time(15, 0)  # 3:00 PM
-        
+
         for (child_id, date_logged), time_logs in attendance_by_child_date.items():
             total_days += 1
-            
+
             if len(time_logs) >= 2:
                 complete_days += 1
             elif len(time_logs) == 1:
@@ -11025,28 +11049,30 @@ def getAttendanceStatsSummary(request):
                     missing_in += 1  # Has OUT, missing IN
                 else:
                     missing_out += 1  # Has IN, missing OUT
-        
+
         statistics = {
             "period": {
                 "start_date": start_date.strftime("%Y-%m-%d"),
                 "end_date": end_date.strftime("%Y-%m-%d"),
-                "days_covered": days_back
+                "days_covered": days_back,
             },
             "totals": {
                 "total_attendance_days": total_days,
                 "complete_days": complete_days,
                 "incomplete_days": incomplete_days,
-                "completion_rate": round((complete_days / total_days * 100), 1) if total_days > 0 else 0
+                "completion_rate": round((complete_days / total_days * 100), 1)
+                if total_days > 0
+                else 0,
             },
             "missing_breakdown": {
                 "missing_in_count": missing_in,
                 "missing_out_count": missing_out,
-                "total_missing": missing_in + missing_out
-            }
+                "total_missing": missing_in + missing_out,
+            },
         }
-        
+
         return JsonResponse(statistics)
-        
+
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
@@ -11057,94 +11083,91 @@ def bulkFixAttendance(request):
     if request.method == "POST":
         try:
             import json
-            
+
             # Get bulk fix data from request
             bulk_data = json.loads(request.body)
-            fixes = bulk_data.get('fixes', [])
-            
+            fixes = bulk_data.get("fixes", [])
+
             if not fixes:
                 return JsonResponse({"error": "No fixes provided"}, status=400)
-            
+
             success_count = 0
             error_count = 0
             errors = []
-            
+
             with transaction.atomic():
                 for fix in fixes:
                     try:
-                        child_admission = fix.get('child_admission')
-                        date_logged = fix.get('date_logged')
-                        time_logged = fix.get('time_logged')
-                        
+                        child_admission = fix.get("child_admission")
+                        date_logged = fix.get("date_logged")
+                        time_logged = fix.get("time_logged")
+
                         # Validate data
                         if not all([child_admission, date_logged, time_logged]):
-                            errors.append({
-                                "child": child_admission,
-                                "error": "Missing required fields"
-                            })
+                            errors.append(
+                                {
+                                    "child": child_admission,
+                                    "error": "Missing required fields",
+                                }
+                            )
                             error_count += 1
                             continue
-                        
+
                         # Get child
                         child = Child.objects.get(
                             admission_number=child_admission,
                             is_active=True,
-                            enrollement_approved=True
+                            enrollement_approved=True,
                         )
-                        
+
                         # Parse date and time
                         log_date = datetime.strptime(date_logged, "%Y-%m-%d").date()
                         log_time = datetime.strptime(time_logged, "%H:%M").time()
-                        
+
                         # Check for duplicates
                         if AttendanceLog.objects.filter(
-                            child=child,
-                            date_logged=log_date,
-                            time_logged=log_time
+                            child=child, date_logged=log_date, time_logged=log_time
                         ).exists():
-                            errors.append({
-                                "child": child_admission,
-                                "error": "Duplicate entry"
-                            })
+                            errors.append(
+                                {"child": child_admission, "error": "Duplicate entry"}
+                            )
                             error_count += 1
                             continue
-                        
+
                         # Create attendance record
                         AttendanceLog.objects.create(
                             child=child,
                             date_logged=log_date,
                             time_logged=log_time,
-                            user_created=request.user.username
+                            user_created=request.user.username,
                         )
-                        
+
                         success_count += 1
-                        
+
                     except Child.DoesNotExist:
-                        errors.append({
-                            "child": child_admission,
-                            "error": "Child not found"
-                        })
+                        errors.append(
+                            {"child": child_admission, "error": "Child not found"}
+                        )
                         error_count += 1
                     except Exception as e:
-                        errors.append({
-                            "child": child_admission,
-                            "error": str(e)
-                        })
+                        errors.append({"child": child_admission, "error": str(e)})
                         error_count += 1
-            
-            return JsonResponse({
-                "success": True,
-                "summary": {
-                    "total_processed": len(fixes),
-                    "success_count": success_count,
-                    "error_count": error_count
-                },
-                "errors": errors
-            })
-            
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "summary": {
+                        "total_processed": len(fixes),
+                        "success_count": success_count,
+                        "error_count": error_count,
+                    },
+                    "errors": errors,
+                }
+            )
+
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
-    
+
     return JsonResponse({"error": "Invalid request method"}, status=405)
 
 
@@ -11154,13 +11177,20 @@ def get_apply_payment_page(request):
     Renders the page for applying payments to memos.
     Allows searching for memos and entering payment details.
     """
-    children = Child.objects.filter(is_active=True, is_enrolled=True).order_by("admission_number")
+    children = Child.objects.filter(is_active=True, is_enrolled=True).order_by(
+        "admission_number"
+    )
     current_year = datetime.now().year
     year_range = [current_year - 2, current_year - 1, current_year, current_year + 1]
+
+    months = []
+    for i in range(1, 13):
+        months.append({"number": i, "name": calendar.month_name[i]})
 
     context = {
         "children": children,
         "year_range": year_range,
+        "months": months,
         "UserName": request.user.username,
     }
     return render(request, "../templates/apply_payment.html", context)
@@ -11177,8 +11207,15 @@ def search_memo_for_payment(request):
         month = request.GET.get("month")
         year = request.GET.get("year")
 
+        # Debug: Print received parameters
+        print(
+            f"DEBUG: Received parameters - child_id={child_id}, month={month}, year={year}"
+        )
+
         if not all([child_id, month, year]):
-            return JsonResponse({"error": "Child, month, and year are required for search."}, status=400)
+            return JsonResponse(
+                {"error": "Child, month, and year are required for search."}, status=400
+            )
 
         try:
             child = get_object_or_404(Child, id=child_id)
@@ -11186,9 +11223,23 @@ def search_memo_for_payment(request):
             year_int = int(year)
             month_name = calendar.month_name[month_int]
 
+            # Debug: Check what's in the database for this child
+            all_memos = InvoiceMemo.objects.filter(child_id=child).values(
+                "id", "memo_month", "memo_year", "status", "is_active", "memo_code"
+            )
+            print(f"DEBUG: All memos for child {child.id}: {list(all_memos)}")
+
+            # Debug: Show what we're searching for
+            print(
+                f"DEBUG: Searching for - child_id={child.id}, memo_month={month_int}, memo_year={year_int}, is_active=True"
+            )
+
+            # Change back to child_id=child (not child=child)
             memo = InvoiceMemo.objects.filter(
-                child=child, memo_month=month_int, memo_year=year_int, is_active=True
+                child_id=child, memo_month=month_int, memo_year=year_int, is_active=True
             ).first()
+
+            print(f"DEBUG: Found memo: {memo}")
 
             if memo:
                 # Prepare memo details for the frontend
@@ -11203,7 +11254,9 @@ def search_memo_for_payment(request):
                     "net_amount_due": float(memo.net_amount_due),
                     "total_payments_received": float(memo.total_payments),
                     "status": memo.status,
-                    "date_created": memo.date_created.strftime("%Y-%m-%d %H:%M") if memo.date_created else None,
+                    "date_created": memo.date_created.strftime("%Y-%m-%d %H:%M")
+                    if memo.date_created
+                    else None,
                     "notes": memo.notes or "",
                 }
 
@@ -11211,36 +11264,43 @@ def search_memo_for_payment(request):
                 details = memo.month_details.all().order_by("month_sequence")
                 detailed_breakdown = []
                 for detail in details:
-                    detailed_breakdown.append({
-                        "month_type": detail.month_type,
-                        "month_name": detail.month_name,
-                        "actual_year": detail.actual_year,
-                        "gross_charges": float(detail.gross_charges),
-                        "payments_received": float(detail.payments_received),
-                        "net_balance": float(detail.net_balance),
-                        "package_fee": float(detail.package_fee),
-                        "extra_hours_charge": float(detail.extra_hours_charge),
-                        "holiday_charges": float(detail.holiday_charges),
-                        "discount_applied": float(detail.discount_applied),
-                    })
+                    detailed_breakdown.append(
+                        {
+                            "month_type": detail.month_type,
+                            "month_name": detail.month_name,
+                            "actual_year": detail.actual_year,
+                            "gross_charges": float(detail.gross_charges),
+                            "payments_received": float(detail.payments_received),
+                            "net_balance": float(detail.net_balance),
+                            "package_fee": float(detail.package_fee),
+                            "extra_hours_charge": float(detail.extra_hours_charge),
+                            "holiday_charges": float(detail.holiday_charges),
+                            "discount_applied": float(detail.discount_applied),
+                        }
+                    )
                 memo_data["detailed_breakdown"] = detailed_breakdown
 
                 return JsonResponse({"success": True, "memo": memo_data})
             else:
-                return JsonResponse({
-                    "success": False,
-                    "message": f"No active memo found for {month_name} {year} for {child.child_first_name} {child.child_last_name}.",
-                    "child_name": f"{child.child_first_name} {child.child_last_name}",
-                    "month_name": month_name,
-                    "year": year_int,
-                })
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": f"No active memo found for {month_name} {year} for {child.child_first_name} {child.child_last_name}.",
+                        "child_name": f"{child.child_first_name} {child.child_last_name}",
+                        "month_name": month_name,
+                        "year": year_int,
+                    }
+                )
 
         except Child.DoesNotExist:
             return JsonResponse({"error": "Child not found."}, status=404)
         except Exception as e:
+            print(f"DEBUG: Exception occurred: {str(e)}")
             return JsonResponse({"error": str(e)}, status=500)
     else:
-        return JsonResponse({"error": "Invalid request method. Only GET is allowed."}, status=405)
+        return JsonResponse(
+            {"error": "Invalid request method. Only GET is allowed."}, status=405
+        )
 
 
 # ... (Keep your existing process_payment view function here) ...
@@ -11258,24 +11318,37 @@ def process_payment(request):
             memo_id = request.POST.get("memo_id")
             payment_amount_str = request.POST.get("payment_amount")
             receipt_number = request.POST.get("receipt_number", "").strip()
-            payment_date_str = request.POST.get("payment_date", datetime.now().strftime("%Y-%m-%d"))
-            payment_method = request.POST.get("payment_method", "BANK_TRANSFER") # Default or get from form
+            payment_date_str = request.POST.get(
+                "payment_date", datetime.now().strftime("%Y-%m-%d")
+            )
+            payment_method = request.POST.get(
+                "payment_method", "BANK_TRANSFER"
+            )  # Default or get from form
 
             # Basic validation
             if not all([memo_id, payment_amount_str]):
-                return JsonResponse({"error": "Missing memo ID or payment amount"}, status=400)
+                return JsonResponse(
+                    {"error": "Missing memo ID or payment amount"}, status=400
+                )
 
             try:
                 payment_amount = Decimal(payment_amount_str)
                 if payment_amount <= 0:
-                    return JsonResponse({"error": "Payment amount must be positive"}, status=400)
+                    return JsonResponse(
+                        {"error": "Payment amount must be positive"}, status=400
+                    )
             except InvalidOperation:
-                return JsonResponse({"error": "Invalid payment amount format"}, status=400)
+                return JsonResponse(
+                    {"error": "Invalid payment amount format"}, status=400
+                )
 
             try:
                 payment_date = datetime.strptime(payment_date_str, "%Y-%m-%d").date()
             except ValueError:
-                return JsonResponse({"error": "Invalid payment date format. Use YYYY-MM-DD."}, status=400)
+                return JsonResponse(
+                    {"error": "Invalid payment date format. Use YYYY-MM-DD."},
+                    status=400,
+                )
 
             # Retrieve the memo and its details
             memo = get_object_or_404(InvoiceMemo, id=memo_id)
@@ -11288,16 +11361,20 @@ def process_payment(request):
             current_detail = memo.month_details.filter(month_sequence=3).first()
 
             # Apply payment hierarchically: Outstanding -> Previous -> Current
-            
+
             # 1. Apply to Outstanding balance
             if outstanding_detail and outstanding_detail.net_balance > 0:
                 amount_to_apply = min(remaining_payment, outstanding_detail.net_balance)
                 outstanding_detail.add_payment(amount_to_apply, receipt_number)
                 remaining_payment -= amount_to_apply
-                outstanding_detail.save() # Save the detail to update its net_balance
+                outstanding_detail.save()  # Save the detail to update its net_balance
 
             # 2. Apply to Previous month's balance
-            if remaining_payment > 0 and previous_detail and previous_detail.net_balance > 0:
+            if (
+                remaining_payment > 0
+                and previous_detail
+                and previous_detail.net_balance > 0
+            ):
                 amount_to_apply = min(remaining_payment, previous_detail.net_balance)
                 previous_detail.add_payment(amount_to_apply, receipt_number)
                 remaining_payment -= amount_to_apply
@@ -11306,8 +11383,10 @@ def process_payment(request):
             # 3. Apply to Current month's balance (as advanced payment if it creates a credit)
             if remaining_payment > 0 and current_detail:
                 # Apply up to the current month's net charges, any excess becomes "advanced"
-                amount_to_apply = min(remaining_payment, current_detail.net_balance) # This will be 0 if current_detail.net_balance is already 0 or negative
-                
+                amount_to_apply = min(
+                    remaining_payment, current_detail.net_balance
+                )  # This will be 0 if current_detail.net_balance is already 0 or negative
+
                 # If current month has a positive balance, apply payment to it
                 if current_detail.net_balance > 0:
                     current_detail.add_payment(amount_to_apply, receipt_number)
@@ -11318,13 +11397,12 @@ def process_payment(request):
                     # Treat the entire remaining_payment as an "advance" for the current month detail
                     # This will make its net_balance more negative (a larger credit)
                     current_detail.add_payment(remaining_payment, receipt_number)
-                    remaining_payment = Decimal('0.00') # All payment applied
+                    remaining_payment = Decimal("0.00")  # All payment applied
                     current_detail.save()
-
 
             # Update overall memo totals and status after applying payments to details
             memo.calculate_totals()
-            memo.save() # Save the memo to persist updated totals and status
+            memo.save()  # Save the memo to persist updated totals and status
 
             # Create a record in the PaymentTransaction model for the overall payment
             PaymentTransaction.objects.create(
@@ -11333,18 +11411,25 @@ def process_payment(request):
                 receipt_number=receipt_number,
                 payment_date=payment_date,
                 payment_method=payment_method,
-                user_created=request.user.username, # Use the logged-in user
-                is_active=True # Assuming active by default
+                user_created=request.user.username,  # Use the logged-in user
+                is_active=True,  # Assuming active by default
             )
 
-            messages.success(request, f"Payment of Rs.{payment_amount:,.2f} applied successfully to memo {memo.memo_code}.")
-            return JsonResponse({
-                "success": True,
-                "message": "Payment processed successfully.",
-                "memo_code": memo.memo_code,
-                "new_net_amount_due": float(memo.net_amount_due),
-                "remaining_payment_unapplied": float(remaining_payment) # Should be 0 if all applied
-            })
+            messages.success(
+                request,
+                f"Payment of Rs.{payment_amount:,.2f} applied successfully to memo {memo.memo_code}.",
+            )
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": "Payment processed successfully.",
+                    "memo_code": memo.memo_code,
+                    "new_net_amount_due": float(memo.net_amount_due),
+                    "remaining_payment_unapplied": float(
+                        remaining_payment
+                    ),  # Should be 0 if all applied
+                }
+            )
 
         except InvoiceMemo.DoesNotExist:
             messages.error(request, "Invoice Memo not found.")
@@ -11352,11 +11437,14 @@ def process_payment(request):
         except Exception as e:
             # Log the full traceback for debugging
             import traceback
+
             traceback.print_exc()
             messages.error(request, f"Error processing payment: {str(e)}")
             return JsonResponse({"error": str(e)}, status=500)
     else:
-        return JsonResponse({"error": "Invalid request method. Only POST is allowed."}, status=405)
+        return JsonResponse(
+            {"error": "Invalid request method. Only POST is allowed."}, status=405
+        )
     """
     Processes a payment for a given memo, applying it hierarchically:
     Outstanding -> Previous Month -> Current Month (as advanced payment).
@@ -11368,24 +11456,37 @@ def process_payment(request):
             memo_id = request.POST.get("memo_id")
             payment_amount_str = request.POST.get("payment_amount")
             receipt_number = request.POST.get("receipt_number", "").strip()
-            payment_date_str = request.POST.get("payment_date", datetime.now().strftime("%Y-%m-%d"))
-            payment_method = request.POST.get("payment_method", "BANK_TRANSFER") # Default or get from form
+            payment_date_str = request.POST.get(
+                "payment_date", datetime.now().strftime("%Y-%m-%d")
+            )
+            payment_method = request.POST.get(
+                "payment_method", "BANK_TRANSFER"
+            )  # Default or get from form
 
             # Basic validation
             if not all([memo_id, payment_amount_str]):
-                return JsonResponse({"error": "Missing memo ID or payment amount"}, status=400)
+                return JsonResponse(
+                    {"error": "Missing memo ID or payment amount"}, status=400
+                )
 
             try:
                 payment_amount = Decimal(payment_amount_str)
                 if payment_amount <= 0:
-                    return JsonResponse({"error": "Payment amount must be positive"}, status=400)
+                    return JsonResponse(
+                        {"error": "Payment amount must be positive"}, status=400
+                    )
             except InvalidOperation:
-                return JsonResponse({"error": "Invalid payment amount format"}, status=400)
+                return JsonResponse(
+                    {"error": "Invalid payment amount format"}, status=400
+                )
 
             try:
                 payment_date = datetime.strptime(payment_date_str, "%Y-%m-%d").date()
             except ValueError:
-                return JsonResponse({"error": "Invalid payment date format. Use YYYY-MM-DD."}, status=400)
+                return JsonResponse(
+                    {"error": "Invalid payment date format. Use YYYY-MM-DD."},
+                    status=400,
+                )
 
             # Retrieve the memo and its details
             memo = get_object_or_404(InvoiceMemo, id=memo_id)
@@ -11398,16 +11499,20 @@ def process_payment(request):
             current_detail = memo.month_details.filter(month_sequence=3).first()
 
             # Apply payment hierarchically: Outstanding -> Previous -> Current
-            
+
             # 1. Apply to Outstanding balance
             if outstanding_detail and outstanding_detail.net_balance > 0:
                 amount_to_apply = min(remaining_payment, outstanding_detail.net_balance)
                 outstanding_detail.add_payment(amount_to_apply, receipt_number)
                 remaining_payment -= amount_to_apply
-                outstanding_detail.save() # Save the detail to update its net_balance
+                outstanding_detail.save()  # Save the detail to update its net_balance
 
             # 2. Apply to Previous month's balance
-            if remaining_payment > 0 and previous_detail and previous_detail.net_balance > 0:
+            if (
+                remaining_payment > 0
+                and previous_detail
+                and previous_detail.net_balance > 0
+            ):
                 amount_to_apply = min(remaining_payment, previous_detail.net_balance)
                 previous_detail.add_payment(amount_to_apply, receipt_number)
                 remaining_payment -= amount_to_apply
@@ -11416,8 +11521,10 @@ def process_payment(request):
             # 3. Apply to Current month's balance (as advanced payment if it creates a credit)
             if remaining_payment > 0 and current_detail:
                 # Apply up to the current month's net charges, any excess becomes "advanced"
-                amount_to_apply = min(remaining_payment, current_detail.net_balance) # This will be 0 if current_detail.net_balance is already 0 or negative
-                
+                amount_to_apply = min(
+                    remaining_payment, current_detail.net_balance
+                )  # This will be 0 if current_detail.net_balance is already 0 or negative
+
                 # If current month has a positive balance, apply payment to it
                 if current_detail.net_balance > 0:
                     current_detail.add_payment(amount_to_apply, receipt_number)
@@ -11428,13 +11535,12 @@ def process_payment(request):
                     # Treat the entire remaining_payment as an "advance" for the current month detail
                     # This will make its net_balance more negative (a larger credit)
                     current_detail.add_payment(remaining_payment, receipt_number)
-                    remaining_payment = Decimal('0.00') # All payment applied
+                    remaining_payment = Decimal("0.00")  # All payment applied
                     current_detail.save()
-
 
             # Update overall memo totals and status after applying payments to details
             memo.calculate_totals()
-            memo.save() # Save the memo to persist updated totals and status
+            memo.save()  # Save the memo to persist updated totals and status
 
             # Create a record in the PaymentTransaction model for the overall payment
             PaymentTransaction.objects.create(
@@ -11443,18 +11549,25 @@ def process_payment(request):
                 receipt_number=receipt_number,
                 payment_date=payment_date,
                 payment_method=payment_method,
-                user_created=request.user.username, # Use the logged-in user
-                is_active=True # Assuming active by default
+                user_created=request.user.username,  # Use the logged-in user
+                is_active=True,  # Assuming active by default
             )
 
-            messages.success(request, f"Payment of Rs.{payment_amount:,.2f} applied successfully to memo {memo.memo_code}.")
-            return JsonResponse({
-                "success": True,
-                "message": "Payment processed successfully.",
-                "memo_code": memo.memo_code,
-                "new_net_amount_due": float(memo.net_amount_due),
-                "remaining_payment_unapplied": float(remaining_payment) # Should be 0 if all applied
-            })
+            messages.success(
+                request,
+                f"Payment of Rs.{payment_amount:,.2f} applied successfully to memo {memo.memo_code}.",
+            )
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": "Payment processed successfully.",
+                    "memo_code": memo.memo_code,
+                    "new_net_amount_due": float(memo.net_amount_due),
+                    "remaining_payment_unapplied": float(
+                        remaining_payment
+                    ),  # Should be 0 if all applied
+                }
+            )
 
         except InvoiceMemo.DoesNotExist:
             messages.error(request, "Invoice Memo not found.")
@@ -11462,8 +11575,363 @@ def process_payment(request):
         except Exception as e:
             # Log the full traceback for debugging
             import traceback
+
             traceback.print_exc()
             messages.error(request, f"Error processing payment: {str(e)}")
             return JsonResponse({"error": str(e)}, status=500)
     else:
-        return JsonResponse({"error": "Invalid request method. Only POST is allowed."}, status=405)
+        return JsonResponse(
+            {"error": "Invalid request method. Only POST is allowed."}, status=405
+        )
+
+
+@login_required
+@transaction.atomic
+def process_payment_enhanced(request):
+    """Enhanced payment processing with detailed allocation tracking"""
+    if request.method == "POST":
+        try:
+            # Extract payment data
+            memo_id = request.POST.get("memo_id")
+            payment_amount_str = request.POST.get("payment_amount")
+            receipt_number = request.POST.get("receipt_number", "").strip()
+            payment_date_str = request.POST.get(
+                "payment_date", datetime.now().strftime("%Y-%m-%d")
+            )
+            payment_method = request.POST.get("payment_method", "BANK_TRANSFER")
+            payment_notes = request.POST.get("payment_notes", "").strip()
+
+            # Validation
+            if not all([memo_id, payment_amount_str]):
+                return JsonResponse(
+                    {"error": "Missing memo ID or payment amount"}, status=400
+                )
+
+            try:
+                payment_amount = Decimal(payment_amount_str)
+                if payment_amount <= 0:
+                    return JsonResponse(
+                        {"error": "Payment amount must be positive"}, status=400
+                    )
+            except:
+                return JsonResponse(
+                    {"error": "Invalid payment amount format"}, status=400
+                )
+
+            try:
+                payment_date = datetime.strptime(payment_date_str, "%Y-%m-%d").date()
+            except ValueError:
+                return JsonResponse(
+                    {"error": "Invalid payment date format"}, status=400
+                )
+
+            # Get memo
+            memo = get_object_or_404(InvoiceMemo, id=memo_id)
+
+            with transaction.atomic():
+                # Apply payment hierarchically
+                allocation_result = memo.apply_payment_hierarchically(
+                    payment_amount, receipt_number, payment_date
+                )
+
+                # Create overall payment transaction record
+                payment_transaction = PaymentTransaction.objects.create(
+                    memo=memo,
+                    amount=payment_amount,
+                    receipt_number=receipt_number,
+                    payment_date=payment_date,
+                    payment_method=payment_method,
+                    notes=payment_notes,
+                    user_created=request.user.username,
+                    is_active=True,
+                )
+
+                # Update payment transaction with allocation details
+                payment_transaction.notes = (
+                    f"{payment_notes}\n\nAllocation Details:\n"
+                    + json.dumps(allocation_result["allocation_breakdown"], indent=2)
+                )
+                payment_transaction.save()
+
+            # Prepare response
+            response_data = {
+                "success": True,
+                "message": f"Payment of Rs.{payment_amount:,.2f} processed successfully",
+                "memo_code": memo.memo_code,
+                "payment_transaction_id": payment_transaction.id,
+                "allocation_details": allocation_result,
+                "new_memo_balance": float(memo.net_amount_due),
+                "memo_status": memo.status,
+            }
+
+            # Add success message for UI
+            messages.success(
+                request,
+                f"Payment of Rs.{payment_amount:,.2f} applied successfully to memo {memo.memo_code}. "
+                f"New balance: Rs.{memo.net_amount_due:,.2f}",
+            )
+
+            return JsonResponse(response_data)
+
+        except Exception as e:
+            import traceback
+
+            traceback.print_exc()
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid request method"}, status=405)
+
+
+@login_required
+def get_memo_payment_history(request, memo_id):
+    """Get detailed payment history for a memo"""
+    try:
+        memo = get_object_or_404(InvoiceMemo, id=memo_id)
+
+        # Get payment summary from memo
+        payment_summary = memo.get_payment_summary()
+
+        # Get all payment transactions
+        payment_transactions = PaymentTransaction.objects.filter(
+            memo=memo, is_active=True
+        ).order_by("-payment_date")
+
+        transaction_list = []
+        for txn in payment_transactions:
+            transaction_list.append(
+                {
+                    "id": txn.id,
+                    "amount": float(txn.amount),
+                    "receipt_number": txn.receipt_number,
+                    "payment_date": txn.payment_date.strftime("%Y-%m-%d"),
+                    "payment_method": txn.payment_method,
+                    "notes": txn.notes,
+                    "user_created": txn.user_created,
+                    "date_created": txn.date_created.strftime("%Y-%m-%d %H:%M"),
+                }
+            )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "memo_code": memo.memo_code,
+                "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}",
+                "payment_summary_by_month": payment_summary,
+                "payment_transactions": transaction_list,
+                "total_payments": float(memo.total_payments),
+                "current_balance": float(memo.net_amount_due),
+            }
+        )
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# =============================================================================
+# MEMO LOADING WITH PAYMENT VALIDATION
+# =============================================================================
+
+
+def prepare_memo_display_data_with_payment_validation(memo):
+    """
+    Enhanced memo display preparation with payment validation
+    Ensures payment allocation is correct when loading memo
+    """
+    try:
+        # Get payment summary to validate current state
+        payment_summary = memo.get_payment_summary()
+
+        # Validate payment allocation (optional integrity check)
+        total_payments_calculated = sum(
+            month["payments_received"] for month in payment_summary
+        )
+
+        if abs(total_payments_calculated - float(memo.total_payments)) > 0.01:
+            # Payment mismatch detected - log for investigation
+            print(f"WARNING: Payment mismatch in memo {memo.memo_code}")
+            print(
+                f"Calculated: {total_payments_calculated}, Stored: {memo.total_payments}"
+            )
+
+            # Optionally trigger recalculation
+            memo.calculate_totals()
+
+        # Use existing prepare_memo_display_data_fixed function
+        memo_data = prepare_memo_display_data_fixed(memo)
+
+        # Add enhanced payment information
+        memo_data["payment_validation"] = {
+            "total_payments_calculated": total_payments_calculated,
+            "total_payments_stored": float(memo.total_payments),
+            "is_consistent": abs(total_payments_calculated - float(memo.total_payments))
+            <= 0.01,
+            "payment_summary_by_month": payment_summary,
+        }
+
+        return memo_data
+
+    except Exception as e:
+        print(f"Error in payment validation: {str(e)}")
+        # Fallback to original function
+        return prepare_memo_display_data_fixed(memo)
+
+
+# =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
+
+
+def validate_memo_payments(memo_id):
+    """
+    Standalone function to validate and fix payment allocations for a memo
+    Can be called manually or as part of data maintenance
+    """
+    try:
+        memo = InvoiceMemo.objects.get(id=memo_id)
+
+        # Get all payment transactions
+        payment_transactions = PaymentTransaction.objects.filter(
+            memo=memo, is_active=True
+        ).order_by("payment_date")
+
+        # Reset all month payments
+        for detail in memo.month_details.all():
+            detail.payments_received = Decimal("0.00")
+            detail.payment_receipts = []
+            detail.save()
+
+        # Reapply all payments in chronological order
+        for txn in payment_transactions:
+            memo.apply_payment_hierarchically(
+                txn.amount, txn.receipt_number, txn.payment_date
+            )
+
+        return {
+            "success": True,
+            "memo_code": memo.memo_code,
+            "transactions_reprocessed": payment_transactions.count(),
+            "final_balance": float(memo.net_amount_due),
+        }
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+# =============================================================================
+# AJAX ENDPOINT FOR PAYMENT VALIDATION
+# =============================================================================
+
+
+@login_required
+def validate_memo_payments_ajax(request, memo_id):
+    """AJAX endpoint to validate and fix memo payments"""
+    if request.method == "POST":
+        result = validate_memo_payments(memo_id)
+        return JsonResponse(result)
+    return JsonResponse({"error": "Invalid method"}, status=405)
+
+
+@login_required
+def get_memo_by_id_enhanced(request, memo_id):
+    """Enhanced memo retrieval with payment validation"""
+    try:
+        memo = get_object_or_404(InvoiceMemo, pk=memo_id)
+
+        # Use enhanced display preparation with payment validation
+        memo_data = prepare_memo_display_data_with_payment_validation(memo)
+
+        return JsonResponse(
+            {
+                "success": True,
+                "memo": {
+                    "id": memo.id,
+                    "memo_code": memo.memo_code,
+                    "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}",
+                    "child_admission": memo.child.admission_number,
+                    "memo_month": memo.memo_month,
+                    "memo_year": memo.memo_year,
+                    "month_name": calendar.month_name[memo.memo_month],
+                    "net_amount_due": float(memo.net_amount_due),
+                    "total_payments_received": float(memo.total_payments),
+                    "status": memo.status,
+                    "detailed_breakdown": memo_data.get("payment_validation", {}).get(
+                        "payment_summary_by_month", []
+                    ),
+                },
+            }
+        )
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def get_child_outstanding_balance(request):
+    """
+    Calculates the outstanding balance for a child by finding the 'net_amount_due'
+    from the most recently generated memo. This is the correct "balance brought forward".
+    """
+    if request.method == "GET":
+        child_id = request.GET.get("child_id")
+        # These define the period for the NEW memo we are creating
+        new_memo_month = int(request.GET.get("month"))
+        new_memo_year = int(request.GET.get("year"))
+
+        if not all([child_id, new_memo_month, new_memo_year]):
+            return JsonResponse({"error": "Missing parameters"}, status=400)
+
+        try:
+            # Find the most recent memo that comes *before* the new memo's period.
+            # We use `order_by` to get the latest one first.
+            latest_previous_memo = (
+                InvoiceMemo.objects.filter(
+                    child_id=child_id, is_active=True, memo_year__lt=new_memo_year
+                )
+                .order_by("-memo_year", "-memo_month")
+                .first()
+            )
+
+            # If no memo in a previous year, check the current year for a previous month
+            if not latest_previous_memo:
+                latest_previous_memo = (
+                    InvoiceMemo.objects.filter(
+                        child_id=child_id,
+                        is_active=True,
+                        memo_year=new_memo_year,
+                        memo_month__lt=new_memo_month,
+                    )
+                    .order_by("-memo_month")
+                    .first()
+                )
+
+            if latest_previous_memo:
+                # The outstanding balance is the final "net_amount_due" of the last memo.
+                outstanding_balance = latest_previous_memo.net_amount_due
+
+                # We only carry forward a DEBIT balance. Credits are handled separately.
+                if outstanding_balance < 0:
+                    outstanding_balance = Decimal(
+                        "0.00"
+                    )  # Don't carry forward credit as a negative outstanding
+
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "outstanding_balance": float(outstanding_balance),
+                        "message": f"Found previous memo {latest_previous_memo.memo_code}. Outstanding balance is Rs. {outstanding_balance:,.2f}",
+                    }
+                )
+            else:
+                # If no previous memos exist at all for this child.
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "outstanding_balance": 0.00,
+                        "message": "No previous memos found for this child. Outstanding is zero.",
+                    }
+                )
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid request method"}, status=405)

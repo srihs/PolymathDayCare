@@ -777,6 +777,98 @@ class InvoiceMemo(BaseClass):
     def get_memo_month_name(self):
         return calendar.month_name[self.memo_month]
 
+    def apply_payment_hierarchically(
+        self, payment_amount, receipt_number=None, payment_date=None
+    ):
+        """
+        Apply payment hierarchically: Outstanding → Previous → Current
+        Returns detailed breakdown of payment allocation
+        """
+        from decimal import Decimal
+
+        if payment_date is None:
+            payment_date = datetime.now().date()
+
+        remaining_amount = Decimal(str(payment_amount))
+        allocation_breakdown = []
+
+        # Get month details in sequence order
+        details = self.month_details.all().order_by("month_sequence")
+
+        for detail in details:
+            if remaining_amount <= 0:
+                break
+
+            # Only apply payment if this month has a positive balance
+            if detail.net_balance > 0:
+                amount_to_apply = min(remaining_amount, detail.net_balance)
+
+                # Apply payment to this month
+                detail.add_payment(amount_to_apply, receipt_number)
+
+                allocation_breakdown.append(
+                    {
+                        "month_type": detail.month_type,
+                        "month_name": detail.month_name,
+                        "amount_applied": float(amount_to_apply),
+                        "previous_balance": float(detail.net_balance + amount_to_apply),
+                        "new_balance": float(detail.net_balance),
+                        "receipt_number": receipt_number,
+                    }
+                )
+
+                remaining_amount -= amount_to_apply
+
+        # If there's still remaining amount, apply as advance to current month
+        if remaining_amount > 0:
+            current_detail = details.filter(month_type="CURRENT").first()
+            if current_detail:
+                current_detail.add_payment(remaining_amount, receipt_number)
+                allocation_breakdown.append(
+                    {
+                        "month_type": "CURRENT",
+                        "month_name": current_detail.month_name,
+                        "amount_applied": float(remaining_amount),
+                        "previous_balance": float(
+                            current_detail.net_balance + remaining_amount
+                        ),
+                        "new_balance": float(current_detail.net_balance),
+                        "receipt_number": receipt_number,
+                        "note": "Applied as advance payment (creates credit)",
+                    }
+                )
+
+        # Recalculate memo totals
+        self.calculate_totals()
+
+        return {
+            "total_applied": float(payment_amount),
+            "allocation_breakdown": allocation_breakdown,
+            "memo_net_balance": float(self.net_amount_due),
+        }
+
+    def get_payment_summary(self):
+        """Get comprehensive payment summary for all months"""
+        details = self.month_details.all().order_by("month_sequence")
+        payment_summary = []
+
+        for detail in details:
+            payments = detail.payment_receipts if detail.payment_receipts else []
+            payment_summary.append(
+                {
+                    "month_type": detail.month_type,
+                    "month_name": detail.month_name,
+                    "year": detail.actual_year,
+                    "gross_charges": float(detail.gross_charges),
+                    "payments_received": float(detail.payments_received),
+                    "net_balance": float(detail.net_balance),
+                    "payment_count": len(payments),
+                    "payment_details": payments,
+                }
+            )
+
+        return payment_summary
+
 
 class InvoiceMemoDetail(BaseClass):
     """
@@ -907,19 +999,16 @@ class InvoiceMemoDetail(BaseClass):
 # In core/models.py
 
 from django.db import models
-from datetime import datetime, timedelta
-from decimal import Decimal
-import calendar
 from django.utils import timezone
-import os
 
 # Assuming BaseClass, InvoiceMemo, and InvoiceMemoDetail are already defined as you provided.
 # Just add this new model to your existing models.py file.
 
+
 class PaymentTransaction(models.Model):
     id = models.AutoField(primary_key=True)
     memo = models.ForeignKey(
-        'InvoiceMemo', on_delete=models.CASCADE, related_name='payments'
+        "InvoiceMemo", on_delete=models.CASCADE, related_name="payments"
     )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     receipt_number = models.CharField(max_length=50, blank=True, null=True)
@@ -937,9 +1026,13 @@ class PaymentTransaction(models.Model):
     )
     notes = models.TextField(blank=True, null=True)
     date_created = models.DateTimeField(auto_now_add=True)
-    user_created = models.CharField(max_length=50, default='system') # Added default for simplicity, adjust as needed
+    user_created = models.CharField(
+        max_length=50, default="system"
+    )  # Added default for simplicity, adjust as needed
     date_updated = models.DateTimeField(auto_now=True)
-    user_updated = models.CharField(max_length=50, default='system') # Added default for simplicity, adjust as needed
+    user_updated = models.CharField(
+        max_length=50, default="system"
+    )  # Added default for simplicity, adjust as needed
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -951,3 +1044,33 @@ class PaymentTransaction(models.Model):
     def __str__(self):
         return f"{self.memo.memo_code} - Rs.{self.amount} - {self.receipt_number}"
 
+    def add_payment(self, amount, receipt_number=None):
+        """Enhanced payment addition with better tracking"""
+        from datetime import datetime
+        from decimal import Decimal
+
+        amount_decimal = Decimal(str(amount))
+        self.payments_received += amount_decimal
+
+        # Create payment record
+        payment_record = {
+            "amount": float(amount_decimal),
+            "receipt_number": receipt_number
+            or f"AUTO-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "timestamp": datetime.now().isoformat(),
+            "month_type": self.month_type,
+            "month_name": self.month_name,
+        }
+
+        # Initialize payment_receipts if None
+        if not isinstance(self.payment_receipts, list):
+            self.payment_receipts = []
+
+        self.payment_receipts.append(payment_record)
+
+        # Recalculate totals
+        self.calculate_totals()
+        self.save()
+
+        return payment_record

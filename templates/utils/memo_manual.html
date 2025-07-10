@@ -1401,6 +1401,21 @@ $(document).ready(function() {
     setTimeout(function() {
         updateMonthNames();
     }, 500);
+
+    $('#child, #month, #year').on('change', function() {
+        clearTimeout(monthYearChangeTimeout);
+        monthYearChangeTimeout = setTimeout(function() {
+            const childId = $('#child').val();
+            if (childId) {
+                clearAllManualFields();
+                fetchOutstandingBalance();
+                loadChildDetails();
+            } else {
+                clearAllManualFields();
+            }
+            updateMonthNames();
+        }, 500);
+    });
     
     // Event listeners with namespaced events to prevent duplicate handlers
     $('#child').off('change.memo').on('change.memo', function() {
@@ -1978,6 +1993,61 @@ function getCookie(name) {
         }
     }
     return cookieValue;
+}
+
+function fetchOutstandingBalance() {
+    const childId = $('#child').val();
+    const month = $('#month').val();
+    const year = $('#year').val();
+
+    if (!childId || !month || !year) {
+        $('#outstanding_amount').val('0.00').trigger('change');
+        return;
+    }
+
+    debugLog(`Fetching TRUE outstanding balance for Child: ${childId}, up to period: ${month}/${year}`);
+
+    const outstandingField = $('#outstanding_amount');
+    outstandingField.addClass('loading-state');
+
+    $.ajax({
+        // Use the NEW, CORRECT URL
+        url: "{% url 'core:get_child_outstanding_balance' %}",
+        method: 'GET',
+        data: {
+            child_id: childId,
+            month: month,
+            year: year
+        },
+        success: function(response) {
+            if (response.success) {
+                const balance = parseFloat(response.outstanding_balance || 0);
+                
+                // We only care about positive (due) balances for the outstanding field
+                if (balance > 0) {
+                    outstandingField.val(balance.toFixed(2));
+                    debugLog(`Set outstanding amount to: ${balance.toFixed(2)}`);
+                } else {
+                    outstandingField.val('0.00');
+                    debugLog('Calculated outstanding is zero or credit. Setting field to 0.');
+                }
+                
+                // Trigger change to recalculate totals on the form
+                outstandingField.trigger('change');
+
+            } else {
+                outstandingField.val('0.00').trigger('change');
+                console.error("Error fetching balance:", response.error);
+            }
+        },
+        error: function(xhr) {
+            console.error("Failed to fetch outstanding balance:", xhr.responseJSON || xhr.responseText);
+            outstandingField.val('0.00').trigger('change');
+        },
+        complete: function() {
+            outstandingField.removeClass('loading-state');
+        }
+    });
 }
 
 </script>
