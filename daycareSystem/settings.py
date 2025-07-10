@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "core",
     "transactions",
     "corsheaders",
+    "django.contrib.humanize",
 ]
 
 MIDDLEWARE = [
