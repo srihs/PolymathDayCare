@@ -396,11 +396,7 @@ urlpatterns = [
         views.downloadInvoiceMemoPDF,
         name="download_invoice_memo_pdf",
     ),
-    path(
-        "get_invoice_memo_by_id/<int:pk>/",
-        views.getInvoiceMemoByID,
-        name="get_invoice_memo_by_id",
-    ),
+
     path(
         "enhance_memo_breakdown/",
         views.enhanceExistingMemoBreakdown,
