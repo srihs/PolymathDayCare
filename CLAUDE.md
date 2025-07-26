@@ -52,6 +52,50 @@ python manage.py flush
 python manage.py collectstatic
 ```
 
+### Testing
+```bash
+# Run all tests
+python manage.py test
+
+# Run tests for specific app
+python manage.py test core
+python manage.py test transactions
+
+# Run with verbosity for detailed output
+python manage.py test --verbosity=2
+
+# Run specific test class or method
+python manage.py test core.tests.SomeTestClass
+python manage.py test core.tests.SomeTestClass.test_method
+
+# Keep test database after tests (faster subsequent runs)
+python manage.py test --keepdb
+
+# Run tests in parallel
+python manage.py test --parallel
+```
+
+### Code Quality & Linting
+```bash
+# Note: Linting tools need to be installed first
+# pip install ruff mypy black isort
+
+# Format code with Ruff (configured in VS Code)
+ruff format .
+
+# Lint and auto-fix issues
+ruff check . --fix
+
+# Check without fixing
+ruff check .
+
+# Type checking (if mypy installed)
+mypy core/ transactions/
+
+# Security linting (if bandit installed)
+bandit -r core/ transactions/
+```
+
 ## Architecture Overview
 
 ### Core Applications
@@ -112,26 +156,48 @@ Major URL patterns:
 
 ### Environment Variables (.env)
 Required variables:
-- `SECRET_KEY`: Django secret key
+- `SECRET_KEY`: Django secret key for cryptographic signing
 - `DEBUG`: Debug mode (True/False)
-- `DB_NAME`: MySQL database name
-- `DB_USER`: Database username
+- `DB_NAME`: MySQL database name (default: polymath_core)
+- `DB_USER`: Database username (default: root)
 - `DB_PASSWORD`: Database password
-- `DB_HOST`: Database host
-- `DB_PORT`: Database port
-- `PROD_URL`: Production URL for QR codes
-- `QR_METHOD_NAME`: QR code scanning method
+- `DB_HOST`: Database host (default: localhost)
+- `DB_PORT`: Database port (default: 3306)
+- `PROD_URL`: Production URL for QR codes (default: https://dc.polymathcore.online/)
+- `QR_METHOD_NAME`: QR code scanning method (default: checkInView)
+
+**Security Note**: Environment file contains actual credentials. For production, use secure credential management.
 
 ### Database
-- **Engine**: MySQL (configured in settings.py)
+- **Engine**: MySQL via `django.db.backends.mysql`
+- **Driver**: mysqlclient 2.2.4
 - **Tables**: Prefixed with `dc_` (daycare)
-- **Timezone**: Asia/Colombo
+- **Timezone**: Asia/Colombo (overrides UTC)
+- **Connection**: All parameters from environment variables
 
 ### Static Files
 - **CSS**: Bootstrap + custom styles in `static/assets/css/`
 - **JavaScript**: jQuery + DataTables in `static/assets/js/`
 - **Images**: Stored in `media/child_images/`
 - **QR Codes**: Generated in `media/qr/`
+- **Static URL**: `/static/` (development), collected to `staticfiles/` (production)
+- **Media URL**: `media/` with auto-created directories
+
+### Code Quality Setup
+**Current VS Code Configuration**:
+- Ruff configured as default Python formatter (87-88 character line limit)
+- Format on save and auto-organize imports enabled
+- Django template linting disabled
+
+**Missing Dependencies** (need to install):
+```bash
+pip install ruff mypy black isort pre-commit bandit
+```
+
+**Recommended Configuration Files**:
+- `pyproject.toml`: Ruff/Black configuration
+- `.pre-commit-config.yaml`: Pre-commit hooks
+- `mypy.ini`: Type checking configuration
 
 ## Key Features
 
@@ -166,7 +232,8 @@ Many models use a 3-state approval system:
 - Many-to-many relationships handled through explicit mapping models
 
 ### Sessions
-- Short session timeout (3 minutes)
+- Session timeout: 50 minutes (3000 seconds)
+- Sessions extend on each request (`SESSION_SAVE_EVERY_REQUEST = True`)
 - Sessions expire on browser close
 - Login required for most views
 
@@ -202,3 +269,35 @@ Most approval workflows follow the pattern:
 - Automatically generated on child creation
 - Links to attendance recording URL
 - Format: `{PROD_URL}/{QR_METHOD_NAME}/{admission_number}/`
+
+## Security & Production Notes
+
+### Current Security Configuration
+- **CORS**: Very permissive (`CORS_ORIGIN_ALLOW_ALL = True`)
+- **Allowed Hosts**: Mixed configuration (both restrictive and `["*"]`)
+- **CSRF**: Trusted origins limited to `polymathcore.online` domain
+- **Sessions**: Server-side with automatic expiration
+
+### Production Considerations
+**Before Deployment**:
+1. **Environment Security**: Remove actual credentials from `.env`, use secure credential management
+2. **CORS Configuration**: Restrict `CORS_ORIGIN_ALLOW_ALL` to specific domains
+3. **Host Configuration**: Remove permissive `ALLOWED_HOSTS = ["*"]`
+4. **Debug Mode**: Ensure `DEBUG=False` in production
+5. **Static File Serving**: Configure web server (nginx/Apache) for static files
+
+**Dependencies with Security Implications**:
+- `mysqlclient`: Direct database access - secure connection strings
+- `django-cors-headers`: Currently very permissive
+- `reportlab` + `xhtml2pdf`: PDF generation - validate input data
+
+### Testing Notes
+**Current State**: 
+- Empty test files in `core/tests.py` and `transactions/tests.py`
+- No test database configuration (uses Django defaults)
+- No continuous integration setup
+
+**For New Tests**:
+- Django's built-in testing framework available
+- Test database auto-created with `test_` prefix
+- Consider using SQLite for faster test execution
