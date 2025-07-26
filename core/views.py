@@ -37,7 +37,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from PIL import Image, ImageDraw, ImageFont
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
@@ -103,23 +102,23 @@ from .models import (
     PaymentTransaction,
 )
 
-
 # Authentication and Basic Utility Functions
+
 
 @login_required
 def index(request):
     """
     Renders the main dashboard/home page of the daycare management system.
-    
+
     This is the entry point after successful login, displaying the main navigation
     and dashboard overview for the daycare management system.
-    
+
     Args:
         request (HttpRequest): The HTTP request object containing user session data
-        
+
     Returns:
         HttpResponse: Renders the base.html template with the current user's username
-        
+
     Business Logic:
         - Requires user authentication via @login_required decorator
         - Passes the current user's username to the template for display
@@ -132,16 +131,16 @@ def index(request):
 def UserLogOut(request):
     """
     Logs out the current user and redirects to the home page.
-    
+
     This function handles user logout by clearing the session data and
     redirecting to the login/home page.
-    
+
     Args:
         request (HttpRequest): The HTTP request object containing user session
-        
+
     Returns:
         HttpResponseRedirect: Redirects to the home page after logout
-        
+
     Business Logic:
         - Clears all session data for the current user
         - Redirects to the core:home URL pattern (typically login page)
@@ -154,17 +153,17 @@ def UserLogOut(request):
 def UserLogin(request):
     """
     Handles user authentication and login for the daycare management system.
-    
+
     This function processes both GET and POST requests for user login.
     GET requests display the login form, while POST requests attempt to
     authenticate the user credentials.
-    
+
     Args:
         request (HttpRequest): The HTTP request object containing login data
-        
+
     Returns:
         HttpResponse: Either renders login.html template or redirects after successful login
-        
+
     Business Logic:
         - GET request: Displays the login form
         - POST request: Validates username and password credentials
@@ -204,26 +203,26 @@ def UserLogin(request):
 def generateQR(admission_no, child_first_name, child_last_name):
     """
     Generates a QR code image for a child's attendance tracking.
-    
+
     This function creates a QR code containing the child's attendance tracking URL,
     adds the child's name and admission number as text below the QR code,
     and saves the complete image to the media/qr directory.
-    
+
     Args:
         admission_no (str): The child's unique admission number
         child_first_name (str): The child's first name
         child_last_name (str): The child's last name
-        
+
     Returns:
         str: The filename of the generated QR code image
-        
+
     Business Logic:
         - Creates QR code with URL: PROD_URL + QR_METHOD_NAME + admission_no
         - Generates PNG image with QR code and child's name/admission number
         - Saves image to media/qr/ directory with structured filename
         - QR code links to attendance recording system for easy check-in/out
         - Image includes child identification text for manual verification
-        
+
     File Structure:
         - Filename format: "[admission_no]- [first_name] [last_name].png"
         - Saved to: media/qr/[filename]
@@ -487,18 +486,18 @@ def createChild(request):
 def deleteChild(request, pk):
     """
     Soft deletes a child record by setting is_active to False.
-    
+
     This function performs a soft delete operation on a child record,
     preserving the data for historical purposes while marking the child
     as inactive. It also sets the leave date and updates audit fields.
-    
+
     Args:
         request (HttpRequest): The HTTP request object
         pk (int): The primary key of the child to delete
-        
+
     Returns:
         HttpResponseRedirect: Redirects to view_child page
-        
+
     Business Logic:
         - Checks user permissions (Data Entry users are restricted)
         - Performs soft delete by setting is_active=False
@@ -506,7 +505,7 @@ def deleteChild(request, pk):
         - Updates user_updated audit field
         - Preserves all child data for historical and reporting purposes
         - Shows appropriate success/error messages
-        
+
     Security:
         - Requires login authentication
         - Restricts Data Entry group users from deletion
@@ -532,21 +531,22 @@ def deleteChild(request, pk):
 
 # Package Type Management Functions
 
+
 @login_required
 def getPackageTypeJs(reuest):
     """
     Retrieves all active package types as JSON for frontend consumption.
-    
+
     This endpoint provides package type data for use in dropdowns,
     DataTables, and other frontend components that need to display
     or select package types.
-    
+
     Args:
         request (HttpRequest): The HTTP request object
-        
+
     Returns:
         JsonResponse: JSON array containing active package types
-        
+
     Business Logic:
         - Filters package types by is_active=True
         - Returns essential package type information
@@ -568,22 +568,22 @@ def getPackageTypeJs(reuest):
 def getPacakgeTypes(request):
     """
     Displays the package types management page with creation form.
-    
+
     This function renders the package types management interface,
     allowing users to view, create, and manage package types.
-    
+
     Args:
         request (HttpRequest): The HTTP request object
-        
+
     Returns:
         HttpResponse: Renders packagetypes.html template with form
-        
+
     Business Logic:
         - GET request: Shows empty creation form
         - Handles both creation and update scenarios
         - Provides interface for managing package types
         - Package types define normal vs holiday packages
-        
+
     Package Type Categories:
         - Normal packages: Regular daycare packages
         - Holiday packages: Special pricing for holiday periods
@@ -607,17 +607,17 @@ def getPacakgeTypes(request):
 def getPackageTypeIdJs(request):
     """
     Retrieves a specific package type by ID as JSON with formatted data.
-    
+
     This endpoint fetches a single package type and formats the data
     for frontend display, including converting boolean values to
     user-friendly text.
-    
+
     Args:
         request (HttpRequest): The HTTP request object with packageType_id parameter
-        
+
     Returns:
         JsonResponse: JSON array containing the specific package type
-        
+
     Business Logic:
         - Expects packageType_id in GET parameters
         - Converts is_active boolean to "Active"/"Inactive" text
@@ -646,16 +646,16 @@ def getPackageTypeIdJs(request):
 def getPackageTypeId(request):
     """
     Retrieves a specific package type and prepares it for editing.
-    
+
     This function fetches a package type record by ID and creates
     an update form pre-populated with the existing data.
-    
+
     Args:
         request (HttpRequest): The HTTP request object with packageType_id parameter
-        
+
     Returns:
         HttpResponse: Renders packagetypeUpdate.html template with update form
-        
+
     Business Logic:
         - Expects packageType_id in GET parameters
         - Stores package type ID in session for update operation
@@ -686,16 +686,16 @@ def getPackageTypeId(request):
 def savePackageTypes(request):
     """
     Saves or updates package type information.
-    
+
     This function handles both creation of new package types and
     updates to existing ones, with proper validation and security checks.
-    
+
     Args:
         request (HttpRequest): The HTTP request object containing package type data
-        
+
     Returns:
         HttpResponseRedirect: Redirects to package types view page
-        
+
     Business Logic:
         - Handles both create and update operations
         - Validates user permissions (restricts Data Entry users)
@@ -703,12 +703,12 @@ def savePackageTypes(request):
         - Updates audit fields (user_updated, date_updated)
         - Creates new record if no ID provided
         - Updates existing record if ID provided
-        
+
     Form Fields:
         - package_type_name: Name of the package type
         - is_holiday_package: Boolean flag for holiday packages
         - is_active: Always set to True for new/updated records
-        
+
     Security:
         - Restricts Data Entry group users from updates
         - Validates package type existence before update
@@ -757,26 +757,27 @@ def savePackageTypes(request):
 
 # Additional Rates and Extra Hours Management Functions
 
+
 @login_required
 def getAdditionalRatesUpto530(request):
     """
     Displays the additional rates (up to 5:30 PM) management page.
-    
+
     This function renders the interface for managing extra hour rates
     that apply to children who stay beyond regular hours but before 5:30 PM.
-    
+
     Args:
         request (HttpRequest): The HTTP request object
-        
+
     Returns:
         HttpResponse: Renders extrahourseupto530.html template with form
-        
+
     Business Logic:
         - Displays form for creating extra hour rates (up to 5:30 PM)
         - Supports rate definition for hours 1-6 beyond regular time
         - Each hour can have different rates and effective date ranges
         - Used for managing tiered pricing structure
-        
+
     Rate Structure:
         - Hour 1-6: Different rates for each additional hour
         - Effective date ranges: Start and end dates for rate validity
@@ -800,17 +801,17 @@ def getAdditionalRatesUpto530(request):
 def saveAdditionalRatesUpTo530(request):
     """
     Saves additional rates for extra hours up to 5:30 PM.
-    
+
     This function processes the form data for creating extra hour rates
     that apply before 5:30 PM, creating both the rate records and
     corresponding history entries for audit purposes.
-    
+
     Args:
         request (HttpRequest): The HTTP request object containing rate data
-        
+
     Returns:
         HttpResponseRedirect: Redirects to additional rates page
-        
+
     Business Logic:
         - Validates user permissions (restricts Data Entry users)
         - Processes rates for hours 1-6 beyond regular time
@@ -818,12 +819,12 @@ def saveAdditionalRatesUpTo530(request):
         - Creates corresponding ExtraChargesHistory records
         - Uses atomic transactions to ensure data consistency
         - Only saves rates that have both rate and effective_from date
-        
+
     Database Operations:
         - Creates ExtraHoursUpTo530 records for pricing
         - Creates ExtraChargesHistory records for audit trail
         - Uses @transaction.atomic for data integrity
-        
+
     Form Processing:
         - Processes dynamic form fields (extra_rate_1 to extra_rate_6)
         - Validates required fields before saving
@@ -871,29 +872,29 @@ def saveAdditionalRatesUpTo530(request):
 def updateAdditionalRatesUpto530(request):
     """
     Updates existing additional rates for extra hours up to 5:30 PM.
-    
+
     This function handles updates to existing extra hour rates,
     maintaining a complete audit trail by creating history records
     for all changes.
-    
+
     Args:
         request (HttpRequest): The HTTP request object containing updated rate data
-        
+
     Returns:
         HttpResponseRedirect: Redirects to additional rates page
-        
+
     Business Logic:
         - Validates user permissions (restricts Data Entry users)
         - Updates existing ExtraHoursUpTo530 record
         - Creates new ExtraChargesHistory record for audit trail
         - Uses atomic transactions for data consistency
         - Updates audit fields (user_updated)
-        
+
     Database Operations:
         - Updates ExtraHoursUpTo530 record with new values
         - Creates ExtraChargesHistory record for change tracking
         - Uses @transaction.atomic for data integrity
-        
+
     Audit Trail:
         - Every rate change creates a history record
         - Tracks who made the change and when
@@ -1212,27 +1213,27 @@ def updateAdditionalRates(request):
 def calculate_duration(request):
     """
     Calculates the duration between two times in hours and minutes.
-    
+
     This utility function takes start and end times and calculates
     the duration between them, returning the result as hours and minutes.
     Used for calculating package durations and attendance periods.
-    
+
     Args:
         request (HttpRequest): GET request with from_time and to_time parameters
-        
+
     Returns:
         JsonResponse: JSON object containing duration_hours and duration_minutes
-        
+
     URL Parameters:
         from_time (str): Start time in "HH:MM" format
         to_time (str): End time in "HH:MM" format
-        
+
     Business Logic:
         - Parses time strings into datetime objects
         - Calculates difference in seconds
         - Converts to hours and minutes
         - Used for package duration calculations
-        
+
     Error Handling:
         - Returns 400 for invalid time formats
         - Returns 500 for other exceptions
@@ -1261,40 +1262,38 @@ def calculate_duration(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-
-
 @login_required
 def getFixedPackages(request):
     """
     Displays the fixed packages management page with creation form.
-    
+
     This function renders the fixed packages management interface,
     allowing users to create and manage time-based daycare packages
     with fixed hours and pricing.
-    
+
     Args:
         request (HttpRequest): The HTTP request object
-        
+
     Returns:
         HttpResponse: Renders fixedpackages.html template with form
-        
+
     Business Logic:
         - Generates next package code (FIP00X format)
         - Validates prerequisite data (package types, extra charges)
         - Shows error messages if prerequisites are missing
         - Provides form for creating new fixed packages
-        
+
     Fixed Package Features:
         - Time-based packages with from/to times
         - Fixed number of hours per day/week/month
         - Automatic duration calculation
         - Integration with extra hour charges
-        
+
     Prerequisites:
         - Package types must be defined
         - Extra charges must be configured
         - Both are required for package creation
-        
+
     Security:
         - Requires login authentication
         - Package code auto-generation prevents conflicts
@@ -1335,30 +1334,30 @@ def getFixedPackages(request):
 def getFixedPackagesJs(request):
     """
     Retrieves all fixed packages as JSON for frontend consumption.
-    
+
     This endpoint provides fixed package data for use in DataTables,
     dropdowns, and other frontend components that need to display
     or select fixed packages.
-    
+
     Args:
         request (HttpRequest): The HTTP request object
-        
+
     Returns:
         JsonResponse: JSON array containing fixed package details
-        
+
     Business Logic:
         - Fetches all fixed packages with essential fields
         - Resolves package type foreign key to readable name
         - Includes timing, duration, and pricing information
         - Used for package selection and display
-        
+
     Package Information:
         - Package identification (id, code, name)
         - Timing details (from_time, to_time, no_hours)
         - Frequency (no_days_week, no_days_months)
         - Pricing (package_total)
         - Package type (resolved to name)
-        
+
     Security:
         - Requires login authentication
         - No sensitive data filtering needed
@@ -1392,38 +1391,38 @@ def getFixedPackagesJs(request):
 def saveFixedPackage(request):
     """
     Saves a new fixed package with automatic extra hours mapping.
-    
+
     This function processes the form data for creating a new fixed package,
     automatically setting up the appropriate extra hours mappings based on
     the package timing and type.
-    
+
     Args:
         request (HttpRequest): POST request containing fixed package data
-        
+
     Returns:
         HttpResponseRedirect: Redirects to view_fixed_packages page
-        
+
     Business Logic:
         - Creates new FixedPackage record from form data
         - Determines if package is holiday-based from package type
         - Automatically creates PackageExtraHoursMapping records
         - Maps extra hours that extend beyond package end time
         - Maps before 5:30 PM rates if package ends before 5:30 PM
-        
+
     Extra Hours Mapping:
         - After 5:30 PM: Maps rates that extend beyond package end time
         - Before 5:30 PM: Maps all rates if package ends before 5:30 PM
         - Only applies to non-holiday packages
-        
+
     Database Operations:
         - Creates FixedPackage record
         - Creates multiple PackageExtraHoursMapping records
         - Uses @transaction.atomic for data consistency
-        
+
     Package Code Generation:
         - Uses format: FIP00X (Fixed Package)
         - Auto-increments based on existing package count
-        
+
     Security:
         - Requires login authentication
         - Uses atomic transactions for data integrity
@@ -1477,38 +1476,38 @@ def saveFixedPackage(request):
 def getFlexPackages(request):
     """
     Displays the flexible packages management page with creation form.
-    
+
     This function renders the flexible packages management interface,
     allowing users to create and manage hour-based flexible daycare packages
     without fixed time constraints.
-    
+
     Args:
         request (HttpRequest): The HTTP request object
-        
+
     Returns:
         HttpResponse: Renders flexpackages.html template with form
-        
+
     Business Logic:
         - Generates next package code (FLP00X format)
         - Validates prerequisite data (package types, extra charges)
         - Shows error messages if prerequisites are missing
         - Provides form for creating new flexible packages
-        
+
     Flexible Package Features:
         - Hour-based packages without fixed times
         - Flexible usage within defined limits
         - Total hours per week/month allocation
         - Integration with extra hour charges
-        
+
     Prerequisites:
         - Package types must be defined
         - Extra charges must be configured
         - Both are required for package creation
-        
+
     Package Code Format:
         - FLP00X (Flexible Package)
         - Auto-increments based on existing count
-        
+
     Security:
         - Requires login authentication
         - Package code auto-generation prevents conflicts
@@ -1545,36 +1544,36 @@ def getFlexPackages(request):
 def getflexPackagesJs(request):
     """
     Retrieves all flexible packages as JSON for frontend consumption.
-    
+
     This endpoint provides flexible package data for use in DataTables,
     dropdowns, and other frontend components that need to display
     or select flexible packages.
-    
+
     Args:
         request (HttpRequest): The HTTP request object
-        
+
     Returns:
         JsonResponse: JSON array containing flexible package details
-        
+
     Business Logic:
         - Fetches all flexible packages with essential fields
         - Resolves package type foreign key to readable name
         - Includes hour allocation and pricing information
         - Used for package selection and display
-        
+
     Package Information:
         - Package identification (id, code, name)
         - Hour allocation (no_hours)
         - Frequency (no_days_week, no_days_months)
         - Pricing (package_total)
         - Package type (resolved to name)
-        
+
     Flexible Package Features:
         - No fixed time constraints
         - Hour-based allocation system
         - Flexible usage patterns
         - Total hours per period limits
-        
+
     Security:
         - Requires login authentication
         - No sensitive data filtering needed
@@ -1606,37 +1605,37 @@ def getflexPackagesJs(request):
 def saveFlexPackage(request):
     """
     Saves a new flexible package with automatic extra hours mapping.
-    
+
     This function processes the form data for creating a new flexible package,
     automatically setting up the appropriate extra hours mappings for all
     available extra hour rates.
-    
+
     Args:
         request (HttpRequest): POST request containing flexible package data
-        
+
     Returns:
         HttpResponseRedirect: Redirects to view_flex_packages page
-        
+
     Business Logic:
         - Creates new FlexPackages record from form data
         - Automatically creates PackageExtraHoursMapping records
         - Maps all available extra hour rates (both before and after 5:30 PM)
         - Flexible packages get all extra hour options
-        
+
     Extra Hours Mapping:
         - After 5:30 PM: Maps all rates for the package type
         - Before 5:30 PM: Maps all available rates
         - More comprehensive mapping than fixed packages
-        
+
     Database Operations:
         - Creates FlexPackages record
         - Creates multiple PackageExtraHoursMapping records
         - Uses @transaction.atomic for data consistency
-        
+
     Package Code Generation:
         - Uses format: FLP00X (Flexible Package)
         - Auto-increments based on existing package count
-        
+
     Security:
         - Requires login authentication
         - Uses atomic transactions for data integrity
@@ -1681,36 +1680,36 @@ def saveFlexPackage(request):
 def getPacakageExtrahoursUpto530JS(request):
     """
     Retrieves extra hours rates before 5:30 PM for a specific package.
-    
+
     This function returns the extra hour rates that apply before 5:30 PM
     for either fixed or flexible packages, based on the package type.
-    
+
     Args:
         request (HttpRequest): GET request with package id and packageTerm parameters
-        
+
     Returns:
         JsonResponse: JSON array containing extra hour rates before 5:30 PM
-        
+
     URL Parameters:
         id (str): Package ID
         packageTerm (str): "1" for fixed package, other values for flexible
-        
+
     Business Logic:
         - Determines package type from packageTerm parameter
         - Retrieves PackageExtraHoursMapping records for the package
         - Filters for extra hours before 5:30 PM only
         - Returns detailed rate information with effective dates
-        
+
     Package Types:
         - Fixed packages: Uses fixed_package foreign key
         - Flexible packages: Uses flex_package foreign key
-        
+
     Rate Information:
         - hour_number: Hour sequence (1-6)
         - extra_rate: Rate per hour
         - effective_from: Rate start date
         - effective_to: Rate end date
-        
+
     Security:
         - Requires login authentication
         - No sensitive data filtering needed
@@ -1754,37 +1753,37 @@ def getPacakageExtrahoursUpto530JS(request):
 def getPacakageExtrahoursAfter530JS(request):
     """
     Retrieves extra hours rates after 5:30 PM for a specific package.
-    
+
     This function returns the extra hour rates that apply after 5:30 PM
     for either fixed or flexible packages, based on the package type.
-    
+
     Args:
         request (HttpRequest): GET request with package id and packageTerm parameters
-        
+
     Returns:
         JsonResponse: JSON array containing extra hour rates after 5:30 PM
-        
+
     URL Parameters:
         id (str): Package ID
         packageTerm (str): "1" for fixed package, other values for flexible
-        
+
     Business Logic:
         - Determines package type from packageTerm parameter
         - Retrieves PackageExtraHoursMapping records for the package
         - Filters for extra hours after 5:30 PM only
         - Returns detailed rate information with time ranges and effective dates
-        
+
     Package Types:
         - Fixed packages: Uses fixed_package foreign key
         - Flexible packages: Uses flex_package foreign key
-        
+
     Rate Information:
         - from_time: Hour start time
         - to_time: Hour end time
         - extra_rate: Rate per hour
         - effective_from: Rate start date
         - effective_to: Rate end date
-        
+
     Security:
         - Requires login authentication
         - No sensitive data filtering needed
@@ -1829,29 +1828,29 @@ def getPacakageExtrahoursAfter530JS(request):
 def getBranchesJs(request):
     """
     Retrieves all branches as JSON for frontend consumption.
-    
+
     This endpoint provides branch data for use in DataTables,
     dropdowns, and other frontend components that need to display
     or select branch locations.
-    
+
     Args:
         request (HttpRequest): The HTTP request object
-        
+
     Returns:
         JsonResponse: JSON array containing branch details
-        
+
     Business Logic:
         - Fetches all branches with complete information
         - Includes contact details and address information
         - Returns both active and inactive branches
         - Used for branch selection and display
-        
+
     Branch Information:
         - Branch identification (id, code, name)
         - Contact details (person, mobile, phone)
         - Address information (line1, line2, line3)
         - Status (is_active)
-        
+
     Security:
         - Requires login authentication
         - No sensitive data filtering needed
@@ -1879,34 +1878,34 @@ def getBranchesJs(request):
 def getBranches(request):
     """
     Displays the branch management page with creation form.
-    
+
     This function renders the branch management interface,
     allowing users to create and manage branch locations
     for the daycare system.
-    
+
     Args:
         request (HttpRequest): The HTTP request object
-        
+
     Returns:
         HttpResponse: Renders branch.html template with form
-        
+
     Business Logic:
         - Generates next branch code (BRN00X format)
         - Provides form for creating new branches
         - Handles both creation and update scenarios
         - Auto-generates unique branch codes
-        
+
     Branch Features:
         - Branch identification and contact information
         - Address management
         - Contact person and phone details
         - Active/inactive status management
-        
+
     Branch Code Format:
         - BRN00X (Branch)
         - Auto-increments based on existing count
         - Ensures unique identification
-        
+
     Security:
         - Requires login authentication
         - Branch code auto-generation prevents conflicts
@@ -1933,35 +1932,35 @@ def getBranches(request):
 def saveBranch(request):
     """
     Saves or updates branch information.
-    
+
     This function handles both creation of new branches and updates
     to existing branch records, determining the operation based on
     whether the branch code already exists.
-    
+
     Args:
         request (HttpRequest): POST request containing branch data
-        
+
     Returns:
         HttpResponseRedirect: Redirects to view_branches page
-        
+
     Business Logic:
         - Checks if branch code already exists to determine create vs update
         - Updates existing branch with new information and audit fields
         - Creates new branch using form validation
         - Handles checkbox conversion for is_active field
         - Shows appropriate success/error messages
-        
+
     Form Fields:
         - Branch identification (code, name)
         - Contact information (person, mobile, phone)
         - Address details (line1, line2, line3)
         - Status (is_active)
-        
+
     Database Operations:
         - Update: Direct field assignment with audit trail
         - Create: Form-based creation with validation
         - Updates audit fields (user_updated, date_updated)
-        
+
     Security:
         - Requires login authentication
         - Uses get_object_or_404 for safe record retrieval
@@ -2014,33 +2013,33 @@ def saveBranch(request):
 def getBranchForUpdateById(request, pk):
     """
     Retrieves a specific branch for updating.
-    
+
     This function fetches branch data by primary key and renders
     the update form with the existing branch information pre-populated.
-    
+
     Args:
         request (HttpRequest): The HTTP request object
         pk (int): Primary key of the branch to update
-        
+
     Returns:
         HttpResponse: Renders branchUpdate.html partial with populated form
-        
+
     Business Logic:
         - Retrieves branch record by primary key
         - Pre-populates update form with existing data
         - Handles exceptions gracefully with error messages
         - Renders partial template for modal/AJAX usage
-        
+
     Form Handling:
         - Uses UpdateBranchForm for data validation
         - Pre-populates all fields with existing values
         - Maintains form state for editing
-        
+
     Error Handling:
         - Uses get_object_or_404 for safe record retrieval
         - Catches and displays any exceptions
         - Returns empty form on error
-        
+
     Security:
         - Requires login authentication
         - Uses get_object_or_404 for safe record access
@@ -2061,34 +2060,34 @@ def getBranchForUpdateById(request, pk):
 def getDaycareCenters(request):
     """
     Displays the daycare centers management page with creation form.
-    
+
     This function renders the daycare centers management interface,
     allowing users to create and manage daycare centers within branches.
-    
+
     Args:
         request (HttpRequest): The HTTP request object
-        
+
     Returns:
         HttpResponse: Renders dccenters.html template with form
-        
+
     Business Logic:
         - Generates next daycare center code (DC00X format)
         - Provides form for creating new daycare centers
         - Handles both creation and update scenarios
         - Auto-generates unique center codes
-        
+
     Daycare Center Features:
         - Center identification and details
         - Branch association
         - Contact information
         - Capacity management
         - Active/inactive status
-        
+
     Center Code Format:
         - DC00X (Daycare Center)
         - Auto-increments based on existing count
         - Ensures unique identification
-        
+
     Security:
         - Requires login authentication
         - Center code auto-generation prevents conflicts
@@ -2115,35 +2114,35 @@ def getDaycareCenters(request):
 def saveDayCareCenter(request):
     """
     Saves or updates daycare center information.
-    
+
     This function handles both creation of new daycare centers and updates
     to existing center records, determining the operation based on
     whether the daycare code already exists.
-    
+
     Args:
         request (HttpRequest): POST request containing daycare center data
-        
+
     Returns:
         HttpResponseRedirect: Redirects to view_centers page
-        
+
     Business Logic:
         - Checks if daycare code exists to determine create vs update
         - Updates existing center with new information and audit fields
         - Creates new center using form validation
         - Handles checkbox conversion for is_active field
         - Associates centers with branches
-        
+
     Form Fields:
         - Center identification (code, name)
         - Branch association
         - Contact information (incharge, mobile, phone)
         - Status (is_active)
-        
+
     Database Operations:
         - Update: Direct field assignment with audit trail
         - Create: Form-based creation with validation
         - Updates audit fields (user_updated, date_updated)
-        
+
     Security:
         - Requires login authentication
         - Uses exception handling for create/update logic
@@ -2196,30 +2195,30 @@ def saveDayCareCenter(request):
 def getDayCareCentersJs(request):
     """
     Retrieves all daycare centers as JSON for frontend consumption.
-    
+
     This endpoint provides daycare center data for use in DataTables,
     dropdowns, and other frontend components that need to display
     or select daycare centers.
-    
+
     Args:
         request (HttpRequest): The HTTP request object
-        
+
     Returns:
         JsonResponse: JSON array containing daycare center details
-        
+
     Business Logic:
         - Fetches all daycare centers with complete information
         - Converts boolean is_active to readable "Yes"/"No" format
         - Includes contact details and branch association
         - Used for center selection and display
-        
+
     Center Information:
         - Center identification (id, code, name)
         - Management details (incharge)
         - Contact information (phone, mobile)
         - Branch association
         - Status (converted to readable format)
-        
+
     Security:
         - Requires login authentication
         - No sensitive data filtering needed
@@ -2250,29 +2249,29 @@ def getDayCareCentersJs(request):
 def getDayCareCenterNamebyIdJs(request):
     """
     Retrieves a formatted center name by branch ID.
-    
+
     This function fetches a branch by ID and returns a formatted
     string combining the branch code and name for display purposes.
-    
+
     Args:
         request (HttpRequest): GET request with branch id parameter
-        
+
     Returns:
         JsonResponse: JSON string containing formatted center name
-        
+
     URL Parameters:
         id (str): Branch ID to look up
-        
+
     Business Logic:
         - Retrieves branch record by primary key
         - Formats name as "CODE-NAME" for display
         - Returns formatted string for frontend usage
-        
+
     Name Format:
         - Combines branch_code and branch_name
         - Uses hyphen as separator
         - Example: "BRN001-Main Branch"
-        
+
     Security:
         - Requires login authentication
         - No sensitive data filtering needed
@@ -2290,33 +2289,33 @@ def getDayCareCenterNamebyIdJs(request):
 def getDayCareCenterForUpdateById(request, pk):
     """
     Retrieves a specific daycare center for updating.
-    
+
     This function fetches daycare center data by primary key and renders
     the update form with the existing center information pre-populated.
-    
+
     Args:
         request (HttpRequest): The HTTP request object
         pk (int): Primary key of the daycare center to update
-        
+
     Returns:
         HttpResponse: Renders centerUpdate.html partial with populated form
-        
+
     Business Logic:
         - Retrieves daycare center record by primary key
         - Pre-populates update form with existing data
         - Handles exceptions gracefully with error messages
         - Renders partial template for modal/AJAX usage
-        
+
     Form Handling:
         - Uses UpdateDayCareForm for data validation
         - Pre-populates all fields with existing values
         - Maintains form state for editing
-        
+
     Error Handling:
         - Uses get_object_or_404 for safe record retrieval
         - Catches and displays any exceptions
         - Returns empty form on error
-        
+
     Security:
         - Requires login authentication
         - Uses get_object_or_404 for safe record access
@@ -2337,30 +2336,30 @@ def getDayCareCenterForUpdateById(request, pk):
 def getDayCareCentersByBranchJs(request):
     """
     Retrieves active daycare centers for a specific branch.
-    
+
     This function filters daycare centers by branch ID and returns
     only the active centers for that branch.
-    
+
     Args:
         request (HttpRequest): GET request with branch id parameter
-        
+
     Returns:
         JsonResponse: JSON array containing active daycare centers for the branch
-        
+
     URL Parameters:
         id (str): Branch ID to filter centers
-        
+
     Business Logic:
         - Filters daycare centers by branch_id
         - Returns only active centers (is_active=True)
         - Used for center selection based on branch
         - Provides complete center information
-        
+
     Filtering Logic:
         - Filters by branch_id (foreign key)
         - Filters by is_active=True
         - Returns all fields for matching centers
-        
+
     Security:
         - Requires login authentication
         - No sensitive data filtering needed
@@ -2378,34 +2377,34 @@ def getDayCareCentersByBranchJs(request):
 def getDiscounts(request):
     """
     Displays the discount management page with creation form.
-    
+
     This function renders the discount management interface,
     allowing users to create and manage discount codes for
     the daycare system.
-    
+
     Args:
         request (HttpRequest): The HTTP request object
-        
+
     Returns:
         HttpResponse: Renders discount.html template with form
-        
+
     Business Logic:
         - Generates next discount code (DS00X format)
         - Provides form for creating new discounts
         - Handles both creation and update scenarios
         - Auto-generates unique discount codes
-        
+
     Discount Features:
         - Discount code and name management
         - Percentage-based discount rates
         - Approval workflow integration
         - Active/inactive status management
-        
+
     Discount Code Format:
         - DS00X (Discount)
         - Auto-increments based on existing count
         - Ensures unique identification
-        
+
     Security:
         - Requires login authentication
         - Discount code auto-generation prevents conflicts
@@ -2434,29 +2433,29 @@ def getDiscounts(request):
 def getDiscountJson(request):
     """
     Retrieves all discounts as JSON for frontend consumption.
-    
+
     This endpoint provides discount data for use in DataTables,
     dropdowns, and other frontend components that need to display
     or select discount codes.
-    
+
     Args:
         request (HttpRequest): The HTTP request object
-        
+
     Returns:
         JsonResponse: JSON array containing discount details
-        
+
     Business Logic:
         - Fetches all discounts with essential information
         - Includes discount rates and approval status
         - Used for discount selection and management
         - Provides complete discount information
-        
+
     Discount Information:
         - Discount identification (id, code, name)
         - Discount rate (percentage)
         - Approval status (Pending/Approved/Rejected)
         - Active status (is_active)
-        
+
     Security:
         - Requires login authentication
         - No sensitive data filtering needed
@@ -2479,35 +2478,35 @@ def getDiscountJson(request):
 def saveDiscount(request):
     """
     Saves or updates discount information with approval workflow.
-    
+
     This function handles both creation of new discounts and updates
     to existing discount records, automatically setting up the approval
     workflow for new discounts.
-    
+
     Args:
         request (HttpRequest): POST request containing discount data
-        
+
     Returns:
         HttpResponseRedirect: Redirects to view_discounts page
-        
+
     Business Logic:
         - Checks if discount code exists to determine create vs update
         - Updates existing discount with new information and audit fields
         - Creates new discount with "Pending Approval" status
         - Handles checkbox conversion for is_active field
         - Integrates with approval workflow
-        
+
     Approval Workflow:
         - New discounts start with "Pending Approval" status
         - Requires administrative approval before activation
         - Updates to existing discounts maintain current status
-        
+
     Form Fields:
         - Discount identification (code, name)
         - Discount rate (percentage)
         - Status (for updates)
         - Active flag (is_active)
-        
+
     Security:
         - Requires login authentication
         - Uses exception handling for create/update logic
@@ -2553,30 +2552,30 @@ def saveDiscount(request):
 def approveDiscount(request):
     """
     Approves a pending discount request.
-    
+
     This function processes discount approval requests, updating
     the discount status to "Approved" and maintaining audit trail.
-    
+
     Args:
         request (HttpRequest): GET request with discount id parameter
-        
+
     Returns:
         JsonResponse: JSON response confirming approval
-        
+
     URL Parameters:
         id (str): Discount ID to approve
-        
+
     Business Logic:
         - Updates discount status to "Approved"
         - Maintains audit trail with user and timestamp
         - Enables discount for use in enrollments
         - Part of approval workflow process
-        
+
     Approval Process:
         - Changes status from "Pending Approval" to "Approved"
         - Records who approved and when
         - Discount becomes available for use
-        
+
     Security:
         - Requires login authentication
         - Direct database access by ID
@@ -2597,31 +2596,31 @@ def approveDiscount(request):
 def rejectDiscount(request):
     """
     Rejects a pending discount request.
-    
+
     This function processes discount rejection requests, updating
     the discount status to "Rejected" and deactivating the discount.
-    
+
     Args:
         request (HttpRequest): GET request with discount id parameter
-        
+
     Returns:
         JsonResponse: JSON response confirming rejection
-        
+
     URL Parameters:
         id (str): Discount ID to reject
-        
+
     Business Logic:
         - Updates discount status to "Rejected"
         - Sets is_active to False to disable the discount
         - Maintains audit trail with user and timestamp
         - Prevents discount from being used in enrollments
-        
+
     Rejection Process:
         - Changes status from "Pending Approval" to "Rejected"
         - Deactivates the discount (is_active = False)
         - Records who rejected and when
         - Discount becomes unavailable for use
-        
+
     Security:
         - Requires login authentication
         - Direct database access by ID
@@ -2643,32 +2642,32 @@ def rejectDiscount(request):
 def getEnrollments(request):
     """
     Renders the enrollment management page with a form for creating new enrollments.
-    
+
     This view handles the initial display of the enrollment form interface where users can
     create new child enrollments. It automatically generates the next enrollment code
     by incrementing the highest existing enrollment count.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object containing user session data
-        
+
     Returns:
         HttpResponse: Renders the enrollment.html template with:
             - form: CreateEnrollmentForm pre-populated with next enrollment code
             - UserName: Current authenticated user's username
-    
+
     Security:
         - Requires user authentication via @login_required decorator
         - Only accepts GET requests
-        
+
     Business Logic:
         - Calculates next enrollment code as "E00" + (total_enrollments + 1)
         - Handles edge case where no enrollments exist (starts with E001)
         - Pre-populates form with calculated enrollment code
-    
+
     Template Context:
         - form: Form instance for creating new enrollments
         - UserName: Username for navigation display
-    
+
     URL Pattern:
         - /enrollments/ (GET)
     """
@@ -2696,14 +2695,14 @@ def getEnrollments(request):
 def getEnrollmentsJS(request):
     """
     Returns JSON data for pending enrollments to populate DataTables interface.
-    
+
     This AJAX endpoint provides enrollment data for the frontend DataTables component,
     specifically filtering for enrollments that are pending approval. It uses complex
     database queries with subqueries to efficiently retrieve package information.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object from AJAX call
-        
+
     Returns:
         JsonResponse: Array of enrollment objects with structure:
             - id: Primary key of enrollment
@@ -2717,29 +2716,29 @@ def getEnrollmentsJS(request):
             - is_active: Boolean indicating if enrollment is active
             - package_name: Determined package name (normal > flex > holiday priority)
             - holiday_package: Holiday package name if applicable
-    
+
     Security:
         - Requires user authentication via @login_required decorator
         - Only accepts GET requests
-        
+
     Business Logic:
         - Uses Django ORM subqueries for efficient package name retrieval
         - Filters only active enrollments with "Pending Approval" status
         - Implements package name priority: normal_package > flex_package > holiday_package
         - Concatenates child first and last names for display
         - Joins multiple related tables for comprehensive data
-    
+
     Database Operations:
         - Performs complex query with annotations and subqueries
         - Filters: status="Pending Approval", is_active=True
         - Joins: Child, Branch, DayCare, Discount, ChildPackageMapping
         - Subqueries: Retrieves package names from ChildPackageMapping
-    
+
     Frontend Integration:
         - Designed for DataTables AJAX data source
         - Returns JSON array for direct consumption by jQuery DataTables
         - Provides all necessary data for enrollment approval workflow
-    
+
     URL Pattern:
         - /enrollments/js/ (GET)
     """
@@ -2799,17 +2798,16 @@ def getEnrollmentsJS(request):
     return JsonResponse(enrolmentList, safe=False)
 
 
-
 @login_required
 @transaction.atomic
 def saveEnrollments(request):
     """
     Processes enrollment form submissions for both new enrollments and updates.
-    
+
     This view handles the creation and updating of child enrollments through a comprehensive
     workflow that includes child enrollment records, package mappings, and enrollment status
     management. It uses database transactions to ensure data integrity.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object containing POST data with:
             - enrollment_code: Unique identifier for the enrollment
@@ -2823,16 +2821,16 @@ def saveEnrollments(request):
             - discount: Discount ID (optional)
             - recipt_number: Receipt number for payment
             - is_active: Boolean indicating if enrollment is active
-            
+
     Returns:
         HttpResponse: Redirects to view_enrollments page after processing
-    
+
     Security:
         - Requires user authentication via @login_required decorator
         - Uses @transaction.atomic for database integrity
         - Only accepts POST requests
         - Validates all foreign key relationships
-        
+
     Business Logic:
         - Determines if operation is update (existing enrollment_code) or create (new)
         - For updates: Modifies existing enrollment record
@@ -2842,32 +2840,32 @@ def saveEnrollments(request):
         - Supports multiple package types (normal, flex, holiday)
         - Handles optional discount application
         - Validates enrollment date against child admission date
-        
+
     Database Operations:
         - Creates/updates ChildEnrollment record
         - Creates ChildPackageMapping record (for new enrollments)
         - Updates Child.is_enrolled flag
         - Links enrollment to Branch, DayCare, and optional Discount
         - Uses atomic transaction for data consistency
-        
+
     Validation Rules:
         - Child must be active and exist in system
         - Enrollment date must be on or after child admission date
         - Branch and DayCare must be active
         - At least one package type must be selected
         - Discount (if provided) must be active
-        
+
     Workflow States:
         - New enrollments: Created with "Pending Approval" status
         - Package mappings: Created as inactive until enrollment approval
         - Child enrollment flag: Set to True immediately
-        
+
     Error Handling:
         - Catches and displays form validation errors
         - Catches and displays database constraint errors
         - Provides user-friendly error messages
         - Rolls back transaction on any failure
-    
+
     Success Flow:
         1. Validate form data
         2. Create/update enrollment record
@@ -2875,7 +2873,7 @@ def saveEnrollments(request):
         4. Update child enrollment status
         5. Display success message
         6. Redirect to enrollment listing
-    
+
     URL Pattern:
         - /enrollments/save/ (POST)
     """
@@ -3047,23 +3045,23 @@ def getAllEnrollmentsForApproval(request):
 def approveEnrollment(request):
     """
     Approves a pending enrollment and activates associated package mappings.
-    
+
     This view handles the approval workflow for child enrollments, transitioning them
     from "Pending Approval" to "Approved" status. It also activates the associated
     package mappings and triggers automatic enrollment form generation.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object containing:
             - id (GET parameter): Primary key of the enrollment to approve
-            
+
     Returns:
         JsonResponse: Success message confirming enrollment approval
-    
+
     Security:
         - Uses @transaction.atomic for database integrity
         - Validates enrollment exists before processing
         - Only accepts GET requests with valid ID parameter
-        
+
     Business Logic:
         - Updates enrollment status from "Pending Approval" to "Approved"
         - Sets child.enrollement_approved = True
@@ -3071,30 +3069,30 @@ def approveEnrollment(request):
         - Activates corresponding ChildPackageMapping record by ID
         - Triggers automatic enrollment form generation
         - Updates audit fields (user_updated, date_updated)
-        
+
     Database Operations:
         - Updates ChildEnrollment record status
         - Updates Child enrollment flags
         - Activates ChildPackageMapping record by primary key
         - Uses atomic transaction for consistency
-        
+
     Workflow Integration:
         - Automatically generates enrollment forms via generate_enrollment_forms()
         - Completes the enrollment approval workflow
         - Enables child for attendance tracking
         - Activates package pricing for billing
-        
+
     Side Effects:
         - Generates PDF enrollment forms in media/enrollment_forms/
         - Child becomes eligible for attendance logging
         - Package mappings become active for billing calculations
         - Child status changes to fully enrolled
-        
+
     Error Handling:
         - Assumes enrollment exists (no explicit error handling)
         - Database constraints enforce referential integrity
         - Transaction rollback on any failure
-    
+
     URL Pattern:
         - /enrollments/approve/?id={enrollment_id} (GET)
     """
@@ -3123,23 +3121,23 @@ def approveEnrollment(request):
 def approveEnrollment(request):
     """
     Alternative enrollment approval implementation with child-based package mapping lookup.
-    
+
     This is a duplicate function that performs the same approval workflow as the previous
     approveEnrollment function but uses a different approach for finding the package mapping.
     Instead of using the enrollment ID, it looks up the package mapping by child.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object containing:
             - id (GET parameter): Primary key of the enrollment to approve
-            
+
     Returns:
         JsonResponse: Success message confirming enrollment approval
-    
+
     Security:
         - Requires user authentication via @login_required decorator
         - Uses @transaction.atomic for database integrity
         - Validates enrollment exists before processing
-        
+
     Business Logic:
         - Updates enrollment status from "Pending Approval" to "Approved"
         - Sets child.enrollement_approved = True
@@ -3147,33 +3145,33 @@ def approveEnrollment(request):
         - Activates ChildPackageMapping record by child lookup (not by ID)
         - Triggers automatic enrollment form generation
         - Updates audit fields (user_updated, date_updated)
-        
+
     Database Operations:
         - Updates ChildEnrollment record status
         - Updates Child enrollment flags
         - Activates ChildPackageMapping record by child reference
         - Uses atomic transaction for consistency
-        
+
     Key Difference from Previous Function:
         - Uses ChildPackageMapping.objects.get(child=objChild) instead of get(pk=id)
         - More reliable approach as it directly links to the child
         - Avoids potential ID mismatch issues
-        
+
     Workflow Integration:
         - Automatically generates enrollment forms via generate_enrollment_forms()
         - Completes the enrollment approval workflow
         - Enables child for attendance tracking
         - Activates package pricing for billing
-        
+
     Side Effects:
         - Generates PDF enrollment forms in media/enrollment_forms/
         - Child becomes eligible for attendance logging
         - Package mappings become active for billing calculations
         - Child status changes to fully enrolled
-        
+
     Note: This appears to be a duplicate function and should be consolidated
     with the previous approveEnrollment function for code maintenance.
-    
+
     URL Pattern:
         - /enrollments/approve/?id={enrollment_id} (GET)
     """
@@ -3278,61 +3276,61 @@ def generate_enrollment_forms(child_id):
 def draw_all_forms_single_page(c, data):
     """
     Draws three enrollment forms on a single A4 page for efficient printing.
-    
+
     This function creates a complete enrollment form set on one page, containing
     Parent Copy, Office Copy, and Office Copy forms. This design allows for
     efficient printing and distribution of enrollment forms to different stakeholders.
-    
+
     Args:
         c (Canvas): ReportLab canvas object for PDF generation
         data (dict): Dictionary containing child and enrollment information
-        
+
     Returns:
         None: Function draws directly on the canvas
-        
+
     Page Layout:
         - A4 page size (595 x 842 points)
         - Three equal sections vertically divided
         - Each form section height: (page_height - 60) / 3
         - 20-point margins on all sides
         - 30-point top margin for first form
-        
+
     Form Distribution:
         1. Parent Copy (Top section)
            - For parent/guardian records
            - Includes To/From section
            - Standard formatting
-           
+
         2. Office Copy (Middle section)
            - For daycare center records
            - Includes To/From section
            - Standard formatting
-           
+
         3. Office Copy (Bottom section)
            - For administrative records
            - Excludes To/From section
            - Shows "Office Copy" label
            - Includes center code display
-           
+
     Spacing Calculations:
         - Total page height: 842 points
         - Available space: 782 points (after 60-point margins)
         - Each form height: ~260 points
         - Vertical spacing between forms: Automatic
-        
+
     Business Logic:
         - Provides complete enrollment documentation on single page
         - Supports different stakeholder needs (parent, center, office)
         - Enables efficient printing and distribution
         - Maintains consistent information across all copies
         - Reduces paper usage and printing costs
-        
+
     Integration:
         - Called by generate_enrollment_forms() function
         - Uses draw_single_form() for individual form rendering
         - Works with ReportLab canvas system
         - Supports A4 page size standard
-        
+
     Print Considerations:
         - Optimized for A4 paper size
         - Forms can be separated by cutting
@@ -3370,11 +3368,11 @@ def draw_single_form(
 ):
     """
     Draws a single enrollment form section on a PDF canvas using ReportLab.
-    
+
     This function creates a formatted enrollment form with child information,
     contact details, and package information. It supports different form types
     (Parent, Office, Office Copy) with conditional formatting based on the form type.
-    
+
     Args:
         c (Canvas): ReportLab canvas object for drawing
         data (dict): Dictionary containing child and enrollment information
@@ -3383,10 +3381,10 @@ def draw_single_form(
         form_height (float): Height allocated for this form section
         width (float): Page width for centering calculations
         is_office_copy (bool): Whether this is the office copy (affects layout)
-        
+
     Returns:
         None: Function draws directly on the canvas
-        
+
     Data Dictionary Structure:
         - child_name: Full name of the child
         - date_of_birth: Child's birth date (formatted)
@@ -3401,7 +3399,7 @@ def draw_single_form(
         - mothers_whatsapp: Mother's WhatsApp number
         - package_name: Enrolled package name
         - center_display: Center code and name
-        
+
     Form Layout:
         - Header with "POLYMATH COLLEGE" title
         - Office Copy label (if applicable)
@@ -3412,14 +3410,14 @@ def draw_single_form(
         - Parent contact information
         - Package information
         - Signature line
-        
+
     Typography:
         - Header: Helvetica-Bold, 14pt
         - Office Copy: Helvetica-Bold, 12pt
         - Title: Helvetica-Bold, 11pt
         - Content: Helvetica-Bold, 9pt
         - Center text: Helvetica, 9pt
-        
+
     Spacing and Alignment:
         - Left margin: 30 points
         - Right margin: 30 points
@@ -3427,19 +3425,19 @@ def draw_single_form(
         - Centered text for headers
         - Right-aligned contact numbers
         - Form border with 20-point margins
-        
+
     Conditional Formatting:
         - Office Copy: Shows "Office Copy" label, excludes To/From section
         - Parent/Office: Shows To/From section, excludes Office Copy label
         - Contact alignment: Right-aligned for better readability
-        
+
     Business Logic:
         - Creates professional enrollment forms for daycare management
         - Supports multiple form types for different stakeholders
         - Includes all essential child and contact information
         - Provides signature space for authentication
         - Maintains consistent formatting across all form types
-        
+
     Integration:
         - Called by draw_all_forms_single_page() for multi-form layouts
         - Uses data from generate_enrollment_forms() function
@@ -3602,43 +3600,43 @@ def rejectEnrollment(request):
 def getCheckIns(request):
     """
     Renders the attendance check-in page for manual attendance recording.
-    
+
     This view provides the user interface for staff to manually record child attendance.
     It displays a form where staff can enter child admission numbers and attendance details
     for children who may not have QR codes or need manual attendance entry.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object containing user session data
-        
+
     Returns:
         HttpResponse: Renders the checkin.html template with:
             - form: CreateCheckInForm for manual attendance entry
             - UserName: Current authenticated user's username
-    
+
     Security:
         - Requires user authentication via @login_required decorator
         - Only accepts GET requests
         - Staff members can manually record attendance for enrolled children
-        
+
     Business Logic:
         - Provides manual attendance entry alternative to QR code scanning
         - Allows staff to record attendance for children without QR codes
         - Supports backup attendance recording when QR system is unavailable
-        
+
     Form Components:
         - Child admission number input field
         - Date and time fields for attendance recording
         - Validation for enrolled children only
-        
+
     Template Context:
         - form: Form instance for attendance recording
         - UserName: Username for navigation display
-        
+
     Integration:
         - Works alongside QR code-based attendance system
         - Feeds into same AttendanceLog model as QR scanner
         - Provides manual override capability for attendance tracking
-        
+
     URL Pattern:
         - /attendance/checkin/ (GET)
     """
@@ -3677,26 +3675,26 @@ def getAllAttendanceJS(request):
 def saveAttendance(request):
     """
     Processes manual attendance recording from the check-in form.
-    
+
     This view handles the submission of manual attendance records from staff members.
     It validates the child's enrollment status, checks date constraints, and creates
     attendance log entries for enrolled children.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object containing POST data with:
             - child: Child's admission number
             - date_logged: Date of attendance
             - time_logged: Time of attendance
-            
+
     Returns:
         HttpResponse: Redirects to view_check_ins page after processing
-    
+
     Security:
         - Requires user authentication via @login_required decorator
         - Only accepts POST requests
         - Validates child enrollment status before recording
         - Checks child is active and enrollment is approved
-        
+
     Business Logic:
         - Validates child exists with provided admission number
         - Ensures child is enrolled and enrollment is approved
@@ -3704,25 +3702,25 @@ def saveAttendance(request):
         - Creates attendance log record with branch and center information
         - Links attendance to child's enrollment branch and center
         - Updates audit fields with current user information
-        
+
     Validation Rules:
         - Child must exist and be active
         - Child must be enrolled (is_enrolled = True)
         - Child enrollment must be approved (enrollement_approved = True)
         - Attendance date must be >= child.admission_date
         - Form data must pass CreateCheckInForm validation
-        
+
     Database Operations:
         - Creates AttendanceLog record
         - Links to Child, Branch, and DayCare through enrollment
         - Updates audit fields (user_created, date_created)
-        
+
     Error Handling:
         - Displays error if child not found or not enrolled
         - Displays error if attendance date is before admission date
         - Displays form validation errors
         - Catches and displays database exceptions
-        
+
     Success Flow:
         1. Validate child exists and is enrolled
         2. Validate attendance date against admission date
@@ -3730,12 +3728,12 @@ def saveAttendance(request):
         4. Link to enrollment branch and center
         5. Display success message
         6. Redirect to attendance listing
-        
+
     Integration:
         - Works alongside QR code attendance system
         - Feeds into same AttendanceLog model
         - Provides manual backup for attendance recording
-        
+
     URL Pattern:
         - /attendance/save/ (POST)
     """
@@ -3778,66 +3776,66 @@ def saveAttendance(request):
 def autoAttendanceRecorder(request, admission_no):
     """
     Automatically records attendance when a child scans their QR code.
-    
+
     This view is the core of the QR code-based attendance system. It's called when
     a child's QR code is scanned, automatically recording their attendance with
     the current date and time. This function does not require authentication
     as it's accessed via QR code scanning.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object (no authentication required)
         admission_no (str): The child's admission number from the QR code URL
-        
+
     Returns:
         HttpResponse: Renders the success.html template with:
             - child: Child object that was checked in
             - time: Time when attendance was recorded
-    
+
     Security:
         - No authentication required (public QR code endpoint)
         - Validates child exists and is enrolled before recording
         - Uses admission number as unique identifier
-        
+
     Business Logic:
         - Looks up child by admission number
         - Validates child is enrolled (is_enrolled = True)
         - Records attendance with current date and time
         - Uses system-generated timestamp for accuracy
         - Marks attendance as "Scanned by the USER"
-        
+
     QR Code Integration:
         - URL format: {PROD_URL}/{QR_METHOD_NAME}/{admission_number}/
         - Automatically triggered when QR code is scanned
         - Provides instant attendance recording
         - No manual intervention required
-        
+
     Database Operations:
         - Creates AttendanceLog record
         - Links to Child record by admission number
         - Sets current date and time automatically
         - Updates audit fields with system user
-        
+
     Validation Rules:
         - Child must exist with provided admission number
         - Child must be active (is_active = True)
         - Child must be enrolled (is_enrolled = True)
-        
+
     Error Handling:
         - Displays error if child not found
         - Displays error if child is not enrolled
         - Catches and displays database exceptions
         - Provides user-friendly error messages
-        
+
     Success Flow:
         1. Validate child exists and is enrolled
         2. Create attendance record with current timestamp
         3. Save attendance log
         4. Display success page with child and time information
-        
+
     Template Context:
         - child: Child object for display
         - time: Recorded attendance time
-        
+
     URL Pattern:
         - /qr/{admission_number}/ (GET)
     """
@@ -3871,65 +3869,65 @@ def autoAttendanceRecorder(request, admission_no):
 def getMissingAttendanceRecords(request, context=None):
     """
     Display the missing attendance records page with search functionality.
-    
+
     This view renders the missing attendance interface where users can identify
     and track incomplete attendance records. It helps maintain data integrity
     by highlighting days with missing IN or OUT records.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object containing user session data
         context (list, optional): Pre-filtered list of missing attendance records
-        
+
     Returns:
         HttpResponse: Renders the missingtime.html template with:
             - list: List of missing attendance records (if provided)
             - form: SearchForm for filtering missing records
             - UserName: Current authenticated user's username
-            
+
     Template Context:
         - list: List of missing attendance records or None
         - form: SearchForm instance for date range filtering
         - UserName: String containing current user's username
-        
+
     Security:
         - Requires user login (@login_required decorator)
         - Provides access to attendance data for authorized users
         - Handles sensitive attendance information securely
-        
+
     Business Logic:
         - Initializes search form for date range filtering
         - Displays pre-filtered context data if provided
         - Prepares interface for missing record identification
         - Supports operational data cleanup workflows
-        
+
     Integration:
         - Works with processMissingAttendanceRecordsJS() for AJAX data
         - Provides interface for attendance data correction
         - Supports bulk attendance record updates
         - Integrates with memo generation validation
-        
+
     Form Features:
         - Date range selection (from_date, to_date)
         - Flexible search parameters
         - User-friendly interface for data cleanup
         - Real-time missing record identification
-        
+
     Missing Record Types:
         - Missing IN: Records with only OUT times
         - Missing OUT: Records with only IN times
         - Incomplete days: Single records requiring classification
-        
+
     Usage:
         - Data quality maintenance and cleanup
         - Attendance record verification before billing
         - Operational reporting for incomplete data
         - Support for memo generation validation
-        
+
     Related Views:
         - processMissingAttendanceRecordsJS(): Provides AJAX data for missing records
         - saveAttendance(): Allows manual attendance record creation
         - getAttendanceReports(): Provides comprehensive attendance analysis
-        
+
     Data Quality:
         - Identifies incomplete attendance data
         - Supports data cleanup workflows
@@ -3956,16 +3954,16 @@ def getMissingAttendanceRecords(request, context=None):
 def processMissingAttendanceRecordsJS(request):
     """
     Process and return missing attendance records via AJAX with intelligent analysis.
-    
+
     This view analyzes attendance records to identify incomplete attendance data
     and returns detailed information about missing IN or OUT records. It uses
     intelligent time-based logic to classify incomplete records.
-    
+
     Parameters:
         request (HttpRequest): AJAX GET request containing search parameters:
             - from_date: String start date in YYYY-MM-DD format (optional)
             - to_date: String end date in YYYY-MM-DD format (optional)
-            
+
     Returns:
         JsonResponse: JSON array of missing attendance records with:
             - child_name: String child identification and name
@@ -3973,61 +3971,61 @@ def processMissingAttendanceRecordsJS(request):
             - in_time: String IN time or "Missing"
             - out_time: String OUT time or "Missing"
             - missing_record: String type of missing record ("IN" or "OUT")
-            
+
     Security:
         - Requires user login (@login_required decorator)
         - Filters data for active, enrolled children only
         - Handles sensitive attendance information securely
-        
+
     Business Logic:
         - Defaults to 30-day lookback period if no dates provided
         - Filters for active, enrolled children only
         - Groups attendance logs by child and date
         - Identifies days with single attendance records
         - Classifies missing records using 3:00 PM cutoff
-        
+
     Missing Record Classification:
         - Single log after 3:00 PM: OUT time (missing IN)
         - Single log before 3:00 PM: IN time (missing OUT)
         - Uses intelligent time-based classification
         - Provides specific missing record type
-        
+
     Data Processing:
         - Converts raw attendance logs to dictionary format
         - Identifies incomplete attendance days
         - Formats times for display
         - Builds comprehensive missing record details
-        
+
     Query Optimization:
         - Filters for active children only
         - Uses efficient date range filtering
         - Minimizes database queries
         - Optimizes for large datasets
-        
+
     Time Logic:
         - Uses 3:00 PM (15:00) as cutoff threshold
         - Before 3:00 PM: Considered arrival (IN)
         - After 3:00 PM: Considered departure (OUT)
         - Handles edge cases in time interpretation
-        
+
     Integration:
         - Called by missing attendance report interface
         - Supports DataTables integration
         - Provides real-time missing record analysis
         - Works with attendance correction workflows
-        
+
     Data Quality:
         - Identifies incomplete attendance patterns
         - Supports data cleanup workflows
         - Maintains billing accuracy requirements
         - Ensures operational data integrity
-        
+
     Error Handling:
         - Handles missing date parameters gracefully
         - Provides safe JSON responses
         - Maintains data consistency
         - Handles edge cases in attendance patterns
-        
+
     Performance Features:
         - Efficient database filtering
         - Minimal data processing overhead
@@ -4097,48 +4095,48 @@ def processMissingAttendanceRecordsJS(request):
 def getAttendanceReports(request):
     """
     Display the attendance reports page with search form.
-    
+
     This view renders the attendance reports interface where users can search
     and filter attendance records by various criteria. It provides the main
     entry point for attendance analysis and reporting functionality.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object containing user session data
-        
+
     Returns:
         HttpResponse: Renders the attendancereport.html template with:
             - form: AttendanceReportForm for filtering attendance records
             - UserName: Current authenticated user's username
-            
+
     Template Context:
         - form: AttendanceReportForm instance for search parameters
         - UserName: String containing current user's username
-        
+
     Security:
         - Requires user login (@login_required decorator)
         - Provides access to attendance data for authorized users
-        
+
     Business Logic:
         - Initializes empty search form for user input
         - Prepares interface for attendance data filtering
         - Supports date range and child-specific searches
-        
+
     Integration:
         - Works with attendanceReportsJS() for AJAX data loading
         - Provides search interface for attendance analysis
         - Supports various attendance report formats
-        
+
     Form Features:
         - Child selection dropdown
         - Date range selection (from_date, to_date)
         - Flexible search parameters
         - User-friendly interface elements
-        
+
     Usage:
         - Primary entry point for attendance reporting
         - Supports manager and admin attendance analysis
         - Provides data for billing and operational decisions
-        
+
     Related Views:
         - attendanceReportsJS(): Provides AJAX data for reports
         - getMissingAttendanceRecords(): Shows incomplete attendance
@@ -4156,17 +4154,17 @@ def getAttendanceReports(request):
 def attendanceReportsJS(request):
     """
     Provide AJAX-based attendance report data with advanced filtering and processing.
-    
+
     This view processes attendance report requests and returns filtered attendance
     data in JSON format. It includes intelligent time processing to distinguish
     between IN and OUT records based on time patterns.
-    
+
     Parameters:
         request (HttpRequest): AJAX GET request containing search parameters:
             - child: String admission number for child-specific filtering
             - from_date: String start date in YYYY-MM-DD format (optional)
             - to_date: String end date in YYYY-MM-DD format (optional)
-            
+
     Returns:
         JsonResponse: JSON array of attendance records with:
             - admission_number: String child's admission number
@@ -4175,60 +4173,60 @@ def attendanceReportsJS(request):
             - in_time: Time of first log or None if missing
             - out_time: Time of last log or None if missing
             - log_count: Integer number of logs for the day
-            
+
     Security:
         - Requires user login (@login_required decorator)
         - Filters data based on user permissions
         - Handles parameter validation
-        
+
     Business Logic:
         - Groups attendance logs by child and date
         - Calculates IN and OUT times from raw log data
         - Applies intelligent time interpretation rules
         - Handles single-log scenarios with time-based logic
-        
+
     Time Processing Rules:
         - Multiple logs per day: First = IN, Last = OUT
         - Single log after 4:00 PM: Treated as OUT (missing IN)
         - Single log before 4:00 PM: Treated as IN (missing OUT)
         - Handles partial attendance scenarios
-        
+
     Data Aggregation:
         - Groups logs by (child_id, date_logged)
         - Counts total logs per child per day
         - Identifies minimum (IN) and maximum (OUT) times
         - Provides comprehensive attendance overview
-        
+
     Filtering Capabilities:
         - Child-specific filtering by admission number
         - Date range filtering (from_date, to_date)
         - Flexible parameter handling (optional filters)
         - Combines multiple filter criteria
-        
+
     Query Optimization:
         - Uses database aggregation for efficiency
         - Leverages Django ORM annotations
         - Minimizes database queries
         - Optimizes for large datasets
-        
+
     Data Processing:
         - Post-processes aggregated data for business rules
         - Applies 4:00 PM cutoff logic for single logs
         - Handles edge cases in attendance patterns
         - Provides consistent data format
-        
+
     Integration:
         - Called by attendance report interface
         - Supports DataTables integration
         - Provides real-time data updates
         - Works with various front-end frameworks
-        
+
     Error Handling:
         - Handles missing parameters gracefully
         - Provides safe JSON responses
         - Maintains data integrity
         - Logs processing errors
-        
+
     Performance Features:
         - Efficient database queries
         - Minimal data transfer
@@ -4309,46 +4307,46 @@ def attendanceReportsJS(request):
 def getPublicHolidays(request):
     """
     Renders the public holidays management page with a form for creating new holidays.
-    
+
     This view provides the administrative interface for managing public holidays
     that affect daycare operations. Public holidays are used for billing calculations
     and special package pricing during holiday periods.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object containing user session data
-        
+
     Returns:
         HttpResponse: Renders the publicholidays.html template with:
             - form: CreatePublicHolidayForm for adding new public holidays
             - UserName: Current authenticated user's username
-    
+
     Security:
         - Requires user authentication via @login_required decorator
         - Only accepts GET requests
         - Administrative access for holiday management
-        
+
     Business Logic:
         - Provides interface for managing public holidays
         - Integrates with holiday package pricing system
         - Affects billing calculations during holiday periods
         - Supports date range management for extended holidays
-        
+
     Form Components:
         - Holiday title/name field
         - Start date selection
         - End date selection
         - Automatic day calculation (weekdays, weekends)
-        
+
     Template Context:
         - form: Form instance for creating public holidays
         - UserName: Username for navigation display
-        
+
     Integration:
         - Works with Holiday model (is_public_holiday = True)
         - Integrates with package pricing system
         - Affects invoice calculations
         - Used for attendance and billing reports
-        
+
     URL Pattern:
         - /holidays/public/ (GET)
     """
@@ -4364,14 +4362,14 @@ def getPublicHolidays(request):
 def getPublicHolidaysJS(request):
     """
     Returns JSON data for public holidays to populate DataTables interface.
-    
+
     This AJAX endpoint provides public holiday data for the frontend DataTables
     component, allowing administrators to view and manage public holidays in
     a tabular format with sorting and filtering capabilities.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object from AJAX call
-        
+
     Returns:
         JsonResponse: Array of public holiday objects with structure:
             - id: Primary key of holiday record
@@ -4381,34 +4379,34 @@ def getPublicHolidaysJS(request):
             - no_of_days: Total number of days in holiday period
             - weekdays_count: Number of weekdays in holiday period
             - weekends_count: Number of weekend days in holiday period
-    
+
     Security:
         - Requires user authentication via @login_required decorator
         - Only accepts GET requests
         - Administrative access for holiday management
-        
+
     Business Logic:
         - Filters only active public holidays (is_active=True, is_public_holiday=True)
         - Provides comprehensive date range information
         - Includes day count breakdowns for billing calculations
         - Supports frontend table operations (sorting, searching, pagination)
-        
+
     Database Operations:
         - Queries Holiday model with specific filters
         - Returns only public holidays (excludes Polymath/other holidays)
         - Includes calculated fields for day counts
-        
+
     Data Structure:
         - Each holiday record includes date ranges and day counts
         - Weekdays/weekends breakdown helps with billing calculations
         - Total days count used for package pricing adjustments
-        
+
     Frontend Integration:
         - Designed for DataTables AJAX data source
         - Supports real-time table updates
         - Enables inline editing and management operations
         - Provides data for holiday calendar views
-        
+
     URL Pattern:
         - /holidays/public/js/ (GET)
     """
@@ -4517,51 +4515,51 @@ def savePublicHoliday(request):
 def getPolymathHolidays(request):
     """
     Renders the Polymath-specific holidays management page with a form for creating new holidays.
-    
+
     This view provides the administrative interface for managing Polymath daycare-specific
     holidays that are separate from public holidays. These holidays are internal to the
     daycare system and may have different billing and operational implications.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object containing user session data
-        
+
     Returns:
         HttpResponse: Renders the polymathholidays.html template with:
             - form: CreatePolymathHolidayForm for adding new Polymath holidays
             - UserName: Current authenticated user's username
-    
+
     Security:
         - Requires user authentication via @login_required decorator
         - Only accepts GET requests
         - Administrative access for holiday management
-        
+
     Business Logic:
         - Provides interface for managing Polymath-specific holidays
         - Separate from public holidays for operational flexibility
         - May have different billing implications than public holidays
         - Supports custom holiday scheduling for the daycare system
-        
+
     Holiday Types:
         - Polymath holidays: Internal daycare holidays
         - Public holidays: Government/national holidays
         - Other holidays: Custom or regional holidays
-        
+
     Form Components:
         - Holiday title/name field
         - Start date selection
         - End date selection
         - Automatic day calculation (weekdays, weekends)
-        
+
     Template Context:
         - form: Form instance for creating Polymath holidays
         - UserName: Username for navigation display
-        
+
     Integration:
         - Works with Holiday model (is_polymath_holiday = True)
         - Integrates with package pricing system
         - Affects billing calculations during holiday periods
         - Used for attendance and operational reports
-        
+
     URL Pattern:
         - /holidays/polymath/ (GET)
     """
@@ -4577,14 +4575,14 @@ def getPolymathHolidays(request):
 def getPolymathHolidaysJS(request):
     """
     Returns JSON data for Polymath holidays to populate DataTables interface.
-    
+
     This AJAX endpoint provides Polymath-specific holiday data for the frontend
     DataTables component, allowing administrators to view and manage internal
     daycare holidays in a tabular format with sorting and filtering capabilities.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object from AJAX call
-        
+
     Returns:
         JsonResponse: Array of Polymath holiday objects with structure:
             - id: Primary key of holiday record
@@ -4594,39 +4592,39 @@ def getPolymathHolidaysJS(request):
             - no_of_days: Total number of days in holiday period
             - weekdays_count: Number of weekdays in holiday period
             - weekends_count: Number of weekend days in holiday period
-    
+
     Security:
         - Requires user authentication via @login_required decorator
         - Only accepts GET requests
         - Administrative access for holiday management
-        
+
     Business Logic:
         - Filters only active Polymath holidays (is_active=True, is_polymath_holiday=True)
         - Provides comprehensive date range information
         - Includes day count breakdowns for billing calculations
         - Supports frontend table operations (sorting, searching, pagination)
-        
+
     Database Operations:
         - Queries Holiday model with specific filters
         - Returns only Polymath holidays (excludes public/other holidays)
         - Includes calculated fields for day counts
-        
+
     Data Structure:
         - Each holiday record includes date ranges and day counts
         - Weekdays/weekends breakdown helps with billing calculations
         - Total days count used for package pricing adjustments
-        
+
     Frontend Integration:
         - Designed for DataTables AJAX data source
         - Supports real-time table updates
         - Enables inline editing and management operations
         - Provides data for holiday calendar views
-        
+
     Holiday Management:
         - Polymath holidays are internal to the daycare system
         - May have different billing rules than public holidays
         - Supports custom scheduling for daycare operations
-        
+
     URL Pattern:
         - /holidays/polymath/js/ (GET)
     """
@@ -4737,57 +4735,57 @@ def getPolymathHolidayID(request, pk):
 def getOtherHolidays(request):
     """
     Renders the other holidays management page with a form for creating custom holidays.
-    
+
     This view provides the administrative interface for managing miscellaneous holidays
     that don't fall into the public or Polymath categories. These could include regional
     holidays, special events, or custom closure dates specific to certain branches.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object containing user session data
-        
+
     Returns:
         HttpResponse: Renders the otherholidays.html template with:
             - form: CreateOtherHolidayForm for adding new custom holidays
             - UserName: Current authenticated user's username
-    
+
     Security:
         - Requires user authentication via @login_required decorator
         - Only accepts GET requests
         - Administrative access for holiday management
-        
+
     Business Logic:
         - Provides interface for managing miscellaneous holidays
         - Separate from public and Polymath holidays for operational flexibility
         - May have different billing implications based on holiday type
         - Supports custom holiday scheduling for specific needs
-        
+
     Holiday Types:
         - Other holidays: Custom, regional, or special event holidays
         - Public holidays: Government/national holidays
         - Polymath holidays: Internal daycare holidays
-        
+
     Form Components:
         - Holiday title/name field
         - Start date selection
         - End date selection
         - Automatic day calculation (weekdays, weekends)
-        
+
     Template Context:
         - form: Form instance for creating other holidays
         - UserName: Username for navigation display
-        
+
     Integration:
         - Works with Holiday model (is_other_holiday = True)
         - Integrates with package pricing system
         - Affects billing calculations during holiday periods
         - Used for attendance and operational reports
-        
+
     Use Cases:
         - Regional holidays not covered by public holidays
         - Special event closures
         - Branch-specific holidays
         - Training or maintenance days
-        
+
     URL Pattern:
         - /holidays/other/ (GET)
     """
@@ -4803,14 +4801,14 @@ def getOtherHolidays(request):
 def getOtherHolidaysJS(request):
     """
     Returns JSON data for other holidays to populate DataTables interface.
-    
+
     This AJAX endpoint provides custom/other holiday data for the frontend
     DataTables component, allowing administrators to view and manage miscellaneous
     holidays in a tabular format with sorting and filtering capabilities.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object from AJAX call
-        
+
     Returns:
         JsonResponse: Array of other holiday objects with structure:
             - id: Primary key of holiday record
@@ -4820,45 +4818,45 @@ def getOtherHolidaysJS(request):
             - no_of_days: Total number of days in holiday period
             - weekdays_count: Number of weekdays in holiday period
             - weekends_count: Number of weekend days in holiday period
-    
+
     Security:
         - Requires user authentication via @login_required decorator
         - Only accepts GET requests
         - Administrative access for holiday management
-        
+
     Business Logic:
         - Filters only active other holidays (is_active=True, is_other_holiday=True)
         - Provides comprehensive date range information
         - Includes day count breakdowns for billing calculations
         - Supports frontend table operations (sorting, searching, pagination)
-        
+
     Database Operations:
         - Queries Holiday model with specific filters
         - Returns only other holidays (excludes public/Polymath holidays)
         - Includes calculated fields for day counts
-        
+
     Data Structure:
         - Each holiday record includes date ranges and day counts
         - Weekdays/weekends breakdown helps with billing calculations
         - Total days count used for package pricing adjustments
-        
+
     Frontend Integration:
         - Designed for DataTables AJAX data source
         - Supports real-time table updates
         - Enables inline editing and management operations
         - Provides data for holiday calendar views
-        
+
     Holiday Management:
         - Other holidays are custom/regional holidays
         - May have different billing rules than public/Polymath holidays
         - Supports flexible scheduling for special circumstances
-        
+
     Use Cases:
         - Regional holidays not covered by public holidays
         - Special event closures
         - Branch-specific holidays
         - Training or maintenance days
-        
+
     URL Pattern:
         - /holidays/other/js/ (GET)
     """
@@ -4966,40 +4964,40 @@ def getOtherHolidayID(request, pk):
 def nullify_empty(value, is_numeric=False, is_date=False):
     """
     Utility function to clean and convert empty or invalid values to None.
-    
+
     This function handles data sanitization for CSV imports and form processing,
     converting empty strings, invalid numeric values, and malformed dates to None
     to maintain database integrity and prevent insertion errors.
-    
+
     Args:
         value (any): The value to process and clean
         is_numeric (bool): If True, attempts to convert value to integer
         is_date (bool): If True, attempts to parse value as date string
-        
+
     Returns:
         None: If value is None, empty string, or invalid for specified type
         int: If is_numeric=True and value is valid integer
         date: If is_date=True and value is valid date string (YYYY-MM-DD format)
         any: Original value if no type conversion specified and value is not empty
-        
+
     Business Logic:
         - Handles None and empty string inputs uniformly
         - Numeric conversion: Attempts integer conversion, returns None on failure
         - Date conversion: Parses YYYY-MM-DD format, returns None on failure
         - Used extensively in CSV import operations for data cleaning
         - Prevents database constraint violations from invalid data
-        
+
     Type Handling:
         - Numeric: Converts to integer, handles float/decimal input gracefully
         - Date: Expects YYYY-MM-DD format, returns Python date object
         - String: Returns original value if not empty, None otherwise
-        
+
     Error Handling:
         - Catches ValueError and TypeError for numeric conversions
         - Catches ValueError and TypeError for date parsing
         - Returns None for any conversion failures
         - Never raises exceptions, always returns safe values
-        
+
     Usage Examples:
         - nullify_empty("") -> None
         - nullify_empty("123", is_numeric=True) -> 123
@@ -5030,34 +5028,34 @@ def nullify_empty(value, is_numeric=False, is_date=False):
 def upload_csv(request):
     """
     Handles CSV file upload and bulk import of child data into the system.
-    
+
     This function provides a web interface for administrators to upload CSV files
     containing child enrollment data and automatically import them into the database.
     It includes validation, security checks, and data cleaning functionality.
-    
+
     Args:
         request (HttpRequest): The HTTP request object containing either:
             - GET: Request to display the upload form
             - POST: Request with CSV file upload
-            
+
     Returns:
         HttpResponse: Renders dataimporter.html template with:
             - GET: Empty form for file upload
             - POST: Form with success/error messages after processing
-            
+
     Security:
         - Requires user authentication via @login_required decorator
         - Blocks users in "Data Entry" group from uploading (authorization check)
         - Validates file type (must be .csv extension)
         - Validates file structure (must have required columns)
-        
+
     Business Logic:
         - Processes CSV files with child enrollment data
         - Updates existing children or creates new records (upsert operation)
         - Automatically generates QR codes for each child
         - Cleans and validates data using nullify_empty utility
         - Handles date conversions and numeric field validation
-        
+
     CSV Format Requirements:
         - Must be .csv file format
         - Must have exactly 18 columns per row
@@ -5067,7 +5065,7 @@ def upload_csv(request):
           mothers_name, mothers_contact_number, mothers_whatsapp_number,
           resident_contact_number, address_line1, address_line2, address_line3,
           email_address, is_polymath_student, admission_date, leave_date
-          
+
     Data Processing:
         - Uses Child.objects.update_or_create() for upsert operations
         - Admission number serves as unique identifier
@@ -5075,37 +5073,37 @@ def upload_csv(request):
         - Date fields are parsed and validated
         - Numeric fields are validated and converted
         - QR codes are automatically generated for each child
-        
+
     Error Handling:
         - Validates file upload presence
         - Validates file extension (.csv only)
         - Validates CSV structure (minimum 8 columns)
         - Shows user-friendly error messages
         - Continues processing even if individual rows fail
-        
+
     Template Context:
         - No additional context variables
         - Uses Django messages framework for feedback
         - Renders success/error messages in template
-        
+
     File Processing:
         - Reads entire CSV file into memory
         - Decodes UTF-8 content
         - Processes line by line
         - Skips header row automatically
-        
+
     Database Operations:
         - Uses update_or_create for atomic upsert operations
         - Maintains referential integrity
         - Handles duplicate admission numbers gracefully
         - Preserves existing data when updating
-        
+
     Integration:
         - Integrates with Child model for data storage
         - Uses generateQR() function for QR code creation
         - Uses nullify_empty() for data cleaning
         - Works with media storage for QR code files
-        
+
     URL Pattern:
         - /utils/upload-csv/ (GET/POST)
     """
@@ -5216,68 +5214,68 @@ def upload_csv(request):
 def download_qr_files(request):
     """
     Creates and serves a ZIP file containing all QR code images for bulk download.
-    
+
     This function packages all QR code images from the media/qr directory into
     a single ZIP file for easy download. This is useful for administrators who
     need to distribute QR codes for attendance tracking or backup purposes.
-    
+
     Args:
         request (HttpRequest): The HTTP request object (no authentication required)
-        
+
     Returns:
         HttpResponse: ZIP file download response with content-type application/zip
-        
+
     Security:
         - No authentication required (public access)
         - Only accesses pre-generated QR codes from media storage
         - Uses temporary directory to avoid file system conflicts
         - Automatically cleans up temporary files after download
-        
+
     Business Logic:
         - Compresses all QR code images into a single ZIP file
         - Uses temporary directory for ZIP creation to avoid conflicts
         - Provides bulk download capability for QR codes
         - Maintains file structure and naming from original QR directory
-        
+
     File Operations:
         - Accesses media/qr directory for source files
         - Creates temporary directory for ZIP processing
         - Uses shutil.make_archive() for ZIP creation
         - Automatically cleans up temporary files via finally block
-        
+
     Error Handling:
         - Catches all exceptions during ZIP creation
         - Shows error messages to user via Django messages framework
         - Ensures temporary directory cleanup even on errors
         - Gracefully handles missing QR directory
-        
+
     Performance Considerations:
         - Creates entire ZIP file in memory before serving
         - May be slow for large numbers of QR codes
         - Uses system temporary directory for processing
         - Cleanup happens automatically after response
-        
+
     Response Headers:
         - Content-Type: application/zip
         - Content-Disposition: attachment; filename=qr_files.zip
         - Forces browser to download rather than display
-        
+
     File Structure:
         - ZIP contains all PNG files from media/qr directory
         - Maintains original filenames and structure
         - Filename format: "[admission_no]- [first_name] [last_name].png"
-        
+
     Use Cases:
         - Bulk distribution of QR codes to parents/staff
         - Backup of QR code images
         - Printing QR codes for physical distribution
         - System migration or data export
-        
+
     Integration:
         - Works with QR codes generated by generateQR() function
         - Accesses files created during child enrollment
         - Independent of database (file-based operation)
-        
+
     URL Pattern:
         - /utils/download-qr-files/ (GET)
     """
@@ -5312,54 +5310,54 @@ def download_qr_files(request):
 def getPackageChange(request):
     """
     Renders the package change request page for submitting package modification requests.
-    
+
     This view provides the interface for staff to submit requests to change a child's
     package enrollment. Package changes require approval workflow to ensure proper
     billing and operational management.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object containing user session data
-        
+
     Returns:
         HttpResponse: Renders the packagechange.html template with:
             - form: CreatePackageChangeRequestForm for submitting change requests
             - UserName: Current authenticated user's username
-    
+
     Security:
         - Requires user authentication via @login_required decorator
         - Only accepts GET requests
         - Staff members can submit package change requests
-        
+
     Business Logic:
         - Provides interface for requesting package changes
         - Initiates approval workflow for package modifications
         - Maintains audit trail of package change requests
         - Supports various package types (normal, flex, holiday)
-        
+
     Form Components:
         - Child selection dropdown
         - Current package display
         - New package selection
         - Effective date selection
         - Reason for change field
-        
+
     Template Context:
         - form: Form instance for package change requests
         - UserName: Username for navigation display
-        
+
     Integration:
         - Works with PackageChangerequest model
         - Integrates with approval workflow system
         - Maintains package history and audit trail
         - Affects billing calculations upon approval
-        
+
     Workflow:
         1. Staff submits package change request
         2. Request goes to "Pending Approval" status
         3. Administrator reviews and approves/rejects
         4. Upon approval, package mapping is updated
         5. New package becomes effective from specified date
-        
+
     URL Pattern:
         - /packages/change-request/ (GET)
     """
@@ -5510,14 +5508,14 @@ def savePackageRequest(request):
 def getPackageChangeRequestsJS(request):
     """
     Returns JSON data for package change requests to populate DataTables interface.
-    
+
     This AJAX endpoint provides package change request data for the frontend DataTables
     component, allowing administrators to view and manage pending package change requests
     in a tabular format with comprehensive package information.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object from AJAX call
-        
+
     Returns:
         JsonResponse: Array of package change request objects with structure:
             - id: Primary key of the package change request
@@ -5530,41 +5528,41 @@ def getPackageChangeRequestsJS(request):
             - reason_for_request: Reason provided for the package change
             - user_created: Username of person who created the request
             - effective_date: Date when package change should take effect
-    
+
     Security:
         - Requires user authentication via @login_required decorator
         - Only accepts GET requests
         - Administrative access for package change management
-        
+
     Business Logic:
         - Filters only active pending requests (status="Pending Approval")
         - Uses complex annotations to determine package names
         - Handles both fixed and flex package types
         - Includes holiday package information
         - Provides comprehensive request information for approval workflow
-        
+
     Database Operations:
         - Queries PackageChangerequest model with filters
         - Uses annotations to resolve package names from foreign keys
         - Employs Coalesce to handle null values in package fields
         - Joins with Child, FixedPackage, and FlexPackages models
-        
+
     Package Resolution:
         - old_package: Resolves to either old_fixed_package or old_flexed_package name
         - new_package: Resolves to either new_fixed_package or new_flexed_package name
         - Holiday packages: Handled separately for old and new values
-        
+
     Frontend Integration:
         - Designed for DataTables AJAX data source
         - Supports approval workflow interface
         - Enables package change request management
         - Provides data for approval decision making
-        
+
     Error Handling:
         - Catches and logs database exceptions
         - Returns empty array on error
         - Provides graceful failure for frontend
-        
+
     URL Pattern:
         - /packages/change-requests/js/ (GET)
     """
@@ -5707,30 +5705,30 @@ def approvePackageChange(request):
 def getCenterChange(request):
     """
     Renders the center change request page for submitting center/branch transfer requests.
-    
+
     This view provides the interface for staff to submit requests to transfer a child
     from one daycare center to another. Center changes require approval workflow to
     ensure proper operational management and billing continuity.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object containing user session data
-        
+
     Returns:
         HttpResponse: Renders the centerchange.html template with:
             - form: CreateCenterChangeRequestForm for submitting center transfer requests
             - UserName: Current authenticated user's username
-    
+
     Security:
         - Requires user authentication via @login_required decorator
         - Only accepts GET requests
         - Staff members can submit center change requests
-        
+
     Business Logic:
         - Provides interface for requesting center/branch transfers
         - Initiates approval workflow for center changes
         - Maintains audit trail of transfer requests
         - Supports cross-branch and within-branch transfers
-        
+
     Form Components:
         - Child selection dropdown
         - Current center/branch display
@@ -5738,30 +5736,30 @@ def getCenterChange(request):
         - New branch selection
         - Effective date selection
         - Reason for transfer field
-        
+
     Template Context:
         - form: Form instance for center change requests
         - UserName: Username for navigation display
-        
+
     Integration:
         - Works with CenterChangerequest model
         - Integrates with approval workflow system
         - Maintains center transfer history and audit trail
         - Affects enrollment and billing records upon approval
-        
+
     Workflow:
         1. Staff submits center change request
         2. Request goes to "Pending Approval" status
         3. Administrator reviews and approves/rejects
         4. Upon approval, child enrollment is updated
         5. New center/branch becomes effective from specified date
-        
+
     Use Cases:
         - Child family relocates to different area
         - Operational capacity management
         - Special needs or program transfers
         - Administrative consolidation
-        
+
     URL Pattern:
         - /centers/change-request/ (GET)
     """
@@ -5777,14 +5775,14 @@ def getCenterChange(request):
 def getCenterChangeRequestsJS(request):
     """
     Returns JSON data for center change requests to populate DataTables interface.
-    
+
     This AJAX endpoint provides center change request data for the frontend DataTables
     component, allowing administrators to view and manage pending center transfer requests
     in a tabular format with comprehensive center and branch information.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object from AJAX call
-        
+
     Returns:
         JsonResponse: Array of center change request objects with structure:
             - id: Primary key of the center change request
@@ -5797,46 +5795,46 @@ def getCenterChangeRequestsJS(request):
             - reason_for_request: Reason provided for the center change
             - user_created: Username of person who created the request
             - effective_date: Date when center change should take effect
-    
+
     Security:
         - Requires user authentication via @login_required decorator
         - Only accepts GET requests
         - Administrative access for center change management
-        
+
     Business Logic:
         - Filters only active pending requests (status="Pending Approval")
         - Uses complex annotations to determine center and branch names
         - Handles both daycare code and name resolution
         - Provides comprehensive request information for approval workflow
-        
+
     Database Operations:
         - Queries CenterChangerequest model with filters
         - Uses annotations to resolve center and branch names from foreign keys
         - Employs Coalesce to handle null values in center fields
         - Joins with Child, DayCare, and Branch models
-        
+
     Center Resolution:
         - old_center: Resolves to either daycare_code or daycare_name
         - new_center: Resolves to either daycare_code or daycare_name
         - Branch information: Handled separately for old and new values
-        
+
     Frontend Integration:
         - Designed for DataTables AJAX data source
         - Supports approval workflow interface
         - Enables center change request management
         - Provides data for approval decision making
-        
+
     Error Handling:
         - Catches and logs database exceptions
         - Returns empty array on error
         - Provides graceful failure for frontend
-        
+
     Use Cases:
         - Administrative review of transfer requests
         - Operational capacity management
         - Cross-branch coordination
         - Enrollment management
-        
+
     URL Pattern:
         - /centers/change-requests/js/ (GET)
     """
@@ -6044,7 +6042,6 @@ def getInvoice(request):
             "children": children,
         },
     )
-
 
 
 def calculate_three_month_display_data(child, current_month, current_year):
@@ -6415,7 +6412,6 @@ def calculate_current_month_charges(child, package_mapping, enrollment, month, y
 
     except Exception as e:
         raise Exception(f"Error calculating current month charges: {str(e)}")
-
 
 
 def calculate_three_month_invoice_data(child, target_month, target_year):
@@ -6870,7 +6866,6 @@ def calculate_month_full_package(child, package_mapping, enrollment, month, year
 
     except Exception as e:
         raise Exception(f"Error calculating full package month: {str(e)}")
-
 
 
 def calculate_enhanced_three_month_data(child, target_month, target_year):
@@ -7397,6 +7392,8 @@ def calculate_enhanced_advance_month(child, package_mapping, enrollment, month, 
         "payments_received": payments_received,
         "payment_details": payment_details,
     }
+
+
 # Add these view functions to your views.py file
 
 
@@ -7404,59 +7401,59 @@ def calculate_enhanced_advance_month(child, package_mapping, enrollment, month, 
 def getExtraHoursReport(request):
     """
     Display the extra hours report page with filtering form.
-    
+
     This view renders the extra hours report interface where users can analyze
     and filter extra hours charges across different time periods. It provides
     comprehensive reporting capabilities for billing and operational analysis.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object containing user session data
-        
+
     Returns:
         HttpResponse: Renders the extrahoursreport.html template with:
             - form: ExtraHoursReportForm for filtering report parameters
             - UserName: Current authenticated user's username
-            
+
     Template Context:
         - form: ExtraHoursReportForm instance for search and filtering
         - UserName: String containing current user's username
-        
+
     Security:
         - Requires user login (@login_required decorator)
         - Provides access to financial reporting data
         - Restricts access to authorized users only
-        
+
     Business Logic:
         - Initializes report form with default parameters
         - Prepares interface for extra hours analysis
         - Supports various reporting time periods
         - Enables detailed charge breakdowns
-        
+
     Integration:
         - Works with getExtraHoursReportJS() for AJAX data loading
         - Provides interface for complex financial analysis
         - Supports export and printing capabilities
         - Integrates with billing systems
-        
+
     Form Features:
         - Child selection dropdown
         - Date range selection
         - Report type selection (detailed/summary)
         - Branch and center filtering
         - Flexible parameter combinations
-        
+
     Report Types:
         - Detailed: Individual charge breakdowns
         - Summary: Aggregated totals and averages
         - Monthly: Month-by-month analysis
         - Custom: User-defined date ranges
-        
+
     Usage:
         - Financial reporting and analysis
         - Billing verification and auditing
         - Operational cost analysis
         - Parent communication and transparency
-        
+
     Related Views:
         - getExtraHoursReportJS(): Provides AJAX data for reports
         - getExtraHoursSummaryJS(): Provides summary statistics
@@ -7468,9 +7465,6 @@ def getExtraHoursReport(request):
         "../templates/reports/extrahoursreport.html",
         {"form": form, "UserName": request.user.username},
     )
-
-
-
 
 
 @login_required
@@ -8079,14 +8073,14 @@ def getExtraHoursSummaryJS(request):
 def getChildPackageMapping(request):
     """
     Display the child package mapping management page with comprehensive configuration options.
-    
+
     This view renders the package mapping interface where users can assign and manage
     package relationships for children. It provides a comprehensive interface for
     configuring child-package relationships with discount options.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object containing user session data
-        
+
     Returns:
         HttpResponse: Renders the missing_mappings.html template with:
             - children: QuerySet of active, enrolled children
@@ -8095,7 +8089,7 @@ def getChildPackageMapping(request):
             - flex_packages: QuerySet of flexible package options
             - approved_discounts: QuerySet of approved discount options
             - UserName: Current authenticated user's username
-            
+
     Template Context:
         - children: Active and enrolled children ordered by admission number
         - normal_packages: Standard daycare packages (non-holiday)
@@ -8103,62 +8097,62 @@ def getChildPackageMapping(request):
         - flex_packages: Flexible hours packages
         - approved_discounts: Approved discount codes
         - UserName: String containing current user's username
-        
+
     Security:
         - Requires user login (@login_required decorator)
         - Filters for active, enrolled children only
         - Shows only approved discounts
         - Handles exceptions gracefully with fallback options
-        
+
     Business Logic:
         - Filters children by active status and enrollment
         - Separates packages by type (normal vs holiday)
         - Shows only approved discounts for selection
         - Orders data consistently for user interface
-        
+
     Package Type Filtering:
         - Normal packages: is_holiday_package=False
         - Holiday packages: is_holiday_package=True
         - Flex packages: Separate FlexPackages model
         - All packages filtered by is_active=True
-        
+
     Discount Integration:
         - Shows only approved discounts (status="APPROVED")
         - Filters by is_active=True status
         - Orders by discount_code for consistency
         - Enables discount assignment during mapping
-        
+
     Integration:
         - Works with getPackageMappingsJS() for AJAX data loading
         - Supports package assignment and modification
         - Enables discount application during mapping
         - Connects to package change request workflows
-        
+
     Error Handling:
         - Comprehensive exception handling with multiple fallback options
         - Attempts different redirect strategies on errors
         - Provides empty context if all redirects fail
         - Maintains user experience during error scenarios
-        
+
     Form Features:
         - Child selection dropdown with admission numbers
         - Package type selection (normal/holiday/flex)
         - Discount code selection from approved options
         - Date range specification for mappings
         - User-friendly interface elements
-        
+
     Data Ordering:
         - Children ordered by admission_number
         - Packages ordered by package_code
         - Discounts ordered by discount_code
         - Consistent ordering for user experience
-        
+
     Usage:
         - Package assignment for new children
         - Package modification for existing children
         - Discount application and management
         - Package change request initiation
-        
+
     Related Views:
         - getPackageMappingsJS(): Provides AJAX data for existing mappings
         - savePackageMapping(): Handles package assignment
@@ -8226,17 +8220,17 @@ def getChildPackageMapping(request):
 def getPackageMappingsJS(request):
     """
     Provide comprehensive package mapping data via AJAX with advanced search and filtering.
-    
+
     This view returns detailed package mapping information in JSON format for DataTables
     integration. It supports complex filtering and provides comprehensive package details
     including discounts, effective dates, and mapping status.
-    
+
     Parameters:
         request (HttpRequest): AJAX GET request containing search parameters:
             - child_id: Integer child ID for filtering mappings
             - status: String "true"/"false" for active status filtering
             - effective_date: String date in YYYY-MM-DD format for date filtering
-            
+
     Returns:
         JsonResponse: JSON array of package mapping records with:
             - child_name: String child identification and name
@@ -8248,70 +8242,70 @@ def getPackageMappingsJS(request):
             - effective_to: String effective end date or "Ongoing"
             - is_active: Boolean active status
             - actions: String HTML for action buttons
-            
+
     Security:
         - Requires user login (@login_required decorator)
         - Filters for active children only
         - Handles parameter validation
         - Provides safe JSON responses
-        
+
     Business Logic:
         - Filters mappings by child active status
         - Applies search filters dynamically
         - Provides comprehensive package information
         - Includes discount details when available
         - Handles date range filtering for effective periods
-        
+
     Search Functionality:
         - Child-specific filtering by ID
         - Active/inactive status filtering
         - Effective date range filtering
         - Combines multiple filter criteria
         - Supports flexible search patterns
-        
+
     Package Information:
         - Normal packages: Shows code and total amount
         - Holiday packages: Shows code and total amount
         - Flex packages: Shows code and total amount
         - Handles null packages gracefully
         - Provides consistent formatting
-        
+
     Discount Integration:
         - Shows discount code and rate when available
         - Handles null discounts gracefully
         - Provides formatted discount information
         - Supports discount analysis and reporting
-        
+
     Date Handling:
         - Filters by effective date ranges
         - Handles null effective_to dates as "Ongoing"
         - Provides user-friendly date formatting
         - Supports date-based queries
-        
+
     Query Optimization:
         - Uses select_related for efficient joins
         - Filters data at database level
         - Minimizes database queries
         - Optimizes for large datasets
-        
+
     Data Presentation:
         - Consistent formatting for all package types
         - User-friendly display of complex data
         - Includes action buttons for management
         - Provides comprehensive mapping overview
-        
+
     Integration:
         - Works with DataTables for frontend display
         - Supports AJAX-based data loading
         - Provides real-time search and filtering
         - Enables package management workflows
-        
+
     Error Handling:
         - Handles date parsing errors
         - Provides safe JSON responses
         - Maintains data consistency
         - Handles edge cases in package data
-        
+
     Performance Features:
         - Efficient database queries
         - Minimal data processing overhead
@@ -9126,44 +9120,43 @@ def validatePackageMappingOverlap(request):
 
 
 ########################## Manual Memo############################################
-# Add these views to your views.py file
 
 
 @login_required
 def getMemoDataEntry(request):
     """
     Display the memo data entry page for manual invoice generation.
-    
+
     This view provides the interface for manually creating invoice memos when
     automatic generation isn't suitable. The page allows users to input detailed
     financial information for three months: outstanding balance, previous month
     charges, and current month charges.
-    
+
     Parameters:
         request (HttpRequest): The HTTP request object containing user session data
-        
+
     Returns:
         HttpResponse: Renders the memo_manual.html template with:
             - children: List of active, enrolled children for dropdown selection
             - year_range: List of years (current-2 to current+1) for date selection
             - UserName: Current authenticated user's username
-            
+
     Template Context:
         - children: QuerySet of Child objects (active and enrolled)
         - year_range: List of integers representing selectable years
         - UserName: String containing current user's username
-        
+
     Security:
         - Requires user login (@login_required decorator)
         - Only shows active, enrolled children
         - Handles exceptions gracefully with error messages
-        
+
     Business Logic:
         - Filters children by is_active=True and is_enrolled=True
         - Generates 4-year range centered on current year
         - Orders children by admission number for consistent display
         - Redirects to invoice memo page on errors
-        
+
     Error Handling:
         - Catches all exceptions and displays user-friendly error messages
         - Redirects to core:load_invoice_memo on failures
@@ -9201,15 +9194,15 @@ def getMemoDataEntry(request):
 def getChildPackageDetails(request):
     """
     Retrieve detailed package information for a specific child to auto-fill memo forms.
-    
+
     This AJAX endpoint provides comprehensive package details including active package
     information, fees, and discount details for a specific child. It's used to
     auto-populate memo generation forms with accurate package data.
-    
+
     Parameters:
         request (HttpRequest): AJAX GET request containing:
             - child_id: Integer ID of the child to retrieve package details for
-            
+
     Returns:
         JsonResponse: JSON object containing:
             - package_name: String name of the active package
@@ -9218,35 +9211,35 @@ def getChildPackageDetails(request):
             - admission_number: String admission number of the child
             - discount_rate: Float discount percentage (0 if no discount)
             - discount_name: String name of applied discount (empty if none)
-            
+
     Error Responses:
         - 400: Missing child_id parameter
         - 404: Child not found or no active package mapping
         - 500: Server error during processing
-        
+
     Security:
         - Requires user login (@login_required decorator)
         - Validates child existence before processing
         - Handles package mapping validation
-        
+
     Business Logic:
         - Searches for active package mapping (is_active=True)
         - Determines package type (normal/holiday/flex)
         - Extracts appropriate fee based on package type
         - Validates discount status (active and approved)
         - Provides debug information for troubleshooting
-        
+
     Package Type Handling:
         - normal_package: Standard daycare package
         - holiday_package: Special holiday pricing package
         - flex_package: Flexible hours package
         - Handles mixed package scenarios gracefully
-        
+
     Discount Validation:
         - Checks discount is_active status
         - Validates discount approval status
         - Only applies approved discounts to calculations
-        
+
     Debug Features:
         - Logs all package mappings for troubleshooting
         - Provides detailed error information
@@ -9348,17 +9341,17 @@ def getChildPackageDetails(request):
 def getAttendanceSummary(request):
     """
     Retrieve detailed attendance summary for a child in a specific month.
-    
+
     This AJAX endpoint calculates comprehensive attendance statistics for a child
     during a specified month and year. It provides detailed breakdowns used for
     memo generation and billing calculations.
-    
+
     Parameters:
         request (HttpRequest): AJAX GET request containing:
             - child_id: Integer ID of the child
             - month: Integer month (1-12)
             - year: Integer year (4-digit)
-            
+
     Returns:
         JsonResponse: JSON object containing detailed attendance data:
             - total_attendance_days: Integer count of days attended
@@ -9367,35 +9360,35 @@ def getAttendanceSummary(request):
             - holiday_charges: Object with holiday-related charges
             - package_fee_calculations: Object with package fee details
             - attendance_breakdown: List of daily attendance records
-            
+
     Error Responses:
         - 400: Missing required parameters (child_id, month, year)
         - 404: Child not found
         - 500: Server error during calculations
-        
+
     Security:
         - Requires user login (@login_required decorator)
         - Validates child existence before processing
         - Handles missing parameters gracefully
-        
+
     Business Logic:
         - Uses calculate_month_attendance_summary() helper function
         - Calculates working days vs attendance days
         - Computes extra hours charges (before/after 5:30 PM)
         - Determines holiday charges if applicable
         - Provides package fee calculations
-        
+
     Integration:
         - Called during memo generation process
         - Used for attendance verification in billing
         - Supports both manual and automatic memo creation
-        
+
     Data Sources:
         - AttendanceLog records for the specified month
         - ChildPackageMapping for package details
         - Holiday records for special day calculations
         - Package rates for fee calculations
-        
+
     Calculation Details:
         - Excludes weekends from expected days
         - Applies holiday rules based on package type
@@ -9427,18 +9420,18 @@ def getAttendanceSummary(request):
 def calculateMemoData(request):
     """
     Calculate memo data automatically from system attendance and package data.
-    
+
     This AJAX endpoint automatically generates memo data by analyzing attendance
     records, package mappings, and historical data to create accurate invoice
     information. It eliminates manual data entry by calculating all required
     financial details from system records.
-    
+
     Parameters:
         request (HttpRequest): AJAX GET request containing:
             - child_id: Integer ID of the child
             - month: Integer target month for memo generation (1-12)
             - year: Integer target year (4-digit)
-            
+
     Returns:
         JsonResponse: JSON object containing calculated memo data:
             - outstanding_amount: Float balance from 2 months ago
@@ -9449,42 +9442,42 @@ def calculateMemoData(request):
             - discount_applied: Float discount amount applied
             - advance_payment: Float advance payment for current month
             - current_payment: Float (always 0 for new calculations)
-            
+
     Error Responses:
         - 400: Missing required parameters (child_id, month, year)
         - 404: Child not found
         - 500: Server error during calculations
-        
+
     Security:
         - Requires user login (@login_required decorator)
         - Validates child existence before processing
         - Handles missing parameters gracefully
-        
+
     Business Logic:
         - Uses calculate_three_month_invoice_data() helper function
         - Extracts financial data from 3-month calculation
         - Maps calculated data to form fields
         - Handles outstanding balance calculations
         - Applies discount calculations automatically
-        
+
     Data Processing:
         - Month 1 (Outstanding): 2 months ago data
         - Month 2 (Previous): 1 month ago charges
         - Month 3 (Current): Current month advance payment
         - Extracts specific fields for form auto-filling
-        
+
     Integration:
         - Called from memo generation forms
         - Used for automatic memo creation
         - Supports both manual verification and direct use
-        
+
     Calculation Sources:
         - AttendanceLog records for all relevant months
         - ChildPackageMapping for package details
         - PaymentTransaction records for payment history
         - Holiday records for special charges
         - Discount records for discount applications
-        
+
     Form Field Mapping:
         - Maps complex 3-month data to simple form fields
         - Preserves calculation accuracy
@@ -9527,23 +9520,23 @@ def calculateMemoData(request):
 def saveMemoDataEntry(request):
     """
     Save manually entered memo data with comprehensive validation and attendance checking.
-    
+
     This view processes manually entered memo data and creates a complete invoice memo
     with three detail records (outstanding, previous, current). It includes robust
     attendance validation to ensure data integrity before saving.
-    
+
     Parameters:
         request (HttpRequest): POST request containing extensive memo data:
             - child: Integer child ID
             - month: Integer target month (1-12)
             - year: Integer target year (4-digit)
             - force_save: Boolean to override attendance validation
-            
+
             Outstanding Month Data:
             - outstanding_amount: Decimal balance from 2 months ago
             - payment_settled: Decimal payments made on outstanding
             - outstanding_receipt_number: String receipt reference
-            
+
             Previous Month Data:
             - previous_package_fee: Decimal package fee for previous month
             - previous_extra_hours: Decimal extra hours charges
@@ -9553,7 +9546,7 @@ def saveMemoDataEntry(request):
             - previous_receipt_number: String receipt reference
             - previous_days_attended: Integer days attended
             - previous_expected_days: Integer expected attendance days
-            
+
             Current Month Data:
             - package_fee: Decimal current package fee
             - extra_hours: Decimal extra hours charges
@@ -9561,36 +9554,36 @@ def saveMemoDataEntry(request):
             - discount_applied: Decimal discount amount
             - current_payment: Decimal payment received
             - current_receipt_number: String receipt reference
-            
+
     Returns:
         HttpResponse: Redirect to memo data entry page with status messages
-        
+
     Success Behavior:
         - Creates InvoiceMemo record with unique memo code
         - Creates 3 InvoiceMemoDetail records (outstanding, previous, current)
         - Applies detailed breakdown data when available
         - Updates child enrollment status if needed
         - Displays success message with memo code
-        
+
     Error Responses:
         - Form validation errors with specific field messages
         - Attendance validation errors with missing record details
         - Duplicate memo detection with month/year information
         - Package mapping validation errors
-        
+
     Security:
         - Requires user login (@login_required decorator)
         - Uses database transactions (@transaction.atomic)
         - Validates child existence and enrollment status
         - Prevents duplicate memo creation
-        
+
     Attendance Validation:
         - Checks for missing IN/OUT records in previous month
         - Uses 3:00 PM cutoff to determine missing record type
         - Counts incomplete attendance days
         - Provides detailed missing record information
         - Allows force_save to override validation
-        
+
     Business Logic:
         - Calculates month sequences for detail records
         - Generates unique memo codes (MO####)
@@ -9598,32 +9591,32 @@ def saveMemoDataEntry(request):
         - Determines package names from mappings
         - Applies detailed charge breakdowns
         - Handles payment receipt tracking
-        
+
     Data Integrity:
         - Validates all numeric fields
         - Ensures child has active package mapping
         - Checks for duplicate memos
         - Maintains referential integrity
         - Preserves calculation audit trail
-        
+
     Form Data Persistence:
         - Stores form data in session on validation errors
         - Enables form repopulation after error correction
         - Maintains user input during attendance fixes
         - Provides seamless error recovery
-        
+
     Integration:
         - Works with attendance management system
         - Integrates with package mapping system
         - Connects to payment processing system
         - Supports detailed breakdown calculations
-        
+
     Calculation Details:
         - Attempts to retrieve detailed breakdowns for previous month
         - Stores extra hours and holiday charge breakdowns
         - Maintains calculation metadata for audit purposes
         - Preserves manual entry flags for tracking
-        
+
     Error Handling:
         - Comprehensive exception handling
         - User-friendly error messages
@@ -10929,36 +10922,36 @@ def searchInvoiceMemo(request):
 def downloadInvoiceMemoPDF(request):
     """
     Generates and serves a PDF invoice memo with detailed billing breakdown.
-    
+
     This function creates a professional PDF invoice memo containing comprehensive
     billing information, payment history, and detailed charge breakdowns. It uses
     the enhanced memo system with fixed calculations and two-column format for
     better readability.
-    
+
     Args:
         request (HttpRequest): POST request containing memo_code in JSON body
-        
+
     Returns:
         HttpResponse: PDF file response with appropriate headers for download
         JsonResponse: Error response if request fails or memo not found
-        
+
     Security:
         - No authentication required (public access via memo code)
         - Validates memo existence and active status
         - Only serves active memos to prevent unauthorized access
-        
+
     Request Format:
         - Method: POST only
         - Content-Type: application/json
         - Body: {"memo_code": "MEMO_CODE_HERE"}
-        
+
     Business Logic:
         - Retrieves memo data using memo_code identifier
         - Prepares comprehensive display data with payment information
         - Generates professional PDF using two-column breakdown format
         - Includes outstanding balances, current charges, and payment history
         - Shows detailed extra hours and holiday charges breakdown
-        
+
     PDF Features:
         - Professional header with company information
         - Child and package details
@@ -10967,45 +10960,45 @@ def downloadInvoiceMemoPDF(request):
         - Payment history and current balance
         - Extra hours breakdown with timestamps
         - Holiday charges with individual day details
-        
+
     Error Handling:
         - Validates POST method requirement
         - Validates memo_code presence in request
         - Handles missing or inactive memos gracefully
         - Returns appropriate HTTP status codes
         - Provides descriptive error messages
-        
+
     Response Headers:
         - Content-Type: application/pdf
         - Content-Disposition: attachment with structured filename
         - Filename format: "Invoice_Memo_{memo_code}_{child_admission}.pdf"
-        
+
     Data Flow:
         1. Validates request method and extracts memo_code
         2. Retrieves memo from database using memo_code
         3. Prepares display data using prepare_memo_display_data_fixed()
         4. Generates PDF using generate_memo_pdf_with_two_column_breakdown()
         5. Returns PDF response with appropriate headers
-        
+
     Integration:
         - Works with InvoiceMemo model for data retrieval
         - Uses prepare_memo_display_data_fixed() for data preparation
         - Uses generate_memo_pdf_with_two_column_breakdown() for PDF creation
         - Supports enhanced memo system with detailed breakdowns
-        
+
     Performance:
         - Generates PDF in memory using BytesIO
         - Efficient data retrieval with single database query
         - Uses ReportLab for fast PDF generation
         - Minimal memory footprint for PDF creation
-        
+
     Use Cases:
         - Invoice distribution to parents/guardians
         - Record keeping and documentation
         - Payment verification and tracking
         - Audit trail for billing transactions
         - Legal documentation for financial records
-        
+
     URL Pattern:
         - /invoices/download-pdf/ (POST)
     """
@@ -11041,17 +11034,17 @@ def downloadInvoiceMemoPDF(request):
 def get_automatic_breakdown_data(child, month, year):
     """
     Automatically generates detailed breakdown data for a child's billing in a specific month.
-    
+
     This function performs comprehensive calculation of a child's monthly charges,
     including extra hours breakdown, holiday charges, and attendance summaries.
     The data is structured for storage in the calculation_details JSON field and
     provides detailed audit trail information.
-    
+
     Args:
         child (Child): Child model instance for billing calculations
         month (int): Target month (1-12)
         year (int): Target year (e.g., 2024)
-        
+
     Returns:
         dict: Comprehensive breakdown data containing:
             - extra_hours_breakdown: List of extra hours charges with details
@@ -11059,7 +11052,7 @@ def get_automatic_breakdown_data(child, month, year):
             - summary: Summary statistics and totals
             - attendance_summary: Monthly attendance statistics
             - package_details: Package information and rates
-            
+
     Data Structure:
         {
             "extra_hours_breakdown": [
@@ -11088,14 +11081,14 @@ def get_automatic_breakdown_data(child, month, year):
                 "expected_days": 22
             }
         }
-        
+
     Business Logic:
         - Calculates detailed breakdown for invoice transparency
         - Provides audit trail for billing calculations
         - Supports both fixed and flexible package types
         - Handles attendance-based and full-package billing
         - Includes comprehensive charge calculations
-        
+
     Calculation Process:
         1. Retrieves active package mapping for the period
         2. Gets all attendance logs for the target month
@@ -11103,43 +11096,43 @@ def get_automatic_breakdown_data(child, month, year):
         4. Calculates extra hours charges based on package end times
         5. Determines holiday attendance charges
         6. Compiles comprehensive breakdown data
-        
+
     Package Type Support:
         - Fixed Packages: Uses package end time for extra hours calculation
         - Flex Packages: Uses default 5:30 PM end time
         - Holiday Packages: Uses package-specific end times
         - Handles package transitions within the month
-        
+
     Extra Hours Calculation:
         - Compares checkout time with package end time
         - Calculates extra hours in decimal format
         - Applies appropriate rates (before/after 5:30 PM)
         - Includes detailed time breakdown for transparency
-        
+
     Holiday Charges:
         - Identifies attendance on holiday dates
         - Applies holiday-specific rates
         - Includes holiday name for context
         - Supports various holiday types
-        
+
     Error Handling:
         - Returns empty structure if no package mapping found
         - Handles missing attendance data gracefully
         - Provides default values for missing information
         - Maintains data integrity throughout calculation
-        
+
     Integration:
         - Used by enhanced memo generation system
         - Supports JSON storage in calculation_details field
         - Provides data for PDF generation
         - Enables detailed billing transparency
-        
+
     Performance:
         - Efficient database queries with date range filtering
         - Optimized attendance log retrieval
         - Minimal memory footprint for calculations
         - Scalable for large datasets
-        
+
     Use Cases:
         - Monthly billing calculations
         - Invoice generation and transparency
@@ -12233,12 +12226,12 @@ def prepare_memo_display_data_fixed(memo):
 def generate_memo_pdf_with_two_column_breakdown(memo_data):
     """
     Generates a professional PDF invoice memo with detailed two-column breakdown layout.
-    
+
     This function creates a comprehensive PDF invoice memo using ReportLab, featuring
     a professional layout with detailed charge breakdowns in two-column format for
     better readability. It includes payment history, outstanding balances, and
     itemized charges with professional formatting.
-    
+
     Args:
         memo_data (dict): Comprehensive memo data dictionary containing:
             - child_name: Child's full name
@@ -12252,94 +12245,94 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
             - payment_history: Payment transaction details
             - extra_hours_breakdown_list: Detailed extra hours charges
             - holiday_breakdown_list: Holiday attendance charges
-            
+
     Returns:
         BytesIO: PDF buffer containing the generated invoice memo
-        
+
     PDF Structure:
         1. Header Section:
            - Company logo and name
            - Address and contact information
            - Professional styling with centered alignment
-           
+
         2. Child Information Section:
            - Child name and admission number
            - Package details and due date
            - Formatted in table layout for clarity
-           
+
         3. Outstanding Balance Section:
            - Previous outstanding amounts
            - Payment history with detailed breakdown
            - Current outstanding balance calculations
-           
+
         4. Previous Month Charges:
            - Monthly package fees
            - Extra hours breakdown in two-column format
            - Holiday charges with individual day details
            - Subtotal calculations
-           
+
         5. Current Month Charges:
            - Current package fees
            - Extra hours breakdown
            - Holiday charges
            - Total amount due
-           
+
         6. Payment Information:
            - Payment history table
            - Current balance calculations
            - Due date information
-           
+
     Typography and Styling:
         - Header: Helvetica-Bold, 16pt
         - Address: Helvetica, 11pt
         - Content: Helvetica, 11pt
         - Breakdown details: Helvetica, 9pt
         - Professional color scheme with black text
-        
+
     Two-Column Breakdown Features:
         - Extra hours displayed in paired columns
         - Holiday charges in structured format
         - Improved readability for detailed information
         - Efficient space utilization
         - Clear separation between different charge types
-        
+
     Table Formatting:
         - Professional table styling with borders
         - Alternating row colors for readability
         - Right-aligned monetary values
         - Consistent spacing and padding
         - Clear headers and sections
-        
+
     Payment Integration:
         - Shows all payment transactions
         - Calculates running balances
         - Displays payment dates and amounts
         - Includes payment reference numbers
-        
+
     Error Handling:
         - Handles missing data gracefully
         - Provides default values for missing fields
         - Manages formatting errors in amounts
         - Ensures PDF generation doesn't fail
-        
+
     Business Logic:
         - Calculates outstanding balances automatically
         - Formats monetary values consistently
         - Maintains chronological order of transactions
         - Provides comprehensive billing documentation
-        
+
     Integration:
         - Works with prepare_memo_display_data_fixed() for data preparation
         - Uses format_breakdown_item() for extra hours formatting
         - Uses format_holiday_breakdown_item() for holiday formatting
         - Supports enhanced memo system architecture
-        
+
     Performance:
         - Generates PDF in memory using BytesIO
         - Efficient table creation with ReportLab
         - Optimized for A4 page size
         - Minimal memory footprint
-        
+
     Use Cases:
         - Professional invoice generation
         - Parent billing documentation
@@ -12730,58 +12723,58 @@ def loadInvoiceMemo(request):
 def format_breakdown_item(item):
     """
     Formats individual extra hours breakdown item for PDF display.
-    
+
     This utility function takes an extra hours breakdown item dictionary and
     formats it into a readable string for PDF invoice display. It handles
     date formatting, time display, and extra hours calculations.
-    
+
     Args:
         item (dict): Extra hours breakdown item containing:
             - date: Date string in YYYY-MM-DD format
             - time_out: Time the child was checked out
             - extra_hours_display: Formatted extra hours string
             - charges: Amount charged for extra hours
-            
+
     Returns:
         str: Formatted string for PDF display in format:
              "YYYY-MM-DD -> TIME_OUT (EXTRA_HOURS_DISPLAY)"
         str: Empty string if item is None or empty
-        
+
     Format Output:
         - "2024-01-15 -> 18:30 (2h 30m extra)"
         - "2024-01-16 -> 19:00 (3h extra)"
         - "N/A -> N/A ()" if data is missing
-        
+
     Data Processing:
         - Converts date string to consistent YYYY-MM-DD format
         - Handles missing or invalid dates gracefully
         - Preserves time_out and extra_hours_display as provided
         - Does not include charges in display string
-        
+
     Error Handling:
         - Returns empty string for None or empty items
         - Handles date parsing errors gracefully
         - Uses "N/A" for missing date values
         - Maintains original format for invalid dates
-        
+
     Business Logic:
         - Provides consistent formatting for PDF breakdown sections
         - Supports two-column layout in invoice memos
         - Enables clear display of extra hours charges
         - Maintains chronological information for audit purposes
-        
+
     Integration:
         - Used by generate_memo_pdf_with_two_column_breakdown()
         - Works with extra hours breakdown data
         - Supports PDF table formatting requirements
         - Maintains consistent display format across all breakdowns
-        
+
     Date Handling:
         - Expects YYYY-MM-DD input format
         - Converts to consistent YYYY-MM-DD output format
         - Handles various date string formats
         - Preserves original string if parsing fails
-        
+
     Use Cases:
         - PDF invoice generation
         - Extra hours breakdown display
@@ -12813,65 +12806,65 @@ def format_breakdown_item(item):
 def format_holiday_breakdown_item(item):
     """
     Formats individual holiday breakdown item for PDF display.
-    
+
     This utility function takes a holiday breakdown item dictionary and
     formats it into a readable string for PDF invoice display. It handles
     date formatting and holiday name display for holiday attendance charges.
-    
+
     Args:
         item (dict): Holiday breakdown item containing:
             - date: Date string in YYYY-MM-DD format
             - holiday_name: Name of the holiday
             - charges: Amount charged for holiday attendance
-            
+
     Returns:
         str: Formatted string for PDF display in format:
              "YYYY-MM-DD -> HOLIDAY_NAME"
         str: Empty string if item is None or empty
-        
+
     Format Output:
         - "2024-01-15 -> Poya Day"
         - "2024-02-04 -> Independence Day"
         - "N/A -> Holiday" if data is missing
-        
+
     Data Processing:
         - Converts date string to consistent YYYY-MM-DD format
         - Handles missing or invalid dates gracefully
         - Preserves holiday_name as provided
         - Does not include charges in display string
-        
+
     Error Handling:
         - Returns empty string for None or empty items
         - Handles date parsing errors gracefully
         - Uses "N/A" for missing date values
         - Uses "Holiday" as default name if not provided
         - Maintains original format for invalid dates
-        
+
     Business Logic:
         - Provides consistent formatting for PDF breakdown sections
         - Supports two-column layout in invoice memos
         - Enables clear display of holiday charges
         - Maintains chronological information for audit purposes
         - Helps parents understand holiday attendance charges
-        
+
     Integration:
         - Used by generate_memo_pdf_with_two_column_breakdown()
         - Works with holiday breakdown data
         - Supports PDF table formatting requirements
         - Maintains consistent display format across all breakdowns
-        
+
     Date Handling:
         - Expects YYYY-MM-DD input format
         - Converts to consistent YYYY-MM-DD output format
         - Handles various date string formats
         - Preserves original string if parsing fails
-        
+
     Holiday Information:
         - Displays holiday name for context
         - Helps parents understand charges
         - Provides transparency in billing
         - Supports audit and verification
-        
+
     Use Cases:
         - PDF invoice generation
         - Holiday charges breakdown display
@@ -14213,16 +14206,16 @@ def search_memo_for_payment(request):
 def process_payment(request):
     """
     Process payment for an invoice memo with hierarchical payment application.
-    
+
     This view handles payment processing for invoice memos by applying payments
     in a specific hierarchy: Outstanding balance -> Previous month -> Current month.
     It ensures proper payment distribution and maintains accurate financial records.
-    
+
     Payment Hierarchy:
         1. Outstanding Balance: Applied to 2-month-old charges first
         2. Previous Month: Applied to 1-month-old charges second
         3. Current Month: Applied as advance payment for current charges
-        
+
     Parameters:
         request (HttpRequest): POST request containing payment data:
             - memo_id: Integer ID of the invoice memo
@@ -14230,7 +14223,7 @@ def process_payment(request):
             - receipt_number: String payment receipt reference
             - payment_date: String date in YYYY-MM-DD format (optional)
             - payment_method: String payment method (default: BANK_TRANSFER)
-            
+
     Returns:
         JsonResponse: JSON response with payment processing results:
             - success: Boolean indicating successful processing
@@ -14238,25 +14231,25 @@ def process_payment(request):
             - payment_distribution: Object showing how payment was applied
             - updated_balances: Object showing remaining balances
             - remaining_payment: Decimal any unused payment amount
-            
+
     Error Responses:
         - 400: Missing required parameters or invalid data format
         - 404: Invoice memo not found
         - 500: Server error during payment processing
-        
+
     Security:
         - Requires user login (@login_required decorator)
         - Validates memo existence before processing
         - Ensures payment amounts are positive
         - Prevents invalid payment data
-        
+
     Business Logic:
         - Applies payments in strict hierarchical order
         - Updates memo detail records with payment information
         - Creates PaymentTransaction records for audit trail
         - Recalculates memo totals after payment application
         - Handles advance payments for current month
-        
+
     Payment Application Process:
         1. Validates payment amount and format
         2. Retrieves memo and associated detail records
@@ -14265,43 +14258,43 @@ def process_payment(request):
         5. Applies remaining payment to current month (as advance)
         6. Updates all affected records
         7. Creates payment transaction record
-        
+
     Data Updates:
         - Updates InvoiceMemoDetail payment records
         - Recalculates net balances for each month
         - Updates overall memo status and totals
         - Creates audit trail in PaymentTransaction
-        
+
     Advanced Payment Handling:
         - Handles overpayments as credit for current month
         - Maintains negative balances for advance payments
         - Preserves payment allocation details
         - Supports future payment applications
-        
+
     Receipt Management:
         - Associates receipt numbers with payments
         - Maintains receipt references in payment records
         - Supports multiple receipts per memo
         - Preserves receipt audit trail
-        
+
     Integration:
         - Works with InvoiceMemo and InvoiceMemoDetail models
         - Creates PaymentTransaction records
         - Updates memo status automatically
         - Maintains financial data integrity
-        
+
     Calculation Features:
         - Precise decimal arithmetic for financial accuracy
         - Handles partial payments correctly
         - Maintains payment distribution records
         - Preserves calculation audit trail
-        
+
     Error Handling:
         - Validates all input parameters
         - Handles missing memo scenarios
         - Provides detailed error messages
         - Maintains data consistency on errors
-        
+
     Transaction Management:
         - Ensures atomicity of payment operations
         - Maintains data consistency
@@ -14781,14 +14774,14 @@ def prepare_memo_display_data_with_payment_validation(memo):
 def validate_memo_payments(memo_id):
     """
     Validates and corrects payment allocations for a memo to ensure data integrity.
-    
+
     This function performs comprehensive validation and correction of payment
     allocations across all months in a memo. It resets all payments and reapplies
     them in chronological order to ensure correct hierarchical payment allocation.
-    
+
     Args:
         memo_id (int): Primary key ID of the InvoiceMemo to validate
-        
+
     Returns:
         dict: Validation result containing:
             - success (bool): Whether validation completed successfully
@@ -14796,64 +14789,64 @@ def validate_memo_payments(memo_id):
             - transactions_reprocessed (int): Number of transactions reapplied
             - final_balance (float): Final balance after validation
             - error (str): Error message if validation failed
-            
+
     Business Logic:
         - Resets all payment allocations across memo months
         - Reapplies payments in chronological order
         - Ensures hierarchical payment allocation (outstanding → previous → current)
         - Maintains data integrity across all memo details
         - Provides audit trail for payment corrections
-        
+
     Validation Process:
         1. Retrieves memo and all associated payment transactions
         2. Resets all month payment allocations to zero
         3. Clears all payment receipt records
         4. Reapplies payments chronologically using hierarchical allocation
         5. Returns summary of corrections made
-        
+
     Payment Hierarchy:
         - Outstanding balance (oldest) gets priority
         - Previous month charges second priority
         - Current month charges third priority
         - Payments allocated in chronological order
-        
+
     Data Integrity:
         - Ensures payment totals match transaction records
         - Maintains consistent balance calculations
         - Preserves payment receipt numbers and dates
         - Fixes any allocation discrepancies
-        
+
     Error Handling:
         - Handles missing memo gracefully
         - Catches payment allocation errors
         - Returns detailed error information
         - Maintains system stability during validation
-        
+
     Use Cases:
         - Data maintenance and cleanup
         - Fixing payment allocation errors
         - Auditing payment distributions
         - Correcting balance discrepancies
         - System integrity checks
-        
+
     Integration:
         - Works with PaymentTransaction model
         - Uses InvoiceMemo.apply_payment_hierarchically() method
         - Maintains InvoiceMemoDetail payment records
         - Supports manual and automated validation
-        
+
     Performance:
         - Efficient query with single memo retrieval
         - Chronological payment ordering
         - Minimal database operations
         - Scalable for large payment histories
-        
+
     Security:
         - No authentication required (internal function)
         - Read-only validation with corrective actions
         - Maintains payment audit trail
         - Preserves original transaction data
-        
+
     Administrative Features:
         - Can be called manually for specific memos
         - Supports batch validation operations
@@ -14900,28 +14893,28 @@ def validate_memo_payments(memo_id):
 def validate_memo_payments_ajax(request, memo_id):
     """
     AJAX endpoint for validating and fixing memo payment allocations.
-    
+
     This view provides a web interface for the validate_memo_payments function,
     allowing administrators to trigger payment validation through AJAX requests.
     It ensures proper authentication and returns JSON responses for frontend handling.
-    
+
     Args:
         request (HttpRequest): POST request for payment validation
         memo_id (int): Primary key ID of the memo to validate
-        
+
     Returns:
         JsonResponse: JSON response containing validation results or error message
-        
+
     Security:
         - Requires user authentication via @login_required decorator
         - Only accepts POST requests for data modification
         - Validates memo existence through underlying function
-        
+
     Request Format:
         - Method: POST only
         - URL: /memo/validate-payments/{memo_id}/
         - No request body required
-        
+
     Response Format:
         Success Response:
         {
@@ -14930,44 +14923,44 @@ def validate_memo_payments_ajax(request, memo_id):
             "transactions_reprocessed": 5,
             "final_balance": 1500.00
         }
-        
+
         Error Response:
         {
             "success": false,
             "error": "Error message"
         }
-        
+
     Business Logic:
         - Delegates validation to validate_memo_payments() function
         - Provides web interface for payment validation
         - Returns structured JSON for frontend processing
         - Maintains audit trail through underlying function
-        
+
     Use Cases:
         - Administrative payment validation
         - Fixing payment allocation errors
         - Data integrity maintenance
         - Manual payment corrections
         - System troubleshooting
-        
+
     Integration:
         - Works with validate_memo_payments() function
         - Supports frontend AJAX requests
         - Provides JSON responses for UI updates
         - Maintains RESTful API patterns
-        
+
     Error Handling:
         - Returns 405 for non-POST requests
         - Passes through validation errors as JSON
         - Maintains consistent error response format
         - Preserves detailed error information
-        
+
     Frontend Integration:
         - Supports AJAX calls from payment management pages
         - Provides structured responses for UI updates
         - Enables real-time validation feedback
         - Supports batch validation operations
-        
+
     URL Pattern:
         - /memo/validate-payments/<int:memo_id>/ (POST)
     """

@@ -5,7 +5,8 @@
       "Bash(python manage.py:*)",
       "Bash(python3 manage.py help:*)",
       "Bash(ls:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(rg:*)"
     ],
     "deny": []
   }
