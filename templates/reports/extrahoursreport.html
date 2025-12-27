@@ -44,9 +44,7 @@
                             <label class="form-label">Child (Optional)</label>
                             <select class="form-control" id="child" name="child">
                                 <option value="">-All Children-</option>
-                                {% for child in form.child.field.queryset %}
-                                    <option value="{{ child.id }}">{{ child.admission_number }} - {{ child.child_first_name }} {{ child.child_last_name }}</option>
-                                {% endfor %}
+                                {% for child in form.child.field.queryset %}<option value="{{ child.id }}">{{ child.admission_number }} - {{ child.child_first_name }} {{ child.child_last_name }}</option>{% endfor %}
                             </select>
                         </div>
 
@@ -250,6 +248,8 @@
 {% block scripts %}
 <!-- jQuery -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<!-- Select2 -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <!--datatable js-->
 <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
@@ -268,10 +268,18 @@ var currentReportData = [];
 
 jQuery(document).ready(function () {
     console.log("Initializing Extra Hours Report...");
-    
+
+    // Initialize Select2 for child dropdown
+    $('#child').select2({
+        theme: 'bootstrap-5',
+        placeholder: 'Search by admission number or name...',
+        allowClear: true,
+        width: '100%'
+    });
+
     // Initialize DataTable
     initializeDataTable();
-    
+
     // Set default dates
     setDefaultDates();
 

@@ -22,14 +22,14 @@
     <link href="{% static 'assets/css/app.min.css' %}" rel="stylesheet" type="text/css"/>
     <!-- custom Css-->
     <link href="{% static 'assets/css/custom.min.css' %}" rel="stylesheet" type="text/css"/>
-    
-
     <link rel="stylesheet" href="{% static 'assets/libs/flatpickr/flatpickr.min.css' %}">
-    <!-- Styles -->
+    <!-- Select2 Styles -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
     <!-- Or for RTL support -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.rtl.min.css" />
+    <!-- DataTables and Select2 custom fixes - MUST be after Select2 CSS -->
+    <link href="{% static 'assets/css/datatables-custom.css' %}" rel="stylesheet" type="text/css"/>
 
     <!--datatable css-->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css"/>
@@ -388,6 +388,13 @@
                                             class="ri-login-box-line"></i><span
                                             data-key="t-mailbox"></span>
                                            Time adjustments </a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a href="/removal_approvals/" class="nav-link"> <i
+                                            class="ri-delete-bin-line text-danger"></i><span
+                                            data-key="t-mailbox"></span>
+                                           Removal Approvals </a>
                                 </li>
 
                                 <li class="nav-item">

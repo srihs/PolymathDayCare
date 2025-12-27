@@ -4142,11 +4142,20 @@ def getAttendanceReports(request):
         - getMissingAttendanceRecords(): Shows incomplete attendance
         - getAttendanceSummary(): Provides detailed attendance calculations
     """
-    attendenceform = AttendanceReportForm()
+    # Get children with active enrollments for the dropdown
+    children = Child.objects.filter(
+        is_active=True,
+        childenrollment__status="Approved",
+        childenrollment__is_active=True
+    ).distinct().order_by("admission_number")
+
     return render(
         request,
         "../templates/reports/attendancereport.html",
-        {"form": attendenceform, "UserName": request.user.username},
+        {
+            "children": children,
+            "UserName": request.user.username
+        },
     )
 
 
@@ -6079,13 +6088,13 @@ def calculate_three_month_display_data(child, current_month, current_year):
         # Get stored data for previous months
         month_before_previous_memo = InvoiceMemo.objects.filter(
             child=child,
-            month=month_before_previous,
-            year=month_before_previous_year,
+            memo_month=month_before_previous,
+            memo_year=month_before_previous_year,
             is_active=True,
         ).first()
 
         previous_month_memo = InvoiceMemo.objects.filter(
-            child=child, month=previous_month, year=previous_year, is_active=True
+            child=child, memo_month=previous_month, memo_year=previous_year, is_active=True
         ).first()
 
         # Calculate outstanding amounts
@@ -6093,12 +6102,12 @@ def calculate_three_month_display_data(child, current_month, current_year):
 
         if (
             month_before_previous_memo
-            and month_before_previous_memo.month_net_balance > 0
+            and month_before_previous_memo.net_amount_due > 0
         ):
-            total_outstanding += month_before_previous_memo.month_net_balance
+            total_outstanding += month_before_previous_memo.net_amount_due
 
-        if previous_month_memo and previous_month_memo.month_net_balance > 0:
-            total_outstanding += previous_month_memo.month_net_balance
+        if previous_month_memo and previous_month_memo.net_amount_due > 0:
+            total_outstanding += previous_month_memo.net_amount_due
 
         # Calculate current month
         package_mapping = ChildPackageMapping.objects.filter(
@@ -6121,13 +6130,13 @@ def calculate_three_month_display_data(child, current_month, current_year):
             "month_before_previous": {
                 "name": month_before_previous_name,
                 "year": month_before_previous_year,
-                "charge": month_before_previous_memo.month_total_charge
+                "charge": month_before_previous_memo.gross_total
                 if month_before_previous_memo
                 else Decimal("0.00"),
-                "payments": month_before_previous_memo.total_payments_received
+                "payments": month_before_previous_memo.total_payments
                 if month_before_previous_memo
                 else Decimal("0.00"),
-                "balance": month_before_previous_memo.month_net_balance
+                "balance": month_before_previous_memo.net_amount_due
                 if month_before_previous_memo
                 else Decimal("0.00"),
                 "status": month_before_previous_memo.status
@@ -6137,36 +6146,26 @@ def calculate_three_month_display_data(child, current_month, current_year):
             "previous_month": {
                 "name": previous_month_name,
                 "year": previous_year,
-                "charge": previous_month_memo.month_total_charge
+                "charge": previous_month_memo.gross_total
                 if previous_month_memo
                 else Decimal("0.00"),
-                "payments": previous_month_memo.total_payments_received
+                "payments": previous_month_memo.total_payments
                 if previous_month_memo
                 else Decimal("0.00"),
-                "balance": previous_month_memo.month_net_balance
+                "balance": previous_month_memo.net_amount_due
                 if previous_month_memo
                 else Decimal("0.00"),
                 "status": previous_month_memo.status
                 if previous_month_memo
                 else "No Record",
-                "package_fee": previous_month_memo.current_month_package_fee
+                "package_fee": previous_month_memo.total_current_month
                 if previous_month_memo
                 else Decimal("0.00"),
-                "extra_charges": previous_month_memo.extra_hours_charge
-                if previous_month_memo
-                else Decimal("0.00"),
-                "holiday_charges": previous_month_memo.holiday_charge
-                if previous_month_memo
-                else Decimal("0.00"),
-                "days_attended": previous_month_memo.days_attended
-                if previous_month_memo
-                else 0,
-                "expected_days": previous_month_memo.expected_days
-                if previous_month_memo
-                else 22,
-                "attendance_percentage": previous_month_memo.attendance_percentage
-                if previous_month_memo
-                else 0,
+                "extra_charges": Decimal("0.00"),
+                "holiday_charges": Decimal("0.00"),
+                "days_attended": 0,
+                "expected_days": 22,
+                "attendance_percentage": 0,
             },
             "current_month": {
                 "name": current_month_name,
@@ -6559,16 +6558,16 @@ def get_month_outstanding_credits(child, month, year):
 
         # Check if there's an existing memo for this month
         existing_memo = InvoiceMemo.objects.filter(
-            child=child, month=month, year=year, is_active=True
+            child=child, memo_month=month, memo_year=year, is_active=True
         ).first()
 
         if existing_memo:
             return {
-                "charge": existing_memo.month_total_charge,
-                "payments": existing_memo.total_payments_received,
-                "balance": existing_memo.month_net_balance,
+                "charge": existing_memo.gross_total,
+                "payments": existing_memo.total_payments,
+                "balance": existing_memo.net_amount_due,
                 "credit": max(
-                    Decimal("0.00"), -existing_memo.month_net_balance
+                    Decimal("0.00"), -existing_memo.net_amount_due
                 ),  # Credits are negative balances
                 "status": existing_memo.status,
             }
@@ -7011,22 +7010,23 @@ def get_enhanced_outstanding_data(child, month, year):
 
     # Check for existing memo
     existing_memo = InvoiceMemo.objects.filter(
-        child=child, month=month, year=year, is_active=True
+        child=child, memo_month=month, memo_year=year, is_active=True
     ).first()
 
     if existing_memo:
-        # Get payment details from existing memo
+        # Get payment details from existing memo via month_details
         payment_details = []
-        if existing_memo.payment_receipts:
-            try:
-                payment_details = json.loads(existing_memo.payment_receipts)
-            except:
-                payment_details = []
+        try:
+            month_detail = existing_memo.month_details.first()
+            if month_detail and month_detail.payment_receipts:
+                payment_details = json.loads(month_detail.payment_receipts)
+        except:
+            payment_details = []
 
         return {
-            "original_charge": existing_memo.month_total_charge,
-            "payments_received": existing_memo.total_payments_received,
-            "balance_after_payments": existing_memo.month_net_balance,
+            "original_charge": existing_memo.gross_total,
+            "payments_received": existing_memo.total_payments,
+            "balance_after_payments": existing_memo.net_amount_due,
             "status": existing_memo.status,
             "payment_details": payment_details,
         }
@@ -7292,21 +7292,21 @@ def calculate_enhanced_month_with_attendance(
 
     # Check for existing payments for this month
     existing_memo = InvoiceMemo.objects.filter(
-        child=child, month=month, year=year, is_active=True
+        child=child, memo_month=month, memo_year=year, is_active=True
     ).first()
 
     payments_received = Decimal("0.00")
     payment_details = []
 
     if existing_memo:
-        payments_received = existing_memo.total_payments_received
-        if existing_memo.payment_receipts:
-            try:
-                import json
-
-                payment_details = json.loads(existing_memo.payment_receipts)
-            except:
-                payment_details = []
+        payments_received = existing_memo.total_payments
+        try:
+            import json
+            month_detail = existing_memo.month_details.first()
+            if month_detail and month_detail.payment_receipts:
+                payment_details = json.loads(month_detail.payment_receipts)
+        except:
+            payment_details = []
 
     return {
         "package_name": package.package_name,
@@ -7366,19 +7366,20 @@ def calculate_enhanced_advance_month(child, package_mapping, enrollment, month, 
 
     # Check for existing payments
     existing_memo = InvoiceMemo.objects.filter(
-        child=child, month=month, year=year, is_active=True
+        child=child, memo_month=month, memo_year=year, is_active=True
     ).first()
 
     payments_received = Decimal("0.00")
     payment_details = []
 
     if existing_memo:
-        payments_received = existing_memo.total_payments_received
-        if existing_memo.payment_receipts:
-            try:
-                payment_details = json.loads(existing_memo.payment_receipts)
-            except:
-                payment_details = []
+        payments_received = existing_memo.total_payments
+        try:
+            month_detail = existing_memo.month_details.first()
+            if month_detail and month_detail.payment_receipts:
+                payment_details = json.loads(month_detail.payment_receipts)
+        except:
+            payment_details = []
 
     return {
         "package_name": package.package_name,
@@ -10598,12 +10599,12 @@ def getChildComprehensiveDataJS(request):
         # Get recent invoice memos (last 6 months)
         recent_invoices = InvoiceMemo.objects.filter(
             child=child, is_active=True
-        ).order_by("-year", "-month")[:6]
+        ).order_by("-memo_year", "-memo_month")[:6]
 
         # Get outstanding payments
         outstanding_invoices = InvoiceMemo.objects.filter(
-            child=child, month_net_balance__gt=0, is_active=True
-        ).order_by("year", "month")
+            child=child, net_amount_due__gt=0, is_active=True
+        ).order_by("memo_year", "memo_month")
 
         # Get pending requests
         pending_package_changes = PackageChangerequest.objects.filter(
@@ -10724,16 +10725,16 @@ def getChildComprehensiveDataJS(request):
             # Financial information
             "financial_info": {
                 "outstanding_amount": float(
-                    sum(invoice.month_net_balance for invoice in outstanding_invoices)
+                    sum(invoice.net_amount_due for invoice in outstanding_invoices)
                 ),
                 "outstanding_invoices": [
                     {
                         "memo_code": invoice.memo_code,
-                        "month_name": calendar.month_name[invoice.month],
-                        "year": invoice.year,
-                        "amount": float(invoice.month_total_charge),
-                        "payments": float(invoice.total_payments_received),
-                        "balance": float(invoice.month_net_balance),
+                        "month_name": calendar.month_name[invoice.memo_month],
+                        "year": invoice.memo_year,
+                        "amount": float(invoice.gross_total),
+                        "payments": float(invoice.total_payments),
+                        "balance": float(invoice.net_amount_due),
                         "status": invoice.status,
                     }
                     for invoice in outstanding_invoices
@@ -10741,11 +10742,11 @@ def getChildComprehensiveDataJS(request):
                 "recent_invoices": [
                     {
                         "memo_code": invoice.memo_code,
-                        "month_name": calendar.month_name[invoice.month],
-                        "year": invoice.year,
-                        "amount": float(invoice.month_total_charge),
-                        "payments": float(invoice.total_payments_received),
-                        "balance": float(invoice.month_net_balance),
+                        "month_name": calendar.month_name[invoice.memo_month],
+                        "year": invoice.memo_year,
+                        "amount": float(invoice.gross_total),
+                        "payments": float(invoice.total_payments),
+                        "balance": float(invoice.net_amount_due),
                         "status": invoice.status,
                         "created_date": invoice.date_created.strftime("%Y-%m-%d")
                         if invoice.date_created
@@ -13665,15 +13666,19 @@ def getEnhancedMissingAttendanceJS(request):
             ).values_list("id", flat=True)
             filters &= Q(child_id__in=active_children)
 
-        # Get attendance records
+        # Get attendance records - include id for removal functionality
+        # Exclude records with pending removal status
+        filters &= Q(is_active=True) & ~Q(removal_status="PENDING")
         attendance_records = AttendanceLog.objects.filter(filters).values_list(
-            "child_id", "date_logged", "time_logged"
+            "id", "child_id", "date_logged", "time_logged"
         )
 
-        # Group attendance by child and date
+        # Group attendance by child and date - store id with time
         attendance_dict = defaultdict(list)
-        for child_id, date_logged, time_logged in attendance_records:
-            attendance_dict[(child_id, date_logged)].append(time_logged)
+        for record_id, child_id, date_logged, time_logged in attendance_records:
+            attendance_dict[(child_id, date_logged)].append(
+                {"id": record_id, "time": time_logged}
+            )
 
         # Define cutoff time to determine if time is IN or OUT
         cutoff_time = time(15, 0)  # 3:00 PM
@@ -13685,7 +13690,9 @@ def getEnhancedMissingAttendanceJS(request):
             if len(time_logs) == 1:  # Only one time entry (missing either IN or OUT)
                 try:
                     child = Child.objects.get(id=child_id)
-                    single_time = time_logs[0]
+                    record_data = time_logs[0]
+                    single_time = record_data["time"]
+                    attendance_id = record_data["id"]
 
                     # Determine what's missing based on time
                     if single_time > cutoff_time:
@@ -13703,6 +13710,7 @@ def getEnhancedMissingAttendanceJS(request):
 
                     incomplete_attendance_data.append(
                         {
+                            "attendance_id": attendance_id,
                             "child_id": child.id,
                             "child_name": f"{child.admission_number} - {child.child_first_name} {child.child_last_name}",
                             "admission_number": child.admission_number,
@@ -14066,6 +14074,216 @@ def bulkFixAttendance(request):
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Invalid request method"}, status=405)
+
+
+@login_required
+def requestAttendanceRemoval(request):
+    """Request removal of an attendance entry - requires approval"""
+    if request.method == "POST":
+        try:
+            attendance_id = request.POST.get("attendance_id")
+            removal_reason = request.POST.get("removal_reason", "").strip()
+
+            if not attendance_id:
+                return JsonResponse({"error": "Attendance ID is required"}, status=400)
+
+            if not removal_reason:
+                return JsonResponse(
+                    {"error": "Removal reason is required"}, status=400
+                )
+
+            # Get the attendance record
+            try:
+                attendance = AttendanceLog.objects.get(id=attendance_id, is_active=True)
+            except AttendanceLog.DoesNotExist:
+                return JsonResponse(
+                    {"error": "Attendance record not found"}, status=404
+                )
+
+            # Check if already pending removal
+            if attendance.removal_status == "PENDING":
+                return JsonResponse(
+                    {"error": "This record already has a pending removal request"},
+                    status=400,
+                )
+
+            # Update the record with removal request
+            attendance.removal_requested = True
+            attendance.removal_reason = removal_reason
+            attendance.removal_requested_by = request.user.username
+            attendance.removal_requested_date = datetime.now()
+            attendance.removal_status = "PENDING"
+            attendance.user_updated = request.user.username
+            attendance.save()
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": "Removal request submitted successfully. Awaiting approval.",
+                    "attendance_id": attendance_id,
+                }
+            )
+
+        except Exception as e:
+            import traceback
+
+            traceback.print_exc()
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid request method"}, status=405)
+
+
+@login_required
+def getRemovalRequestsJS(request):
+    """Get all pending attendance removal requests for approval"""
+    try:
+        # Get all pending removal requests
+        pending_requests = AttendanceLog.objects.filter(
+            removal_status="PENDING", is_active=True
+        ).select_related("child")
+
+        requests_data = []
+        for record in pending_requests:
+            requests_data.append(
+                {
+                    "id": record.id,
+                    "child_id": record.child.id,
+                    "child_name": f"{record.child.admission_number} - {record.child.child_first_name} {record.child.child_last_name}",
+                    "admission_number": record.child.admission_number,
+                    "date_logged": record.date_logged.strftime("%Y-%m-%d"),
+                    "day_name": record.date_logged.strftime("%A"),
+                    "time_logged": record.time_logged.strftime("%H:%M"),
+                    "removal_reason": record.removal_reason,
+                    "removal_requested_by": record.removal_requested_by,
+                    "removal_requested_date": record.removal_requested_date.strftime(
+                        "%Y-%m-%d %H:%M"
+                    )
+                    if record.removal_requested_date
+                    else "",
+                }
+            )
+
+        # Sort by request date (newest first)
+        requests_data.sort(key=lambda x: x["removal_requested_date"], reverse=True)
+
+        return JsonResponse(requests_data, safe=False)
+
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def approveAttendanceRemoval(request):
+    """Approve an attendance removal request - sets is_active=False"""
+    if request.method == "POST":
+        try:
+            attendance_id = request.POST.get("attendance_id")
+
+            if not attendance_id:
+                return JsonResponse({"error": "Attendance ID is required"}, status=400)
+
+            # Get the attendance record
+            try:
+                attendance = AttendanceLog.objects.get(
+                    id=attendance_id, removal_status="PENDING", is_active=True
+                )
+            except AttendanceLog.DoesNotExist:
+                return JsonResponse(
+                    {"error": "Pending removal request not found"}, status=404
+                )
+
+            # Approve the removal
+            attendance.is_active = False
+            attendance.removal_status = "APPROVED"
+            attendance.removal_approved_by = request.user.username
+            attendance.removal_approved_date = datetime.now()
+            attendance.user_updated = request.user.username
+            attendance.save()
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": "Attendance entry removed successfully.",
+                    "attendance_id": attendance_id,
+                }
+            )
+
+        except Exception as e:
+            import traceback
+
+            traceback.print_exc()
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid request method"}, status=405)
+
+
+@login_required
+def rejectAttendanceRemoval(request):
+    """Reject an attendance removal request - keeps record active"""
+    if request.method == "POST":
+        try:
+            attendance_id = request.POST.get("attendance_id")
+
+            if not attendance_id:
+                return JsonResponse({"error": "Attendance ID is required"}, status=400)
+
+            # Get the attendance record
+            try:
+                attendance = AttendanceLog.objects.get(
+                    id=attendance_id, removal_status="PENDING", is_active=True
+                )
+            except AttendanceLog.DoesNotExist:
+                return JsonResponse(
+                    {"error": "Pending removal request not found"}, status=404
+                )
+
+            # Reject the removal - keep record active
+            attendance.removal_requested = False
+            attendance.removal_status = "REJECTED"
+            attendance.removal_approved_by = request.user.username
+            attendance.removal_approved_date = datetime.now()
+            attendance.user_updated = request.user.username
+            attendance.save()
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": "Removal request rejected. Record remains active.",
+                    "attendance_id": attendance_id,
+                }
+            )
+
+        except Exception as e:
+            import traceback
+
+            traceback.print_exc()
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid request method"}, status=405)
+
+
+@login_required
+def getRemovalApprovalsPage(request):
+    """Render the removal approvals page"""
+    try:
+        # Get count of pending requests for display
+        pending_count = AttendanceLog.objects.filter(
+            removal_status="PENDING", is_active=True
+        ).count()
+
+        context = {
+            "UserName": request.user.username,
+            "pending_count": pending_count,
+        }
+
+        return render(request, "../templates/removal_approvals.html", context)
+
+    except Exception as e:
+        messages.error(request, f"Error loading removal approvals page: {str(e)}")
+        return redirect("core:enhanced_check_ins")
 
 
 @login_required

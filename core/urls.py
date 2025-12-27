@@ -429,6 +429,32 @@ urlpatterns = [
         name="attendance_stats_summary",
     ),
     path("bulk_fix_attendance/", views.bulkFixAttendance, name="bulk_fix_attendance"),
+    # Attendance Removal Request URLs
+    path(
+        "request_attendance_removal/",
+        views.requestAttendanceRemoval,
+        name="request_attendance_removal",
+    ),
+    path(
+        "get_removal_requests_js/",
+        views.getRemovalRequestsJS,
+        name="get_removal_requests_js",
+    ),
+    path(
+        "approve_attendance_removal/",
+        views.approveAttendanceRemoval,
+        name="approve_attendance_removal",
+    ),
+    path(
+        "reject_attendance_removal/",
+        views.rejectAttendanceRemoval,
+        name="reject_attendance_removal",
+    ),
+    path(
+        "removal_approvals/",
+        views.getRemovalApprovalsPage,
+        name="removal_approvals",
+    ),
     path("process_payment/", views.process_payment, name="process_payment"),
     path("apply_payment/", views.get_apply_payment_page, name="apply_payment_page"),
     path(

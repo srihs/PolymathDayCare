@@ -317,12 +317,22 @@
 <!-- jQuery -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<!-- Select2 -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
     var $ = jQuery;
     
     $(document).ready(function() {
-        
+
+        // Initialize Select2 for child dropdown
+        $('#child_select').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Search by admission number or name...',
+            allowClear: true,
+            width: '100%'
+        });
+
         // Search button click
         $('#search_btn').click(function() {
             var childId = $('#child_select').val();
@@ -338,7 +348,7 @@
         
         // Clear button click
         $('#clear_btn').click(function() {
-            $('#child_select').val('');
+            $('#child_select').val('').trigger('change');
             $('#admission_number').val('');
             $('#child_data_container').hide();
             $('#error_message').hide();
@@ -354,7 +364,7 @@
         // Admission number input
         $('#admission_number').on('input', function() {
             if ($(this).val()) {
-                $('#child_select').val('');
+                $('#child_select').val('').trigger('change');
             }
         });
         

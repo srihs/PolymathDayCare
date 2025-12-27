@@ -437,11 +437,29 @@ class ChildPackageMapping(BaseClass):
 
 
 class AttendanceLog(BaseClass):
+    REMOVAL_STATUS_CHOICES = (
+        ("NONE", "None"),
+        ("PENDING", "Pending Approval"),
+        ("APPROVED", "Approved"),
+        ("REJECTED", "Rejected"),
+    )
+
     child = models.ForeignKey("Child", on_delete=models.CASCADE)
     date_logged = models.DateField()
     time_logged = models.TimeField()
     # branch = models.ForeignKey("Branch", on_delete=models.CASCADE)
     # day_care = models.ForeignKey("DayCare", on_delete=models.CASCADE)
+
+    # Removal request fields
+    removal_requested = models.BooleanField(default=False)
+    removal_reason = models.TextField(null=True, blank=True)
+    removal_requested_by = models.CharField(max_length=50, null=True, blank=True)
+    removal_requested_date = models.DateTimeField(null=True, blank=True)
+    removal_approved_by = models.CharField(max_length=50, null=True, blank=True)
+    removal_approved_date = models.DateTimeField(null=True, blank=True)
+    removal_status = models.CharField(
+        max_length=20, choices=REMOVAL_STATUS_CHOICES, default="NONE"
+    )
 
     class Meta:
         verbose_name = "Attendance Log"

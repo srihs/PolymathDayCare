@@ -604,9 +604,7 @@ var table = $('#mappingTable').DataTable({
 });
 </script>
 
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
-
+<!-- Select2 CSS is in base.html -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
@@ -616,6 +614,7 @@ var table = $('#mappingTable').DataTable({
 $(document).ready(function() {
   // Initialize Select2 for searchable dropdowns
   $('#child, #searchChild').select2({
+    theme: 'bootstrap-5',
     placeholder: 'Search and select child...',
     allowClear: true,
     width: '100%'
