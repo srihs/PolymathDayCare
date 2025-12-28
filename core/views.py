@@ -6761,11 +6761,17 @@ def get_month_outstanding_credits(child, month, year):
 
 
 def calculate_month_with_attendance(child, package_mapping, enrollment, month, year):
-    """Calculate month charges with full attendance logic - COMPLETE FIXED VERSION"""
+    """Calculate month charges with full attendance logic - COMPLETE FIXED VERSION
+
+    Supports three package types:
+    - Normal package: Regular days
+    - Holiday package: Public holidays (is_public_holiday=True)
+    - Vacation package: Polymath holidays and other school holidays (is_polymath_holiday=True or is_other_school_holiday=True)
+    """
     try:
         import calendar
         from collections import defaultdict
-        from datetime import datetime, time
+        from datetime import datetime, time, timedelta
         from decimal import Decimal
 
         from django.db.models import Q
@@ -6774,11 +6780,74 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
         first_day = datetime(year, month, 1).date()
         last_day = datetime(year, month, calendar.monthrange(year, month)[1]).date()
 
-        # Get package details
-        is_flex = package_mapping.flex_package is not None
-        package = (
-            package_mapping.flex_package if is_flex else package_mapping.normal_package
+        # ===== VACATION MONTH DETECTION =====
+        # Check if the entire month falls within a vacation period (polymath/other holidays)
+        # A vacation month is when polymath/other holidays cover the majority of working days
+
+        # Get all vacation holidays (polymath + other school holidays) that overlap this month
+        vacation_holidays_qs = Holiday.objects.filter(
+            Q(is_polymath_holiday=True) | Q(is_other_school_holiday=True),
+            start_date__lte=last_day,
+            end_date__gte=first_day,
+            is_active=True
         )
+
+        # Get all public holidays that overlap this month
+        public_holidays_qs = Holiday.objects.filter(
+            is_public_holiday=True,
+            start_date__lte=last_day,
+            end_date__gte=first_day,
+            is_active=True
+        )
+
+        # Build sets of dates covered by each holiday type
+        vacation_dates = set()
+        for holiday in vacation_holidays_qs:
+            # Get all dates in this holiday that fall within the month
+            current = max(holiday.start_date, first_day)
+            end = min(holiday.end_date, last_day)
+            while current <= end:
+                vacation_dates.add(current)
+                current += timedelta(days=1)
+
+        public_holiday_dates = set()
+        for holiday in public_holidays_qs:
+            current = max(holiday.start_date, first_day)
+            end = min(holiday.end_date, last_day)
+            while current <= end:
+                public_holiday_dates.add(current)
+                current += timedelta(days=1)
+
+        # Calculate working days in the month (exclude weekends)
+        total_days_in_month = (last_day - first_day).days + 1
+        working_days = 0
+        current_date = first_day
+        while current_date <= last_day:
+            if current_date.weekday() < 5:  # Monday=0 to Friday=4
+                working_days += 1
+            current_date += timedelta(days=1)
+
+        # Check if this is a vacation month (vacation covers >= 50% of working days)
+        vacation_working_days = sum(1 for d in vacation_dates if d.weekday() < 5)
+        is_vacation_month = (
+            vacation_working_days >= (working_days * 0.5)
+            and package_mapping.vacation_package is not None
+        )
+
+        # ===== PACKAGE SELECTION =====
+        # If vacation month and vacation package exists, use it
+        # Otherwise use flex or normal package
+        is_flex = package_mapping.flex_package is not None
+
+        if is_vacation_month and package_mapping.vacation_package:
+            package = package_mapping.vacation_package
+            using_vacation_package = True
+        elif is_flex:
+            package = package_mapping.flex_package
+            using_vacation_package = False
+        else:
+            package = package_mapping.normal_package
+            using_vacation_package = False
 
         if not package:
             raise Exception("No valid package assigned.")
@@ -6791,22 +6860,17 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
             child=child, date_logged__range=(first_day, last_day)
         ).order_by("date_logged", "time_logged")
 
-        # Get holidays in this month
-        holidays = set(
-            Holiday.objects.filter(
-                start_date__lte=last_day, end_date__gte=first_day
-            ).values_list("start_date", flat=True)
-        )
-
         # Group logs by date
         logs_by_date = defaultdict(list)
         for log in attendance_logs:
             logs_by_date[log.date_logged].append(log)
 
         present_days = 0
-        holiday_attendance_days = 0
+        public_holiday_attendance_days = 0
+        vacation_attendance_days = 0
         extra_hours_charge = Decimal("0.00")
         holiday_charge = Decimal("0.00")
+        vacation_charge = Decimal("0.00")
 
         # Get package details for extra hours calculation
         package_end_time = None
@@ -6818,6 +6882,9 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
         elif package_mapping.holiday_package:
             package_end_time = package_mapping.holiday_package.to_time
             package_type = package_mapping.holiday_package.package_type
+        elif package_mapping.vacation_package:
+            package_end_time = package_mapping.vacation_package.to_time
+            package_type = package_mapping.vacation_package.package_type
         elif package_mapping.flex_package:
             package_end_time = time(17, 30)  # Default for flex
             package_type = package_mapping.flex_package.package_type
@@ -6831,7 +6898,10 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
                 last_log = logs_sorted[-1]
                 time_out = last_log.time_logged
 
-                is_holiday_day = log_date in holidays
+                # Determine holiday type for this day
+                is_public_holiday_day = log_date in public_holiday_dates
+                is_vacation_day = log_date in vacation_dates
+                is_holiday_day = is_public_holiday_day or is_vacation_day
 
                 # ===== CORRECTED CUMULATIVE EXTRA HOURS CALCULATION =====
                 if time_out and package_end_time and time_out > package_end_time:
@@ -6932,9 +7002,33 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
                     # Add to total extra hours charge
                     extra_hours_charge += day_extra_charges
 
-                # Calculate holiday charges
-                if is_holiday_day and package_mapping.holiday_package:
-                    holiday_attendance_days += 1
+                # Calculate holiday/vacation charges based on holiday type
+                # Public holidays use holiday_package, vacation days use vacation_package
+                if is_public_holiday_day and package_mapping.holiday_package:
+                    # Public holiday - use holiday_package
+                    public_holiday_attendance_days += 1
+                    expected_days_holiday = (
+                        package_mapping.holiday_package.no_days_months or 22
+                    )
+                    daily_holiday_rate = (
+                        package_mapping.holiday_package.package_total
+                        / Decimal(expected_days_holiday)
+                    )
+                    holiday_charge += daily_holiday_rate
+                elif is_vacation_day and package_mapping.vacation_package:
+                    # Vacation day (polymath/other) - use vacation_package
+                    vacation_attendance_days += 1
+                    expected_days_vacation = (
+                        package_mapping.vacation_package.no_days_months or 22
+                    )
+                    daily_vacation_rate = (
+                        package_mapping.vacation_package.package_total
+                        / Decimal(expected_days_vacation)
+                    )
+                    vacation_charge += daily_vacation_rate
+                elif is_vacation_day and package_mapping.holiday_package:
+                    # Fallback: if vacation_package not assigned, use holiday_package
+                    public_holiday_attendance_days += 1
                     expected_days_holiday = (
                         package_mapping.holiday_package.no_days_months or 22
                     )
@@ -6960,8 +7054,10 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
         else:
             package_fee = package_total  # 50% or more = full charge
 
-        # Calculate subtotal
-        subtotal = package_fee + extra_hours_charge + holiday_charge
+        # Calculate subtotal (include both holiday and vacation charges)
+        # Combine holiday_charge and vacation_charge for backward compatibility
+        total_holiday_vacation_charge = holiday_charge + vacation_charge
+        subtotal = package_fee + extra_hours_charge + total_holiday_vacation_charge
 
         # Apply discount
         discount_amount = Decimal("0.00")
@@ -6969,6 +7065,9 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
             discount_amount = subtotal * (enrollment.discount.discount_rate / 100)
 
         total_charge = subtotal - discount_amount
+
+        # Combine attendance days for backward compatibility
+        total_holiday_attendance_days = public_holiday_attendance_days + vacation_attendance_days
 
         return {
             "package_name": package.package_name,
@@ -6979,10 +7078,17 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
             "is_half_charge": is_half_charge,
             "package_fee": package_fee,
             "extra_charges": extra_hours_charge,  # ✅ CORRECTED CUMULATIVE CALCULATION
-            "holiday_attendance_days": holiday_attendance_days,
-            "holiday_charges": holiday_charge,
+            "holiday_attendance_days": total_holiday_attendance_days,  # Combined for backward compatibility
+            "holiday_charges": total_holiday_vacation_charge,  # Combined for backward compatibility
             "discount": discount_amount,
             "total_charge": total_charge,
+            # New detailed fields for transparency
+            "is_vacation_month": is_vacation_month,
+            "using_vacation_package": using_vacation_package,
+            "public_holiday_days": public_holiday_attendance_days,
+            "vacation_days": vacation_attendance_days,
+            "public_holiday_charge": holiday_charge,
+            "vacation_charge": vacation_charge,
         }
 
     except Exception as e:
