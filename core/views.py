@@ -139,43 +139,11 @@ def index(request):
         is_active=True, is_enrolled=True
     ).count()
 
-    # 2. Today's Attendance: Count unique children checked in today
-    todays_attendance_count = (
-        AttendanceLog.objects.filter(
-            date_logged=today, is_active=True, removal_status__in=["NONE", "REJECTED"]
-        )
-        .values("child")
-        .distinct()
-        .count()
-    )
+    # 2. Total Children: Count of all children in the database
+    total_children_in_db = Child.objects.count()
 
-    # Calculate attendance percentage (today's attendance / active children)
-    attendance_percentage = 0
-    if active_children_count > 0:
-        attendance_percentage = round(
-            (todays_attendance_count / active_children_count) * 100, 1
-        )
-
-    # 3. Pending Approvals: Count from 4 models where status='PENDING_APPROVAL'
-    pending_enrollments = ChildEnrollment.objects.filter(
-        status="PENDING_APPROVAL", is_active=True
-    ).count()
-    pending_discounts = Discount.objects.filter(
-        status="PENDING_APPROVAL", is_active=True
-    ).count()
-    pending_package_changes = PackageChangerequest.objects.filter(
-        status="PENDING_APPROVAL", is_active=True
-    ).count()
-    pending_center_changes = CenterChangerequest.objects.filter(
-        status="PENDING_APPROVAL", is_active=True
-    ).count()
-
-    total_pending_approvals = (
-        pending_enrollments
-        + pending_discounts
-        + pending_package_changes
-        + pending_center_changes
-    )
+    # 3. Not Enrolled: Count of children where is_enrolled=False
+    not_enrolled_count = Child.objects.filter(is_enrolled=False).count()
 
     # 4. Outstanding Balance: Sum of net_amount_due from InvoiceMemo where status in ['GENERATED', 'PARTIAL']
     outstanding_balance = (
@@ -199,13 +167,30 @@ def index(request):
         or Decimal("0.00")
     )
 
-    # 6. Payment Status: Percentage of PAID invoices vs total
-    total_invoices = InvoiceMemo.objects.filter(is_active=True).count()
-    paid_invoices = InvoiceMemo.objects.filter(status="PAID", is_active=True).count()
+    # 6. Active Child %: Children with attendance in last 60 days (2 months)
+    two_months_ago = today - timedelta(days=60)
 
-    payment_status_percentage = 0
-    if total_invoices > 0:
-        payment_status_percentage = round((paid_invoices / total_invoices) * 100, 1)
+    # Children with at least one attendance record in last 60 days
+    # Only count enrolled children (is_active=True, is_enrolled=True) to match Active Children KPI
+    children_with_recent_attendance = (
+        Child.objects.filter(
+            is_active=True,
+            is_enrolled=True,
+            attendancelog__date_logged__gte=two_months_ago,
+            attendancelog__is_active=True,
+        )
+        .distinct()
+        .count()
+    )
+
+    # Use enrolled children count as the base (same as Active Children KPI)
+    total_children_count = active_children_count
+
+    active_child_percentage = 0
+    if total_children_count > 0:
+        active_child_percentage = round(
+            (children_with_recent_attendance / total_children_count) * 100, 1
+        )
 
     # 7. Upcoming Holidays: Next 30 days from Holiday model
     thirty_days_from_now = today + timedelta(days=30)
@@ -234,20 +219,16 @@ def index(request):
     # Prepare context for template
     context = {
         "UserName": UserName,
-        # KPI Metrics
+        # KPI Metrics - Row 1
         "active_children_count": active_children_count,
-        "todays_attendance_count": todays_attendance_count,
-        "attendance_percentage": attendance_percentage,
-        "total_pending_approvals": total_pending_approvals,
-        "pending_enrollments": pending_enrollments,
-        "pending_discounts": pending_discounts,
-        "pending_package_changes": pending_package_changes,
-        "pending_center_changes": pending_center_changes,
+        "total_children_in_db": total_children_in_db,
+        "not_enrolled_count": not_enrolled_count,
+        # KPI Metrics - Row 2
         "outstanding_balance": outstanding_balance,
         "monthly_revenue": monthly_revenue,
-        "payment_status_percentage": payment_status_percentage,
-        "paid_invoices": paid_invoices,
-        "total_invoices": total_invoices,
+        "active_child_percentage": active_child_percentage,
+        "children_with_recent_attendance": children_with_recent_attendance,
+        "total_children_count": total_children_count,
         # Upcoming holidays
         "upcoming_holidays": upcoming_holidays,
         # Inactive children

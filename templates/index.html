@@ -199,24 +199,22 @@
         </div>
     </div>
 
-    <!-- Today's Attendance -->
+    <!-- Total Children -->
     <div class="col-xl-4 col-md-6">
         <div class="card card-animate dashboard-card">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="flex-grow-1 overflow-hidden">
-                        <p class="text-uppercase fw-medium text-muted text-truncate mb-0 kpi-label">Today's Attendance</p>
+                        <p class="text-uppercase fw-medium text-muted text-truncate mb-0 kpi-label">Total Children</p>
                         <div class="d-flex align-items-center mt-2">
-                            <h4 class="kpi-value flex-shrink-0 mb-0">{{ todays_attendance_count|default:0 }}</h4>
-                            <span class="badge {% if attendance_percentage >= 80 %}bg-success-subtle text-success{% elif attendance_percentage >= 50 %}bg-warning-subtle text-warning{% else %}bg-danger-subtle text-danger{% endif %} ms-2">
-                                {{ attendance_percentage|floatformat:1|default:"0.0" }}%
-                            </span>
+                            <h4 class="kpi-value flex-shrink-0 mb-0">{{ total_children_in_db|default:0 }}</h4>
+                            <span class="text-muted ms-2 fs-6">in database</span>
                         </div>
                     </div>
                     <div class="flex-shrink-0">
                         <div class="avatar-sm">
-                            <span class="avatar-title bg-success-subtle rounded fs-3">
-                                <i class="ri-calendar-check-line text-success"></i>
+                            <span class="avatar-title bg-info-subtle rounded fs-3">
+                                <i class="ri-team-line text-info"></i>
                             </span>
                         </div>
                     </div>
@@ -225,18 +223,18 @@
         </div>
     </div>
 
-    <!-- Pending Approvals -->
+    <!-- Not Enrolled -->
     <div class="col-xl-4 col-md-6">
         <div class="card card-animate dashboard-card">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="flex-grow-1 overflow-hidden">
-                        <p class="text-uppercase fw-medium text-muted text-truncate mb-0 kpi-label">Pending Approvals</p>
+                        <p class="text-uppercase fw-medium text-muted text-truncate mb-0 kpi-label">Not Enrolled</p>
                         <div class="d-flex align-items-center mt-2">
-                            <h4 class="kpi-value flex-shrink-0 mb-0">{{ total_pending_approvals|default:0 }}</h4>
-                            {% if total_pending_approvals > 0 %}
-                            <a href="/enrollments_list_for_approval/" class="ms-2 text-warning small">
-                                <i class="ri-arrow-right-line"></i> Review
+                            <h4 class="kpi-value flex-shrink-0 mb-0">{{ not_enrolled_count|default:0 }}</h4>
+                            {% if not_enrolled_count > 0 %}
+                            <a href="/child/?enrolled=false" class="ms-2 text-warning small">
+                                <i class="ri-arrow-right-line"></i> View
                             </a>
                             {% endif %}
                         </div>
@@ -244,7 +242,7 @@
                     <div class="flex-shrink-0">
                         <div class="avatar-sm">
                             <span class="avatar-title bg-warning-subtle rounded fs-3">
-                                <i class="ri-time-line text-warning"></i>
+                                <i class="ri-user-unfollow-line text-warning"></i>
                             </span>
                         </div>
                     </div>
@@ -306,32 +304,32 @@
         </div>
     </div>
 
-    <!-- Payment Status -->
+    <!-- Active Child % -->
     <div class="col-xl-4 col-md-6">
         <div class="card card-animate dashboard-card">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="flex-grow-1 overflow-hidden">
-                        <p class="text-uppercase fw-medium text-muted text-truncate mb-0 kpi-label">Payment Status</p>
+                        <p class="text-uppercase fw-medium text-muted text-truncate mb-0 kpi-label">Active Child %</p>
                         <div class="d-flex align-items-center mt-2">
                             <h4 class="kpi-value flex-shrink-0 mb-0">
-                                {{ payment_status_percentage|floatformat:1|default:"0.0" }}%
+                                {{ active_child_percentage|floatformat:1|default:"0.0" }}%
                             </h4>
-                            <span class="text-muted ms-2 fs-6">({{ paid_invoices }}/{{ total_invoices }} paid)</span>
+                            <span class="text-muted ms-2 fs-6">({{ children_with_recent_attendance }}/{{ total_children_count }} active)</span>
                         </div>
                         <div class="progress progress-sm mt-2" style="height: 6px;" role="progressbar"
-                             aria-valuenow="{{ payment_status_percentage|default:0 }}" aria-valuemin="0" aria-valuemax="100"
-                             aria-label="Payment collection progress">
+                             aria-valuenow="{{ active_child_percentage|default:0 }}" aria-valuemin="0" aria-valuemax="100"
+                             aria-label="Active children percentage">
                             <div class="progress-bar
-                                {% if payment_status_percentage >= 75 %}bg-success{% elif payment_status_percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
-                                 style="width: {{ payment_status_percentage|default:0 }}%">
+                                {% if active_child_percentage >= 75 %}bg-success{% elif active_child_percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                                 style="width: {{ active_child_percentage|default:0 }}%">
                             </div>
                         </div>
                     </div>
                     <div class="flex-shrink-0">
                         <div class="avatar-sm">
                             <span class="avatar-title bg-secondary-subtle rounded fs-3">
-                                <i class="ri-percent-line text-secondary"></i>
+                                <i class="ri-parent-line text-secondary"></i>
                             </span>
                         </div>
                     </div>
