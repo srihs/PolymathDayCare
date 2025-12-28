@@ -5,7 +5,8 @@ Provides filters for formatting numbers with thousand separators
 and currency display in the daycare management system.
 """
 
-from decimal import Decimal
+import decimal
+from decimal import Decimal, InvalidOperation
 
 from django import template
 
@@ -41,7 +42,7 @@ def format_currency(value, decimal_places=2):
         # Format with thousand separators
         formatted = f"{value:,.{decimal_places}f}"
         return f"Rs. {formatted}"
-    except (ValueError, TypeError, decimal.InvalidOperation):
+    except (ValueError, TypeError, InvalidOperation):
         return "Rs. 0.00"
 
 
@@ -75,7 +76,3 @@ def format_number(value, decimal_places=0):
             return f"{int(num_value):,}"
     except (ValueError, TypeError):
         return "0"
-
-
-# Import decimal for exception handling
-import decimal
