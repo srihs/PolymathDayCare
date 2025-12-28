@@ -5553,6 +5553,7 @@ def getPackagesByChildIdJS(request):
     packageText = None
     isFixed = False
     isHoliday = False
+    isVacation = False
     if request.GET.get("id") is not None:
         id = request.GET.get("id")
         package = ChildPackageMapping.objects.get(child=id, is_active=True)
@@ -5567,7 +5568,7 @@ def getPackagesByChildIdJS(request):
                     )
                     isFixed = True
                     id = objPackage.id
-                    packageList.append([isFixed, packageText, id, isHoliday])
+                    packageList.append([isFixed, packageText, id, isHoliday, isVacation])
             if package.flex_package is not None:
                 objPackage = FlexPackages.objects.filter(
                     pk=package.flex_package.id
@@ -5578,7 +5579,7 @@ def getPackagesByChildIdJS(request):
                     )
                 isFixed = False
                 id = objPackage.id
-                packageList.append([isFixed, packageText, id, isHoliday])
+                packageList.append([isFixed, packageText, id, isHoliday, isVacation])
             if package.holiday_package is not None:
                 objHolidayPackage = FixedPackage.objects.filter(
                     pk=package.holiday_package.id
@@ -5592,7 +5593,23 @@ def getPackagesByChildIdJS(request):
                 isFixed = False
                 id = objHolidayPackage.id
                 isHoliday = True
-                packageList.append([isFixed, packageText, id, isHoliday])
+                isVacation = False
+                packageList.append([isFixed, packageText, id, isHoliday, isVacation])
+            if package.vacation_package is not None:
+                objVacationPackage = FixedPackage.objects.filter(
+                    pk=package.vacation_package.id
+                ).first()
+                if objVacationPackage is not None:
+                    packageText = (
+                        objVacationPackage.package_code
+                        + " - "
+                        + objVacationPackage.package_name
+                    )
+                isFixed = False
+                id = objVacationPackage.id
+                isHoliday = False
+                isVacation = True
+                packageList.append([isFixed, packageText, id, isHoliday, isVacation])
             response_json = json.dumps(packageList)  # Serialize to JSON string
     return JsonResponse(response_json, safe=False)
 
@@ -5672,6 +5689,20 @@ def savePackageRequest(request):
                     ).first()
                     if objHolidayPackage is not None:
                         objPackageChangeRequest.old_holiday_package = objHolidayPackage
+                # Handle vacation package - if new not selected, use old
+                if request.POST.get("old_vacation_package") is not None:
+                    objOldVacationPackage = FixedPackage.objects.filter(
+                        pk=request.POST.get("old_vacation_package")
+                    ).first()
+                    if objOldVacationPackage is not None:
+                        objPackageChangeRequest.old_vacation_package = (
+                            objOldVacationPackage
+                        )
+                # If new_vacation_package not selected, use old_vacation_package
+                if objPackageChangeRequest.new_vacation_package is None:
+                    objPackageChangeRequest.new_vacation_package = (
+                        objPackageChangeRequest.old_vacation_package
+                    )
                 objPackageChangeRequest.save()
                 messages.success(request, "Package change request saved.")
             else:
@@ -5702,6 +5733,8 @@ def getPackageChangeRequestsJS(request):
             - new_package: Requested new package name (fixed or flex)
             - old_holiday_package_name: Current holiday package name
             - new_holiday_package_name: Requested new holiday package name
+            - old_vacation_package_name: Current vacation package name
+            - new_vacation_package_name: Requested new vacation package name
             - date_requested: Date when request was submitted
             - reason_for_request: Reason provided for the package change
             - user_created: Username of person who created the request
@@ -5717,6 +5750,7 @@ def getPackageChangeRequestsJS(request):
         - Uses complex annotations to determine package names
         - Handles both fixed and flex package types
         - Includes holiday package information
+        - Includes vacation package information
         - Provides comprehensive request information for approval workflow
 
     Database Operations:
@@ -5775,6 +5809,10 @@ def getPackageChangeRequestsJS(request):
                 old_holiday_package_name=F("old_holiday_package__package_name"),
                 # Annotate new holiday package
                 new_holiday_package_name=F("new_holiday_package__package_name"),
+                # Annotate old vacation package
+                old_vacation_package_name=F("old_vacation_package__package_name"),
+                # Annotate new vacation package
+                new_vacation_package_name=F("new_vacation_package__package_name"),
             )
             .values(
                 "id",  # ID of the package change request
@@ -5783,6 +5821,8 @@ def getPackageChangeRequestsJS(request):
                 "new_package",  # New package (either fixed or flexed)
                 "old_holiday_package_name",  # Old Holiday Package
                 "new_holiday_package_name",  # New Holiday Package
+                "old_vacation_package_name",  # Old Vacation Package
+                "new_vacation_package_name",  # New Vacation Package
                 "date_requested",  # Date requested
                 "reason_for_request",  # Reason(s) for change
                 "user_created",  # Reason(s) for change
@@ -5861,6 +5901,15 @@ def approvePackageChange(request):
                 else:
                     objChildPackageMapping.holiday_package = (
                         objPackageChangeRequest.old_holiday_package
+                    )
+                # Handle vacation package - if new not specified, preserve old
+                if objPackageChangeRequest.new_vacation_package:
+                    objChildPackageMapping.vacation_package = (
+                        objPackageChangeRequest.new_vacation_package
+                    )
+                else:
+                    objChildPackageMapping.vacation_package = (
+                        objPackageChangeRequest.old_vacation_package
                     )
                 objChildPackageMapping.effective_from = (
                     objPackageChangeRequest.effective_date

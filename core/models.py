@@ -585,6 +585,21 @@ class PackageChangerequest(BaseClass):
         blank=True,
         related_name="%(class)s_new_holiday_package",
     )
+    old_vacation_package = models.ForeignKey(
+        FixedPackage,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(class)s_old_vacation_package",
+    )
+
+    new_vacation_package = models.ForeignKey(
+        FixedPackage,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(class)s_new_vacation_package",
+    )
     date_requested = models.DateField(auto_now_add=True)
     effective_date = models.DateField(default=timezone.now)
     date_approved = models.DateField(null=True)

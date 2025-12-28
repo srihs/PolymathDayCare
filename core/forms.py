@@ -2266,6 +2266,21 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
         ),
     )
 
+    new_vacation_package = forms.ModelChoiceField(
+        queryset=FixedPackage.objects.filter(
+            is_active=True, package_type__is_vacation_package=True
+        ),
+        empty_label="-Select vacation package-",
+        required=False,
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Vacation Package",
+                "id": "vacation_package",
+            }
+        ),
+    )
+
     reason_for_request = forms.CharField(
         max_length=550,
         required=True,
@@ -2300,6 +2315,7 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
             "new_fixed_package",
             "new_flex_package",
             "new_holiday_package",
+            "new_vacation_package",
             "reason_for_request",
             "effective_date",
         )

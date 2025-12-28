@@ -47,6 +47,8 @@
                     <th>New package</th>
                     <th>Old holiday package</th>
                     <th>New holiday package</th>
+                    <th>Old vacation package</th>
+                    <th>New vacation package</th>
                     <th>Requested on</th>
                     <th>Effective from</th>
                     <th>Reason(s) for change</th>
@@ -104,6 +106,12 @@
                         </div>
                         <input type="hidden" id="old_holiday_package" name="old_holiday_package">
                         <div class="col-lg-6">{{ form.new_holiday_package }}</div>
+                        <div class="col-lg-6">
+                            Old vacation package :
+                            <label id="lblvacation"></label>
+                        </div>
+                        <input type="hidden" id="old_vacation_package" name="old_vacation_package">
+                        <div class="col-lg-6">{{ form.new_vacation_package }}</div>
                         <div class="col-lg-12">{{ form.reason_for_request }}</div>
                         <div class="col-lg-12">{{ form.effective_date }}</div>
                     </div>
@@ -178,18 +186,21 @@
                     {data: "new_package"},
                     {data: "old_holiday_package_name"},
                     {data: "new_holiday_package_name" },
+                    {data: "old_vacation_package_name"},
+                    {data: "new_vacation_package_name" },
                     {data: "date_requested"},
                     {data: "effective_date"},
                     {data: "reason_for_request"},
                     ],
                     createdRow: function (row, data, dataIndex) {
-                        // Combining all the address fields
-                
+                        // Handle holiday package "No Change" badge
                         if (data.new_holiday_package_name===null) {
-                        $("td", row).eq(4).html('<span class="badge bg-success">'+"No Change" +'</span>');
-
-                        } 
-                
+                            $("td", row).eq(4).html('<span class="badge bg-success">'+"No Change" +'</span>');
+                        }
+                        // Handle vacation package "No Change" badge
+                        if (data.new_vacation_package_name===null) {
+                            $("td", row).eq(6).html('<span class="badge bg-success">'+"No Change" +'</span>');
+                        }
                       },
                 searching: false,
                 paging: false,
@@ -291,6 +302,13 @@
                                         document.getElementById('lblholiday').innerHTML =
                                             packageText;
                                         document.getElementById('old_holiday_package')
+                                            .value = packageId;
+                                    }
+                                    // Handle vacation package (5th element in array)
+                                    if (item[4] === true) {
+                                        document.getElementById('lblvacation').innerHTML =
+                                            packageText;
+                                        document.getElementById('old_vacation_package')
                                             .value = packageId;
                                     }
                                 });

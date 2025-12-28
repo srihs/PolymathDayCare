@@ -39,6 +39,8 @@
                     <th>New package</th>
                     <th>Old holiday package</th>
                     <th>New holiday package</th>
+                    <th>Old vacation package</th>
+                    <th>New vacation package</th>
                     <th>Requested on</th>
                     <th>Effective from</th>
                     <th>Reason(s) for change</th>
@@ -199,10 +201,12 @@
                     {data: "new_package"},
                     {data: "old_holiday_package_name"},
                     {data: "new_holiday_package_name" },
+                    {data: "old_vacation_package_name"},
+                    {data: "new_vacation_package_name" },
                     {data: "date_requested"},
                     {data: "effective_date"},
                     {data: "reason_for_request"},
-                    {data: "user_created"}, 
+                    {data: "user_created"},
                     {
                         data: null,
                         render: function (data, type, row) {
@@ -214,7 +218,7 @@
                             url +
                             ' class="link-success"  data-id="'+ id +'" data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="mdi mdi-check-circle"></i></a>');
                         },
-                        
+
                       },
                       {
                         data: null,
@@ -229,19 +233,21 @@
                         },
                       },
                     ],
-                    
-                    
-                    createdRow: function (row, data, dataIndex) {
-                        // Combining all the address fields
-                
-                        if (data.new_holiday_package_name===null) {
-                        $("td", row).eq(4).html('<span class="badge bg-success">'+"No Change" +'</span>');
 
-                        } 
+
+                    createdRow: function (row, data, dataIndex) {
+                        // Handle holiday package "No Change" badge
+                        if (data.new_holiday_package_name===null) {
+                            $("td", row).eq(4).html('<span class="badge bg-success">'+"No Change" +'</span>');
+                        }
+                        // Handle vacation package "No Change" badge
+                        if (data.new_vacation_package_name===null) {
+                            $("td", row).eq(6).html('<span class="badge bg-success">'+"No Change" +'</span>');
+                        }
                       },
                 searching: false,
                 paging: false,
-                order: [[5, "asc"]], // Set default sorting by admission_date in descending order
+                order: [[7, "asc"]], // Set default sorting by date_requested in ascending order
             });
         });
         
