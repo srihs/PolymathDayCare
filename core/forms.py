@@ -1307,7 +1307,9 @@ class CreateEnrollmentForm(forms.ModelForm):
 
     normal_package = forms.ModelChoiceField(
         queryset=FixedPackage.objects.filter(
-            is_active=True, package_type__is_holiday_package=False
+            is_active=True,
+            package_type__is_holiday_package=False,
+            package_type__is_vacation_package=False,
         ).order_by("package_code"),
         required=False,
         empty_label="-Select normal package-",
@@ -1331,6 +1333,21 @@ class CreateEnrollmentForm(forms.ModelForm):
                 "class": "form-control",
                 "placeholder": "Base Rate",
                 "id": "holiday_package",
+            }
+        ),
+    )
+
+    vacation_package = forms.ModelChoiceField(
+        queryset=FixedPackage.objects.filter(
+            is_active=True, package_type__is_vacation_package=True
+        ).order_by("package_code"),
+        empty_label="-Select vacation package-",
+        required=False,
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Base Rate",
+                "id": "vacation_package",
             }
         ),
     )
@@ -1380,6 +1397,7 @@ class CreateEnrollmentForm(forms.ModelForm):
             "dayCare",
             "normal_package",
             "holiday_package",
+            "vacation_package",
             "flex_package",
             "discount",
             "recipt_number",

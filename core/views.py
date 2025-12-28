@@ -2788,6 +2788,11 @@ def getEnrollmentsJS(request):
             "holiday_package__package_name"
         )[:1]
     )
+    vacation_package_subquery = Subquery(
+        ChildPackageMapping.objects.filter(child=OuterRef("child")).values(
+            "vacation_package__package_name"
+        )[:1]
+    )
 
     # Annotate the packages based on availability
     enrolmentList = list(
@@ -2804,6 +2809,7 @@ def getEnrollmentsJS(request):
             normal_package_name=normal_package_subquery,
             flex_package_name=flex_package_subquery,
             holiday_package=holiday_package_subquery,
+            vacation_package=vacation_package_subquery,
             package_name=Case(
                 When(normal_package_name__isnull=False, then=F("normal_package_name")),
                 When(flex_package_name__isnull=False, then=F("flex_package_name")),
@@ -2823,6 +2829,7 @@ def getEnrollmentsJS(request):
             "is_active",
             "package_name",
             "holiday_package",
+            "vacation_package",
         )
     )
     return JsonResponse(enrolmentList, safe=False)
@@ -2915,6 +2922,7 @@ def saveEnrollments(request):
         dayCare = request.POST.get("dayCare")
         normal_package = request.POST.get("normal_package")
         holiday_package = request.POST.get("holiday_package")
+        vacation_package = request.POST.get("vacation_package")
         discount = request.POST.get("discount")
         flex_package = request.POST.get("flex_package")
         recipt_number = request.POST.get("recipt_number")
@@ -2976,6 +2984,11 @@ def saveEnrollments(request):
                                 FixedPackage.objects.get(pk=holiday_package)
                             )
 
+                        if vacation_package:
+                            objPackageMapping.vacation_package = (
+                                FixedPackage.objects.get(pk=vacation_package)
+                            )
+
                         if normal_package:
                             objPackageMapping.normal_package = FixedPackage.objects.get(
                                 pk=normal_package
@@ -3012,6 +3025,11 @@ def getAllPendingEnrollmentsJS(request):
             "holiday_package__package_name"
         )[:1]
     )
+    vacation_package_subquery = Subquery(
+        ChildPackageMapping.objects.filter(child=OuterRef("child")).values(
+            "vacation_package__package_name"
+        )[:1]
+    )
 
     # Annotate the packages based on availability
     enrolmentList = list(
@@ -3028,6 +3046,7 @@ def getAllPendingEnrollmentsJS(request):
             normal_package_name=normal_package_subquery,
             flex_package_name=flex_package_subquery,
             holiday_package=holiday_package_subquery,
+            vacation_package=vacation_package_subquery,
             package_name=Case(
                 When(normal_package_name__isnull=False, then=F("normal_package_name")),
                 When(flex_package_name__isnull=False, then=F("flex_package_name")),
@@ -3047,6 +3066,7 @@ def getAllPendingEnrollmentsJS(request):
             "is_active",
             "package_name",
             "holiday_package",
+            "vacation_package",
         )
     )
     return JsonResponse(enrolmentList, safe=False)

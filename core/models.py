@@ -416,6 +416,18 @@ class ChildEnrollment(BaseClass):
 
 
 class ChildPackageMapping(BaseClass):
+    """
+    Maps children to their assigned packages.
+
+    A child can have:
+    - normal_package: For regular working days (FixedPackage with normal PackageType)
+    - holiday_package: For public holidays (FixedPackage with holiday PackageType)
+    - vacation_package: For polymath/other holidays (FixedPackage with vacation PackageType)
+    - flex_package: Flexible hour-based package (FlexPackages)
+
+    Note: A child should have either a normal_package OR flex_package, not both.
+    """
+
     child = models.ForeignKey("Child", on_delete=models.CASCADE)
     normal_package = models.ForeignKey(
         "FixedPackage",
@@ -430,6 +442,14 @@ class ChildPackageMapping(BaseClass):
         related_name="holiday_package",
         null=True,
         blank=True,
+    )
+    vacation_package = models.ForeignKey(
+        "FixedPackage",
+        on_delete=models.CASCADE,
+        related_name="vacation_package",
+        null=True,
+        blank=True,
+        help_text="Package for polymath/other holidays (vacation package type)",
     )
     flex_package = models.ForeignKey(
         "FlexPackages",

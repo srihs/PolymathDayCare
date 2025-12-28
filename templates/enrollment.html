@@ -136,10 +136,32 @@
            </datalist>
 
             <!-- <div class="col-sm-4">{{form.dayCare}}</div> -->
-            <div class="col-sm-4">{{form.normal_package}}</div>
+
+            <!-- Package Selection Info Alert -->
+            <div class="col-12">
+              <div class="alert alert-info alert-dismissible fade show d-flex align-items-center" role="alert" id="package-selection-info">
+                <i class="ri-information-line me-2 fs-5" aria-hidden="true"></i>
+                <div>
+                  <strong>Package Selection:</strong> You can select either a <strong>Normal Package</strong> OR a <strong>Flex Package</strong>, but not both.
+                  Selecting one will automatically clear the other.
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close info alert"></button>
+              </div>
+            </div>
+
+            <div class="col-sm-4">
+              <label for="normal_package" class="form-label visually-hidden">Normal Package</label>
+              {{form.normal_package}}
+              <small class="form-text text-muted" id="normal_package_help">Time-based fixed package</small>
+            </div>
             <div class="col-sm-4">{{form.holiday_package}}</div>
-            <div class="col-sm-4">{{form.flex_package}}</div>
-            
+            <div class="col-sm-4">{{form.vacation_package}}</div>
+            <div class="col-sm-4">
+              <label for="flex_package" class="form-label visually-hidden">Flex Package</label>
+              {{form.flex_package}}
+              <small class="form-text text-muted" id="flex_package_help">Hour-based flexible package</small>
+            </div>
+
             <div class="col-sm-4">{{form.recipt_number}}</div>
           </div>
         </div>
@@ -274,7 +296,116 @@
     jQuery('#child').select2({ dropdownParent: $('#showModalCreate')});
     jQuery('#normal_package').select2({ dropdownParent: $('#showModalCreate')});
     jQuery('#holiday_package').select2({ dropdownParent: $('#showModalCreate')});
+    jQuery('#vacation_package').select2({ dropdownParent: $('#showModalCreate')});
     jQuery('#flex_package').select2({ dropdownParent: $('#showModalCreate')});
+
+    // =========================================================================
+    // Package Mutual Exclusivity Logic
+    // Users can select EITHER a normal_package OR a flex_package, but not both.
+    // When one is selected, the other is automatically cleared.
+    // =========================================================================
+
+    /**
+     * Clears a Select2 dropdown and triggers necessary events
+     * @param {string} selector - jQuery selector for the dropdown
+     */
+    function clearSelect2Dropdown(selector) {
+      var $dropdown = jQuery(selector);
+      // Set value to empty and trigger change for Select2 to update display
+      $dropdown.val('').trigger('change');
+    }
+
+    /**
+     * Shows a brief notification when a package is auto-cleared
+     * @param {string} clearedPackageType - Type of package that was cleared
+     */
+    function showPackageClearedNotice(clearedPackageType) {
+      // Remove any existing notice
+      jQuery('.package-cleared-notice').remove();
+
+      // Create and show the notice
+      var $notice = jQuery(
+        '<div class="package-cleared-notice alert alert-warning alert-dismissible fade show py-2 mt-2" role="alert">' +
+          '<i class="ri-alert-line me-1" aria-hidden="true"></i>' +
+          '<small><strong>' + clearedPackageType + '</strong> was cleared because you can only select one package type.</small>' +
+          '<button type="button" class="btn-close btn-sm" data-bs-dismiss="alert" aria-label="Close notice"></button>' +
+        '</div>'
+      );
+
+      // Insert notice after the package selection info alert
+      jQuery('#package-selection-info').after($notice);
+
+      // Auto-dismiss after 4 seconds
+      setTimeout(function() {
+        $notice.fadeOut(300, function() {
+          jQuery(this).remove();
+        });
+      }, 4000);
+    }
+
+    // When normal_package is selected, clear flex_package
+    jQuery('#normal_package').on('change', function() {
+      var selectedValue = jQuery(this).val();
+
+      // Only clear flex_package if normal_package has a valid selection
+      if (selectedValue && selectedValue !== '') {
+        var flexValue = jQuery('#flex_package').val();
+
+        // Check if flex_package has a selection that needs clearing
+        if (flexValue && flexValue !== '') {
+          clearSelect2Dropdown('#flex_package');
+          showPackageClearedNotice('Flex Package');
+        }
+      }
+    });
+
+    // When flex_package is selected, clear normal_package
+    jQuery('#flex_package').on('change', function() {
+      var selectedValue = jQuery(this).val();
+
+      // Only clear normal_package if flex_package has a valid selection
+      if (selectedValue && selectedValue !== '') {
+        var normalValue = jQuery('#normal_package').val();
+
+        // Check if normal_package has a selection that needs clearing
+        if (normalValue && normalValue !== '') {
+          clearSelect2Dropdown('#normal_package');
+          showPackageClearedNotice('Normal Package');
+        }
+      }
+    });
+
+    // Form submission validation - ensure at least one package type is selected
+    jQuery('.tablelist-form').on('submit', function(e) {
+      var normalPackage = jQuery('#normal_package').val();
+      var flexPackage = jQuery('#flex_package').val();
+
+      // Check if neither package is selected
+      if ((!normalPackage || normalPackage === '') && (!flexPackage || flexPackage === '')) {
+        e.preventDefault();
+
+        // Remove any existing validation alert
+        jQuery('.package-validation-alert').remove();
+
+        // Show validation error
+        var $alert = jQuery(
+          '<div class="package-validation-alert alert alert-danger alert-dismissible fade show" role="alert">' +
+            '<i class="ri-error-warning-line me-2" aria-hidden="true"></i>' +
+            '<strong>Package Required:</strong> Please select either a Normal Package or a Flex Package before submitting.' +
+            '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close validation alert"></button>' +
+          '</div>'
+        );
+
+        jQuery('#package-selection-info').before($alert);
+
+        // Scroll to the alert
+        $alert[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        return false;
+      }
+
+      return true;
+    });
 
 
     window.setTimeout(function () {
