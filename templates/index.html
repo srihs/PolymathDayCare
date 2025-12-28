@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load number_filters %}
 
 {% block PageTitle %}Dashboard{% endblock %}
 {% block UserName %}{{ UserName }}{% endblock %}
@@ -203,7 +204,7 @@
                         <p class="text-uppercase fw-medium text-muted text-truncate mb-0 kpi-label">Outstanding Balance</p>
                         <div class="d-flex align-items-center mt-2">
                             <h4 class="kpi-value flex-shrink-0 mb-0 text-danger">
-                                Rs. {{ outstanding_balance|floatformat:2|default:"0.00" }}
+                                {{ outstanding_balance|format_currency }}
                             </h4>
                         </div>
                     </div>
@@ -228,7 +229,7 @@
                         <p class="text-uppercase fw-medium text-muted text-truncate mb-0 kpi-label">{{ current_month_name }} {{ current_year }} Revenue</p>
                         <div class="d-flex align-items-center mt-2">
                             <h4 class="kpi-value flex-shrink-0 mb-0 text-info">
-                                Rs. {{ monthly_revenue|floatformat:2|default:"0.00" }}
+                                {{ monthly_revenue|format_currency }}
                             </h4>
                         </div>
                     </div>
