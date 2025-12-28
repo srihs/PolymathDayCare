@@ -6,8 +6,31 @@
       "Bash(python3 manage.py help:*)",
       "Bash(ls:*)",
       "Bash(grep:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(dir:*)",
+      "Bash(tree:*)",
+      "Bash(env\\\\Scripts\\\\python.exe manage.py makemigrations:*)",
+      "Bash(./env/Scripts/python.exe manage.py makemigrations:*)",
+      "Bash(findstr:*)",
+      "Bash(git revert:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npx playwright --version)",
+      "Bash(node test_select2_styling.js:*)",
+      "Bash(npm install:*)",
+      "Bash(npx playwright:*)",
+      "Bash(node test_select2_gap_detailed.js:*)",
+      "Bash(node test_select2_verify_fix.js:*)",
+      "Bash(node test_select2_overlap.js:*)",
+      "Bash(node test_select2_detailed.js:*)",
+      "Bash(node test_select2_structure.js:*)",
+      "Bash(node:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "puppeteer"
+  ]
 }

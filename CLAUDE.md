@@ -2,22 +2,67 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## CRITICAL RULES
+
+**PRESERVE PROJECT STRUCTURE**: Do NOT reorganize, rename, or restructure the existing project layout. Maintain the current directory structure, file organization, and naming conventions. Any new files should follow existing patterns.
+
 ## Project Overview
 
-This is a Django-based **Daycare Management System** called "PolymathDayCare" that handles:
+This is a **Django 5.0.1 Daycare Management System** called "PolymathDayCare" that handles:
 - Child enrollment and management
-- Package pricing and billing
+- Package pricing and billing (Fixed & Flexible packages)
 - Attendance tracking via QR codes
-- Invoice memo generation
+- Invoice memo generation (3-month rolling system)
 - Holiday and rate management
 - Branch and center management
+- Approval workflows (Enrollments, Discounts, Package/Center changes)
+
+## Project Structure (DO NOT MODIFY)
+
+```
+PolymathDayCare/
+├── daycareSystem/           # Django project configuration
+│   ├── settings.py          # Main settings (MySQL, sessions, CORS)
+│   ├── urls.py              # Root URL routing
+│   ├── wsgi.py              # WSGI application
+│   └── asgi.py              # ASGI application
+├── core/                    # Main application (ALL business logic)
+│   ├── models.py            # 27 Django models
+│   ├── views.py             # 196 view functions (~15K lines)
+│   ├── urls.py              # 100+ URL patterns
+│   ├── forms.py             # Django forms
+│   ├── admin.py             # Admin interface
+│   └── migrations/          # Database migrations
+├── transactions/            # Placeholder for future financial transactions
+│   ├── models.py            # Empty
+│   └── views.py             # Empty
+├── templates/               # HTML templates
+│   ├── base.html            # Main layout (Bootstrap 5 + ApexCharts)
+│   ├── login.html           # Authentication
+│   ├── partials/            # Reusable form components
+│   ├── reports/             # Report templates
+│   └── utils/               # Data import utilities
+├── static/assets/           # Static assets
+│   ├── css/                 # Bootstrap + custom CSS
+│   ├── js/                  # jQuery, DataTables, ApexCharts
+│   ├── images/              # Logos and images
+│   ├── fonts/               # Web fonts
+│   └── libs/                # Third-party libraries
+├── media/                   # User-generated content
+│   ├── child_images/        # Child profile pictures
+│   ├── enrollment_forms/    # Generated enrollment PDFs
+│   └── qr/                  # QR code images
+├── manage.py                # Django management utility
+├── requirements.txt         # Python dependencies
+└── .env                     # Environment variables (not in git)
+```
 
 ## Development Commands
 
 ### Running the Application
 ```bash
-# Activate virtual environment (if using venv)
-source env/bin/activate  # On Windows: env\Scripts\activate
+# Activate virtual environment (Windows)
+env\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -61,193 +106,225 @@ python manage.py test
 python manage.py test core
 python manage.py test transactions
 
-# Run with verbosity for detailed output
+# Run with verbosity
 python manage.py test --verbosity=2
 
-# Run specific test class or method
-python manage.py test core.tests.SomeTestClass
-python manage.py test core.tests.SomeTestClass.test_method
-
-# Keep test database after tests (faster subsequent runs)
+# Keep test database (faster subsequent runs)
 python manage.py test --keepdb
-
-# Run tests in parallel
-python manage.py test --parallel
 ```
 
 ### Code Quality & Linting
 ```bash
-# Note: Linting tools need to be installed first
-# pip install ruff mypy black isort
-
-# Format code with Ruff (configured in VS Code)
+# Format code with Ruff
 ruff format .
 
-# Lint and auto-fix issues
+# Lint and auto-fix
 ruff check . --fix
 
-# Check without fixing
-ruff check .
-
-# Type checking (if mypy installed)
+# Type checking
 mypy core/ transactions/
-
-# Security linting (if bandit installed)
-bandit -r core/ transactions/
 ```
 
-## Architecture Overview
+## Database Models (core/models.py)
 
-### Core Applications
-- **core/**: Main application containing all business logic
-- **transactions/**: Currently empty but intended for financial transactions
-- **daycareSystem/**: Django project settings and configuration
-
-### Database Models (core/models.py)
-Key models in hierarchical order:
+### Model Hierarchy (27 Models)
 
 **Base Infrastructure:**
-- `BaseClass`: Abstract base with common fields (id, dates, user tracking, is_active)
-- `Branch`: Physical locations
-- `DayCare`: Centers within branches
-- `PackageType`: Normal vs Holiday packages
-- `PackageTerm`: Fixed vs Dynamic packages
+| Model | Purpose |
+|-------|---------|
+| `BaseClass` | Abstract base with audit fields (id, dates, user tracking, is_active) |
+| `Branch` | Physical locations/headquarters |
+| `DayCare` | Centers within branches (called "Center" in UI) |
+| `PackageType` | Normal vs Holiday classification |
+| `PackageTerm` | Fixed vs Dynamic packages |
 
 **Child Management:**
-- `Child`: Core child information with QR codes
-- `ChildEnrollment`: Enrollment process with approval workflow
-- `ChildPackageMapping`: Links children to their packages with effective dates
+| Model | Purpose |
+|-------|---------|
+| `Child` | Core child info with QR codes, images, contact details |
+| `ChildEnrollment` | Enrollment workflow with approval (PENDING/APPROVED/REJECTED) |
+| `ChildPackageMapping` | Links children to packages with effective date ranges |
 
 **Package & Pricing:**
-- `FixedPackage`: Time-based packages with fixed hours
-- `FlexPackages`: Flexible hour packages
-- `ExtraHoursAfter530`: Extra charges after 5:30 PM
-- `ExtraHoursUpTo530`: Extra charges until 5:30 PM
-- `Discount`: Discount codes with approval workflow
+| Model | Purpose |
+|-------|---------|
+| `FixedPackage` | Time-based packages (e.g., 8AM-12PM) with auto-calculated hours |
+| `FlexPackages` | Hour-based flexible pricing |
+| `ExtraHoursAfter530` | Extra charges after 5:30 PM |
+| `ExtraHoursUpTo530` | Extra charges until 5:30 PM |
+| `PackageExtraHoursMapping` | Links packages to extra hour rates |
+| `Discount` | Discount codes with approval workflow |
+| `ExtraChargesHistory` | Historical tracking of rate changes |
+
+**Holiday Management:**
+| Model | Purpose |
+|-------|---------|
+| `Holiday` | Holiday definitions with auto day counting (weekdays/weekends) |
+
+**Workflow Requests:**
+| Model | Purpose |
+|-------|---------|
+| `PackageChangerequest` | Package upgrade/downgrade approvals |
+| `CenterChangerequest` | Center transfer approvals |
 
 **Attendance & Billing:**
-- `AttendanceLog`: QR code-based attendance tracking
-- `InvoiceMemo`: Main invoice with summary totals
-- `InvoiceMemoDetail`: Detailed monthly breakdown (3 records per memo)
-- `PaymentTransaction`: Payment records
+| Model | Purpose |
+|-------|---------|
+| `AttendanceLog` | QR code-based daily check-ins |
+| `EnrollmentForm` | Generated enrollment PDF documents |
+| `InvoiceMemo` | Main invoice summary (one per child per month) |
+| `InvoiceMemoDetail` | Month breakdown (exactly 3 per memo: Outstanding/Previous/Current) |
+| `PaymentTransaction` | Payment records with receipt tracking |
 
-**Workflow Management:**
-- `PackageChangerequest`: Package change approvals
-- `CenterChangerequest`: Center transfer requests
-- `Holiday`: Holiday management with automatic day calculations
+### Key Relationships
+- Most models extend `BaseClass` for consistent auditing
+- Foreign keys use CASCADE deletion (be careful with deletions)
+- `InvoiceMemo` always has exactly 3 `InvoiceMemoDetail` records
+- `ChildPackageMapping` has unique constraint on (child, effective_from date range)
 
-### URL Structure (core/urls.py)
-Major URL patterns:
-- `/`: Home dashboard
-- `/child/`: Child management
-- `/enrollments/`: Enrollment management
-- `/packages/`: Package configuration
-- `/attendance/`: Attendance tracking
-- `/memo_data_entry/`: Invoice generation
-- `/reports/`: Various reports
+## URL Structure (core/urls.py)
 
-### Template Structure
-- `templates/base.html`: Main layout
-- `templates/partials/`: Reusable form components
-- `templates/reports/`: Report templates
-- `templates/utils/`: Data import utilities
+### Major URL Patterns (100+)
+
+| Feature | URLs |
+|---------|------|
+| **Authentication** | `/login/`, `/logout/` |
+| **Dashboard** | `/` (home) |
+| **Children** | `/child/`, `/savechild/`, `/deletechild/<id>/` |
+| **Packages** | `/fixed_packages/`, `/flex_packages/`, `/package_types/` |
+| **Rates** | `/additional_rates/`, `/additional_rates_upto530/` |
+| **Branches/Centers** | `/branches/`, `/daycare/` |
+| **Holidays** | `/public_holidays/`, `/polymath_holidays/`, `/other_holidays/` |
+| **Enrollments** | `/enrollments/`, `/save_enrollments/`, `/approve_enrollments/` |
+| **Attendance** | `/check_ins/`, `/checkInView/<admission_no>/`, `/upload_csv/` |
+| **Invoices** | `/memo_data_entry/`, `/load_invoice_memo/`, `/search_invoice_memo/` |
+| **Payments** | `/apply_payment/`, `/process_payment/`, `/search_memo_for_payment/` |
+| **Reports** | `/attendenceReport/`, `/extra_hours_report/` |
+| **Package Changes** | `/get_package_change/`, `/package_change_approval/` |
+| **Center Changes** | `/center_change_request/` |
 
 ## Configuration
 
 ### Environment Variables (.env)
-Required variables:
-- `SECRET_KEY`: Django secret key for cryptographic signing
-- `DEBUG`: Debug mode (True/False)
-- `DB_NAME`: MySQL database name (default: polymath_core)
-- `DB_USER`: Database username (default: root)
-- `DB_PASSWORD`: Database password
-- `DB_HOST`: Database host (default: localhost)
-- `DB_PORT`: Database port (default: 3306)
-- `PROD_URL`: Production URL for QR codes (default: https://dc.polymathcore.online/)
-- `QR_METHOD_NAME`: QR code scanning method (default: checkInView)
+```
+SECRET_KEY=<django-secret-key>
+DEBUG=True
+DB_NAME=polymath_core
+DB_USER=root
+DB_PASSWORD=<password>
+DB_HOST=localhost
+DB_PORT=3306
+PROD_URL=https://dc.polymathcore.online/
+QR_METHOD_NAME=checkInView
+```
 
-**Security Note**: Environment file contains actual credentials. For production, use secure credential management.
-
-### Database
+### Database Configuration
 - **Engine**: MySQL via `django.db.backends.mysql`
 - **Driver**: mysqlclient 2.2.4
 - **Tables**: Prefixed with `dc_` (daycare)
-- **Timezone**: Asia/Colombo (overrides UTC)
-- **Connection**: All parameters from environment variables
+- **Timezone**: Asia/Colombo
 
-### Static Files
-- **CSS**: Bootstrap + custom styles in `static/assets/css/`
-- **JavaScript**: jQuery + DataTables in `static/assets/js/`
-- **Images**: Stored in `media/child_images/`
-- **QR Codes**: Generated in `media/qr/`
-- **Static URL**: `/static/` (development), collected to `staticfiles/` (production)
-- **Media URL**: `media/` with auto-created directories
+### Session Configuration
+- **Timeout**: 50 minutes (SESSION_COOKIE_AGE = 3000)
+- **Extension**: Extended on each request
+- **Expiration**: On browser close
 
-### Code Quality Setup
-**Current VS Code Configuration**:
-- Ruff configured as default Python formatter (87-88 character line limit)
-- Format on save and auto-organize imports enabled
-- Django template linting disabled
+## Key Business Logic
 
-**Missing Dependencies** (need to install):
-```bash
-pip install ruff mypy black isort pre-commit bandit
+### 1. QR Code Attendance System
+```
+Child Creation → Auto-generate QR code
+QR URL Format: {PROD_URL}/{QR_METHOD_NAME}/{admission_number}/
+Example: https://dc.polymathcore.online/checkInView/ADM001/
+Scan QR → Logs attendance (one per child per day)
 ```
 
-**Recommended Configuration Files**:
-- `pyproject.toml`: Ruff/Black configuration
-- `.pre-commit-config.yaml`: Pre-commit hooks
-- `mypy.ini`: Type checking configuration
+### 2. Three-Month Invoice System
+```
+InvoiceMemo (Summary)
+├── InvoiceMemoDetail (OUTSTANDING - 2 months ago)
+├── InvoiceMemoDetail (PREVIOUS - last month)
+└── InvoiceMemoDetail (CURRENT - this month)
 
-## Key Features
+Each detail contains:
+- Charges: package_fee, extra_hours_charge, holiday_charges, other_charges
+- Deductions: discount_applied, other_deductions
+- Calculated: gross_charges, total_deductions, net_charges
+- Payments: payments_received, payment_receipts (JSON)
+- Balance: net_balance
+```
 
-### Approval Workflows
-Many models use a 3-state approval system:
-- `PENDING_APPROVAL`
-- `APPROVED`
-- `REJECTED`
+### 3. Hierarchical Payment Allocation
+```
+Payment received → Apply to OUTSTANDING first
+                → Then PREVIOUS
+                → Then CURRENT
+                → Excess becomes credit
+```
 
-### QR Code System
-- Each child gets a unique QR code
-- QR codes link to attendance recording
-- Images stored in `media/qr/`
+### 4. Approval Workflows (3-State)
+```
+PENDING_APPROVAL → APPROVED
+                 → REJECTED
 
-### Invoice System
-**New architecture** (replace old system):
-- `InvoiceMemo`: Summary with totals
-- `InvoiceMemoDetail`: Monthly breakdown (Outstanding, Previous, Current)
-- Each memo has exactly 3 detail records
+Applied to: Enrollments, Discounts, Package Changes, Center Changes
+```
 
-### Package System
-- **Fixed Packages**: Time-based with automatic hour calculation
-- **Flex Packages**: Hour-based flexible pricing
-- **Holiday Packages**: Special pricing for holidays
+### 5. Package Pricing
+- **FixedPackage**: Time-based (8AM-12PM), auto-calculates hours
+- **FlexPackage**: Hour-based flexible pricing
 - **Extra Hours**: Two tiers (before/after 5:30 PM)
+- **Holiday Packages**: Special pricing during holidays
 
-## Development Notes
+### 6. Holiday Impact on Billing
+- Holidays exclude from normal billing
+- Holiday packages charge instead (if active)
+- Auto-counts weekdays/weekends in date range
 
-### Model Relationships
-- Most models extend `BaseClass` for consistent auditing
-- Foreign keys use CASCADE deletion (be careful)
-- Many-to-many relationships handled through explicit mapping models
+## Views Overview (core/views.py)
 
-### Sessions
-- Session timeout: 50 minutes (3000 seconds)
-- Sessions extend on each request (`SESSION_SAVE_EVERY_REQUEST = True`)
-- Sessions expire on browser close
-- Login required for most views
+### Statistics
+- **Total Functions**: 196
+- **Total Lines**: ~15,000
+- **Pattern**: Function-based views with @login_required decorator
 
-### File Uploads
-- Child images: `media/child_images/`
-- Enrollment forms: `media/enrollment_forms/`
-- QR codes: `media/qr/`
+### Key View Categories
+| Category | Count | Examples |
+|----------|-------|----------|
+| Authentication | 4 | `UserLogin`, `UserLogOut`, `index` |
+| Child Management | 7 | `getChild`, `createChild`, `getChildJson` |
+| Package Management | 20+ | `getFixedPackages`, `saveFlexPackage` |
+| Attendance | 10 | `getCheckIns`, `autoAttendanceRecorder` |
+| Invoice/Billing | 25+ | `getMemoDataEntry`, `saveMemoDataEntry` |
+| Payments | 10+ | `process_payment`, `get_apply_payment_page` |
+| Reports | 5+ | `getAttendanceReports`, `getExtraHoursReport` |
 
-### Important Constraints
-- Unique constraints on package mappings
-- Date range validations on effective periods
-- Attendance logging limited to one per child per day
+## Templates Structure
 
-## Common Tasks
+### Main Templates (30+)
+- `base.html` - Master layout (Bootstrap 5, ApexCharts, DataTables)
+- Feature templates: `child.html`, `enrollment.html`, `invoice.html`, etc.
+- `templates/partials/` - Reusable update forms
+- `templates/reports/` - Report templates
+
+### Frontend Stack
+- Bootstrap 5 (responsive layout)
+- jQuery (AJAX operations)
+- DataTables (data display with pagination)
+- Select2 (enhanced dropdowns)
+- Flatpickr (date picking)
+- ApexCharts (data visualization)
+
+## Common Development Tasks
+
+### Adding a New Feature
+1. Add model to `core/models.py` (extend `BaseClass`)
+2. Create migration: `python manage.py makemigrations core`
+3. Apply migration: `python manage.py migrate`
+4. Add views to `core/views.py`
+5. Add URL patterns to `core/urls.py`
+6. Create template in `templates/`
+7. Register in `core/admin.py` if needed
 
 ### Adding New Package Types
 1. Create in `PackageType` model
@@ -255,49 +332,103 @@ Many models use a 3-state approval system:
 3. Set up extra hours mapping in `PackageExtraHoursMapping`
 
 ### Generating Invoices
-1. Use memo data entry interface
-2. System auto-calculates based on attendance
-3. Creates `InvoiceMemo` with 3 `InvoiceMemoDetail` records
+1. Navigate to memo data entry interface
+2. Select child and month
+3. System auto-calculates based on attendance
+4. Creates `InvoiceMemo` with 3 `InvoiceMemoDetail` records
 
 ### Managing Approvals
-Most approval workflows follow the pattern:
-- Create request with `PENDING_APPROVAL`
-- Admin approves/rejects
-- System updates related records on approval
+```
+Create request → Status = PENDING_APPROVAL
+Admin reviews → approveXxx() or rejectXxx()
+System updates related records on approval
+```
 
-### QR Code Generation
-- Automatically generated on child creation
-- Links to attendance recording URL
-- Format: `{PROD_URL}/{QR_METHOD_NAME}/{admission_number}/`
+## Security Notes
 
-## Security & Production Notes
+### Current Configuration (Development)
+- `CORS_ORIGIN_ALLOW_ALL = True` (too permissive)
+- `ALLOWED_HOSTS = ["*"]` (too permissive)
+- `DEBUG = True`
 
-### Current Security Configuration
-- **CORS**: Very permissive (`CORS_ORIGIN_ALLOW_ALL = True`)
-- **Allowed Hosts**: Mixed configuration (both restrictive and `["*"]`)
-- **CSRF**: Trusted origins limited to `polymathcore.online` domain
-- **Sessions**: Server-side with automatic expiration
+### Production Requirements
+1. Set `DEBUG = False`
+2. Restrict `ALLOWED_HOSTS` to specific domains
+3. Set `CORS_ORIGIN_ALLOW_ALL = False`
+4. Use secure credential management (not .env)
+5. Configure HTTPS (SECURE_SSL_REDIRECT = True)
+6. Set up proper static file serving (nginx/Apache)
 
-### Production Considerations
-**Before Deployment**:
-1. **Environment Security**: Remove actual credentials from `.env`, use secure credential management
-2. **CORS Configuration**: Restrict `CORS_ORIGIN_ALLOW_ALL` to specific domains
-3. **Host Configuration**: Remove permissive `ALLOWED_HOSTS = ["*"]`
-4. **Debug Mode**: Ensure `DEBUG=False` in production
-5. **Static File Serving**: Configure web server (nginx/Apache) for static files
+## Dependencies (requirements.txt)
 
-**Dependencies with Security Implications**:
-- `mysqlclient`: Direct database access - secure connection strings
-- `django-cors-headers`: Currently very permissive
-- `reportlab` + `xhtml2pdf`: PDF generation - validate input data
+### Core
+- Django 5.0.1
+- mysqlclient 2.2.4
+- python-decouple 3.8
 
-### Testing Notes
-**Current State**: 
+### PDF Generation
+- reportlab 4.4.1
+- xhtml2pdf 0.2.17
+- Pillow 10.2.0
+
+### QR Codes
+- qrcode 7.4.2
+
+### Other
+- django-cors-headers 4.3.1
+- requests 2.32.4
+- cryptography 45.0.4
+
+## Testing Notes
+
+### Current State
 - Empty test files in `core/tests.py` and `transactions/tests.py`
-- No test database configuration (uses Django defaults)
-- No continuous integration setup
+- No CI/CD setup
 
-**For New Tests**:
-- Django's built-in testing framework available
+### For New Tests
+- Use Django's built-in testing framework
 - Test database auto-created with `test_` prefix
-- Consider using SQLite for faster test execution
+- Consider SQLite for faster test execution
+
+## Git Workflow
+
+### Branches
+- `SIS` - Main branch (for PRs)
+- `dev` - Development branch
+
+### Commit Style
+- Keep commits focused and descriptive
+- Run linting before committing
+
+Agent System
+This project uses role-specific agents that activate based on task context. Claude will automatically assume the appropriate role based on the task being performed.
+Agent Selection Rules
+Developer Agent (/agents/dev.md)
+Activates when:
+
+Creating or modifying Python/Django code
+Working with models, views, serializers, or URLs
+Database migrations or schema changes
+API development or integration
+Performance optimization
+Refactoring existing code
+
+Tester Agent (/agents/tester.md)
+Activates when:
+
+Writing or running tests
+Debugging failing tests
+Test coverage analysis
+Creating fixtures or factories
+QA-related tasks
+Validating functionality
+
+UI/UX Agent (/agents/ui-ux.md)
+Activates when:
+
+Working with templates (HTML/Jinja2)
+CSS/SCSS styling
+JavaScript/frontend code
+Form design and validation UX
+Accessibility improvements
+User flow optimization
