@@ -198,7 +198,7 @@ def index(request):
         start_date__gte=today, start_date__lte=thirty_days_from_now, is_active=True
     ).order_by("start_date")[:5]
 
-    # 8. Inactive Children: Children who are inactive or not enrolled
+    # 8. Inactive Children: Active enrolled children with no attendance in last 2 months
     # Use subquery to get the last attendance date for each child
     last_attendance_subquery = (
         AttendanceLog.objects.filter(child=OuterRef("pk"), is_active=True)
@@ -206,15 +206,20 @@ def index(request):
         .values("date_logged")[:1]
     )
 
+    # Children who are active and enrolled but have no attendance in last 60 days
     inactive_children = (
-        Child.objects.filter(Q(is_active=False) | Q(is_enrolled=False))
+        Child.objects.filter(is_active=True, is_enrolled=True)
         .annotate(last_attended=Subquery(last_attendance_subquery))
+        .filter(Q(last_attended__lt=two_months_ago) | Q(last_attended__isnull=True))
         .order_by(F("last_attended").desc(nulls_last=True))[:10]
     )
 
-    inactive_children_count = Child.objects.filter(
-        Q(is_active=False) | Q(is_enrolled=False)
-    ).count()
+    inactive_children_count = (
+        Child.objects.filter(is_active=True, is_enrolled=True)
+        .annotate(last_attended=Subquery(last_attendance_subquery))
+        .filter(Q(last_attended__lt=two_months_ago) | Q(last_attended__isnull=True))
+        .count()
+    )
 
     # Prepare context for template
     context = {
