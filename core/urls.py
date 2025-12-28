@@ -489,4 +489,20 @@ urlpatterns = [
         views.get_child_outstanding_balance,
         name="get_child_outstanding_balance",
     ),
+    # Dashboard API Endpoints
+    path(
+        "api/dashboard/attendance-trend/",
+        views.getDashboardAttendanceTrend,
+        name="dashboard_attendance_trend",
+    ),
+    path(
+        "api/dashboard/revenue-collections/",
+        views.getDashboardRevenueCollections,
+        name="dashboard_revenue_collections",
+    ),
+    path(
+        "api/dashboard/pending-breakdown/",
+        views.getDashboardPendingBreakdown,
+        name="dashboard_pending_breakdown",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,0 +1,727 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block PageTitle %}Dashboard{% endblock %}
+{% block UserName %}{{ UserName }}{% endblock %}
+{% block Title %}HOME{% endblock %}
+{% block functionTitle %}DASHBOARD{% endblock %}
+
+{% block content %}
+<style>
+    /* Dashboard-specific styles */
+    .dashboard-card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+
+    .dashboard-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+
+    .kpi-value {
+        font-size: 1.75rem;
+        font-weight: 600;
+        line-height: 1.2;
+    }
+
+    .kpi-label {
+        font-size: 0.8125rem;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+    }
+
+    .avatar-title {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        font-weight: 500;
+    }
+
+    .chart-container {
+        min-height: 350px;
+    }
+
+    .approval-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .approval-item:last-child {
+        border-bottom: none;
+    }
+
+    .approval-item a {
+        text-decoration: none;
+    }
+
+    .approval-item a:hover {
+        text-decoration: underline;
+    }
+
+    .holiday-item {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .holiday-item:last-child {
+        border-bottom: none;
+    }
+
+    .holiday-date {
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .holiday-name {
+        color: #6c757d;
+    }
+
+    /* Progress bar styling for payment status */
+    .progress-sm {
+        height: 0.5rem;
+    }
+
+    /* Empty state styling */
+    .empty-state {
+        text-align: center;
+        padding: 2rem 1rem;
+        color: #6c757d;
+    }
+
+    .empty-state i {
+        font-size: 2.5rem;
+        margin-bottom: 0.75rem;
+        opacity: 0.5;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .kpi-value {
+            font-size: 1.5rem;
+        }
+
+        .chart-container {
+            min-height: 280px;
+        }
+    }
+</style>
+
+<!-- KPI Cards Row 1 -->
+<div class="row">
+    <!-- Active Children -->
+    <div class="col-xl-4 col-md-6">
+        <div class="card card-animate dashboard-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1 overflow-hidden">
+                        <p class="text-uppercase fw-medium text-muted text-truncate mb-0 kpi-label">Active Children</p>
+                        <div class="d-flex align-items-center mt-2">
+                            <h4 class="kpi-value flex-shrink-0 mb-0">{{ active_children_count|default:0 }}</h4>
+                            <span class="text-muted ms-2 fs-6">enrolled</span>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <div class="avatar-sm">
+                            <span class="avatar-title bg-primary-subtle rounded fs-3">
+                                <i class="ri-group-line text-primary"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Today's Attendance -->
+    <div class="col-xl-4 col-md-6">
+        <div class="card card-animate dashboard-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1 overflow-hidden">
+                        <p class="text-uppercase fw-medium text-muted text-truncate mb-0 kpi-label">Today's Attendance</p>
+                        <div class="d-flex align-items-center mt-2">
+                            <h4 class="kpi-value flex-shrink-0 mb-0">{{ todays_attendance_count|default:0 }}</h4>
+                            <span class="badge {% if attendance_percentage >= 80 %}bg-success-subtle text-success{% elif attendance_percentage >= 50 %}bg-warning-subtle text-warning{% else %}bg-danger-subtle text-danger{% endif %} ms-2">
+                                {{ attendance_percentage|floatformat:1|default:"0.0" }}%
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <div class="avatar-sm">
+                            <span class="avatar-title bg-success-subtle rounded fs-3">
+                                <i class="ri-calendar-check-line text-success"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Approvals -->
+    <div class="col-xl-4 col-md-6">
+        <div class="card card-animate dashboard-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1 overflow-hidden">
+                        <p class="text-uppercase fw-medium text-muted text-truncate mb-0 kpi-label">Pending Approvals</p>
+                        <div class="d-flex align-items-center mt-2">
+                            <h4 class="kpi-value flex-shrink-0 mb-0">{{ total_pending_approvals|default:0 }}</h4>
+                            {% if total_pending_approvals > 0 %}
+                            <a href="/enrollments_list_for_approval/" class="ms-2 text-warning small">
+                                <i class="ri-arrow-right-line"></i> Review
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <div class="avatar-sm">
+                            <span class="avatar-title bg-warning-subtle rounded fs-3">
+                                <i class="ri-time-line text-warning"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Cards Row 2 -->
+<div class="row">
+    <!-- Outstanding Balance -->
+    <div class="col-xl-4 col-md-6">
+        <div class="card card-animate dashboard-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1 overflow-hidden">
+                        <p class="text-uppercase fw-medium text-muted text-truncate mb-0 kpi-label">Outstanding Balance</p>
+                        <div class="d-flex align-items-center mt-2">
+                            <h4 class="kpi-value flex-shrink-0 mb-0 text-danger">
+                                Rs. {{ outstanding_balance|floatformat:2|default:"0.00" }}
+                            </h4>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <div class="avatar-sm">
+                            <span class="avatar-title bg-danger-subtle rounded fs-3">
+                                <i class="ri-money-dollar-circle-line text-danger"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Revenue -->
+    <div class="col-xl-4 col-md-6">
+        <div class="card card-animate dashboard-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1 overflow-hidden">
+                        <p class="text-uppercase fw-medium text-muted text-truncate mb-0 kpi-label">{{ current_month_name }} {{ current_year }} Revenue</p>
+                        <div class="d-flex align-items-center mt-2">
+                            <h4 class="kpi-value flex-shrink-0 mb-0 text-info">
+                                Rs. {{ monthly_revenue|floatformat:2|default:"0.00" }}
+                            </h4>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <div class="avatar-sm">
+                            <span class="avatar-title bg-info-subtle rounded fs-3">
+                                <i class="ri-line-chart-line text-info"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Status -->
+    <div class="col-xl-4 col-md-6">
+        <div class="card card-animate dashboard-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1 overflow-hidden">
+                        <p class="text-uppercase fw-medium text-muted text-truncate mb-0 kpi-label">Payment Status</p>
+                        <div class="d-flex align-items-center mt-2">
+                            <h4 class="kpi-value flex-shrink-0 mb-0">
+                                {{ payment_status_percentage|floatformat:1|default:"0.0" }}%
+                            </h4>
+                            <span class="text-muted ms-2 fs-6">({{ paid_invoices }}/{{ total_invoices }} paid)</span>
+                        </div>
+                        <div class="progress progress-sm mt-2" style="height: 6px;" role="progressbar"
+                             aria-valuenow="{{ payment_status_percentage|default:0 }}" aria-valuemin="0" aria-valuemax="100"
+                             aria-label="Payment collection progress">
+                            <div class="progress-bar
+                                {% if payment_status_percentage >= 75 %}bg-success{% elif payment_status_percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                                 style="width: {{ payment_status_percentage|default:0 }}%">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <div class="avatar-sm">
+                            <span class="avatar-title bg-secondary-subtle rounded fs-3">
+                                <i class="ri-percent-line text-secondary"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row">
+    <!-- Attendance Trend Chart -->
+    <div class="col-xl-6">
+        <div class="card">
+            <div class="card-header border-0 align-items-center d-flex">
+                <h4 class="card-title mb-0 flex-grow-1">Attendance Trend</h4>
+                <div class="flex-shrink-0">
+                    <span class="badge bg-light text-muted">Last 7 Days</span>
+                </div>
+            </div>
+            <div class="card-body pt-0">
+                <div id="attendance-trend-chart" class="chart-container" aria-label="Attendance trend line chart showing daily attendance over the last 7 days">
+                    <!-- Chart loading placeholder -->
+                    <div class="d-flex justify-content-center align-items-center h-100" id="attendance-chart-loading">
+                        <div class="text-center">
+                            <div class="spinner-border text-primary mb-2" role="status">
+                                <span class="visually-hidden">Loading chart...</span>
+                            </div>
+                            <p class="text-muted mb-0">Loading attendance data...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Revenue vs Collections Chart -->
+    <div class="col-xl-6">
+        <div class="card">
+            <div class="card-header border-0 align-items-center d-flex">
+                <h4 class="card-title mb-0 flex-grow-1">Revenue vs Collections</h4>
+                <div class="flex-shrink-0">
+                    <span class="badge bg-light text-muted">Last 6 Months</span>
+                </div>
+            </div>
+            <div class="card-body pt-0">
+                <div id="revenue-chart" class="chart-container" aria-label="Revenue vs collections bar chart comparing billed amounts to collected payments over the last 6 months">
+                    <!-- Chart loading placeholder -->
+                    <div class="d-flex justify-content-center align-items-center h-100" id="revenue-chart-loading">
+                        <div class="text-center">
+                            <div class="spinner-border text-primary mb-2" role="status">
+                                <span class="visually-hidden">Loading chart...</span>
+                            </div>
+                            <p class="text-muted mb-0">Loading revenue data...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info Panels Row -->
+<div class="row">
+    <!-- Pending Approvals Breakdown -->
+    <div class="col-xl-6">
+        <div class="card">
+            <div class="card-header border-0">
+                <div class="d-flex align-items-center">
+                    <h4 class="card-title mb-0 flex-grow-1">Pending Approvals Breakdown</h4>
+                    <div class="flex-shrink-0">
+                        <span class="badge bg-warning-subtle text-warning">
+                            {{ total_pending_approvals|default:0 }} pending
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body pt-0">
+                {% if total_pending_approvals > 0 %}
+                <div class="approval-list">
+                    <!-- Enrollments -->
+                    <div class="approval-item">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-xs me-3">
+                                <span class="avatar-title bg-primary-subtle rounded">
+                                    <i class="ri-user-add-line text-primary"></i>
+                                </span>
+                            </div>
+                            <div>
+                                <a href="/enrollments_list_for_approval/" class="text-body fw-medium">
+                                    Enrollments
+                                </a>
+                            </div>
+                        </div>
+                        <span class="badge bg-primary rounded-pill">{{ pending_enrollments|default:0 }}</span>
+                    </div>
+
+                    <!-- Discounts -->
+                    <div class="approval-item">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-xs me-3">
+                                <span class="avatar-title bg-success-subtle rounded">
+                                    <i class="ri-coins-line text-success"></i>
+                                </span>
+                            </div>
+                            <div>
+                                <a href="/discounts/" class="text-body fw-medium">
+                                    Discounts
+                                </a>
+                            </div>
+                        </div>
+                        <span class="badge bg-success rounded-pill">{{ pending_discounts|default:0 }}</span>
+                    </div>
+
+                    <!-- Package Changes -->
+                    <div class="approval-item">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-xs me-3">
+                                <span class="avatar-title bg-info-subtle rounded">
+                                    <i class="ri-swap-line text-info"></i>
+                                </span>
+                            </div>
+                            <div>
+                                <a href="/get_package_change_approval/" class="text-body fw-medium">
+                                    Package Changes
+                                </a>
+                            </div>
+                        </div>
+                        <span class="badge bg-info rounded-pill">{{ pending_package_changes|default:0 }}</span>
+                    </div>
+
+                    <!-- Center Changes -->
+                    <div class="approval-item">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-xs me-3">
+                                <span class="avatar-title bg-warning-subtle rounded">
+                                    <i class="ri-home-heart-line text-warning"></i>
+                                </span>
+                            </div>
+                            <div>
+                                <a href="/center_change_request/" class="text-body fw-medium">
+                                    Center Changes
+                                </a>
+                            </div>
+                        </div>
+                        <span class="badge bg-warning rounded-pill">{{ pending_center_changes|default:0 }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="ri-checkbox-circle-line text-success"></i>
+                    <h6 class="text-muted">All caught up!</h6>
+                    <p class="text-muted mb-0 small">No pending approvals at this time.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Holidays -->
+    <div class="col-xl-6">
+        <div class="card">
+            <div class="card-header border-0">
+                <div class="d-flex align-items-center">
+                    <h4 class="card-title mb-0 flex-grow-1">Upcoming Holidays</h4>
+                    <div class="flex-shrink-0">
+                        <a href="/public_holidays/" class="btn btn-sm btn-soft-primary">
+                            View All <i class="ri-arrow-right-line ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body pt-0">
+                {% if upcoming_holidays %}
+                <div class="holiday-list">
+                    {% for holiday in upcoming_holidays %}
+                    <div class="holiday-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="holiday-date">
+                                    <i class="ri-calendar-event-line me-1 text-muted"></i>
+                                    {{ holiday.start_date|date:"d M Y" }}
+                                    {% if holiday.end_date and holiday.end_date != holiday.start_date %}
+                                    - {{ holiday.end_date|date:"d M Y" }}
+                                    {% endif %}
+                                </div>
+                                <div class="holiday-name mt-1">{{ holiday.title }}</div>
+                            </div>
+                            <div>
+                                {% if holiday.is_public_holiday %}
+                                <span class="badge bg-danger-subtle text-danger">Public</span>
+                                {% elif holiday.is_polymath_holiday %}
+                                <span class="badge bg-primary-subtle text-primary">Polymath</span>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary">Other</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="ri-calendar-line"></i>
+                    <h6 class="text-muted">No upcoming holidays</h6>
+                    <p class="text-muted mb-0 small">No holidays scheduled in the next 30 days.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+
+<!-- jQuery (ensure it's loaded) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    // Initialize charts
+    initAttendanceTrendChart();
+    initRevenueChart();
+});
+
+/**
+ * Format currency with Rs. prefix and thousand separators
+ * @param {number} value - The numeric value to format
+ * @returns {string} Formatted currency string
+ */
+function formatCurrency(value) {
+    if (value === null || value === undefined || isNaN(value)) {
+        return 'Rs. 0.00';
+    }
+    return 'Rs. ' + parseFloat(value).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+/**
+ * Initialize Attendance Trend Chart
+ */
+function initAttendanceTrendChart() {
+    $.ajax({
+        url: '/api/dashboard/attendance-trend/',
+        type: 'GET',
+        dataType: 'json',
+        success: function(response) {
+            // Hide loading indicator
+            $('#attendance-chart-loading').hide();
+
+            if (response && response.success && response.data) {
+                var chartData = response.data;
+                var options = {
+                    series: [{
+                        name: 'Attendance',
+                        type: 'column',
+                        data: chartData.map(item => item.count)
+                    }, {
+                        name: 'Total Children',
+                        type: 'line',
+                        data: chartData.map(item => item.total_children)
+                    }],
+                    chart: {
+                        type: 'line',
+                        height: 350,
+                        toolbar: {
+                            show: false
+                        },
+                        zoom: {
+                            enabled: false
+                        }
+                    },
+                    stroke: {
+                        width: [0, 3]
+                    },
+                    plotOptions: {
+                        bar: {
+                            borderRadius: 4,
+                            columnWidth: '50%'
+                        }
+                    },
+                    dataLabels: {
+                        enabled: false
+                    },
+                    colors: ['#3577f1', '#f06548'],
+                    xaxis: {
+                        categories: chartData.map(item => item.day_name),
+                        labels: {
+                            style: {
+                                fontSize: '11px'
+                            }
+                        }
+                    },
+                    yaxis: {
+                        title: {
+                            text: 'Children'
+                        },
+                        min: 0
+                    },
+                    tooltip: {
+                        shared: true,
+                        intersect: false,
+                        y: {
+                            formatter: function(value) {
+                                return value + ' children';
+                            }
+                        }
+                    },
+                    legend: {
+                        position: 'top',
+                        horizontalAlign: 'center'
+                    },
+                    grid: {
+                        borderColor: '#e7e7e7',
+                        strokeDashArray: 5
+                    }
+                };
+
+                var chart = new ApexCharts(document.querySelector("#attendance-trend-chart"), options);
+                chart.render();
+            } else {
+                showChartError('attendance-trend-chart', 'No attendance data available');
+            }
+        },
+        error: function(xhr, status, error) {
+            $('#attendance-chart-loading').hide();
+            showChartError('attendance-trend-chart', 'Failed to load attendance data');
+            console.error('Attendance chart error:', error);
+        }
+    });
+}
+
+/**
+ * Initialize Revenue vs Collections Chart
+ */
+function initRevenueChart() {
+    $.ajax({
+        url: '/api/dashboard/revenue-collections/',
+        type: 'GET',
+        dataType: 'json',
+        success: function(response) {
+            // Hide loading indicator
+            $('#revenue-chart-loading').hide();
+
+            if (response && response.success && response.data) {
+                var chartData = response.data;
+                var options = {
+                    series: [{
+                        name: 'Revenue',
+                        data: chartData.map(item => item.revenue)
+                    }, {
+                        name: 'Collections',
+                        data: chartData.map(item => item.collections)
+                    }],
+                    chart: {
+                        type: 'bar',
+                        height: 350,
+                        toolbar: {
+                            show: false
+                        }
+                    },
+                    plotOptions: {
+                        bar: {
+                            horizontal: false,
+                            columnWidth: '55%',
+                            borderRadius: 4
+                        }
+                    },
+                    dataLabels: {
+                        enabled: false
+                    },
+                    stroke: {
+                        show: true,
+                        width: 2,
+                        colors: ['transparent']
+                    },
+                    colors: ['#3b82f6', '#22c55e'],
+                    xaxis: {
+                        categories: chartData.map(item => item.month_short),
+                        labels: {
+                            style: {
+                                fontSize: '12px'
+                            }
+                        }
+                    },
+                    yaxis: {
+                        title: {
+                            text: 'Amount (Rs.)'
+                        },
+                        labels: {
+                            formatter: function(value) {
+                                if (value >= 1000000) {
+                                    return (value / 1000000).toFixed(1) + 'M';
+                                } else if (value >= 1000) {
+                                    return (value / 1000).toFixed(0) + 'K';
+                                }
+                                return value;
+                            }
+                        }
+                    },
+                    fill: {
+                        opacity: 1
+                    },
+                    tooltip: {
+                        y: {
+                            formatter: function(value) {
+                                return formatCurrency(value);
+                            }
+                        }
+                    },
+                    legend: {
+                        position: 'top',
+                        horizontalAlign: 'right'
+                    },
+                    grid: {
+                        borderColor: '#e7e7e7',
+                        strokeDashArray: 5
+                    }
+                };
+
+                var chart = new ApexCharts(document.querySelector("#revenue-chart"), options);
+                chart.render();
+            } else {
+                showChartError('revenue-chart', 'No revenue data available');
+            }
+        },
+        error: function(xhr, status, error) {
+            $('#revenue-chart-loading').hide();
+            showChartError('revenue-chart', 'Failed to load revenue data');
+            console.error('Revenue chart error:', error);
+        }
+    });
+}
+
+/**
+ * Show error message in chart container
+ * @param {string} containerId - The chart container ID
+ * @param {string} message - Error message to display
+ */
+function showChartError(containerId, message) {
+    var errorHtml = '<div class="d-flex justify-content-center align-items-center h-100">' +
+                    '<div class="text-center">' +
+                    '<i class="ri-error-warning-line text-warning" style="font-size: 2.5rem;"></i>' +
+                    '<p class="text-muted mt-2 mb-0">' + message + '</p>' +
+                    '</div></div>';
+    $('#' + containerId).html(errorHtml);
+}
+</script>
+
+{% endblock %}

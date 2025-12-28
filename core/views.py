@@ -27,6 +27,7 @@ from django.db.models import (
     OuterRef,
     Q,
     Subquery,
+    Sum,
     Value,
     When,
 )
@@ -111,21 +112,132 @@ def index(request):
     Renders the main dashboard/home page of the daycare management system.
 
     This is the entry point after successful login, displaying the main navigation
-    and dashboard overview for the daycare management system.
+    and dashboard overview with key performance indicators (KPIs).
 
     Args:
         request (HttpRequest): The HTTP request object containing user session data
 
     Returns:
-        HttpResponse: Renders the base.html template with the current user's username
+        HttpResponse: Renders the index.html template with dashboard KPIs and metrics
 
     Business Logic:
         - Requires user authentication via @login_required decorator
-        - Passes the current user's username to the template for display
-        - Serves as the main dashboard for accessing all system features
+        - Calculates and displays key metrics:
+            - Active enrolled children count
+            - Today's attendance count and percentage
+            - Pending approvals across all approval workflows
+            - Outstanding balance from unpaid invoices
+            - Monthly revenue from current month charges
+            - Payment status (percentage of paid invoices)
+        - Shows upcoming holidays for the next 30 days
     """
     UserName = request.user.username
-    return render(request, "../templates/base.html", {"UserName": UserName})
+    today = date.today()
+
+    # 1. Active Children: Count of children with is_active=True and is_enrolled=True
+    active_children_count = Child.objects.filter(
+        is_active=True, is_enrolled=True
+    ).count()
+
+    # 2. Today's Attendance: Count unique children checked in today
+    todays_attendance_count = (
+        AttendanceLog.objects.filter(
+            date_logged=today, is_active=True, removal_status__in=["NONE", "REJECTED"]
+        )
+        .values("child")
+        .distinct()
+        .count()
+    )
+
+    # Calculate attendance percentage (today's attendance / active children)
+    attendance_percentage = 0
+    if active_children_count > 0:
+        attendance_percentage = round(
+            (todays_attendance_count / active_children_count) * 100, 1
+        )
+
+    # 3. Pending Approvals: Count from 4 models where status='PENDING_APPROVAL'
+    pending_enrollments = ChildEnrollment.objects.filter(
+        status="PENDING_APPROVAL", is_active=True
+    ).count()
+    pending_discounts = Discount.objects.filter(
+        status="PENDING_APPROVAL", is_active=True
+    ).count()
+    pending_package_changes = PackageChangerequest.objects.filter(
+        status="PENDING_APPROVAL", is_active=True
+    ).count()
+    pending_center_changes = CenterChangerequest.objects.filter(
+        status="PENDING_APPROVAL", is_active=True
+    ).count()
+
+    total_pending_approvals = (
+        pending_enrollments
+        + pending_discounts
+        + pending_package_changes
+        + pending_center_changes
+    )
+
+    # 4. Outstanding Balance: Sum of net_amount_due from InvoiceMemo where status in ['GENERATED', 'PARTIAL']
+    outstanding_balance = (
+        InvoiceMemo.objects.filter(
+            status__in=["GENERATED", "PARTIAL"], is_active=True
+        ).aggregate(total=Sum("net_amount_due"))["total"]
+        or Decimal("0.00")
+    )
+
+    # 5. Monthly Revenue: Sum of gross_charges from InvoiceMemoDetail for current month where month_type='CURRENT'
+    current_month = today.month
+    current_year = today.year
+
+    monthly_revenue = (
+        InvoiceMemoDetail.objects.filter(
+            month_type="CURRENT",
+            actual_month=current_month,
+            actual_year=current_year,
+            is_active=True,
+        ).aggregate(total=Sum("gross_charges"))["total"]
+        or Decimal("0.00")
+    )
+
+    # 6. Payment Status: Percentage of PAID invoices vs total
+    total_invoices = InvoiceMemo.objects.filter(is_active=True).count()
+    paid_invoices = InvoiceMemo.objects.filter(status="PAID", is_active=True).count()
+
+    payment_status_percentage = 0
+    if total_invoices > 0:
+        payment_status_percentage = round((paid_invoices / total_invoices) * 100, 1)
+
+    # 7. Upcoming Holidays: Next 30 days from Holiday model
+    thirty_days_from_now = today + timedelta(days=30)
+    upcoming_holidays = Holiday.objects.filter(
+        start_date__gte=today, start_date__lte=thirty_days_from_now, is_active=True
+    ).order_by("start_date")[:5]
+
+    # Prepare context for template
+    context = {
+        "UserName": UserName,
+        # KPI Metrics
+        "active_children_count": active_children_count,
+        "todays_attendance_count": todays_attendance_count,
+        "attendance_percentage": attendance_percentage,
+        "total_pending_approvals": total_pending_approvals,
+        "pending_enrollments": pending_enrollments,
+        "pending_discounts": pending_discounts,
+        "pending_package_changes": pending_package_changes,
+        "pending_center_changes": pending_center_changes,
+        "outstanding_balance": outstanding_balance,
+        "monthly_revenue": monthly_revenue,
+        "payment_status_percentage": payment_status_percentage,
+        "paid_invoices": paid_invoices,
+        "total_invoices": total_invoices,
+        # Upcoming holidays
+        "upcoming_holidays": upcoming_holidays,
+        # Date info
+        "current_month_name": today.strftime("%B"),
+        "current_year": current_year,
+    }
+
+    return render(request, "index.html", context)
 
 
 def UserLogOut(request):
@@ -15342,3 +15454,222 @@ def get_child_outstanding_balance(request):
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Invalid request method"}, status=405)
+
+
+# =============================================================================
+# Dashboard API Endpoints for Charts
+# =============================================================================
+
+
+@login_required
+def getDashboardAttendanceTrend(request):
+    """
+    Returns last 7 days attendance data for dashboard chart.
+
+    Args:
+        request (HttpRequest): The HTTP request object
+
+    Returns:
+        JsonResponse: JSON with date, attendance count, and total children for each day
+
+    Business Logic:
+        - Retrieves attendance data for the past 7 days
+        - For each day, counts unique children who checked in
+        - Returns total active enrolled children for comparison
+        - Data is ordered from oldest to newest for chart display
+    """
+    try:
+        today = date.today()
+        total_children = Child.objects.filter(is_active=True, is_enrolled=True).count()
+
+        attendance_data = []
+        for i in range(6, -1, -1):  # Last 7 days, oldest first
+            target_date = today - timedelta(days=i)
+            day_attendance = (
+                AttendanceLog.objects.filter(
+                    date_logged=target_date,
+                    is_active=True,
+                    removal_status__in=["NONE", "REJECTED"],
+                )
+                .values("child")
+                .distinct()
+                .count()
+            )
+
+            attendance_data.append(
+                {
+                    "date": target_date.strftime("%Y-%m-%d"),
+                    "day_name": target_date.strftime("%a"),
+                    "count": day_attendance,
+                    "total_children": total_children,
+                    "percentage": (
+                        round((day_attendance / total_children) * 100, 1)
+                        if total_children > 0
+                        else 0
+                    ),
+                }
+            )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "data": attendance_data,
+                "total_children": total_children,
+            }
+        )
+
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+@login_required
+def getDashboardRevenueCollections(request):
+    """
+    Returns last 6 months revenue vs collections data for dashboard chart.
+
+    Args:
+        request (HttpRequest): The HTTP request object
+
+    Returns:
+        JsonResponse: JSON with monthly revenue (gross_charges) and collections (payments_received)
+
+    Business Logic:
+        - Retrieves data for the past 6 months
+        - Revenue: Sum of gross_charges from InvoiceMemoDetail for CURRENT month type
+        - Collections: Sum of payments_received from InvoiceMemoDetail
+        - Data is ordered from oldest to newest for chart display
+    """
+    try:
+        today = date.today()
+        revenue_data = []
+
+        for i in range(5, -1, -1):  # Last 6 months, oldest first
+            # Calculate target month and year
+            target_month = today.month - i
+            target_year = today.year
+
+            while target_month <= 0:
+                target_month += 12
+                target_year -= 1
+
+            # Get month name
+            month_name = calendar.month_abbr[target_month]
+
+            # Revenue: Sum of gross_charges for CURRENT month type in that period
+            revenue = (
+                InvoiceMemoDetail.objects.filter(
+                    actual_month=target_month,
+                    actual_year=target_year,
+                    month_type="CURRENT",
+                    is_active=True,
+                ).aggregate(total=Sum("gross_charges"))["total"]
+                or Decimal("0.00")
+            )
+
+            # Collections: Sum of payments_received for that period
+            collections = (
+                InvoiceMemoDetail.objects.filter(
+                    actual_month=target_month,
+                    actual_year=target_year,
+                    is_active=True,
+                ).aggregate(total=Sum("payments_received"))["total"]
+                or Decimal("0.00")
+            )
+
+            revenue_data.append(
+                {
+                    "month": f"{month_name} {target_year}",
+                    "month_short": month_name,
+                    "year": target_year,
+                    "revenue": float(revenue),
+                    "collections": float(collections),
+                }
+            )
+
+        return JsonResponse({"success": True, "data": revenue_data})
+
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+@login_required
+def getDashboardPendingBreakdown(request):
+    """
+    Returns pending approvals breakdown by type for dashboard chart.
+
+    Args:
+        request (HttpRequest): The HTTP request object
+
+    Returns:
+        JsonResponse: JSON with count of pending approvals for each workflow type
+
+    Business Logic:
+        - Counts pending approvals from 4 models:
+            - ChildEnrollment (Enrollments)
+            - Discount (Discounts)
+            - PackageChangerequest (Package Changes)
+            - CenterChangerequest (Center Changes)
+        - Returns breakdown suitable for pie/donut chart
+    """
+    try:
+        pending_enrollments = ChildEnrollment.objects.filter(
+            status="PENDING_APPROVAL", is_active=True
+        ).count()
+        pending_discounts = Discount.objects.filter(
+            status="PENDING_APPROVAL", is_active=True
+        ).count()
+        pending_package_changes = PackageChangerequest.objects.filter(
+            status="PENDING_APPROVAL", is_active=True
+        ).count()
+        pending_center_changes = CenterChangerequest.objects.filter(
+            status="PENDING_APPROVAL", is_active=True
+        ).count()
+
+        total = (
+            pending_enrollments
+            + pending_discounts
+            + pending_package_changes
+            + pending_center_changes
+        )
+
+        breakdown = [
+            {
+                "type": "Enrollments",
+                "count": pending_enrollments,
+                "percentage": (
+                    round((pending_enrollments / total) * 100, 1) if total > 0 else 0
+                ),
+                "color": "#3498db",
+            },
+            {
+                "type": "Discounts",
+                "count": pending_discounts,
+                "percentage": (
+                    round((pending_discounts / total) * 100, 1) if total > 0 else 0
+                ),
+                "color": "#2ecc71",
+            },
+            {
+                "type": "Package Changes",
+                "count": pending_package_changes,
+                "percentage": (
+                    round((pending_package_changes / total) * 100, 1) if total > 0 else 0
+                ),
+                "color": "#f39c12",
+            },
+            {
+                "type": "Center Changes",
+                "count": pending_center_changes,
+                "percentage": (
+                    round((pending_center_changes / total) * 100, 1) if total > 0 else 0
+                ),
+                "color": "#9b59b6",
+            },
+        ]
+
+        return JsonResponse(
+            {"success": True, "data": breakdown, "total": total}
+        )
+
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
