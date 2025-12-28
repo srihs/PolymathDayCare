@@ -550,17 +550,21 @@ def getPackageTypeJs(reuest):
     Business Logic:
         - Filters package types by is_active=True
         - Returns essential package type information
-        - Includes holiday package flag for business logic
+        - Includes holiday and vacation package flags for business logic
+        - Includes computed category field for display purposes
         - Used for package selection in various forms
     """
-    packageTypeList = list(
-        PackageType.objects.filter(is_active=True).values(
-            "id",
-            "package_type_name",
-            "is_holiday_package",
-            "is_active",
-        )
-    )
+    packageTypes = PackageType.objects.filter(is_active=True)
+    packageTypeList = []
+    for pt in packageTypes:
+        packageTypeList.append({
+            "id": pt.id,
+            "package_type_name": pt.package_type_name,
+            "is_holiday_package": pt.is_holiday_package,
+            "is_vacation_package": pt.is_vacation_package,
+            "category": pt.get_package_category(),
+            "is_active": pt.is_active,
+        })
     return JsonResponse(packageTypeList, safe=False)
 
 
@@ -621,6 +625,8 @@ def getPackageTypeIdJs(request):
     Business Logic:
         - Expects packageType_id in GET parameters
         - Converts is_active boolean to "Active"/"Inactive" text
+        - Includes holiday and vacation package flags
+        - Includes computed category field for display purposes
         - Returns formatted data for frontend display
         - Used for populating edit forms and detail views
     """
@@ -631,6 +637,7 @@ def getPackageTypeIdJs(request):
                 "id",
                 "package_type_name",
                 "is_holiday_package",
+                "is_vacation_package",
                 "is_active",
             )
         )
@@ -639,6 +646,13 @@ def getPackageTypeIdJs(request):
                 packageTypeList[i]["is_active"] = "Active"
             else:
                 packageTypeList[i]["is_active"] = "Inactive"
+            # Add category based on package type flags
+            if n["is_holiday_package"]:
+                packageTypeList[i]["category"] = "Holiday"
+            elif n["is_vacation_package"]:
+                packageTypeList[i]["category"] = "Vacation"
+            else:
+                packageTypeList[i]["category"] = "Normal"
     return JsonResponse(packageTypeList, safe=False)
 
 
@@ -699,14 +713,16 @@ def savePackageTypes(request):
     Business Logic:
         - Handles both create and update operations
         - Validates user permissions (restricts Data Entry users)
-        - Processes checkbox for is_holiday_package
+        - Processes checkboxes for is_holiday_package and is_vacation_package
+        - Ensures only one category can be selected (Normal, Holiday, or Vacation)
         - Updates audit fields (user_updated, date_updated)
         - Creates new record if no ID provided
         - Updates existing record if ID provided
 
     Form Fields:
         - package_type_name: Name of the package type
-        - is_holiday_package: Boolean flag for holiday packages
+        - is_holiday_package: Boolean flag for holiday packages (public holidays)
+        - is_vacation_package: Boolean flag for vacation packages (polymath/other holidays)
         - is_active: Always set to True for new/updated records
 
     Security:
@@ -720,10 +736,22 @@ def savePackageTypes(request):
             # capturing the variables with data
             package_type_name = request.POST.get("package_type_name")
             is_holiday_package = request.POST.get("is_holiday_package")
+            is_vacation_package = request.POST.get("is_vacation_package")
             if is_holiday_package == "on":
                 is_holiday_package = True
             else:
                 is_holiday_package = False
+            if is_vacation_package == "on":
+                is_vacation_package = True
+            else:
+                is_vacation_package = False
+            # Validate that only one category is selected
+            if is_holiday_package and is_vacation_package:
+                messages.error(
+                    request,
+                    "A package type cannot be both Holiday and Vacation. Please select only one.",
+                )
+                return redirect("core:view_package_types")
             if request.POST.get("id") is not None:
                 objPackageType = PackageType.objects.get(id=request.POST.get("id"))
                 if objPackageType is not None:
@@ -736,6 +764,7 @@ def savePackageTypes(request):
                     else:
                         objPackageType.package_type_name = package_type_name
                         objPackageType.is_holiday_package = is_holiday_package
+                        objPackageType.is_vacation_package = is_vacation_package
                         objPackageType.is_active = True
                         objPackageType.user_updated = request.user.username
                         objPackageType.date_updated = datetime.now()
@@ -745,11 +774,12 @@ def savePackageTypes(request):
                 objPackageType = PackageType(
                     package_type_name=package_type_name,
                     is_holiday_package=is_holiday_package,
+                    is_vacation_package=is_vacation_package,
                     is_active=True,
                     user_created=request.user.username,
                 )
                 objPackageType.save()
-                messages.success(request, "Pakage type saved.")
+                messages.success(request, "Package type saved.")
     except Exception as e:
         messages.error(request, e)
     return redirect("core:view_package_types")

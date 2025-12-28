@@ -55,10 +55,8 @@
             <thead>
             <tr>
                 <th>Package Type</th>
-                <th>Is a holiday package?</th>
+                <th>Category</th>
                 <th data-orderable="false"></th>
-                
-                
             </tr>
             </thead>
         </table>
@@ -136,10 +134,17 @@
                                             <!--end col-->
                                             <div class="col-sm-4">
                                                 <div class="form-check form-switch">
-                                                <div>{{ form.is_holiday_package }}</div>
-                                                <label class="form-check-label"
-                                                        >Is holiday package?</label>
-                                                    </div>
+                                                    <div>{{ form.is_holiday_package }}</div>
+                                                    <label class="form-check-label">Is holiday package?</label>
+                                                    <small class="text-muted d-block">For public holidays</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-4">
+                                                <div class="form-check form-switch">
+                                                    <div>{{ form.is_vacation_package }}</div>
+                                                    <label class="form-check-label">Is vacation package?</label>
+                                                    <small class="text-muted d-block">For polymath/other holidays</small>
+                                                </div>
                                             </div>
                                         </div>
                                         <!--end row-->
@@ -270,28 +275,30 @@
             },
             columns: [
                 {data: "package_type_name"},
-                {data: "is_holiday_package"},
+                {data: "category"},
                 {
                     data: null,
                     render: function (data, type, row) {
-                    
+
                        url = "{% url 'core:getPackageTypeId' %}"
                         id= row.id;
                         return data =
                             '<a href=' + url + ' class="link-success"  data-value='+ id +' data-bs-target="#showUpdateModal"\
                 data-bs-toggle="modal"  data-bs-dismiss="modal" role="button"><i class="ri-edit-2-fill"></i></a>';
                     },
-                },              
-                
+                },
+
             ],
             "scrollX": false, // Enable horizontal scrolling
 
             createdRow: function (row, data, dataIndex) {
-                // Check the condition for the 'is_holiday_rate' column
+                // Display category badge based on package type
                 if (data.is_holiday_package) {
-                    $("td", row).eq(1).html('<span class="badge bg-success">Yes</span>');
+                    $("td", row).eq(1).html('<span class="badge bg-info">Holiday</span>');
+                } else if (data.is_vacation_package) {
+                    $("td", row).eq(1).html('<span class="badge bg-primary">Vacation</span>');
                 } else {
-                    $("td", row).eq(1).html('<span class="badge bg-warning">No</span>');
+                    $("td", row).eq(1).html('<span class="badge bg-secondary">Normal</span>');
                 }
             },
             
@@ -380,13 +387,27 @@
             order: [[0, "asc"]],
             retrieve: true,
     });
-        
-        
+
+
+    });
+
+    // Mutual exclusivity for package type checkboxes in Create form
+    // When is_holiday_package is checked, uncheck is_vacation_package
+    jQuery(document).on('change', '#showModalCreate #id_is_holiday_package', function() {
+        if (jQuery(this).is(':checked')) {
+            jQuery('#showModalCreate #id_is_vacation_package').prop('checked', false);
+        }
+    });
+
+    // When is_vacation_package is checked, uncheck is_holiday_package
+    jQuery(document).on('change', '#showModalCreate #id_is_vacation_package', function() {
+        if (jQuery(this).is(':checked')) {
+            jQuery('#showModalCreate #id_is_holiday_package').prop('checked', false);
+        }
     });
 
 
-  
-    
+
 </script>
 
 <!-- App js -->

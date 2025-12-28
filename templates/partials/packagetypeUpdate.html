@@ -14,6 +14,25 @@
             <label for="employeeName" class="form-label">Package type name</label>
             {{ formU.package_type_name }} {{ formU.id.as_hidden }}
           </div>
+          <div class="row mb-3">
+            <div class="col-sm-6">
+              <div class="form-check form-switch">
+                {{ formU.is_holiday_package }}
+                <label class="form-check-label">Is holiday package?</label>
+                <small class="text-muted d-block">For public holidays</small>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="form-check form-switch">
+                {{ formU.is_vacation_package }}
+                <label class="form-check-label">Is vacation package?</label>
+                <small class="text-muted d-block">For polymath/other holidays</small>
+              </div>
+            </div>
+          </div>
+          <div class="alert alert-warning" role="alert">
+            <small><i class="ri-information-line me-1"></i>A package can only be Normal, Holiday, OR Vacation - not a combination.</small>
+          </div>
         </div>
       </div>
     </div>
@@ -21,11 +40,25 @@
   <div class="modal-footer" style="display: block">
     <div class="hstack gap-2 justify-content-end">
       <button class="btn btn-secondary" type="submit">Save</button>
-      <!-- <button type="button" class="btn btn-success" id="edit-btn">Update</button> -->
     </div>
   </div>
 </form>
 <script>
   jQuery("#from_time").flatpickr();
   jQuery("#to_time").flatpickr();
+
+  // Mutual exclusivity for package type checkboxes in Update form
+  // When is_holiday_package is checked, uncheck is_vacation_package
+  jQuery('#showUpdateModal #id_is_holiday_package').on('change', function() {
+      if (jQuery(this).is(':checked')) {
+          jQuery('#showUpdateModal #id_is_vacation_package').prop('checked', false);
+      }
+  });
+
+  // When is_vacation_package is checked, uncheck is_holiday_package
+  jQuery('#showUpdateModal #id_is_vacation_package').on('change', function() {
+      if (jQuery(this).is(':checked')) {
+          jQuery('#showUpdateModal #id_is_holiday_package').prop('checked', false);
+      }
+  });
 </script>

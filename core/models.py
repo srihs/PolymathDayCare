@@ -20,10 +20,15 @@ class BaseClass(models.Model):
         abstract = True
 
 
-# This model will hold the package types.Normal or Holiday packages.
+# This model will hold the package types. Normal, Holiday, or Vacation packages.
+# - Normal packages: Apply to regular working days
+# - Holiday packages: Apply to public holidays (defined in /public_holidays/)
+# - Vacation packages: Apply to polymath holidays (/polymath_holidays/) and other holidays (/other_holidays/)
+# A package can only be ONE type - not a combination.
 class PackageType(BaseClass):
     package_type_name = models.CharField(max_length=550)
     is_holiday_package = models.BooleanField(default=False)
+    is_vacation_package = models.BooleanField(default=False)
 
     class Meta:
         verbose_name_plural = "Package Types"
@@ -31,6 +36,20 @@ class PackageType(BaseClass):
 
     def __str__(self):
         return self.package_type_name
+
+    def get_package_category(self):
+        """Returns the package category as a string."""
+        if self.is_holiday_package:
+            return "Holiday"
+        elif self.is_vacation_package:
+            return "Vacation"
+        return "Normal"
+
+    def clean(self):
+        """Ensure a package type can only be one category."""
+        from django.core.exceptions import ValidationError
+        if self.is_holiday_package and self.is_vacation_package:
+            raise ValidationError("A package type cannot be both Holiday and Vacation. Please select only one.")
 
 
 # This model will hold the discounts .

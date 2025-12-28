@@ -478,10 +478,26 @@ class CreatePackageTypeForm(forms.ModelForm):
             attrs={"class": "form-check-input", "type": "checkbox"}
         ),
     )
+    is_vacation_package = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(
+            attrs={"class": "form-check-input", "type": "checkbox"}
+        ),
+    )
 
     class Meta:
         model = PackageType
-        fields = ("package_type_name", "is_holiday_package")
+        fields = ("package_type_name", "is_holiday_package", "is_vacation_package")
+
+    def clean(self):
+        cleaned_data = super().clean()
+        is_holiday = cleaned_data.get("is_holiday_package")
+        is_vacation = cleaned_data.get("is_vacation_package")
+        if is_holiday and is_vacation:
+            raise forms.ValidationError(
+                "A package type cannot be both Holiday and Vacation. Please select only one."
+            )
+        return cleaned_data
 
 
 class UpdatePackageTypeForm(forms.ModelForm):
@@ -503,9 +519,33 @@ class UpdatePackageTypeForm(forms.ModelForm):
         ),
     )
 
+    is_holiday_package = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(
+            attrs={"class": "form-check-input", "type": "checkbox"}
+        ),
+    )
+
+    is_vacation_package = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(
+            attrs={"class": "form-check-input", "type": "checkbox"}
+        ),
+    )
+
     class Meta:
         model = PackageType
-        fields = ("package_type_name", "id")
+        fields = ("package_type_name", "id", "is_holiday_package", "is_vacation_package")
+
+    def clean(self):
+        cleaned_data = super().clean()
+        is_holiday = cleaned_data.get("is_holiday_package")
+        is_vacation = cleaned_data.get("is_vacation_package")
+        if is_holiday and is_vacation:
+            raise forms.ValidationError(
+                "A package type cannot be both Holiday and Vacation. Please select only one."
+            )
+        return cleaned_data
 
 
 class CreateExtraChargesForm(forms.ModelForm):
