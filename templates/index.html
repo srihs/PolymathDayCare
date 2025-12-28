@@ -91,6 +91,58 @@
         border-bottom: none;
     }
 
+    /* Inactive Children panel - match chart card height */
+    .inactive-children-card {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .inactive-children-card .card-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        overflow: hidden;
+        max-height: 350px; /* Match chart-container min-height */
+    }
+
+    .inactive-children-list {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0; /* Allow flex item to shrink below content size */
+    }
+
+    .inactive-children-list::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .inactive-children-list::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+
+    .inactive-children-list::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+
+    .inactive-children-list::-webkit-scrollbar-thumb:hover {
+        background: #a1a1a1;
+    }
+
+    .inactive-children-footer {
+        margin-top: auto;
+        padding-top: 1rem;
+    }
+
+    .inactive-children-empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        min-height: 0; /* Allow flex item to shrink */
+    }
+
     /* Progress bar styling for payment status */
     .progress-sm {
         height: 0.5rem;
@@ -292,8 +344,8 @@
 <!-- Charts Row -->
 <div class="row">
     <!-- Attendance Trend Chart -->
-    <div class="col-xl-6">
-        <div class="card">
+    <div class="col-xl-6 d-flex">
+        <div class="card flex-fill">
             <div class="card-header border-0 align-items-center d-flex">
                 <h4 class="card-title mb-0 flex-grow-1">Attendance Trend</h4>
                 <div class="flex-shrink-0">
@@ -317,8 +369,8 @@
     </div>
 
     <!-- Inactive Children Panel -->
-    <div class="col-xl-6">
-        <div class="card">
+    <div class="col-xl-6 d-flex">
+        <div class="card inactive-children-card flex-fill">
             <div class="card-header border-0">
                 <div class="d-flex align-items-center">
                     <h4 class="card-title mb-0 flex-grow-1">Inactive Children</h4>
@@ -331,20 +383,20 @@
             </div>
             <div class="card-body pt-0">
                 {% if inactive_children %}
-                <div class="inactive-children-list">
+                <div class="inactive-children-list" role="list" aria-label="List of inactive children">
                     {% for child in inactive_children %}
-                    <div class="inactive-child-item">
+                    <div class="inactive-child-item" role="listitem">
                         <div class="d-flex align-items-start">
                             <div class="avatar-xs me-3">
                                 <span class="avatar-title bg-warning-subtle rounded">
-                                    <i class="ri-user-unfollow-line text-warning"></i>
+                                    <i class="ri-user-unfollow-line text-warning" aria-hidden="true"></i>
                                 </span>
                             </div>
                             <div class="flex-grow-1">
                                 <div class="fw-medium text-body">{{ child.first_name }} {{ child.last_name }}</div>
                                 <div class="text-muted small">({{ child.admission_number }})</div>
                                 <div class="text-muted small mt-1">
-                                    <i class="ri-calendar-line me-1"></i>
+                                    <i class="ri-calendar-line me-1" aria-hidden="true"></i>
                                     {% if child.last_attended %}
                                     Last attended: {{ child.last_attended|date:"d M Y" }}
                                     {% else %}
@@ -356,16 +408,18 @@
                     </div>
                     {% endfor %}
                 </div>
-                <div class="text-center mt-3">
+                <div class="inactive-children-footer text-center">
                     <a href="/child/" class="btn btn-sm btn-soft-primary">
-                        View All <i class="ri-arrow-right-line ms-1"></i>
+                        View All <i class="ri-arrow-right-line ms-1" aria-hidden="true"></i>
                     </a>
                 </div>
                 {% else %}
-                <div class="empty-state">
-                    <i class="ri-user-smile-line text-success"></i>
-                    <h6 class="text-muted">All children are active!</h6>
-                    <p class="text-muted mb-0 small">No inactive children at this time.</p>
+                <div class="inactive-children-empty">
+                    <div class="empty-state">
+                        <i class="ri-user-smile-line text-success" aria-hidden="true"></i>
+                        <h6 class="text-muted">All children are active!</h6>
+                        <p class="text-muted mb-0 small">No inactive children at this time.</p>
+                    </div>
                 </div>
                 {% endif %}
             </div>
@@ -547,8 +601,8 @@ function initAttendanceTrendChart() {
         type: 'GET',
         dataType: 'json',
         success: function(response) {
-            // Hide loading indicator
-            $('#attendance-chart-loading').hide();
+            // Clear the chart container (removes loading indicator)
+            $('#attendance-trend-chart').empty();
 
             if (response && response.success && response.data) {
                 var chartData = response.data;
@@ -625,7 +679,8 @@ function initAttendanceTrendChart() {
             }
         },
         error: function(xhr, status, error) {
-            $('#attendance-chart-loading').hide();
+            // Clear the chart container and show error
+            $('#attendance-trend-chart').empty();
             showChartError('attendance-trend-chart', 'Failed to load attendance data');
             console.error('Attendance chart error:', error);
         }
