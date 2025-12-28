@@ -496,11 +496,6 @@ urlpatterns = [
         name="dashboard_attendance_trend",
     ),
     path(
-        "api/dashboard/revenue-collections/",
-        views.getDashboardRevenueCollections,
-        name="dashboard_revenue_collections",
-    ),
-    path(
         "api/dashboard/pending-breakdown/",
         views.getDashboardPendingBreakdown,
         name="dashboard_pending_breakdown",

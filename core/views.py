@@ -213,6 +213,24 @@ def index(request):
         start_date__gte=today, start_date__lte=thirty_days_from_now, is_active=True
     ).order_by("start_date")[:5]
 
+    # 8. Inactive Children: Children who are inactive or not enrolled
+    # Use subquery to get the last attendance date for each child
+    last_attendance_subquery = (
+        AttendanceLog.objects.filter(child=OuterRef("pk"), is_active=True)
+        .order_by("-date_logged")
+        .values("date_logged")[:1]
+    )
+
+    inactive_children = (
+        Child.objects.filter(Q(is_active=False) | Q(is_enrolled=False))
+        .annotate(last_attended=Subquery(last_attendance_subquery))
+        .order_by(F("last_attended").desc(nulls_last=True))[:10]
+    )
+
+    inactive_children_count = Child.objects.filter(
+        Q(is_active=False) | Q(is_enrolled=False)
+    ).count()
+
     # Prepare context for template
     context = {
         "UserName": UserName,
@@ -232,6 +250,9 @@ def index(request):
         "total_invoices": total_invoices,
         # Upcoming holidays
         "upcoming_holidays": upcoming_holidays,
+        # Inactive children
+        "inactive_children": inactive_children,
+        "inactive_children_count": inactive_children_count,
         # Date info
         "current_month_name": today.strftime("%B"),
         "current_year": current_year,
@@ -15517,76 +15538,6 @@ def getDashboardAttendanceTrend(request):
                 "total_children": total_children,
             }
         )
-
-    except Exception as e:
-        return JsonResponse({"success": False, "error": str(e)}, status=500)
-
-
-@login_required
-def getDashboardRevenueCollections(request):
-    """
-    Returns last 6 months revenue vs collections data for dashboard chart.
-
-    Args:
-        request (HttpRequest): The HTTP request object
-
-    Returns:
-        JsonResponse: JSON with monthly revenue (gross_charges) and collections (payments_received)
-
-    Business Logic:
-        - Retrieves data for the past 6 months
-        - Revenue: Sum of gross_charges from InvoiceMemoDetail for CURRENT month type
-        - Collections: Sum of payments_received from InvoiceMemoDetail
-        - Data is ordered from oldest to newest for chart display
-    """
-    try:
-        today = date.today()
-        revenue_data = []
-
-        for i in range(5, -1, -1):  # Last 6 months, oldest first
-            # Calculate target month and year
-            target_month = today.month - i
-            target_year = today.year
-
-            while target_month <= 0:
-                target_month += 12
-                target_year -= 1
-
-            # Get month name
-            month_name = calendar.month_abbr[target_month]
-
-            # Revenue: Sum of gross_charges for CURRENT month type in that period
-            revenue = (
-                InvoiceMemoDetail.objects.filter(
-                    actual_month=target_month,
-                    actual_year=target_year,
-                    month_type="CURRENT",
-                    is_active=True,
-                ).aggregate(total=Sum("gross_charges"))["total"]
-                or Decimal("0.00")
-            )
-
-            # Collections: Sum of payments_received for that period
-            collections = (
-                InvoiceMemoDetail.objects.filter(
-                    actual_month=target_month,
-                    actual_year=target_year,
-                    is_active=True,
-                ).aggregate(total=Sum("payments_received"))["total"]
-                or Decimal("0.00")
-            )
-
-            revenue_data.append(
-                {
-                    "month": f"{month_name} {target_year}",
-                    "month_short": month_name,
-                    "year": target_year,
-                    "revenue": float(revenue),
-                    "collections": float(collections),
-                }
-            )
-
-        return JsonResponse({"success": True, "data": revenue_data})
 
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)}, status=500)

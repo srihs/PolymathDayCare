@@ -82,6 +82,15 @@
         color: #6c757d;
     }
 
+    .inactive-child-item {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .inactive-child-item:last-child {
+        border-bottom: none;
+    }
+
     /* Progress bar styling for payment status */
     .progress-sm {
         height: 0.5rem;
@@ -307,27 +316,58 @@
         </div>
     </div>
 
-    <!-- Revenue vs Collections Chart -->
+    <!-- Inactive Children Panel -->
     <div class="col-xl-6">
         <div class="card">
-            <div class="card-header border-0 align-items-center d-flex">
-                <h4 class="card-title mb-0 flex-grow-1">Revenue vs Collections</h4>
-                <div class="flex-shrink-0">
-                    <span class="badge bg-light text-muted">Last 6 Months</span>
+            <div class="card-header border-0">
+                <div class="d-flex align-items-center">
+                    <h4 class="card-title mb-0 flex-grow-1">Inactive Children</h4>
+                    <div class="flex-shrink-0">
+                        <span class="badge bg-warning-subtle text-warning">
+                            {{ inactive_children_count|default:0 }}
+                        </span>
+                    </div>
                 </div>
             </div>
             <div class="card-body pt-0">
-                <div id="revenue-chart" class="chart-container" aria-label="Revenue vs collections bar chart comparing billed amounts to collected payments over the last 6 months">
-                    <!-- Chart loading placeholder -->
-                    <div class="d-flex justify-content-center align-items-center h-100" id="revenue-chart-loading">
-                        <div class="text-center">
-                            <div class="spinner-border text-primary mb-2" role="status">
-                                <span class="visually-hidden">Loading chart...</span>
+                {% if inactive_children %}
+                <div class="inactive-children-list">
+                    {% for child in inactive_children %}
+                    <div class="inactive-child-item">
+                        <div class="d-flex align-items-start">
+                            <div class="avatar-xs me-3">
+                                <span class="avatar-title bg-warning-subtle rounded">
+                                    <i class="ri-user-unfollow-line text-warning"></i>
+                                </span>
                             </div>
-                            <p class="text-muted mb-0">Loading revenue data...</p>
+                            <div class="flex-grow-1">
+                                <div class="fw-medium text-body">{{ child.first_name }} {{ child.last_name }}</div>
+                                <div class="text-muted small">({{ child.admission_number }})</div>
+                                <div class="text-muted small mt-1">
+                                    <i class="ri-calendar-line me-1"></i>
+                                    {% if child.last_attended %}
+                                    Last attended: {{ child.last_attended|date:"d M Y" }}
+                                    {% else %}
+                                    No attendance record
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
                     </div>
+                    {% endfor %}
                 </div>
+                <div class="text-center mt-3">
+                    <a href="/child/" class="btn btn-sm btn-soft-primary">
+                        View All <i class="ri-arrow-right-line ms-1"></i>
+                    </a>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="ri-user-smile-line text-success"></i>
+                    <h6 class="text-muted">All children are active!</h6>
+                    <p class="text-muted mb-0 small">No inactive children at this time.</p>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -494,25 +534,9 @@
 
 <script>
 $(document).ready(function() {
-    // Initialize charts
+    // Initialize attendance trend chart
     initAttendanceTrendChart();
-    initRevenueChart();
 });
-
-/**
- * Format currency with Rs. prefix and thousand separators
- * @param {number} value - The numeric value to format
- * @returns {string} Formatted currency string
- */
-function formatCurrency(value) {
-    if (value === null || value === undefined || isNaN(value)) {
-        return 'Rs. 0.00';
-    }
-    return 'Rs. ' + parseFloat(value).toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
-}
 
 /**
  * Initialize Attendance Trend Chart
@@ -604,108 +628,6 @@ function initAttendanceTrendChart() {
             $('#attendance-chart-loading').hide();
             showChartError('attendance-trend-chart', 'Failed to load attendance data');
             console.error('Attendance chart error:', error);
-        }
-    });
-}
-
-/**
- * Initialize Revenue vs Collections Chart
- */
-function initRevenueChart() {
-    $.ajax({
-        url: '/api/dashboard/revenue-collections/',
-        type: 'GET',
-        dataType: 'json',
-        success: function(response) {
-            // Hide loading indicator
-            $('#revenue-chart-loading').hide();
-
-            if (response && response.success && response.data) {
-                var chartData = response.data;
-                var options = {
-                    series: [{
-                        name: 'Revenue',
-                        data: chartData.map(item => item.revenue)
-                    }, {
-                        name: 'Collections',
-                        data: chartData.map(item => item.collections)
-                    }],
-                    chart: {
-                        type: 'bar',
-                        height: 350,
-                        toolbar: {
-                            show: false
-                        }
-                    },
-                    plotOptions: {
-                        bar: {
-                            horizontal: false,
-                            columnWidth: '55%',
-                            borderRadius: 4
-                        }
-                    },
-                    dataLabels: {
-                        enabled: false
-                    },
-                    stroke: {
-                        show: true,
-                        width: 2,
-                        colors: ['transparent']
-                    },
-                    colors: ['#3b82f6', '#22c55e'],
-                    xaxis: {
-                        categories: chartData.map(item => item.month_short),
-                        labels: {
-                            style: {
-                                fontSize: '12px'
-                            }
-                        }
-                    },
-                    yaxis: {
-                        title: {
-                            text: 'Amount (Rs.)'
-                        },
-                        labels: {
-                            formatter: function(value) {
-                                if (value >= 1000000) {
-                                    return (value / 1000000).toFixed(1) + 'M';
-                                } else if (value >= 1000) {
-                                    return (value / 1000).toFixed(0) + 'K';
-                                }
-                                return value;
-                            }
-                        }
-                    },
-                    fill: {
-                        opacity: 1
-                    },
-                    tooltip: {
-                        y: {
-                            formatter: function(value) {
-                                return formatCurrency(value);
-                            }
-                        }
-                    },
-                    legend: {
-                        position: 'top',
-                        horizontalAlign: 'right'
-                    },
-                    grid: {
-                        borderColor: '#e7e7e7',
-                        strokeDashArray: 5
-                    }
-                };
-
-                var chart = new ApexCharts(document.querySelector("#revenue-chart"), options);
-                chart.render();
-            } else {
-                showChartError('revenue-chart', 'No revenue data available');
-            }
-        },
-        error: function(xhr, status, error) {
-            $('#revenue-chart-loading').hide();
-            showChartError('revenue-chart', 'Failed to load revenue data');
-            console.error('Revenue chart error:', error);
         }
     });
 }
