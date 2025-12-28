@@ -531,11 +531,9 @@ function initAttendanceTrendChart() {
                 var options = {
                     series: [{
                         name: 'Attendance',
-                        type: 'column',
                         data: chartData.map(item => item.count)
                     }, {
                         name: 'Total Children',
-                        type: 'line',
                         data: chartData.map(item => item.total_children)
                     }],
                     chart: {
@@ -549,12 +547,14 @@ function initAttendanceTrendChart() {
                         }
                     },
                     stroke: {
-                        width: [0, 3]
+                        width: 3,
+                        curve: 'smooth'
                     },
-                    plotOptions: {
-                        bar: {
-                            borderRadius: 4,
-                            columnWidth: '50%'
+                    markers: {
+                        size: 5,
+                        strokeWidth: 2,
+                        hover: {
+                            size: 7
                         }
                     },
                     dataLabels: {
