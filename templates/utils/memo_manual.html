@@ -79,6 +79,25 @@
         text-align: right;
         font-weight: 600;
     }
+
+    /* Formatted amount input styling */
+    .amount-input-wrapper {
+        position: relative;
+    }
+
+    .amount-input-wrapper input.formatted-amount {
+        text-align: right;
+        font-weight: 600;
+    }
+
+    .amount-input-wrapper input.formatted-amount:focus {
+        background-color: #fff;
+    }
+
+    .amount-input-wrapper input.formatted-amount::placeholder {
+        color: #adb5bd;
+        font-weight: 400;
+    }
     
     .calculated-field {
         background: #f9fafb;
@@ -329,20 +348,24 @@
                     <div class="col-md-6">
                         <div class="form-row">
                             <label class="form-label">Outstanding Amount</label>
-                            <div class="input-group">
+                            <div class="input-group amount-input-wrapper">
                                 <span class="input-group-text">Rs.</span>
-                                <input type="number" class="form-control amount-input" name="outstanding_amount" 
-                                       id="outstanding_amount" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                                <input type="text" class="form-control formatted-amount"
+                                       id="outstanding_amount_display" placeholder="0.00"
+                                       data-target="outstanding_amount" inputmode="decimal">
+                                <input type="hidden" name="outstanding_amount" id="outstanding_amount">
                             </div>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-row">
                             <label class="form-label">Payment Settled</label>
-                            <div class="input-group">
+                            <div class="input-group amount-input-wrapper">
                                 <span class="input-group-text">Rs.</span>
-                                <input type="number" class="form-control amount-input" name="payment_settled" 
-                                       id="payment_settled" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                                <input type="text" class="form-control formatted-amount"
+                                       id="payment_settled_display" placeholder="0.00"
+                                       data-target="payment_settled" inputmode="decimal">
+                                <input type="hidden" name="payment_settled" id="payment_settled">
                             </div>
                         </div>
                     </div>
@@ -358,10 +381,11 @@
                     <div class="col-md-6">
                         <div class="form-row">
                             <label class="form-label">Remaining Balance</label>
-                            <div class="input-group">
+                            <div class="input-group amount-input-wrapper">
                                 <span class="input-group-text">Rs.</span>
-                                <input type="number" class="form-control calculated-field amount-input" 
-                                       name="remaining_balance" id="remaining_balance" readonly>
+                                <input type="text" class="form-control calculated-field formatted-amount"
+                                       id="remaining_balance_display" readonly>
+                                <input type="hidden" name="remaining_balance" id="remaining_balance">
                             </div>
                         </div>
                     </div>
@@ -390,30 +414,36 @@
                     <div class="col-md-4">
                         <div class="form-row">
                             <label class="form-label">Package Fee</label>
-                            <div class="input-group">
+                            <div class="input-group amount-input-wrapper">
                                 <span class="input-group-text">Rs.</span>
-                                <input type="number" class="form-control amount-input" name="previous_package_fee" 
-                                       id="previous_package_fee" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                                <input type="text" class="form-control formatted-amount"
+                                       id="previous_package_fee_display" placeholder="0.00"
+                                       data-target="previous_package_fee" inputmode="decimal">
+                                <input type="hidden" name="previous_package_fee" id="previous_package_fee">
                             </div>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-row">
                             <label class="form-label">Extra Hours</label>
-                            <div class="input-group">
+                            <div class="input-group amount-input-wrapper">
                                 <span class="input-group-text">Rs.</span>
-                                <input type="number" class="form-control amount-input" name="previous_extra_hours" 
-                                       id="previous_extra_hours" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                                <input type="text" class="form-control formatted-amount"
+                                       id="previous_extra_hours_display" placeholder="0.00"
+                                       data-target="previous_extra_hours" inputmode="decimal">
+                                <input type="hidden" name="previous_extra_hours" id="previous_extra_hours">
                             </div>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-row">
                             <label class="form-label">Holiday Charges</label>
-                            <div class="input-group">
+                            <div class="input-group amount-input-wrapper">
                                 <span class="input-group-text">Rs.</span>
-                                <input type="number" class="form-control amount-input" name="previous_holiday_charges" 
-                                       id="previous_holiday_charges" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                                <input type="text" class="form-control formatted-amount"
+                                       id="previous_holiday_charges_display" placeholder="0.00"
+                                       data-target="previous_holiday_charges" inputmode="decimal">
+                                <input type="hidden" name="previous_holiday_charges" id="previous_holiday_charges">
                             </div>
                         </div>
                     </div>
@@ -422,20 +452,24 @@
                     <div class="col-md-4">
                         <div class="form-row">
                             <label class="form-label">Discount Applied</label>
-                            <div class="input-group">
+                            <div class="input-group amount-input-wrapper">
                                 <span class="input-group-text">Rs.</span>
-                                <input type="number" class="form-control amount-input" name="previous_discount_applied" 
-                                       id="previous_discount_applied" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                                <input type="text" class="form-control formatted-amount"
+                                       id="previous_discount_applied_display" placeholder="0.00"
+                                       data-target="previous_discount_applied" inputmode="decimal">
+                                <input type="hidden" name="previous_discount_applied" id="previous_discount_applied">
                             </div>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-row">
                             <label class="form-label">Payment Received</label>
-                            <div class="input-group">
+                            <div class="input-group amount-input-wrapper">
                                 <span class="input-group-text">Rs.</span>
-                                <input type="number" class="form-control amount-input" name="previous_payment" 
-                                       id="previous_payment" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                                <input type="text" class="form-control formatted-amount"
+                                       id="previous_payment_display" placeholder="0.00"
+                                       data-target="previous_payment" inputmode="decimal">
+                                <input type="hidden" name="previous_payment" id="previous_payment">
                             </div>
                         </div>
                     </div>
@@ -475,30 +509,36 @@
                     <div class="col-md-4">
                         <div class="form-row">
                             <label class="form-label">Package Fee</label>
-                            <div class="input-group">
+                            <div class="input-group amount-input-wrapper">
                                 <span class="input-group-text">Rs.</span>
-                                <input type="number" class="form-control amount-input" name="package_fee" 
-                                       id="package_fee" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                                <input type="text" class="form-control formatted-amount"
+                                       id="package_fee_display" placeholder="0.00"
+                                       data-target="package_fee" inputmode="decimal">
+                                <input type="hidden" name="package_fee" id="package_fee">
                             </div>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-row">
                             <label class="form-label">Extra Hours</label>
-                            <div class="input-group">
+                            <div class="input-group amount-input-wrapper">
                                 <span class="input-group-text">Rs.</span>
-                                <input type="number" class="form-control amount-input" name="extra_hours" 
-                                       id="extra_hours" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                                <input type="text" class="form-control formatted-amount"
+                                       id="extra_hours_display" placeholder="0.00"
+                                       data-target="extra_hours" inputmode="decimal">
+                                <input type="hidden" name="extra_hours" id="extra_hours">
                             </div>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-row">
                             <label class="form-label">Holiday Charges</label>
-                            <div class="input-group">
+                            <div class="input-group amount-input-wrapper">
                                 <span class="input-group-text">Rs.</span>
-                                <input type="number" class="form-control amount-input" name="holiday_charges" 
-                                       id="holiday_charges" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                                <input type="text" class="form-control formatted-amount"
+                                       id="holiday_charges_display" placeholder="0.00"
+                                       data-target="holiday_charges" inputmode="decimal">
+                                <input type="hidden" name="holiday_charges" id="holiday_charges">
                             </div>
                         </div>
                     </div>
@@ -507,20 +547,24 @@
                     <div class="col-md-4">
                         <div class="form-row">
                             <label class="form-label">Discount Applied</label>
-                            <div class="input-group">
+                            <div class="input-group amount-input-wrapper">
                                 <span class="input-group-text">Rs.</span>
-                                <input type="number" class="form-control amount-input" name="discount_applied" 
-                                       id="discount_applied" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                                <input type="text" class="form-control formatted-amount"
+                                       id="discount_applied_display" placeholder="0.00"
+                                       data-target="discount_applied" inputmode="decimal">
+                                <input type="hidden" name="discount_applied" id="discount_applied">
                             </div>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-row">
                             <label class="form-label">Current Month Payment</label>
-                            <div class="input-group">
+                            <div class="input-group amount-input-wrapper">
                                 <span class="input-group-text">Rs.</span>
-                                <input type="number" class="form-control amount-input" name="current_payment" 
-                                       id="current_payment" step="0.01" placeholder="0.00" onchange="calculateTotals()">
+                                <input type="text" class="form-control formatted-amount"
+                                       id="current_payment_display" placeholder="0.00"
+                                       data-target="current_payment" inputmode="decimal">
+                                <input type="hidden" name="current_payment" id="current_payment">
                             </div>
                         </div>
                     </div>
@@ -593,6 +637,159 @@ function formatCurrency(amount) {
         maximumFractionDigits: 2
     });
 }
+
+// ============================================
+// FORMATTED AMOUNT INPUT SYSTEM
+// Handles thousand separators and focus/blur behavior
+// ============================================
+
+/**
+ * Parse a formatted string back to a number
+ * Removes thousand separators and handles various input formats
+ */
+function parseFormattedAmount(value) {
+    if (value === null || value === undefined || value === '') {
+        return 0;
+    }
+    // Convert to string and remove thousand separators (commas)
+    const cleanValue = String(value).replace(/,/g, '').trim();
+    const parsed = parseFloat(cleanValue);
+    return isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Format a number with thousand separators for display
+ */
+function formatAmountForDisplay(value) {
+    const num = parseFormattedAmount(value);
+    if (num === 0) {
+        return '';
+    }
+    return num.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+/**
+ * Set the value of a formatted amount field
+ * Updates both the display input and hidden input
+ */
+function setFormattedValue(fieldId, value) {
+    const displayInput = $('#' + fieldId + '_display');
+    const hiddenInput = $('#' + fieldId);
+
+    const numValue = parseFormattedAmount(value);
+
+    // Set the hidden input to the raw numeric value (for form submission)
+    hiddenInput.val(numValue.toFixed(2));
+
+    // Set the display input to the formatted value
+    if (numValue === 0) {
+        displayInput.val('');
+    } else {
+        displayInput.val(formatAmountForDisplay(numValue));
+    }
+}
+
+/**
+ * Get the raw numeric value from a formatted field
+ */
+function getFormattedValue(fieldId) {
+    return parseFormattedAmount($('#' + fieldId).val());
+}
+
+/**
+ * Initialize formatted amount input behavior
+ * Handles focus (show raw number), blur (show formatted), and input validation
+ */
+function initFormattedAmountInputs() {
+    // Handle focus - show raw value for easy editing
+    $(document).on('focus', '.formatted-amount', function() {
+        const $input = $(this);
+        const targetId = $input.data('target');
+
+        if (!targetId) return; // Skip readonly fields like remaining_balance
+
+        const hiddenInput = $('#' + targetId);
+        const rawValue = parseFormattedAmount(hiddenInput.val());
+
+        // Show raw value (without formatting) for editing
+        if (rawValue === 0) {
+            $input.val('');
+        } else {
+            $input.val(rawValue.toFixed(2));
+        }
+
+        // Select all text for easy replacement
+        $input.select();
+    });
+
+    // Handle blur - format the value and sync to hidden input
+    $(document).on('blur', '.formatted-amount', function() {
+        const $input = $(this);
+        const targetId = $input.data('target');
+
+        if (!targetId) return; // Skip readonly fields
+
+        const hiddenInput = $('#' + targetId);
+        const rawValue = parseFormattedAmount($input.val());
+
+        // Update hidden input with raw value
+        hiddenInput.val(rawValue.toFixed(2));
+
+        // Update display with formatted value
+        if (rawValue === 0) {
+            $input.val('');
+        } else {
+            $input.val(formatAmountForDisplay(rawValue));
+        }
+
+        // Trigger calculation
+        calculateTotals();
+    });
+
+    // Handle input - allow only valid numeric characters
+    $(document).on('input', '.formatted-amount', function() {
+        const $input = $(this);
+        let value = $input.val();
+
+        // Allow only digits, decimal point, and minus sign
+        value = value.replace(/[^0-9.\-]/g, '');
+
+        // Ensure only one decimal point
+        const parts = value.split('.');
+        if (parts.length > 2) {
+            value = parts[0] + '.' + parts.slice(1).join('');
+        }
+
+        // Limit decimal places to 2
+        if (parts.length === 2 && parts[1].length > 2) {
+            value = parts[0] + '.' + parts[1].substring(0, 2);
+        }
+
+        $input.val(value);
+    });
+
+    // Handle keydown for better UX
+    $(document).on('keydown', '.formatted-amount', function(e) {
+        // Allow: backspace, delete, tab, escape, enter, decimal point
+        if ($.inArray(e.keyCode, [46, 8, 9, 27, 13, 110, 190]) !== -1 ||
+            // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+            (e.keyCode >= 35 && e.keyCode <= 40) ||
+            ((e.keyCode === 65 || e.keyCode === 67 || e.keyCode === 86 || e.keyCode === 88) && (e.ctrlKey === true || e.metaKey === true))) {
+            return;
+        }
+        // Ensure that it is a number or minus sign and stop the keypress
+        if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105) && e.keyCode !== 189 && e.keyCode !== 109) {
+            e.preventDefault();
+        }
+    });
+}
+
+// ============================================
+// END FORMATTED AMOUNT INPUT SYSTEM
+// ============================================
 
 function formatDate(dateString) {
     const date = new Date(dateString);
@@ -692,22 +889,22 @@ function loadPreviousMonthBreakdown() {
                         chargeType = `Full Charge (${attendancePercentage.toFixed(1)}% attendance)`;
                     }
                     
-                    // Set the calculated package fee
-                    $('#previous_package_fee').val(adjustedPackageFee.toFixed(2));
-                    
+                    // Set the calculated package fee (using setFormattedValue for proper display)
+                    setFormattedValue('previous_package_fee', adjustedPackageFee);
+
                     // Store attendance data for display
                     $('#previous_days_attended').val(daysAttended);
                     $('#previous_expected_days').val(expectedDays);
-                    
+
                     // Show attendance info to user
                     showAttendanceInfo(prevMonth, prevYear, daysAttended, expectedDays, attendancePercentage, chargeType, basePackageFee, adjustedPackageFee, isHalfCharge);
-                    
+
                     // Continue with breakdown loading
                     loadChargesBreakdown(childId, prevMonth, prevYear);
                 },
                 error: function() {
                     // Fallback to full package fee if attendance data not available
-                    $('#previous_package_fee').val(basePackageFee.toFixed(2));
+                    setFormattedValue('previous_package_fee', basePackageFee);
                     showAttendanceWarning(prevMonth, prevYear);
                     loadChargesBreakdown(childId, prevMonth, prevYear);
                 }
@@ -798,38 +995,37 @@ function loadChargesBreakdown(childId, prevMonth, prevYear) {
         },
         success: function(response) {
             $('#breakdown-loading').hide();
-            
+
             if (response.success) {
-                // Set extra hours and holiday charges from breakdown
-                $('#previous_extra_hours').val(response.extra_hours.total.toFixed(2));
-                $('#previous_holiday_charges').val(response.holiday_charges.total.toFixed(2));
-                
+                // Set extra hours and holiday charges from breakdown (using setFormattedValue)
+                setFormattedValue('previous_extra_hours', response.extra_hours.total);
+                setFormattedValue('previous_holiday_charges', response.holiday_charges.total);
+
                 // Display breakdown table
                 displayBreakdownTable(response);
                 $('#breakdown-content').show();
-                
+
                 // Apply discount if applicable (based on the adjusted package fee)
                 if (window.childDiscountRate && window.childDiscountRate > 0) {
-                    const currentPackageFee = parseFloat($('#previous_package_fee').val()) || 0;
+                    const currentPackageFee = getFormattedValue('previous_package_fee');
                     const adjustedDiscount = (currentPackageFee * window.childDiscountRate) / 100;
-                    $('#previous_discount_applied').val(adjustedDiscount.toFixed(2));
+                    setFormattedValue('previous_discount_applied', adjustedDiscount);
                 }
-                
+
                 // Trigger calculations
-                $('#previous_extra_hours, #previous_holiday_charges, #previous_package_fee, #previous_discount_applied').trigger('change');
                 setTimeout(calculateTotals, 100);
-                
+
             } else {
-                $('#previous_extra_hours').val('0.00');
-                $('#previous_holiday_charges').val('0.00');
+                setFormattedValue('previous_extra_hours', 0);
+                setFormattedValue('previous_holiday_charges', 0);
                 $('#breakdown-content').html('<p class="text-muted">No breakdown data available for this month.</p>').show();
                 setTimeout(calculateTotals, 100);
             }
         },
         error: function() {
             $('#breakdown-loading').hide();
-            $('#previous_extra_hours').val('0.00');
-            $('#previous_holiday_charges').val('0.00');
+            setFormattedValue('previous_extra_hours', 0);
+            setFormattedValue('previous_holiday_charges', 0);
             $('#breakdown-content').html('<p class="text-danger">Error loading breakdown data.</p>').show();
             setTimeout(calculateTotals, 100);
         }
@@ -1004,11 +1200,11 @@ window.updateMonthDisplays = updateMonthDisplays;
 function validatePaymentAndReceipt() {
     let isValid = true;
     let errorMessage = '';
-    
-    // Check outstanding payment
-    const outstandingPayment = parseFloat($('#payment_settled').val()) || 0;
+
+    // Check outstanding payment (using getFormattedValue for hidden input)
+    const outstandingPayment = getFormattedValue('payment_settled');
     const outstandingReceipt = $('#outstanding_receipt_number').val().trim();
-    
+
     if (outstandingPayment > 0 && !outstandingReceipt) {
         isValid = false;
         errorMessage += 'Receipt number is required for outstanding payment.\n';
@@ -1016,11 +1212,11 @@ function validatePaymentAndReceipt() {
     } else {
         $('#outstanding_receipt_number').removeClass('is-invalid');
     }
-    
+
     // Check previous month payment
-    const previousPayment = parseFloat($('#previous_payment').val()) || 0;
+    const previousPayment = getFormattedValue('previous_payment');
     const previousReceipt = $('#previous_receipt_number').val().trim();
-    
+
     if (previousPayment > 0 && !previousReceipt) {
         isValid = false;
         errorMessage += 'Receipt number is required for previous month payment.\n';
@@ -1028,9 +1224,9 @@ function validatePaymentAndReceipt() {
     } else {
         $('#previous_receipt_number').removeClass('is-invalid');
     }
-    
+
     // Check current month payment
-    const currentPayment = parseFloat($('#current_payment').val()) || 0;
+    const currentPayment = getFormattedValue('current_payment');
     const currentReceipt = $('#current_receipt_number').val().trim();
     
     if (currentPayment > 0 && !currentReceipt) {
@@ -1049,25 +1245,28 @@ function validatePaymentAndReceipt() {
 }
 
 function calculateTotals() {
-    // Get all values
-    const outstandingAmount = parseFloat($('#outstanding_amount').val()) || 0;
-    const paymentSettled = parseFloat($('#payment_settled').val()) || 0;
-    
-    const prevPackageFee = parseFloat($('#previous_package_fee').val()) || 0;
-    const prevExtraHours = parseFloat($('#previous_extra_hours').val()) || 0;
-    const prevHolidayCharges = parseFloat($('#previous_holiday_charges').val()) || 0;
-    const prevDiscountApplied = parseFloat($('#previous_discount_applied').val()) || 0;
-    const prevPayment = parseFloat($('#previous_payment').val()) || 0;
-    
-    const packageFee = parseFloat($('#package_fee').val()) || 0;
-    const extraHours = parseFloat($('#extra_hours').val()) || 0;
-    const holidayCharges = parseFloat($('#holiday_charges').val()) || 0;
-    const discountApplied = parseFloat($('#discount_applied').val()) || 0;
-    const currentPayment = parseFloat($('#current_payment').val()) || 0;
-    
+    // Get all values from hidden inputs (using getFormattedValue for consistency)
+    const outstandingAmount = getFormattedValue('outstanding_amount');
+    const paymentSettled = getFormattedValue('payment_settled');
+
+    const prevPackageFee = getFormattedValue('previous_package_fee');
+    const prevExtraHours = getFormattedValue('previous_extra_hours');
+    const prevHolidayCharges = getFormattedValue('previous_holiday_charges');
+    const prevDiscountApplied = getFormattedValue('previous_discount_applied');
+    const prevPayment = getFormattedValue('previous_payment');
+
+    const packageFee = getFormattedValue('package_fee');
+    const extraHours = getFormattedValue('extra_hours');
+    const holidayCharges = getFormattedValue('holiday_charges');
+    const discountApplied = getFormattedValue('discount_applied');
+    const currentPayment = getFormattedValue('current_payment');
+
     // Calculate balances with ALL components included
     const remainingBalance = outstandingAmount - paymentSettled;
+
+    // Update remaining balance (both hidden and display fields)
     $('#remaining_balance').val(remainingBalance.toFixed(2));
+    $('#remaining_balance_display').val(formatAmountForDisplay(remainingBalance));
     
     // Previous month: package + extra hours + holiday - discount, then subtract payment
     const prevMonthTotalCharges = prevPackageFee + prevExtraHours + prevHolidayCharges - prevDiscountApplied;
@@ -1104,49 +1303,74 @@ function loadChildDetails() {
         debugLog('Skipped loadChildDetails - no child or already pending');
         return;
     }
-    
+
     const month = $('#month').val();
     const year = $('#year').val();
-    
+
     if (!month || !year) {
         alert('Please select month and year first');
         $('#child').val('').trigger('change');
         return;
     }
-    
+
     pendingAttendanceCheck = true;
     showFormLoading();
     debugLog(`Loading child details for ${childId}`);
-    
+
     // Load child package details first
     $.ajax({
         url: "{% url 'core:get_child_package_details' %}",
         data: { child_id: childId },
         success: function(response) {
-            if (response.package_fee) {
-                // Set current month package fee
-                $('#package_fee').val(response.package_fee);
-                
+            // Check if package_fee exists (including zero values)
+            if (response.package_fee !== undefined && response.package_fee !== null) {
+                // Set current month package fee (advance payment) using setFormattedValue
+                setFormattedValue('package_fee', response.package_fee);
+                debugLog(`Package fee set to: ${response.package_fee}`);
+
                 // Store discount info
                 window.childDiscountRate = response.discount_rate || 0;
                 window.childDiscountName = response.discount_name || '';
-                
+
                 // Apply discount for current month
                 if (response.discount_rate && response.discount_rate > 0) {
                     const packageFee = parseFloat(response.package_fee);
                     const discountAmount = (packageFee * response.discount_rate) / 100;
-                    $('#discount_applied').val(discountAmount.toFixed(2));
-                    
+                    setFormattedValue('discount_applied', discountAmount);
+
                     showDiscountInfo(response.discount_name, response.discount_rate);
                 }
-                
+
                 // Load previous month breakdown
+                setTimeout(function() {
+                    loadPreviousMonthBreakdown();
+                }, 200);
+            } else if (response.error) {
+                // Handle error response from server
+                console.error('Package details error:', response.error);
+                debugLog(`Package details error: ${response.error}`);
+                setFormattedValue('package_fee', 0);
+
+                // Still load previous month breakdown
                 setTimeout(function() {
                     loadPreviousMonthBreakdown();
                 }, 200);
             }
         },
-        error: function() {
+        error: function(xhr) {
+            // Handle AJAX error - show user-friendly message
+            const errorMsg = xhr.responseJSON?.error || 'Failed to load package details';
+            console.error('AJAX error loading package details:', errorMsg);
+            debugLog(`AJAX error: ${errorMsg}`);
+
+            // Set package fee to 0 and show alert
+            setFormattedValue('package_fee', 0);
+
+            if (xhr.status === 404) {
+                alert('No active package mapping found for this child. Please check the child has an active package assigned.');
+            }
+
+            // Still load previous month breakdown
             setTimeout(function() {
                 loadPreviousMonthBreakdown();
             }, 200);
@@ -1178,61 +1402,68 @@ function showDiscountInfo(discountName, discountRate) {
 }
 
 function clearAllManualFields() {
-    // Clear all amount fields
+    // Clear all amount fields (both hidden and display inputs)
+    // Hidden inputs
     $('#outstanding_amount, #payment_settled, #remaining_balance').val('');
     $('#previous_package_fee, #previous_extra_hours, #previous_holiday_charges, #previous_discount_applied, #previous_payment').val('');
     $('#package_fee, #extra_hours, #holiday_charges, #discount_applied, #current_payment').val('');
-    
+
+    // Display inputs
+    $('#outstanding_amount_display, #payment_settled_display, #remaining_balance_display').val('');
+    $('#previous_package_fee_display, #previous_extra_hours_display, #previous_holiday_charges_display, #previous_discount_applied_display, #previous_payment_display').val('');
+    $('#package_fee_display, #extra_hours_display, #holiday_charges_display, #discount_applied_display, #current_payment_display').val('');
+
     // Clear all receipt fields
     $('#outstanding_receipt_number, #previous_receipt_number, #current_receipt_number').val('');
-    
+
     // Clear validation states
     $('input').removeClass('is-invalid');
-    
+
     // Clear discount info
     $('#discount_info').remove();
     window.childDiscountRate = 0;
     window.childDiscountName = '';
-    
+
     // Clear breakdown
     $('#breakdown-content').hide().html('');
     $('#breakdown-loading').hide();
-    
+
     // Reset toggle button state
     const toggleBtn = $('#toggle-breakdown');
     const icon = toggleBtn.find('i');
     const textSpan = toggleBtn.find('span');
     icon.removeClass('ri-eye-off-line').addClass('ri-eye-line');
     textSpan.text('Show Breakdown');
-    
+
     // Clear attendance info
     $('#attendance-info').remove();
-    
+
     // Recalculate totals
     calculateTotals();
 }
 
 function validatePaymentField(type) {
-    let paymentField, receiptField;
-    
+    let paymentFieldId, receiptField;
+
     switch(type) {
         case 'outstanding':
-            paymentField = $('#payment_settled');
+            paymentFieldId = 'payment_settled';
             receiptField = $('#outstanding_receipt_number');
             break;
         case 'previous':
-            paymentField = $('#previous_payment');
+            paymentFieldId = 'previous_payment';
             receiptField = $('#previous_receipt_number');
             break;
         case 'current':
-            paymentField = $('#current_payment');
+            paymentFieldId = 'current_payment';
             receiptField = $('#current_receipt_number');
             break;
     }
-    
-    const paymentAmount = parseFloat(paymentField.val()) || 0;
+
+    // Use getFormattedValue to get the numeric value from hidden field
+    const paymentAmount = getFormattedValue(paymentFieldId);
     const receiptNumber = receiptField.val().trim();
-    
+
     if (paymentAmount > 0 && !receiptNumber) {
         receiptField.addClass('is-invalid');
         receiptField.attr('title', 'Receipt number is required when payment amount is entered');
@@ -1355,24 +1586,24 @@ function clearForm() {
 
 // Test function to manually set values and check calculation
 function testCalculation() {
-    // Set test values
-    $('#previous_package_fee').val('18000.00');
-    $('#previous_extra_hours').val('1275.00');
-    $('#previous_holiday_charges').val('0.00');
-    $('#previous_discount_applied').val('0.00');
-    $('#previous_payment').val('0.00');
-    
+    // Set test values using setFormattedValue for proper display
+    setFormattedValue('previous_package_fee', 18000.00);
+    setFormattedValue('previous_extra_hours', 1275.00);
+    setFormattedValue('previous_holiday_charges', 0.00);
+    setFormattedValue('previous_discount_applied', 0.00);
+    setFormattedValue('previous_payment', 0.00);
+
     // Trigger calculation
     calculateTotals();
-    
+
     // Show results in alert
-    const prevMonthTotal = 
-        (parseFloat($('#previous_package_fee').val()) || 0) +
-        (parseFloat($('#previous_extra_hours').val()) || 0) +
-        (parseFloat($('#previous_holiday_charges').val()) || 0) -
-        (parseFloat($('#previous_discount_applied').val()) || 0) -
-        (parseFloat($('#previous_payment').val()) || 0);
-    
+    const prevMonthTotal =
+        getFormattedValue('previous_package_fee') +
+        getFormattedValue('previous_extra_hours') +
+        getFormattedValue('previous_holiday_charges') -
+        getFormattedValue('previous_discount_applied') -
+        getFormattedValue('previous_payment');
+
     alert('Previous Month Net should be Rs. 19,275.00\nCalculated: Rs. ' + prevMonthTotal.toLocaleString('en-US', {minimumFractionDigits: 2}));
 }
 
@@ -1381,58 +1612,50 @@ window.testCalculation = testCalculation;
 
 $(document).ready(function() {
     clearAllFlags(); // Initialize with clear flags
-    
+
+    // Initialize formatted amount inputs (thousand separators and focus/blur handling)
+    initFormattedAmountInputs();
+
     $('#child').select2({
         placeholder: 'Search by admission number or child name...',
         allowClear: true,
         width: '100%'
     });
-    
+
     // Set current year and month as default
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
-    
+
     $('#year').val(currentYear);
     updateMonthOptions();
     $('#month').val(currentMonth);
-    
+
     // Initial call to update month names
     setTimeout(function() {
         updateMonthNames();
     }, 500);
 
-    $('#child, #month, #year').on('change', function() {
-        clearTimeout(monthYearChangeTimeout);
-        monthYearChangeTimeout = setTimeout(function() {
-            const childId = $('#child').val();
-            if (childId) {
-                clearAllManualFields();
-                fetchOutstandingBalance();
-                loadChildDetails();
-            } else {
-                clearAllManualFields();
-            }
-            updateMonthNames();
-        }, 500);
-    });
-    
-    // Event listeners with namespaced events to prevent duplicate handlers
+    // Unified event handler for child, month, and year changes
+    // Uses namespaced events and debouncing to prevent race conditions
     $('#child').off('change.memo').on('change.memo', function() {
+        clearTimeout(monthYearChangeTimeout);
         const childId = $(this).val();
         debugLog(`Child changed to: ${childId}`);
-        
+
         if (childId) {
             clearAllManualFields();
-            
+            updateMonthNames();
+
             const month = $('#month').val();
             const year = $('#year').val();
-            
+
             if (month && year) {
                 debugLog(`Loading details for child ${childId}, month ${month}, year ${year}`);
-                // Add a small delay to prevent rapid-fire requests
-                setTimeout(function() {
+                // Debounce to prevent rapid-fire requests
+                monthYearChangeTimeout = setTimeout(function() {
                     if (!pendingAttendanceCheck) {
+                        fetchOutstandingBalance();
                         loadChildDetails();
                     } else {
                         debugLog('Skipped loadChildDetails - already pending');
@@ -1443,43 +1666,35 @@ $(document).ready(function() {
             clearAllManualFields();
         }
     });
-    
+
     // Month and year change handlers with debouncing
     $('#month, #year').off('change.memo').on('change.memo', function() {
         clearTimeout(monthYearChangeTimeout);
-        
+
         monthYearChangeTimeout = setTimeout(function() {
             updateMonthNames();
             const childId = $('#child').val();
-            if (childId && !pendingAttendanceCheck) {
-                setTimeout(function() {
+            if (childId) {
+                clearAllManualFields();
+                if (!pendingAttendanceCheck) {
+                    fetchOutstandingBalance();
                     loadChildDetails();
-                }, 300);
+                }
             }
         }, 500); // Wait 500ms after user stops changing month/year
     });
-    
-    // Add payment validation event listeners
-    $('#payment_settled, #outstanding_receipt_number').on('blur', function() {
+
+    // Add payment validation event listeners (now using display inputs)
+    $('#payment_settled_display, #outstanding_receipt_number').on('blur', function() {
         validatePaymentField('outstanding');
     });
-    
-    $('#previous_payment, #previous_receipt_number').on('blur', function() {
+
+    $('#previous_payment_display, #previous_receipt_number').on('blur', function() {
         validatePaymentField('previous');
     });
-    
-    $('#current_payment, #current_receipt_number').on('blur', function() {
+
+    $('#current_payment_display, #current_receipt_number').on('blur', function() {
         validatePaymentField('current');
-    });
-    
-    // Add calculation triggers for all amount fields
-    $('input[type="number"]').on('input change keyup blur', function() {
-        calculateTotals();
-    });
-    
-    // Specific triggers for the breakdown fields
-    $('#previous_extra_hours, #previous_holiday_charges').on('input change keyup blur', function() {
-        calculateTotals();
     });
     
     // Manual refresh button
@@ -2001,14 +2216,15 @@ function fetchOutstandingBalance() {
     const year = $('#year').val();
 
     if (!childId || !month || !year) {
-        $('#outstanding_amount').val('0.00').trigger('change');
+        setFormattedValue('outstanding_amount', 0);
+        calculateTotals();
         return;
     }
 
     debugLog(`Fetching TRUE outstanding balance for Child: ${childId}, up to period: ${month}/${year}`);
 
-    const outstandingField = $('#outstanding_amount');
-    outstandingField.addClass('loading-state');
+    const outstandingDisplayField = $('#outstanding_amount_display');
+    outstandingDisplayField.addClass('loading-state');
 
     $.ajax({
         // Use the NEW, CORRECT URL
@@ -2022,30 +2238,32 @@ function fetchOutstandingBalance() {
         success: function(response) {
             if (response.success) {
                 const balance = parseFloat(response.outstanding_balance || 0);
-                
+
                 // We only care about positive (due) balances for the outstanding field
                 if (balance > 0) {
-                    outstandingField.val(balance.toFixed(2));
+                    setFormattedValue('outstanding_amount', balance);
                     debugLog(`Set outstanding amount to: ${balance.toFixed(2)}`);
                 } else {
-                    outstandingField.val('0.00');
+                    setFormattedValue('outstanding_amount', 0);
                     debugLog('Calculated outstanding is zero or credit. Setting field to 0.');
                 }
-                
-                // Trigger change to recalculate totals on the form
-                outstandingField.trigger('change');
+
+                // Recalculate totals
+                calculateTotals();
 
             } else {
-                outstandingField.val('0.00').trigger('change');
+                setFormattedValue('outstanding_amount', 0);
+                calculateTotals();
                 console.error("Error fetching balance:", response.error);
             }
         },
         error: function(xhr) {
             console.error("Failed to fetch outstanding balance:", xhr.responseJSON || xhr.responseText);
-            outstandingField.val('0.00').trigger('change');
+            setFormattedValue('outstanding_amount', 0);
+            calculateTotals();
         },
         complete: function() {
-            outstandingField.removeClass('loading-state');
+            outstandingDisplayField.removeClass('loading-state');
         }
     });
 }
