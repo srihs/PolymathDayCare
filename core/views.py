@@ -11174,7 +11174,7 @@ def loadInvoiceMemo(request):
 
 @login_required
 def searchInvoiceMemo(request):
-    """Search for existing invoice memo"""
+    """Search for existing invoice memo with detailed breakdown"""
     try:
         if request.method != "GET":
             return JsonResponse({"error": "GET method required"}, status=400)
@@ -11196,6 +11196,44 @@ def searchInvoiceMemo(request):
         ).first()
 
         if memo:
+            # Get detailed month breakdown
+            month_details = []
+            for detail in memo.month_details.all().order_by("month_sequence"):
+                # Format payment receipts for display
+                payment_info = []
+                if detail.payment_receipts and isinstance(detail.payment_receipts, list):
+                    for payment in detail.payment_receipts:
+                        receipt_num = payment.get("receipt_number", "")
+                        amount = payment.get("amount", 0)
+                        if receipt_num and amount:
+                            payment_info.append({
+                                "receipt_number": receipt_num,
+                                "amount": float(amount)
+                            })
+
+                month_details.append({
+                    "month_sequence": detail.month_sequence,
+                    "month_type": detail.month_type,
+                    "month_name": detail.month_name,
+                    "actual_year": detail.actual_year,
+                    "package_name": detail.package_name or "",
+                    "package_fee": float(detail.package_fee or 0),
+                    "extra_hours_charge": float(detail.extra_hours_charge or 0),
+                    "holiday_charges": float(detail.holiday_charges or 0),
+                    "other_charges": float(detail.other_charges or 0),
+                    "discount_applied": float(detail.discount_applied or 0),
+                    "other_deductions": float(detail.other_deductions or 0),
+                    "gross_charges": float(detail.gross_charges or 0),
+                    "total_deductions": float(detail.total_deductions or 0),
+                    "net_charges": float(detail.net_charges or 0),
+                    "payments_received": float(detail.payments_received or 0),
+                    "payment_receipts": payment_info,
+                    "net_balance": float(detail.net_balance or 0),
+                    "days_attended": detail.days_attended or 0,
+                    "expected_days": detail.expected_days or 22,
+                    "notes": detail.notes or "",
+                })
+
             memo_data = {
                 "id": memo.id,
                 "memo_code": memo.memo_code,
@@ -11215,6 +11253,7 @@ def searchInvoiceMemo(request):
                 if memo.date_created
                 else None,
                 "notes": memo.notes or "",
+                "month_details": month_details,
             }
 
             return JsonResponse(
