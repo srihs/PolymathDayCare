@@ -1500,15 +1500,11 @@ function updateMonthOptions() {
                 monthSelect.val('');
             }
         } else if (selectedYear < currentYear) {
+            // Past years: enable all months
             monthOptions.prop('disabled', false).show();
         } else {
-            monthOptions.each(function() {
-                const option = $(this);
-                if (option.val()) {
-                    option.prop('disabled', true).hide();
-                }
-            });
-            monthSelect.val('');
+            // Future years: enable all months (same as past years)
+            monthOptions.prop('disabled', false).show();
         }
     } else {
         monthOptions.each(function() {
