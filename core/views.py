@@ -6922,21 +6922,16 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
         vacation_charge = Decimal("0.00")
 
         # Get package details for extra hours calculation
+        # Use the SAME package that was selected for billing (respects vacation month logic)
         package_end_time = None
         package_type = None
 
-        if package_mapping.normal_package:
-            package_end_time = package_mapping.normal_package.to_time
-            package_type = package_mapping.normal_package.package_type
-        elif package_mapping.holiday_package:
-            package_end_time = package_mapping.holiday_package.to_time
-            package_type = package_mapping.holiday_package.package_type
-        elif package_mapping.vacation_package:
-            package_end_time = package_mapping.vacation_package.to_time
-            package_type = package_mapping.vacation_package.package_type
-        elif package_mapping.flex_package:
-            package_end_time = time(17, 30)  # Default for flex
-            package_type = package_mapping.flex_package.package_type
+        if package:  # Use the already-selected package from above
+            if hasattr(package, 'to_time') and package.to_time:
+                package_end_time = package.to_time
+            else:
+                package_end_time = time(17, 30)  # Default for flex packages
+            package_type = package.package_type
 
         # Process each attendance day with CORRECTED CUMULATIVE LOGIC
         for log_date, logs in logs_by_date.items():
@@ -7385,12 +7380,17 @@ def calculate_enhanced_month_with_attendance(
         child=child, date_logged__range=(first_day, last_day)
     ).order_by("date_logged", "time_logged")
 
-    # Get holidays in this month
-    holidays = set(
-        Holiday.objects.filter(
-            start_date__lte=last_day, end_date__gte=first_day
-        ).values_list("start_date", flat=True)
+    # Get holidays in this month (expand date ranges to include all dates)
+    holiday_objs = Holiday.objects.filter(
+        start_date__lte=last_day, end_date__gte=first_day
     )
+    holidays = set()
+    for holiday in holiday_objs:
+        current = max(holiday.start_date, first_day)
+        end = min(holiday.end_date, last_day)
+        while current <= end:
+            holidays.add(current)
+            current += timedelta(days=1)
 
     # Group logs by date
     logs_by_date = defaultdict(list)
@@ -7412,6 +7412,9 @@ def calculate_enhanced_month_with_attendance(
     elif package_mapping.holiday_package:
         package_end_time = package_mapping.holiday_package.to_time
         package_type = package_mapping.holiday_package.package_type
+    elif package_mapping.vacation_package:
+        package_end_time = package_mapping.vacation_package.to_time
+        package_type = package_mapping.vacation_package.package_type
     elif package_mapping.flex_package:
         package_end_time = time(17, 30)  # Default for flex
         package_type = package_mapping.flex_package.package_type
@@ -7884,28 +7887,57 @@ def getExtraHoursReportJS(request):
             if not package_mapping:
                 continue
 
-            # Determine the active package and its end time
+            # ===== VACATION MONTH DETECTION FOR THIS DATE =====
+            # Determine the month boundaries for this log_date
+            month_first_day = log_date.replace(day=1)
+            month_last_day = datetime(log_date.year, log_date.month, calendar.monthrange(log_date.year, log_date.month)[1]).date()
+
+            # Get vacation holidays for this month
+            vacation_holidays_qs = Holiday.objects.filter(
+                Q(is_polymath_holiday=True) | Q(is_other_school_holiday=True),
+                start_date__lte=month_last_day,
+                end_date__gte=month_first_day,
+                is_active=True
+            )
+            vacation_dates = set()
+            for holiday in vacation_holidays_qs:
+                current = max(holiday.start_date, month_first_day)
+                end = min(holiday.end_date, month_last_day)
+                while current <= end:
+                    vacation_dates.add(current)
+                    current += timedelta(days=1)
+
+            # Calculate working days in the month
+            working_days = sum(1 for d in (month_first_day + timedelta(days=i) for i in range((month_last_day - month_first_day).days + 1)) if d.weekday() < 5)
+            vacation_working_days = sum(1 for d in vacation_dates if d.weekday() < 5)
+
+            # A month is a "vacation month" if >= 50% of working days are vacation days AND child has vacation package
+            is_vacation_month = (
+                vacation_working_days >= (working_days * 0.5)
+                and package_mapping.vacation_package is not None
+            )
+
+            # ===== PACKAGE SELECTION (respects vacation month logic) =====
             package = None
             package_end_time = None
             package_name = "Unknown Package"
             package_type = None
+            is_flex = package_mapping.flex_package is not None
 
-            if package_mapping.normal_package:
+            if is_vacation_month and package_mapping.vacation_package:
+                package = package_mapping.vacation_package
+                package_end_time = package.to_time
+                package_name = f"{package.package_name} (Vacation)"
+                package_type = package.package_type
+            elif is_flex:
+                package = package_mapping.flex_package
+                package_name = f"{package.package_name} (Flex)"
+                package_end_time = time(17, 30)  # 5:30 PM as default
+                package_type = package.package_type
+            elif package_mapping.normal_package:
                 package = package_mapping.normal_package
                 package_end_time = package.to_time
                 package_name = package.package_name
-                package_type = package.package_type
-            elif package_mapping.holiday_package:
-                package = package_mapping.holiday_package
-                package_end_time = package.to_time
-                package_name = f"{package.package_name} (Holiday)"
-                package_type = package.package_type
-            elif package_mapping.flex_package:
-                # For flex packages, use standard end time or calculate based on hours
-                package = package_mapping.flex_package
-                package_name = f"{package.package_name} (Flex)"
-                # For flex packages, assume standard end time (e.g., 5:30 PM)
-                package_end_time = time(17, 30)  # 5:30 PM as default
                 package_type = package.package_type
 
             if not package_end_time or not time_out:
@@ -7943,11 +7975,12 @@ def getExtraHoursReportJS(request):
 
                 # Check for extra hours before 5:30 PM if applicable
                 cutoff_530 = time(17, 30)
-                if package_end_time < cutoff_530 and time_out > cutoff_530:
-                    # Calculate hours between package end and 5:30 PM
-                    cutoff_datetime = datetime.combine(log_date, cutoff_530)
+                if package_end_time < cutoff_530 and time_out > package_end_time:
+                    # Calculate hours between package end and either 5:30 PM or checkout time (whichever is earlier)
+                    end_time_for_calc = min(time_out, cutoff_530)
+                    end_datetime_for_calc = datetime.combine(log_date, end_time_for_calc)
                     hours_before_530 = (
-                        cutoff_datetime - package_end_datetime
+                        end_datetime_for_calc - package_end_datetime
                     ).total_seconds() / 3600
 
                     # Get rates for hours before 5:30 PM
@@ -10506,33 +10539,66 @@ def getDetailedChargesBreakdown(request):
             child=child, date_logged__range=(first_day, last_day)
         ).order_by("date_logged", "time_logged")
 
-        # Get holidays in this month
+        # Get holidays in this month (expand date ranges to include all dates)
         holidays = Holiday.objects.filter(
             start_date__lte=last_day, end_date__gte=first_day, is_active=True
-        ).values_list("start_date", flat=True)
-        holiday_dates = set(holidays)
+        )
+        holiday_dates = set()
+        for holiday in holidays:
+            current = max(holiday.start_date, first_day)
+            end = min(holiday.end_date, last_day)
+            while current <= end:
+                holiday_dates.add(current)
+                current += timedelta(days=1)
+
+        # ===== VACATION MONTH DETECTION =====
+        # Get vacation holidays (polymath or other school holidays)
+        vacation_holidays_qs = Holiday.objects.filter(
+            Q(is_polymath_holiday=True) | Q(is_other_school_holiday=True),
+            start_date__lte=last_day,
+            end_date__gte=first_day,
+            is_active=True
+        )
+        vacation_dates = set()
+        for holiday in vacation_holidays_qs:
+            current = max(holiday.start_date, first_day)
+            end = min(holiday.end_date, last_day)
+            while current <= end:
+                vacation_dates.add(current)
+                current += timedelta(days=1)
+
+        # Calculate working days in the month
+        working_days = sum(1 for d in (first_day + timedelta(days=i) for i in range((last_day - first_day).days + 1)) if d.weekday() < 5)
+        vacation_working_days = sum(1 for d in vacation_dates if d.weekday() < 5)
+
+        # A month is a "vacation month" if >= 50% of working days are vacation days AND child has vacation package
+        is_vacation_month = (
+            vacation_working_days >= (working_days * 0.5)
+            and package_mapping.vacation_package is not None
+        )
 
         # Group logs by date
         logs_by_date = defaultdict(list)
         for log in attendance_logs:
             logs_by_date[log.date_logged].append(log)
 
-        # Determine package details
+        # ===== PACKAGE SELECTION (respects vacation month logic) =====
         package = None
         package_end_time = None
         package_type = None
+        is_flex = package_mapping.flex_package is not None
 
-        if package_mapping.normal_package:
-            package = package_mapping.normal_package
+        if is_vacation_month and package_mapping.vacation_package:
+            package = package_mapping.vacation_package
             package_end_time = package.to_time
             package_type = package.package_type
-        elif package_mapping.holiday_package:
-            package = package_mapping.holiday_package
-            package_end_time = package.to_time
-            package_type = package.package_type
-        elif package_mapping.flex_package:
+        elif is_flex:
             package = package_mapping.flex_package
             package_end_time = time(17, 30)  # Default for flex
+            package_type = package.package_type
+        elif package_mapping.normal_package:
+            package = package_mapping.normal_package
+            package_end_time = package.to_time
             package_type = package.package_type
 
         if not package_end_time or not package_type:
@@ -11538,33 +11604,66 @@ def get_automatic_breakdown_data(child, month, year):
             child=child, date_logged__range=(first_day, last_day)
         ).order_by("date_logged", "time_logged")
 
-        # Get holidays in this month
+        # Get holidays in this month (expand date ranges to include all dates)
         holidays = Holiday.objects.filter(
             start_date__lte=last_day, end_date__gte=first_day, is_active=True
-        ).values_list("start_date", flat=True)
-        holiday_dates = set(holidays)
+        )
+        holiday_dates = set()
+        for holiday in holidays:
+            current = max(holiday.start_date, first_day)
+            end = min(holiday.end_date, last_day)
+            while current <= end:
+                holiday_dates.add(current)
+                current += timedelta(days=1)
+
+        # ===== VACATION MONTH DETECTION =====
+        # Get vacation holidays (polymath or other school holidays)
+        vacation_holidays_qs = Holiday.objects.filter(
+            Q(is_polymath_holiday=True) | Q(is_other_school_holiday=True),
+            start_date__lte=last_day,
+            end_date__gte=first_day,
+            is_active=True
+        )
+        vacation_dates = set()
+        for holiday in vacation_holidays_qs:
+            current = max(holiday.start_date, first_day)
+            end = min(holiday.end_date, last_day)
+            while current <= end:
+                vacation_dates.add(current)
+                current += timedelta(days=1)
+
+        # Calculate working days in the month
+        working_days = sum(1 for d in (first_day + timedelta(days=i) for i in range((last_day - first_day).days + 1)) if d.weekday() < 5)
+        vacation_working_days = sum(1 for d in vacation_dates if d.weekday() < 5)
+
+        # A month is a "vacation month" if >= 50% of working days are vacation days AND child has vacation package
+        is_vacation_month = (
+            vacation_working_days >= (working_days * 0.5)
+            and package_mapping.vacation_package is not None
+        )
 
         # Group logs by date
         logs_by_date = defaultdict(list)
         for log in attendance_logs:
             logs_by_date[log.date_logged].append(log)
 
-        # Determine package details
+        # ===== PACKAGE SELECTION (respects vacation month logic) =====
         package = None
         package_end_time = None
         package_type = None
+        is_flex = package_mapping.flex_package is not None
 
-        if package_mapping.normal_package:
-            package = package_mapping.normal_package
+        if is_vacation_month and package_mapping.vacation_package:
+            package = package_mapping.vacation_package
             package_end_time = package.to_time
             package_type = package.package_type
-        elif package_mapping.holiday_package:
-            package = package_mapping.holiday_package
-            package_end_time = package.to_time
-            package_type = package.package_type
-        elif package_mapping.flex_package:
+        elif is_flex:
             package = package_mapping.flex_package
             package_end_time = time(17, 30)  # Default for flex
+            package_type = package.package_type
+        elif package_mapping.normal_package:
+            package = package_mapping.normal_package
+            package_end_time = package.to_time
             package_type = package.package_type
 
         if not package_end_time or not package_type:
