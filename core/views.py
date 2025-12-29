@@ -9995,10 +9995,24 @@ def saveMemoDataEntry(request):
             request.POST.get("force_save") == "true"
         )  # Hidden field for override
 
-        # Outstanding (2 months ago)
+        # Outstanding (2 months ago) - Now includes extra charges
         outstanding_amount = Decimal(request.POST.get("outstanding_amount") or "0")
-        outstanding_payment = Decimal(request.POST.get("payment_settled") or "0")
-        outstanding_receipt = request.POST.get("outstanding_receipt_number", "").strip()
+        outstanding_extra_hours = Decimal(request.POST.get("outstanding_extra_hours") or "0")
+        outstanding_holiday_charges = Decimal(request.POST.get("outstanding_holiday_charges") or "0")
+        outstanding_other_charges = Decimal(request.POST.get("outstanding_other_charges") or "0")
+
+        # Outstanding payments - Now supports multiple receipts
+        outstanding_receipts_json = request.POST.get("outstanding_receipts_json", "[]")
+        try:
+            import json
+            outstanding_receipts_list = json.loads(outstanding_receipts_json)
+        except (json.JSONDecodeError, TypeError):
+            outstanding_receipts_list = []
+
+        # Calculate total outstanding payment from all receipts
+        outstanding_payment = Decimal("0")
+        for receipt in outstanding_receipts_list:
+            outstanding_payment += Decimal(str(receipt.get("amount", 0)))
 
         # Previous month (1 month ago)
         prev_package_fee = Decimal(request.POST.get("previous_package_fee") or "0")
@@ -10089,21 +10103,28 @@ def saveMemoDataEntry(request):
                     "child_id": child_id,
                     "month": month,
                     "year": year,
+                    # Outstanding data (now includes extra charges and multiple receipts)
                     "outstanding_amount": str(outstanding_amount),
+                    "outstanding_extra_hours": str(outstanding_extra_hours),
+                    "outstanding_holiday_charges": str(outstanding_holiday_charges),
+                    "outstanding_other_charges": str(outstanding_other_charges),
                     "outstanding_payment": str(outstanding_payment),
-                    "outstanding_receipt": outstanding_receipt,
+                    "outstanding_receipts_json": outstanding_receipts_json,
+                    # Previous month data
                     "prev_package_fee": str(prev_package_fee),
                     "prev_extra_hours": str(prev_extra_hours),
                     "prev_holiday_charges": str(prev_holiday_charges),
                     "prev_discount": str(prev_discount),
                     "prev_payment": str(prev_payment),
                     "prev_receipt": prev_receipt,
+                    # Current month data
                     "curr_package_fee": str(curr_package_fee),
                     "curr_extra_hours": str(curr_extra_hours),
                     "curr_holiday_charges": str(curr_holiday_charges),
                     "curr_discount": str(curr_discount),
                     "curr_payment": str(curr_payment),
                     "curr_receipt": curr_receipt,
+                    # Validation info
                     "missing_count": missing_count,
                     "check_month": calendar.month_name[check_month],
                     "check_year": check_year,
@@ -10177,7 +10198,7 @@ def saveMemoDataEntry(request):
                 user_created=request.user.username,
             )
 
-            # Create Outstanding Month Detail (Month 1)
+            # Create Outstanding Month Detail (Month 1) - Now includes extra charges and multiple receipts
             outstanding_detail = InvoiceMemoDetail.objects.create(
                 memo=memo,
                 month_sequence=1,
@@ -10186,28 +10207,24 @@ def saveMemoDataEntry(request):
                 actual_year=outstanding_year,
                 month_name=calendar.month_name[outstanding_month],
                 package_fee=outstanding_amount,
-                extra_hours_charge=Decimal("0"),
-                holiday_charges=Decimal("0"),
+                extra_hours_charge=outstanding_extra_hours,
+                holiday_charges=outstanding_holiday_charges,
+                other_charges=outstanding_other_charges,
                 discount_applied=Decimal("0"),
                 payments_received=outstanding_payment,
-                payment_receipts=[
-                    {
-                        "amount": float(outstanding_payment),
-                        "receipt_number": outstanding_receipt,
-                        "date": datetime.now().strftime("%Y-%m-%d"),
-                        "type": "outstanding_settlement",
-                    }
-                ]
-                if outstanding_payment > 0
-                else [],
+                payment_receipts=outstanding_receipts_list if outstanding_receipts_list else [],
                 package_name="Outstanding Balance",
                 notes="Outstanding balance from previous periods",
                 calculation_details={
                     "manually_entered": True,
                     "forced_save": force_save,
                     "original_outstanding": float(outstanding_amount),
+                    "extra_hours": float(outstanding_extra_hours),
+                    "holiday_charges": float(outstanding_holiday_charges),
+                    "other_charges": float(outstanding_other_charges),
+                    "total_outstanding": float(outstanding_amount + outstanding_extra_hours + outstanding_holiday_charges + outstanding_other_charges),
                     "payment_settled": float(outstanding_payment),
-                    "receipt_number": outstanding_receipt,
+                    "receipts_count": len(outstanding_receipts_list),
                 },
                 user_created=request.user.username,
             )

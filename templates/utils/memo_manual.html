@@ -345,7 +345,7 @@
             </div>
             <div class="section-body">
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="form-row">
                             <label class="form-label">Outstanding Amount</label>
                             <div class="input-group amount-input-wrapper">
@@ -357,28 +357,57 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="form-row">
-                            <label class="form-label">Payment Settled</label>
+                            <label class="form-label">Extra Hours</label>
                             <div class="input-group amount-input-wrapper">
                                 <span class="input-group-text">Rs.</span>
                                 <input type="text" class="form-control formatted-amount"
-                                       id="payment_settled_display" placeholder="0.00"
-                                       data-target="payment_settled" inputmode="decimal">
-                                <input type="hidden" name="payment_settled" id="payment_settled">
+                                       id="outstanding_extra_hours_display" placeholder="0.00"
+                                       data-target="outstanding_extra_hours" inputmode="decimal">
+                                <input type="hidden" name="outstanding_extra_hours" id="outstanding_extra_hours" value="0">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-row">
+                            <label class="form-label">Holiday Charges</label>
+                            <div class="input-group amount-input-wrapper">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="text" class="form-control formatted-amount"
+                                       id="outstanding_holiday_charges_display" placeholder="0.00"
+                                       data-target="outstanding_holiday_charges" inputmode="decimal">
+                                <input type="hidden" name="outstanding_holiday_charges" id="outstanding_holiday_charges" value="0">
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="form-row">
-                            <label class="form-label">Receipt Number</label>
-                            <input type="text" class="form-control" name="outstanding_receipt_number" 
-                                   id="outstanding_receipt_number" placeholder="RN 18511">
+                            <label class="form-label">Other Charges</label>
+                            <div class="input-group amount-input-wrapper">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="text" class="form-control formatted-amount"
+                                       id="outstanding_other_charges_display" placeholder="0.00"
+                                       data-target="outstanding_other_charges" inputmode="decimal">
+                                <input type="hidden" name="outstanding_other_charges" id="outstanding_other_charges" value="0">
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
+                        <div class="form-row">
+                            <label class="form-label">Total Outstanding</label>
+                            <div class="input-group amount-input-wrapper">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="text" class="form-control calculated-field formatted-amount"
+                                       id="outstanding_total_display" readonly>
+                                <input type="hidden" name="outstanding_total" id="outstanding_total">
+                            </div>
+                            <small class="text-muted">Amount + Extra Hours + Holiday + Other</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
                         <div class="form-row">
                             <label class="form-label">Remaining Balance</label>
                             <div class="input-group amount-input-wrapper">
@@ -387,7 +416,40 @@
                                        id="remaining_balance_display" readonly>
                                 <input type="hidden" name="remaining_balance" id="remaining_balance">
                             </div>
+                            <small class="text-muted">Total - Payments</small>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Outstanding Payments Section (Multiple Receipts) -->
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <label class="form-label"><strong>Payments Received</strong></label>
+                        <div id="outstanding_receipts_container">
+                            <!-- First receipt row (always visible) -->
+                            <div class="receipt-row row mb-2" data-index="0">
+                                <div class="col-md-5">
+                                    <div class="input-group amount-input-wrapper">
+                                        <span class="input-group-text">Rs.</span>
+                                        <input type="text" class="form-control formatted-amount outstanding-payment-amount"
+                                               id="outstanding_payment_0_display" placeholder="0.00"
+                                               data-target="outstanding_payment_0" inputmode="decimal">
+                                        <input type="hidden" name="outstanding_payments[]" class="outstanding-payment-hidden" id="outstanding_payment_0">
+                                    </div>
+                                </div>
+                                <div class="col-md-5">
+                                    <input type="text" class="form-control outstanding-receipt-number"
+                                           name="outstanding_receipts[]" placeholder="Receipt Number (e.g., RN 18511)">
+                                </div>
+                                <div class="col-md-2">
+                                    <!-- First row doesn't have delete button -->
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="add_outstanding_receipt">
+                            <i class="ri-add-line me-1"></i>Add Another Receipt
+                        </button>
+                        <input type="hidden" name="outstanding_receipts_json" id="outstanding_receipts_json">
                     </div>
                 </div>
             </div>
@@ -1201,17 +1263,21 @@ function validatePaymentAndReceipt() {
     let isValid = true;
     let errorMessage = '';
 
-    // Check outstanding payment (using getFormattedValue for hidden input)
-    const outstandingPayment = getFormattedValue('payment_settled');
-    const outstandingReceipt = $('#outstanding_receipt_number').val().trim();
+    // Check outstanding payments (multiple receipts)
+    // First validate that any payment with amount has a receipt number
+    $('#outstanding_receipts_container .receipt-row').each(function() {
+        const $row = $(this);
+        const amount = parseFormattedAmount($row.find('.outstanding-payment-hidden').val());
+        const receiptNumber = $row.find('.outstanding-receipt-number').val().trim();
 
-    if (outstandingPayment > 0 && !outstandingReceipt) {
-        isValid = false;
-        errorMessage += 'Receipt number is required for outstanding payment.\n';
-        $('#outstanding_receipt_number').addClass('is-invalid');
-    } else {
-        $('#outstanding_receipt_number').removeClass('is-invalid');
-    }
+        if (amount > 0 && !receiptNumber) {
+            isValid = false;
+            $row.find('.outstanding-receipt-number').addClass('is-invalid');
+            errorMessage += 'Receipt number is required for outstanding payment.\n';
+        } else {
+            $row.find('.outstanding-receipt-number').removeClass('is-invalid');
+        }
+    });
 
     // Check previous month payment
     const previousPayment = getFormattedValue('previous_payment');
@@ -1228,7 +1294,7 @@ function validatePaymentAndReceipt() {
     // Check current month payment
     const currentPayment = getFormattedValue('current_payment');
     const currentReceipt = $('#current_receipt_number').val().trim();
-    
+
     if (currentPayment > 0 && !currentReceipt) {
         isValid = false;
         errorMessage += 'Receipt number is required for current month payment.\n';
@@ -1236,18 +1302,27 @@ function validatePaymentAndReceipt() {
     } else {
         $('#current_receipt_number').removeClass('is-invalid');
     }
-    
+
     if (!isValid) {
         alert(errorMessage);
     }
-    
+
+    // Update the receipts JSON before form submission
+    updateOutstandingReceiptsJson();
+
     return isValid;
 }
 
 function calculateTotals() {
     // Get all values from hidden inputs (using getFormattedValue for consistency)
+    // Outstanding section - now includes extra charges
     const outstandingAmount = getFormattedValue('outstanding_amount');
-    const paymentSettled = getFormattedValue('payment_settled');
+    const outstandingExtraHours = getFormattedValue('outstanding_extra_hours');
+    const outstandingHolidayCharges = getFormattedValue('outstanding_holiday_charges');
+    const outstandingOtherCharges = getFormattedValue('outstanding_other_charges');
+
+    // Calculate total outstanding payments from all receipt rows
+    const outstandingTotalPayments = calculateOutstandingTotalPayments();
 
     const prevPackageFee = getFormattedValue('previous_package_fee');
     const prevExtraHours = getFormattedValue('previous_extra_hours');
@@ -1261,31 +1336,38 @@ function calculateTotals() {
     const discountApplied = getFormattedValue('discount_applied');
     const currentPayment = getFormattedValue('current_payment');
 
-    // Calculate balances with ALL components included
-    const remainingBalance = outstandingAmount - paymentSettled;
+    // Calculate Outstanding Total (package fee + extra hours + holiday + other charges)
+    const outstandingTotal = outstandingAmount + outstandingExtraHours + outstandingHolidayCharges + outstandingOtherCharges;
+
+    // Update outstanding total display
+    $('#outstanding_total').val(outstandingTotal.toFixed(2));
+    $('#outstanding_total_display').val(formatAmountForDisplay(outstandingTotal));
+
+    // Calculate remaining balance (total - payments)
+    const remainingBalance = outstandingTotal - outstandingTotalPayments;
 
     // Update remaining balance (both hidden and display fields)
     $('#remaining_balance').val(remainingBalance.toFixed(2));
     $('#remaining_balance_display').val(formatAmountForDisplay(remainingBalance));
-    
+
     // Previous month: package + extra hours + holiday - discount, then subtract payment
     const prevMonthTotalCharges = prevPackageFee + prevExtraHours + prevHolidayCharges - prevDiscountApplied;
     const prevMonthBalance = prevMonthTotalCharges - prevPayment;
-    
-    // Current month: package + extra hours + holiday - discount, then subtract payment  
+
+    // Current month: package + extra hours + holiday - discount, then subtract payment
     const currentMonthTotalCharges = packageFee + extraHours + holidayCharges - discountApplied;
     const currentMonthBalance = currentMonthTotalCharges - currentPayment;
-    
+
     // Grand total is sum of all balances
     const grandTotal = remainingBalance + prevMonthBalance + currentMonthBalance;
-    
+
     // Update summary display
     $('#summary_outstanding').text('Rs. ' + formatCurrency(remainingBalance));
     $('#summary_previous').text('Rs. ' + formatCurrency(prevMonthBalance));
     $('#summary_current').text('Rs. ' + formatCurrency(currentMonthBalance));
     $('#summary_total').text('Rs. ' + formatCurrency(grandTotal));
     $('#floating_amount').text(formatCurrency(grandTotal));
-    
+
     // Update floating total color
     const floatingTotal = $('#floating_total');
     if (grandTotal > 0) {
@@ -1295,6 +1377,126 @@ function calculateTotals() {
     } else {
         floatingTotal.css('background', '#3b82f6');
     }
+
+    // Update the receipts JSON for form submission
+    updateOutstandingReceiptsJson();
+}
+
+// ============================================
+// OUTSTANDING MULTIPLE RECEIPTS FUNCTIONALITY
+// ============================================
+
+let outstandingReceiptIndex = 1; // Start at 1 since 0 is already present
+
+/**
+ * Calculate total outstanding payments from all receipt rows
+ */
+function calculateOutstandingTotalPayments() {
+    let total = 0;
+    $('.outstanding-payment-hidden').each(function() {
+        const value = parseFormattedAmount($(this).val());
+        total += value;
+    });
+    return total;
+}
+
+/**
+ * Add a new receipt row for outstanding payments
+ */
+function addOutstandingReceiptRow() {
+    const container = $('#outstanding_receipts_container');
+    const newIndex = outstandingReceiptIndex++;
+
+    const newRow = `
+        <div class="receipt-row row mb-2" data-index="${newIndex}">
+            <div class="col-md-5">
+                <div class="input-group amount-input-wrapper">
+                    <span class="input-group-text">Rs.</span>
+                    <input type="text" class="form-control formatted-amount outstanding-payment-amount"
+                           id="outstanding_payment_${newIndex}_display" placeholder="0.00"
+                           data-target="outstanding_payment_${newIndex}" inputmode="decimal">
+                    <input type="hidden" name="outstanding_payments[]" class="outstanding-payment-hidden" id="outstanding_payment_${newIndex}">
+                </div>
+            </div>
+            <div class="col-md-5">
+                <input type="text" class="form-control outstanding-receipt-number"
+                       name="outstanding_receipts[]" placeholder="Receipt Number">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-receipt-btn" title="Remove this receipt">
+                    <i class="ri-delete-bin-line"></i>
+                </button>
+            </div>
+        </div>
+    `;
+
+    container.append(newRow);
+
+    // Initialize the formatted amount input for the new row
+    initFormattedAmountInputs();
+}
+
+/**
+ * Remove a receipt row
+ */
+function removeOutstandingReceiptRow(button) {
+    $(button).closest('.receipt-row').remove();
+    calculateTotals();
+}
+
+/**
+ * Update the outstanding_receipts_json hidden field with all receipt data
+ * This will be used for form submission
+ */
+function updateOutstandingReceiptsJson() {
+    const receipts = [];
+
+    $('#outstanding_receipts_container .receipt-row').each(function() {
+        const $row = $(this);
+        const amount = parseFormattedAmount($row.find('.outstanding-payment-hidden').val());
+        const receiptNumber = $row.find('.outstanding-receipt-number').val().trim();
+
+        // Only include receipts with an amount > 0 or a receipt number
+        if (amount > 0 || receiptNumber) {
+            receipts.push({
+                amount: amount,
+                receipt_number: receiptNumber,
+                date: new Date().toISOString().split('T')[0],
+                type: 'outstanding_settlement'
+            });
+        }
+    });
+
+    $('#outstanding_receipts_json').val(JSON.stringify(receipts));
+}
+
+/**
+ * Validate outstanding payments and receipts
+ */
+function validateOutstandingPayments() {
+    let isValid = true;
+    let errorMessages = [];
+
+    $('#outstanding_receipts_container .receipt-row').each(function() {
+        const $row = $(this);
+        const amount = parseFormattedAmount($row.find('.outstanding-payment-hidden').val());
+        const receiptNumber = $row.find('.outstanding-receipt-number').val().trim();
+
+        // If amount is entered, receipt number is required
+        if (amount > 0 && !receiptNumber) {
+            isValid = false;
+            $row.find('.outstanding-receipt-number').addClass('is-invalid');
+            errorMessages.push('Receipt number is required for outstanding payment.');
+        } else {
+            $row.find('.outstanding-receipt-number').removeClass('is-invalid');
+        }
+    });
+
+    if (!isValid) {
+        alert(errorMessages.join('\n'));
+    }
+
+    return isValid;
 }
 
 function loadChildDetails() {
@@ -1403,18 +1605,34 @@ function showDiscountInfo(discountName, discountRate) {
 
 function clearAllManualFields() {
     // Clear all amount fields (both hidden and display inputs)
-    // Hidden inputs
-    $('#outstanding_amount, #payment_settled, #remaining_balance').val('');
+    // Outstanding hidden inputs (now includes extra charges)
+    $('#outstanding_amount, #outstanding_extra_hours, #outstanding_holiday_charges, #outstanding_other_charges, #outstanding_total, #remaining_balance').val('');
+
+    // Previous month hidden inputs
     $('#previous_package_fee, #previous_extra_hours, #previous_holiday_charges, #previous_discount_applied, #previous_payment').val('');
+
+    // Current month hidden inputs
     $('#package_fee, #extra_hours, #holiday_charges, #discount_applied, #current_payment').val('');
 
-    // Display inputs
-    $('#outstanding_amount_display, #payment_settled_display, #remaining_balance_display').val('');
+    // Outstanding display inputs
+    $('#outstanding_amount_display, #outstanding_extra_hours_display, #outstanding_holiday_charges_display, #outstanding_other_charges_display, #outstanding_total_display, #remaining_balance_display').val('');
+
+    // Previous month display inputs
     $('#previous_package_fee_display, #previous_extra_hours_display, #previous_holiday_charges_display, #previous_discount_applied_display, #previous_payment_display').val('');
+
+    // Current month display inputs
     $('#package_fee_display, #extra_hours_display, #holiday_charges_display, #discount_applied_display, #current_payment_display').val('');
 
-    // Clear all receipt fields
-    $('#outstanding_receipt_number, #previous_receipt_number, #current_receipt_number').val('');
+    // Clear outstanding receipts (remove all but first row, clear first row values)
+    $('#outstanding_receipts_container .receipt-row:not(:first)').remove();
+    $('#outstanding_receipts_container .receipt-row:first').find('.outstanding-payment-amount').val('');
+    $('#outstanding_receipts_container .receipt-row:first').find('.outstanding-payment-hidden').val('');
+    $('#outstanding_receipts_container .receipt-row:first').find('.outstanding-receipt-number').val('');
+    $('#outstanding_receipts_json').val('[]');
+    outstandingReceiptIndex = 1; // Reset the index counter
+
+    // Clear other receipt fields
+    $('#previous_receipt_number, #current_receipt_number').val('');
 
     // Clear validation states
     $('input').removeClass('is-invalid');
@@ -1729,9 +1947,31 @@ $(document).ready(function() {
         e.preventDefault();
         saveManualMemoWithAttendanceCheck();
     });
-    
-   
-    
+
+    // ============================================
+    // OUTSTANDING MULTIPLE RECEIPTS EVENT HANDLERS
+    // ============================================
+
+    // Add receipt button click handler
+    $('#add_outstanding_receipt').on('click', function() {
+        addOutstandingReceiptRow();
+    });
+
+    // Remove receipt button click handler (delegated for dynamically added rows)
+    $(document).on('click', '.remove-receipt-btn', function() {
+        removeOutstandingReceiptRow(this);
+    });
+
+    // Outstanding payment amount change handler (delegated for dynamic rows)
+    $(document).on('blur', '.outstanding-payment-amount', function() {
+        calculateTotals();
+    });
+
+    // Outstanding extra charges change handlers
+    $('#outstanding_extra_hours_display, #outstanding_holiday_charges_display, #outstanding_other_charges_display').on('blur', function() {
+        calculateTotals();
+    });
+
     window.updateMonthNames = updateMonthNames;
 });
 
