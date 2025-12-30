@@ -10131,18 +10131,38 @@ def saveMemoDataEntry(request):
             request.POST.get("previous_holiday_charges") or "0"
         )
         prev_discount = Decimal(request.POST.get("previous_discount_applied") or "0")
-        prev_payment = Decimal(request.POST.get("previous_payment") or "0")
-        prev_receipt = request.POST.get("previous_receipt_number", "").strip()
         prev_days_attended = int(request.POST.get("previous_days_attended") or "0")
         prev_expected_days = int(request.POST.get("previous_expected_days") or "22")
+
+        # Previous month payments - Now supports multiple receipts
+        previous_receipts_json = request.POST.get("previous_receipts_json", "[]")
+        try:
+            previous_receipts_list = json.loads(previous_receipts_json)
+        except (json.JSONDecodeError, TypeError):
+            previous_receipts_list = []
+
+        # Calculate total previous payment from all receipts
+        prev_payment = Decimal("0")
+        for receipt in previous_receipts_list:
+            prev_payment += Decimal(str(receipt.get("amount", 0)))
 
         # Current month
         curr_package_fee = Decimal(request.POST.get("package_fee") or "0")
         curr_extra_hours = Decimal(request.POST.get("extra_hours") or "0")
         curr_holiday_charges = Decimal(request.POST.get("holiday_charges") or "0")
         curr_discount = Decimal(request.POST.get("discount_applied") or "0")
-        curr_payment = Decimal(request.POST.get("current_payment") or "0")
-        curr_receipt = request.POST.get("current_receipt_number", "").strip()
+
+        # Current month payments - Now supports multiple receipts
+        current_receipts_json = request.POST.get("current_receipts_json", "[]")
+        try:
+            current_receipts_list = json.loads(current_receipts_json)
+        except (json.JSONDecodeError, TypeError):
+            current_receipts_list = []
+
+        # Calculate total current payment from all receipts
+        curr_payment = Decimal("0")
+        for receipt in current_receipts_list:
+            curr_payment += Decimal(str(receipt.get("amount", 0)))
 
         # Validation
         if not all([child_id, month, year]):
@@ -10220,20 +10240,20 @@ def saveMemoDataEntry(request):
                     "outstanding_other_charges": str(outstanding_other_charges),
                     "outstanding_payment": str(outstanding_payment),
                     "outstanding_receipts_json": outstanding_receipts_json,
-                    # Previous month data
+                    # Previous month data (now supports multiple receipts)
                     "prev_package_fee": str(prev_package_fee),
                     "prev_extra_hours": str(prev_extra_hours),
                     "prev_holiday_charges": str(prev_holiday_charges),
                     "prev_discount": str(prev_discount),
                     "prev_payment": str(prev_payment),
-                    "prev_receipt": prev_receipt,
-                    # Current month data
+                    "previous_receipts_json": previous_receipts_json,
+                    # Current month data (now supports multiple receipts)
                     "curr_package_fee": str(curr_package_fee),
                     "curr_extra_hours": str(curr_extra_hours),
                     "curr_holiday_charges": str(curr_holiday_charges),
                     "curr_discount": str(curr_discount),
                     "curr_payment": str(curr_payment),
-                    "curr_receipt": curr_receipt,
+                    "current_receipts_json": current_receipts_json,
                     # Validation info
                     "missing_count": missing_count,
                     "check_month": calendar.month_name[check_month],
@@ -10417,16 +10437,7 @@ def saveMemoDataEntry(request):
                 is_half_charge_applied=prev_days_attended < (prev_expected_days * 0.5)
                 and prev_days_attended > 0,
                 payments_received=prev_payment,
-                payment_receipts=[
-                    {
-                        "amount": float(prev_payment),
-                        "receipt_number": prev_receipt,
-                        "date": datetime.now().strftime("%Y-%m-%d"),
-                        "type": "previous_month_payment",
-                    }
-                ]
-                if prev_payment > 0
-                else [],
+                payment_receipts=previous_receipts_list if previous_receipts_list else [],
                 package_name=package_name,
                 notes=f"Previous month - Package: Rs.{prev_package_fee}, Extra Hours: Rs.{prev_extra_hours}, Holiday: Rs.{prev_holiday_charges} {'(FORCED SAVE)' if force_save else ''}",
                 calculation_details={
@@ -10438,6 +10449,7 @@ def saveMemoDataEntry(request):
                         "holiday_charges": float(prev_holiday_charges),
                         "discount": float(prev_discount),
                     },
+                    "receipts_count": len(previous_receipts_list),
                     # Store detailed breakdown if available
                     **detailed_breakdown,
                 },
@@ -10457,16 +10469,7 @@ def saveMemoDataEntry(request):
                 holiday_charges=curr_holiday_charges,
                 discount_applied=curr_discount,
                 payments_received=curr_payment,
-                payment_receipts=[
-                    {
-                        "amount": float(curr_payment),
-                        "receipt_number": curr_receipt,
-                        "date": datetime.now().strftime("%Y-%m-%d"),
-                        "type": "current_month_payment",
-                    }
-                ]
-                if curr_payment > 0
-                else [],
+                payment_receipts=current_receipts_list if current_receipts_list else [],
                 package_name=package_name,
                 expected_days=22,
                 notes=f"Current month - Package: Rs.{curr_package_fee}, Extra Hours: Rs.{curr_extra_hours}, Holiday: Rs.{curr_holiday_charges}",
@@ -10479,6 +10482,7 @@ def saveMemoDataEntry(request):
                         "holiday_charges": float(curr_holiday_charges),
                         "discount": float(curr_discount),
                     },
+                    "receipts_count": len(current_receipts_list),
                 },
                 user_created=request.user.username,
             )

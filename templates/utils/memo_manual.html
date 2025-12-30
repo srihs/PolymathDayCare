@@ -523,24 +523,37 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="form-row">
-                            <label class="form-label">Payment Received</label>
-                            <div class="input-group amount-input-wrapper">
-                                <span class="input-group-text">Rs.</span>
-                                <input type="text" class="form-control formatted-amount"
-                                       id="previous_payment_display" placeholder="0.00"
-                                       data-target="previous_payment" inputmode="decimal">
-                                <input type="hidden" name="previous_payment" id="previous_payment">
+                </div>
+
+                <!-- Previous Month Payments Section (Multiple Receipts) -->
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <label class="form-label"><strong>Payments Received</strong></label>
+                        <div id="previous_receipts_container">
+                            <!-- First receipt row (always visible) -->
+                            <div class="receipt-row row mb-2" data-index="0">
+                                <div class="col-md-5">
+                                    <div class="input-group amount-input-wrapper">
+                                        <span class="input-group-text">Rs.</span>
+                                        <input type="text" class="form-control formatted-amount previous-payment-amount"
+                                               id="previous_payment_0_display" placeholder="0.00"
+                                               data-target="previous_payment_0" inputmode="decimal">
+                                        <input type="hidden" name="previous_payments[]" class="previous-payment-hidden" id="previous_payment_0">
+                                    </div>
+                                </div>
+                                <div class="col-md-5">
+                                    <input type="text" class="form-control previous-receipt-number"
+                                           name="previous_receipts[]" placeholder="Receipt Number (e.g., RN 18512)">
+                                </div>
+                                <div class="col-md-2">
+                                    <!-- First row doesn't have delete button -->
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-row">
-                            <label class="form-label">Receipt Number</label>
-                            <input type="text" class="form-control" name="previous_receipt_number" 
-                                   id="previous_receipt_number" placeholder="RN 18512">
-                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-success mt-2" id="add_previous_receipt">
+                            <i class="ri-add-line me-1"></i>Add Another Receipt
+                        </button>
+                        <input type="hidden" name="previous_receipts_json" id="previous_receipts_json">
                     </div>
                 </div>
                 
@@ -618,24 +631,37 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="form-row">
-                            <label class="form-label">Current Month Payment</label>
-                            <div class="input-group amount-input-wrapper">
-                                <span class="input-group-text">Rs.</span>
-                                <input type="text" class="form-control formatted-amount"
-                                       id="current_payment_display" placeholder="0.00"
-                                       data-target="current_payment" inputmode="decimal">
-                                <input type="hidden" name="current_payment" id="current_payment">
+                </div>
+
+                <!-- Current Month Payments Section (Multiple Receipts) -->
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <label class="form-label"><strong>Payments Received</strong></label>
+                        <div id="current_receipts_container">
+                            <!-- First receipt row (always visible) -->
+                            <div class="receipt-row row mb-2" data-index="0">
+                                <div class="col-md-5">
+                                    <div class="input-group amount-input-wrapper">
+                                        <span class="input-group-text">Rs.</span>
+                                        <input type="text" class="form-control formatted-amount current-payment-amount"
+                                               id="current_payment_0_display" placeholder="0.00"
+                                               data-target="current_payment_0" inputmode="decimal">
+                                        <input type="hidden" name="current_payments[]" class="current-payment-hidden" id="current_payment_0">
+                                    </div>
+                                </div>
+                                <div class="col-md-5">
+                                    <input type="text" class="form-control current-receipt-number"
+                                           name="current_receipts[]" placeholder="Receipt Number (e.g., RN 18513)">
+                                </div>
+                                <div class="col-md-2">
+                                    <!-- First row doesn't have delete button -->
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-row">
-                            <label class="form-label">Receipt Number</label>
-                            <input type="text" class="form-control" name="current_receipt_number" 
-                                   id="current_receipt_number" placeholder="RN 18513">
-                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-info mt-2" id="add_current_receipt">
+                            <i class="ri-add-line me-1"></i>Add Another Receipt
+                        </button>
+                        <input type="hidden" name="current_receipts_json" id="current_receipts_json">
                     </div>
                 </div>
             </div>
@@ -1261,10 +1287,9 @@ window.updateMonthDisplays = updateMonthDisplays;
 // Payment validation functions
 function validatePaymentAndReceipt() {
     let isValid = true;
-    let errorMessage = '';
+    let errorMessages = [];
 
     // Check outstanding payments (multiple receipts)
-    // First validate that any payment with amount has a receipt number
     $('#outstanding_receipts_container .receipt-row').each(function() {
         const $row = $(this);
         const amount = parseFormattedAmount($row.find('.outstanding-payment-hidden').val());
@@ -1273,42 +1298,56 @@ function validatePaymentAndReceipt() {
         if (amount > 0 && !receiptNumber) {
             isValid = false;
             $row.find('.outstanding-receipt-number').addClass('is-invalid');
-            errorMessage += 'Receipt number is required for outstanding payment.\n';
+            if (errorMessages.indexOf('Receipt number is required for outstanding payment.') === -1) {
+                errorMessages.push('Receipt number is required for outstanding payment.');
+            }
         } else {
             $row.find('.outstanding-receipt-number').removeClass('is-invalid');
         }
     });
 
-    // Check previous month payment
-    const previousPayment = getFormattedValue('previous_payment');
-    const previousReceipt = $('#previous_receipt_number').val().trim();
+    // Check previous month payments (multiple receipts)
+    $('#previous_receipts_container .receipt-row').each(function() {
+        const $row = $(this);
+        const amount = parseFormattedAmount($row.find('.previous-payment-hidden').val());
+        const receiptNumber = $row.find('.previous-receipt-number').val().trim();
 
-    if (previousPayment > 0 && !previousReceipt) {
-        isValid = false;
-        errorMessage += 'Receipt number is required for previous month payment.\n';
-        $('#previous_receipt_number').addClass('is-invalid');
-    } else {
-        $('#previous_receipt_number').removeClass('is-invalid');
-    }
+        if (amount > 0 && !receiptNumber) {
+            isValid = false;
+            $row.find('.previous-receipt-number').addClass('is-invalid');
+            if (errorMessages.indexOf('Receipt number is required for previous month payment.') === -1) {
+                errorMessages.push('Receipt number is required for previous month payment.');
+            }
+        } else {
+            $row.find('.previous-receipt-number').removeClass('is-invalid');
+        }
+    });
 
-    // Check current month payment
-    const currentPayment = getFormattedValue('current_payment');
-    const currentReceipt = $('#current_receipt_number').val().trim();
+    // Check current month payments (multiple receipts)
+    $('#current_receipts_container .receipt-row').each(function() {
+        const $row = $(this);
+        const amount = parseFormattedAmount($row.find('.current-payment-hidden').val());
+        const receiptNumber = $row.find('.current-receipt-number').val().trim();
 
-    if (currentPayment > 0 && !currentReceipt) {
-        isValid = false;
-        errorMessage += 'Receipt number is required for current month payment.\n';
-        $('#current_receipt_number').addClass('is-invalid');
-    } else {
-        $('#current_receipt_number').removeClass('is-invalid');
-    }
+        if (amount > 0 && !receiptNumber) {
+            isValid = false;
+            $row.find('.current-receipt-number').addClass('is-invalid');
+            if (errorMessages.indexOf('Receipt number is required for current month payment.') === -1) {
+                errorMessages.push('Receipt number is required for current month payment.');
+            }
+        } else {
+            $row.find('.current-receipt-number').removeClass('is-invalid');
+        }
+    });
 
     if (!isValid) {
-        alert(errorMessage);
+        alert(errorMessages.join('\n'));
     }
 
-    // Update the receipts JSON before form submission
+    // Update all receipts JSON before form submission
     updateOutstandingReceiptsJson();
+    updatePreviousReceiptsJson();
+    updateCurrentReceiptsJson();
 
     return isValid;
 }
@@ -1328,13 +1367,15 @@ function calculateTotals() {
     const prevExtraHours = getFormattedValue('previous_extra_hours');
     const prevHolidayCharges = getFormattedValue('previous_holiday_charges');
     const prevDiscountApplied = getFormattedValue('previous_discount_applied');
-    const prevPayment = getFormattedValue('previous_payment');
+    // Calculate total previous payments from all receipt rows
+    const prevPayment = calculatePreviousTotalPayments();
 
     const packageFee = getFormattedValue('package_fee');
     const extraHours = getFormattedValue('extra_hours');
     const holidayCharges = getFormattedValue('holiday_charges');
     const discountApplied = getFormattedValue('discount_applied');
-    const currentPayment = getFormattedValue('current_payment');
+    // Calculate total current payments from all receipt rows
+    const currentPayment = calculateCurrentTotalPayments();
 
     // Calculate Outstanding Total (package fee + extra hours + holiday + other charges)
     const outstandingTotal = outstandingAmount + outstandingExtraHours + outstandingHolidayCharges + outstandingOtherCharges;
@@ -1380,6 +1421,8 @@ function calculateTotals() {
 
     // Update the receipts JSON for form submission
     updateOutstandingReceiptsJson();
+    updatePreviousReceiptsJson();
+    updateCurrentReceiptsJson();
 }
 
 // ============================================
@@ -1387,6 +1430,8 @@ function calculateTotals() {
 // ============================================
 
 let outstandingReceiptIndex = 1; // Start at 1 since 0 is already present
+let previousReceiptIndex = 1; // Start at 1 since 0 is already present
+let currentReceiptIndex = 1; // Start at 1 since 0 is already present
 
 /**
  * Calculate total outstanding payments from all receipt rows
@@ -1489,6 +1534,234 @@ function validateOutstandingPayments() {
             errorMessages.push('Receipt number is required for outstanding payment.');
         } else {
             $row.find('.outstanding-receipt-number').removeClass('is-invalid');
+        }
+    });
+
+    if (!isValid) {
+        alert(errorMessages.join('\n'));
+    }
+
+    return isValid;
+}
+
+// ============================================
+// PREVIOUS MONTH MULTIPLE RECEIPTS FUNCTIONALITY
+// ============================================
+
+/**
+ * Calculate total previous month payments from all receipt rows
+ */
+function calculatePreviousTotalPayments() {
+    let total = 0;
+    $('.previous-payment-hidden').each(function() {
+        const value = parseFormattedAmount($(this).val());
+        total += value;
+    });
+    return total;
+}
+
+/**
+ * Add a new receipt row for previous month payments
+ */
+function addPreviousReceiptRow() {
+    const container = $('#previous_receipts_container');
+    const newIndex = previousReceiptIndex++;
+
+    const newRow = `
+        <div class="receipt-row row mb-2" data-index="${newIndex}">
+            <div class="col-md-5">
+                <div class="input-group amount-input-wrapper">
+                    <span class="input-group-text">Rs.</span>
+                    <input type="text" class="form-control formatted-amount previous-payment-amount"
+                           id="previous_payment_${newIndex}_display" placeholder="0.00"
+                           data-target="previous_payment_${newIndex}" inputmode="decimal">
+                    <input type="hidden" name="previous_payments[]" class="previous-payment-hidden" id="previous_payment_${newIndex}">
+                </div>
+            </div>
+            <div class="col-md-5">
+                <input type="text" class="form-control previous-receipt-number"
+                       name="previous_receipts[]" placeholder="Receipt Number">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-previous-receipt-btn" title="Remove this receipt">
+                    <i class="ri-delete-bin-line"></i>
+                </button>
+            </div>
+        </div>
+    `;
+
+    container.append(newRow);
+
+    // Initialize the formatted amount input for the new row
+    initFormattedAmountInputs();
+}
+
+/**
+ * Remove a previous month receipt row
+ */
+function removePreviousReceiptRow(button) {
+    $(button).closest('.receipt-row').remove();
+    calculateTotals();
+}
+
+/**
+ * Update the previous_receipts_json hidden field with all receipt data
+ */
+function updatePreviousReceiptsJson() {
+    const receipts = [];
+
+    $('#previous_receipts_container .receipt-row').each(function() {
+        const $row = $(this);
+        const amount = parseFormattedAmount($row.find('.previous-payment-hidden').val());
+        const receiptNumber = $row.find('.previous-receipt-number').val().trim();
+
+        // Only include receipts with an amount > 0 or a receipt number
+        if (amount > 0 || receiptNumber) {
+            receipts.push({
+                amount: amount,
+                receipt_number: receiptNumber,
+                date: new Date().toISOString().split('T')[0],
+                type: 'previous_month_payment'
+            });
+        }
+    });
+
+    $('#previous_receipts_json').val(JSON.stringify(receipts));
+}
+
+/**
+ * Validate previous month payments and receipts
+ */
+function validatePreviousPayments() {
+    let isValid = true;
+    let errorMessages = [];
+
+    $('#previous_receipts_container .receipt-row').each(function() {
+        const $row = $(this);
+        const amount = parseFormattedAmount($row.find('.previous-payment-hidden').val());
+        const receiptNumber = $row.find('.previous-receipt-number').val().trim();
+
+        // If amount is entered, receipt number is required
+        if (amount > 0 && !receiptNumber) {
+            isValid = false;
+            $row.find('.previous-receipt-number').addClass('is-invalid');
+            errorMessages.push('Receipt number is required for previous month payment.');
+        } else {
+            $row.find('.previous-receipt-number').removeClass('is-invalid');
+        }
+    });
+
+    if (!isValid) {
+        alert(errorMessages.join('\n'));
+    }
+
+    return isValid;
+}
+
+// ============================================
+// CURRENT MONTH MULTIPLE RECEIPTS FUNCTIONALITY
+// ============================================
+
+/**
+ * Calculate total current month payments from all receipt rows
+ */
+function calculateCurrentTotalPayments() {
+    let total = 0;
+    $('.current-payment-hidden').each(function() {
+        const value = parseFormattedAmount($(this).val());
+        total += value;
+    });
+    return total;
+}
+
+/**
+ * Add a new receipt row for current month payments
+ */
+function addCurrentReceiptRow() {
+    const container = $('#current_receipts_container');
+    const newIndex = currentReceiptIndex++;
+
+    const newRow = `
+        <div class="receipt-row row mb-2" data-index="${newIndex}">
+            <div class="col-md-5">
+                <div class="input-group amount-input-wrapper">
+                    <span class="input-group-text">Rs.</span>
+                    <input type="text" class="form-control formatted-amount current-payment-amount"
+                           id="current_payment_${newIndex}_display" placeholder="0.00"
+                           data-target="current_payment_${newIndex}" inputmode="decimal">
+                    <input type="hidden" name="current_payments[]" class="current-payment-hidden" id="current_payment_${newIndex}">
+                </div>
+            </div>
+            <div class="col-md-5">
+                <input type="text" class="form-control current-receipt-number"
+                       name="current_receipts[]" placeholder="Receipt Number">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-current-receipt-btn" title="Remove this receipt">
+                    <i class="ri-delete-bin-line"></i>
+                </button>
+            </div>
+        </div>
+    `;
+
+    container.append(newRow);
+
+    // Initialize the formatted amount input for the new row
+    initFormattedAmountInputs();
+}
+
+/**
+ * Remove a current month receipt row
+ */
+function removeCurrentReceiptRow(button) {
+    $(button).closest('.receipt-row').remove();
+    calculateTotals();
+}
+
+/**
+ * Update the current_receipts_json hidden field with all receipt data
+ */
+function updateCurrentReceiptsJson() {
+    const receipts = [];
+
+    $('#current_receipts_container .receipt-row').each(function() {
+        const $row = $(this);
+        const amount = parseFormattedAmount($row.find('.current-payment-hidden').val());
+        const receiptNumber = $row.find('.current-receipt-number').val().trim();
+
+        // Only include receipts with an amount > 0 or a receipt number
+        if (amount > 0 || receiptNumber) {
+            receipts.push({
+                amount: amount,
+                receipt_number: receiptNumber,
+                date: new Date().toISOString().split('T')[0],
+                type: 'current_month_payment'
+            });
+        }
+    });
+
+    $('#current_receipts_json').val(JSON.stringify(receipts));
+}
+
+/**
+ * Validate current month payments and receipts
+ */
+function validateCurrentPayments() {
+    let isValid = true;
+    let errorMessages = [];
+
+    $('#current_receipts_container .receipt-row').each(function() {
+        const $row = $(this);
+        const amount = parseFormattedAmount($row.find('.current-payment-hidden').val());
+        const receiptNumber = $row.find('.current-receipt-number').val().trim();
+
+        // If amount is entered, receipt number is required
+        if (amount > 0 && !receiptNumber) {
+            isValid = false;
+            $row.find('.current-receipt-number').addClass('is-invalid');
+            errorMessages.push('Receipt number is required for current month payment.');
+        } else {
+            $row.find('.current-receipt-number').removeClass('is-invalid');
         }
     });
 
@@ -1631,8 +1904,21 @@ function clearAllManualFields() {
     $('#outstanding_receipts_json').val('[]');
     outstandingReceiptIndex = 1; // Reset the index counter
 
-    // Clear other receipt fields
-    $('#previous_receipt_number, #current_receipt_number').val('');
+    // Clear previous month receipts (remove all but first row, clear first row values)
+    $('#previous_receipts_container .receipt-row:not(:first)').remove();
+    $('#previous_receipts_container .receipt-row:first').find('.previous-payment-amount').val('');
+    $('#previous_receipts_container .receipt-row:first').find('.previous-payment-hidden').val('');
+    $('#previous_receipts_container .receipt-row:first').find('.previous-receipt-number').val('');
+    $('#previous_receipts_json').val('[]');
+    previousReceiptIndex = 1; // Reset the index counter
+
+    // Clear current month receipts (remove all but first row, clear first row values)
+    $('#current_receipts_container .receipt-row:not(:first)').remove();
+    $('#current_receipts_container .receipt-row:first').find('.current-payment-amount').val('');
+    $('#current_receipts_container .receipt-row:first').find('.current-payment-hidden').val('');
+    $('#current_receipts_container .receipt-row:first').find('.current-receipt-number').val('');
+    $('#current_receipts_json').val('[]');
+    currentReceiptIndex = 1; // Reset the index counter
 
     // Clear validation states
     $('input').removeClass('is-invalid');
@@ -1969,6 +2255,44 @@ $(document).ready(function() {
 
     // Outstanding extra charges change handlers
     $('#outstanding_extra_hours_display, #outstanding_holiday_charges_display, #outstanding_other_charges_display').on('blur', function() {
+        calculateTotals();
+    });
+
+    // ============================================
+    // PREVIOUS MONTH MULTIPLE RECEIPTS EVENT HANDLERS
+    // ============================================
+
+    // Add receipt button click handler
+    $('#add_previous_receipt').on('click', function() {
+        addPreviousReceiptRow();
+    });
+
+    // Remove receipt button click handler (delegated for dynamically added rows)
+    $(document).on('click', '.remove-previous-receipt-btn', function() {
+        removePreviousReceiptRow(this);
+    });
+
+    // Previous payment amount change handler (delegated for dynamic rows)
+    $(document).on('blur', '.previous-payment-amount', function() {
+        calculateTotals();
+    });
+
+    // ============================================
+    // CURRENT MONTH MULTIPLE RECEIPTS EVENT HANDLERS
+    // ============================================
+
+    // Add receipt button click handler
+    $('#add_current_receipt').on('click', function() {
+        addCurrentReceiptRow();
+    });
+
+    // Remove receipt button click handler (delegated for dynamically added rows)
+    $(document).on('click', '.remove-current-receipt-btn', function() {
+        removeCurrentReceiptRow(this);
+    });
+
+    // Current payment amount change handler (delegated for dynamic rows)
+    $(document).on('blur', '.current-payment-amount', function() {
         calculateTotals();
     });
 
