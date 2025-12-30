@@ -523,6 +523,30 @@
                             </div>
                         </div>
                     </div>
+                    <div class="col-md-4">
+                        <div class="form-row">
+                            <label class="form-label">Total Outstanding</label>
+                            <div class="input-group amount-input-wrapper">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="text" class="form-control calculated-field formatted-amount"
+                                       id="previous_total_outstanding_display" readonly>
+                                <input type="hidden" name="previous_total_outstanding" id="previous_total_outstanding">
+                            </div>
+                            <small class="text-muted">Outstanding Balance + Previous Charges</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-row">
+                            <label class="form-label">Remaining Balance</label>
+                            <div class="input-group amount-input-wrapper">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="text" class="form-control calculated-field formatted-amount"
+                                       id="previous_remaining_balance_display" readonly>
+                                <input type="hidden" name="previous_remaining_balance" id="previous_remaining_balance">
+                            </div>
+                            <small class="text-muted">Total Outstanding - Payments</small>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Previous Month Payments Section (Multiple Receipts) -->
@@ -629,6 +653,30 @@
                                        data-target="discount_applied" inputmode="decimal">
                                 <input type="hidden" name="discount_applied" id="discount_applied">
                             </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-row">
+                            <label class="form-label">Total Outstanding</label>
+                            <div class="input-group amount-input-wrapper">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="text" class="form-control calculated-field formatted-amount"
+                                       id="current_total_outstanding_display" readonly>
+                                <input type="hidden" name="current_total_outstanding" id="current_total_outstanding">
+                            </div>
+                            <small class="text-muted">Previous Balance + Current Charges</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-row">
+                            <label class="form-label">Remaining Balance</label>
+                            <div class="input-group amount-input-wrapper">
+                                <span class="input-group-text">Rs.</span>
+                                <input type="text" class="form-control calculated-field formatted-amount"
+                                       id="current_remaining_balance_display" readonly>
+                                <input type="hidden" name="current_remaining_balance" id="current_remaining_balance">
+                            </div>
+                            <small class="text-muted">Total Outstanding - Payments</small>
                         </div>
                     </div>
                 </div>
@@ -1395,9 +1443,33 @@ function calculateTotals() {
     const prevMonthTotalCharges = prevPackageFee + prevExtraHours + prevHolidayCharges - prevDiscountApplied;
     const prevMonthBalance = prevMonthTotalCharges - prevPayment;
 
+    // Calculate Previous Month Total Outstanding (Section only - no carry forward)
+    const previousTotalOutstanding = prevMonthTotalCharges;
+
+    // Calculate Previous Month Remaining Balance (Section charges - Section payments)
+    const previousRemainingBalance = previousTotalOutstanding - prevPayment;
+
+    // Update Previous Month total outstanding and remaining balance displays
+    $('#previous_total_outstanding').val(previousTotalOutstanding.toFixed(2));
+    $('#previous_total_outstanding_display').val(formatAmountForDisplay(previousTotalOutstanding));
+    $('#previous_remaining_balance').val(previousRemainingBalance.toFixed(2));
+    $('#previous_remaining_balance_display').val(formatAmountForDisplay(previousRemainingBalance));
+
     // Current month: package + extra hours + holiday - discount, then subtract payment
     const currentMonthTotalCharges = packageFee + extraHours + holidayCharges - discountApplied;
     const currentMonthBalance = currentMonthTotalCharges - currentPayment;
+
+    // Calculate Current Month Total Outstanding (Section only - no carry forward)
+    const currentTotalOutstanding = currentMonthTotalCharges;
+
+    // Calculate Current Month Remaining Balance (Section charges - Section payments)
+    const currentRemainingBalance = currentTotalOutstanding - currentPayment;
+
+    // Update Current Month total outstanding and remaining balance displays
+    $('#current_total_outstanding').val(currentTotalOutstanding.toFixed(2));
+    $('#current_total_outstanding_display').val(formatAmountForDisplay(currentTotalOutstanding));
+    $('#current_remaining_balance').val(currentRemainingBalance.toFixed(2));
+    $('#current_remaining_balance_display').val(formatAmountForDisplay(currentRemainingBalance));
 
     // Grand total is sum of all balances
     const grandTotal = remainingBalance + prevMonthBalance + currentMonthBalance;
@@ -1882,19 +1954,19 @@ function clearAllManualFields() {
     $('#outstanding_amount, #outstanding_extra_hours, #outstanding_holiday_charges, #outstanding_other_charges, #outstanding_total, #remaining_balance').val('');
 
     // Previous month hidden inputs
-    $('#previous_package_fee, #previous_extra_hours, #previous_holiday_charges, #previous_discount_applied, #previous_payment').val('');
+    $('#previous_package_fee, #previous_extra_hours, #previous_holiday_charges, #previous_discount_applied, #previous_payment, #previous_total_outstanding, #previous_remaining_balance').val('');
 
     // Current month hidden inputs
-    $('#package_fee, #extra_hours, #holiday_charges, #discount_applied, #current_payment').val('');
+    $('#package_fee, #extra_hours, #holiday_charges, #discount_applied, #current_payment, #current_total_outstanding, #current_remaining_balance').val('');
 
     // Outstanding display inputs
     $('#outstanding_amount_display, #outstanding_extra_hours_display, #outstanding_holiday_charges_display, #outstanding_other_charges_display, #outstanding_total_display, #remaining_balance_display').val('');
 
     // Previous month display inputs
-    $('#previous_package_fee_display, #previous_extra_hours_display, #previous_holiday_charges_display, #previous_discount_applied_display, #previous_payment_display').val('');
+    $('#previous_package_fee_display, #previous_extra_hours_display, #previous_holiday_charges_display, #previous_discount_applied_display, #previous_payment_display, #previous_total_outstanding_display, #previous_remaining_balance_display').val('');
 
     // Current month display inputs
-    $('#package_fee_display, #extra_hours_display, #holiday_charges_display, #discount_applied_display, #current_payment_display').val('');
+    $('#package_fee_display, #extra_hours_display, #holiday_charges_display, #discount_applied_display, #current_payment_display, #current_total_outstanding_display, #current_remaining_balance_display').val('');
 
     // Clear outstanding receipts (remove all but first row, clear first row values)
     $('#outstanding_receipts_container .receipt-row:not(:first)').remove();
