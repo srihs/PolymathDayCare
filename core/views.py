@@ -4526,12 +4526,14 @@ def attendanceReportsJS(request):
                         log["package_end_time"], "%H:%M"
                     ).time()
 
+                    # Extra hours: checkout AFTER package_end_time counts as extra
+                    # Checkout exactly AT package_end_time = no extra hours (using > not >=)
                     if out_time > package_end:
                         log["has_extra_hours"] = True
-                        # Calculate extra minutes
+                        # Calculate extra minutes from package_end_time
                         out_dt = datetime.combine(datetime.today(), out_time)
-                        pkg_end_dt = datetime.combine(datetime.today(), package_end)
-                        extra_minutes = int((out_dt - pkg_end_dt).total_seconds() / 60)
+                        package_end_dt = datetime.combine(datetime.today(), package_end)
+                        extra_minutes = int((out_dt - package_end_dt).total_seconds() / 60)
                         hours = extra_minutes // 60
                         mins = extra_minutes % 60
                         if hours > 0:
@@ -6498,10 +6500,13 @@ def calculate_current_month_charges(child, package_mapping, enrollment, month, y
             last_day = datetime(year, month, calendar.monthrange(year, month)[1]).date()
 
         # Get package details
-        is_flex = package_mapping.flex_package is not None
-        package = (
-            package_mapping.flex_package if is_flex else package_mapping.normal_package
-        )
+        # Priority: normal_package > flex_package
+        if package_mapping.normal_package:
+            package = package_mapping.normal_package
+        elif package_mapping.flex_package:
+            package = package_mapping.flex_package
+        else:
+            package = None
 
         if not package:
             raise Exception("No valid package assigned.")
@@ -6557,18 +6562,19 @@ def calculate_current_month_charges(child, package_mapping, enrollment, month, y
                 is_holiday_day = log_date in holidays
 
                 # ===== CORRECTED CUMULATIVE EXTRA HOURS CALCULATION =====
+                # Extra hours: checkout AFTER package_end_time counts as extra
+                # Checkout exactly AT package_end_time = no extra hours (using > not >=)
+                package_end_datetime = datetime.combine(log_date, package_end_time)
+
                 if time_out and package_end_time and time_out > package_end_time:
                     day_extra_charges = Decimal("0.00")
                     cutoff_530 = time(17, 30)
 
-                    # 1. Handle charges BEFORE 5:30 PM
+                    # 1. Handle charges BEFORE 5:30 PM (calculate from package_end_time)
                     if package_end_time < cutoff_530 and time_out > package_end_time:
                         end_time_for_before_530 = min(time_out, cutoff_530)
 
                         if end_time_for_before_530 > package_end_time:
-                            package_end_datetime = datetime.combine(
-                                log_date, package_end_time
-                            )
                             before_530_datetime = datetime.combine(
                                 log_date, end_time_for_before_530
                             )
@@ -6755,10 +6761,13 @@ def calculate_three_month_invoice_data(child, target_month, target_year):
             raise Exception("No package mapping or enrollment found")
 
         # Get package details
-        is_flex = package_mapping.flex_package is not None
-        package = (
-            package_mapping.flex_package if is_flex else package_mapping.normal_package
-        )
+        # Priority: normal_package > flex_package
+        if package_mapping.normal_package:
+            package = package_mapping.normal_package
+        elif package_mapping.flex_package:
+            package = package_mapping.flex_package
+        else:
+            package = None
 
         if not package:
             raise Exception("No valid package assigned")
@@ -6950,18 +6959,22 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
         )
 
         # ===== PACKAGE SELECTION =====
-        # If vacation month and vacation package exists, use it
-        # Otherwise use flex or normal package
-        is_flex = package_mapping.flex_package is not None
+        # Priority: vacation_package (if vacation month) > normal_package > flex_package
 
         if is_vacation_month and package_mapping.vacation_package:
+            # Vacation month: use vacation package
             package = package_mapping.vacation_package
             using_vacation_package = True
-        elif is_flex:
+        elif package_mapping.normal_package:
+            # Normal package takes priority over flex
+            package = package_mapping.normal_package
+            using_vacation_package = False
+        elif package_mapping.flex_package:
+            # Flex package as fallback
             package = package_mapping.flex_package
             using_vacation_package = False
         else:
-            package = package_mapping.normal_package
+            package = None
             using_vacation_package = False
 
         if not package:
@@ -7014,8 +7027,11 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
                 is_holiday_day = is_public_holiday_day or is_vacation_day
 
                 # ===== CORRECTED CUMULATIVE EXTRA HOURS CALCULATION =====
+                # Extra hours: checkout AFTER package_end_time counts as extra
+                # Checkout exactly AT package_end_time = no extra hours (using > not >=)
+                package_end_datetime = datetime.combine(log_date, package_end_time)
+
                 if time_out and package_end_time and time_out > package_end_time:
-                    package_end_datetime = datetime.combine(log_date, package_end_time)
                     actual_out_datetime = datetime.combine(log_date, time_out)
                     extra_time_delta = actual_out_datetime - package_end_datetime
                     extra_hours = extra_time_delta.total_seconds() / 3600
@@ -7063,7 +7079,7 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
 
                     # 2. Handle charges AFTER 5:30 PM (cumulative slot-by-slot)
                     if time_out > cutoff_530:
-                        # Determine start time for after-5:30 charging
+                        # Determine start time for after-5:30 charging (use package_end_time)
                         start_time_after_530 = max(package_end_time, cutoff_530)
 
                         # Get ALL time slots from start_time to actual out_time
@@ -7211,10 +7227,16 @@ def calculate_month_full_package(child, package_mapping, enrollment, month, year
         from decimal import Decimal
 
         # Get package details
-        is_flex = package_mapping.flex_package is not None
-        package = (
-            package_mapping.flex_package if is_flex else package_mapping.normal_package
-        )
+        # Priority: normal_package > flex_package
+        if package_mapping.normal_package:
+            package = package_mapping.normal_package
+        elif package_mapping.flex_package:
+            package = package_mapping.flex_package
+        else:
+            package = None
+
+        if not package:
+            raise Exception("No valid package assigned.")
 
         expected_days = package.no_days_months or 22
         package_total = package.package_total or Decimal("0.00")
@@ -7433,10 +7455,16 @@ def calculate_enhanced_month_with_attendance(
     last_day = datetime(year, month, calendar.monthrange(year, month)[1]).date()
 
     # Get package details
-    is_flex = package_mapping.flex_package is not None
-    package = (
-        package_mapping.flex_package if is_flex else package_mapping.normal_package
-    )
+    # Priority: normal_package > flex_package
+    if package_mapping.normal_package:
+        package = package_mapping.normal_package
+    elif package_mapping.flex_package:
+        package = package_mapping.flex_package
+    else:
+        package = None
+
+    if not package:
+        raise Exception("No valid package assigned.")
 
     expected_days = package.no_days_months or 22
     package_total = package.package_total or Decimal("0.00")
@@ -7503,8 +7531,11 @@ def calculate_enhanced_month_with_attendance(
             is_holiday_day = log_date in holidays
 
             # ===== CORRECTED CUMULATIVE EXTRA HOURS CALCULATION =====
+            # Extra hours: checkout AFTER package_end_time counts as extra
+            # Checkout exactly AT package_end_time = no extra hours (using > not >=)
+            package_end_datetime = datetime.combine(log_date, package_end_time)
+
             if time_out and package_end_time and time_out > package_end_time:
-                package_end_datetime = datetime.combine(log_date, package_end_time)
                 actual_out_datetime = datetime.combine(log_date, time_out)
                 extra_time_delta = actual_out_datetime - package_end_datetime
                 extra_hours = extra_time_delta.total_seconds() / 3600
@@ -7512,7 +7543,7 @@ def calculate_enhanced_month_with_attendance(
                 day_extra_charges = Decimal("0.00")
                 applied_rates = []
 
-                # 1. Handle charges BEFORE 5:30 PM
+                # 1. Handle charges BEFORE 5:30 PM (calculate from package_end_time)
                 cutoff_530 = time(17, 30)
                 if package_end_time < cutoff_530 and time_out > package_end_time:
                     end_time_for_before_530 = min(time_out, cutoff_530)
@@ -7739,10 +7770,16 @@ def calculate_enhanced_advance_month(child, package_mapping, enrollment, month, 
     from decimal import Decimal
 
     # Get package details
-    is_flex = package_mapping.flex_package is not None
-    package = (
-        package_mapping.flex_package if is_flex else package_mapping.normal_package
-    )
+    # Priority: normal_package > flex_package
+    if package_mapping.normal_package:
+        package = package_mapping.normal_package
+    elif package_mapping.flex_package:
+        package = package_mapping.flex_package
+    else:
+        package = None
+
+    if not package:
+        raise Exception("No valid package assigned.")
 
     expected_days = package.no_days_months or 22
     package_total = package.package_total or Decimal("0.00")
@@ -7988,31 +8025,35 @@ def getExtraHoursReportJS(request):
             package_end_time = None
             package_name = "Unknown Package"
             package_type = None
-            is_flex = package_mapping.flex_package is not None
-
             if is_vacation_month and package_mapping.vacation_package:
+                # Vacation month: use vacation package
                 package = package_mapping.vacation_package
                 package_end_time = package.to_time
                 package_name = f"{package.package_name} (Vacation)"
                 package_type = package.package_type
-            elif is_flex:
-                package = package_mapping.flex_package
-                package_name = f"{package.package_name} (Flex)"
-                package_end_time = time(17, 30)  # 5:30 PM as default
-                package_type = package.package_type
             elif package_mapping.normal_package:
+                # Normal package takes priority over flex
                 package = package_mapping.normal_package
                 package_end_time = package.to_time
                 package_name = package.package_name
+                package_type = package.package_type
+            elif package_mapping.flex_package:
+                # Flex package as fallback
+                package = package_mapping.flex_package
+                package_name = f"{package.package_name} (Flex)"
+                package_end_time = time(17, 30)  # 5:30 PM as default
                 package_type = package.package_type
 
             if not package_end_time or not time_out:
                 continue
 
             # Calculate extra hours if child stayed beyond package time
+            # Extra hours: checkout AFTER package_end_time counts as extra
+            # Checkout exactly AT package_end_time = no extra hours (using > not >=)
+            package_end_datetime = datetime.combine(log_date, package_end_time)
+
             if time_out > package_end_time:
-                # Calculate extra time in hours
-                package_end_datetime = datetime.combine(log_date, package_end_time)
+                # Calculate extra time in hours from package_end_time
                 actual_out_datetime = datetime.combine(log_date, time_out)
                 extra_time_delta = actual_out_datetime - package_end_datetime
                 extra_hours = extra_time_delta.total_seconds() / 3600
@@ -8245,8 +8286,11 @@ def getExtraHoursSummaryJS(request):
                 continue
 
             # Calculate extra hours only if exceeded package time
+            # Extra hours: checkout AFTER package_end_time counts as extra
+            # Checkout exactly AT package_end_time = no extra hours (using > not >=)
+            package_end_datetime = datetime.combine(log_date, package_end_time)
+
             if time_out > package_end_time:
-                package_end_datetime = datetime.combine(log_date, package_end_time)
                 actual_out_datetime = datetime.combine(log_date, time_out)
                 extra_time_delta = actual_out_datetime - package_end_datetime
                 extra_hours = extra_time_delta.total_seconds() / 3600
@@ -8265,7 +8309,7 @@ def getExtraHoursSummaryJS(request):
                 for slot in extra_slots:
                     extra_charges += slot.extra_rate
 
-                # Extra hours before 5:30 PM
+                # Extra hours before 5:30 PM (calculate from package_end_time)
                 if package_end_time < time(17, 30):
                     cutoff_530 = time(17, 30)
                     if time_out > cutoff_530:
@@ -10669,19 +10713,21 @@ def getDetailedChargesBreakdown(request):
         package = None
         package_end_time = None
         package_type = None
-        is_flex = package_mapping.flex_package is not None
 
         if is_vacation_month and package_mapping.vacation_package:
+            # Vacation month: use vacation package
             package = package_mapping.vacation_package
             package_end_time = package.to_time
             package_type = package.package_type
-        elif is_flex:
-            package = package_mapping.flex_package
-            package_end_time = time(17, 30)  # Default for flex
-            package_type = package.package_type
         elif package_mapping.normal_package:
+            # Normal package takes priority over flex
             package = package_mapping.normal_package
             package_end_time = package.to_time
+            package_type = package.package_type
+        elif package_mapping.flex_package:
+            # Flex package as fallback
+            package = package_mapping.flex_package
+            package_end_time = time(17, 30)  # Default for flex
             package_type = package.package_type
 
         if not package_end_time or not package_type:
@@ -10709,8 +10755,11 @@ def getDetailedChargesBreakdown(request):
             is_holiday = log_date in holiday_dates
 
             # ===== CORRECTED CUMULATIVE EXTRA HOURS CALCULATION =====
+            # Extra hours: checkout AFTER package_end_time counts as extra
+            # Checkout exactly AT package_end_time = no extra hours (using > not >=)
+            package_end_datetime = datetime.combine(log_date, package_end_time)
+
             if time_out > package_end_time:
-                package_end_datetime = datetime.combine(log_date, package_end_time)
                 actual_out_datetime = datetime.combine(log_date, time_out)
                 extra_time_delta = actual_out_datetime - package_end_datetime
                 extra_hours = extra_time_delta.total_seconds() / 3600
@@ -10766,7 +10815,7 @@ def getDetailedChargesBreakdown(request):
 
                 # 2. Handle charges AFTER 5:30 PM (cumulative slot-by-slot)
                 if time_out > cutoff_530:
-                    # Determine start time for after-5:30 charging
+                    # Determine start time for after-5:30 charging (use package_end_time)
                     start_time_after_530 = max(package_end_time, cutoff_530)
 
                     # Get ALL time slots from start_time to actual out_time
@@ -11734,19 +11783,21 @@ def get_automatic_breakdown_data(child, month, year):
         package = None
         package_end_time = None
         package_type = None
-        is_flex = package_mapping.flex_package is not None
 
         if is_vacation_month and package_mapping.vacation_package:
+            # Vacation month: use vacation package
             package = package_mapping.vacation_package
             package_end_time = package.to_time
             package_type = package.package_type
-        elif is_flex:
-            package = package_mapping.flex_package
-            package_end_time = time(17, 30)  # Default for flex
-            package_type = package.package_type
         elif package_mapping.normal_package:
+            # Normal package takes priority over flex
             package = package_mapping.normal_package
             package_end_time = package.to_time
+            package_type = package.package_type
+        elif package_mapping.flex_package:
+            # Flex package as fallback
+            package = package_mapping.flex_package
+            package_end_time = time(17, 30)  # Default for flex
             package_type = package.package_type
 
         if not package_end_time or not package_type:
@@ -11774,8 +11825,11 @@ def get_automatic_breakdown_data(child, month, year):
             is_holiday_day = log_date in holiday_dates
 
             # Calculate extra hours charges using corrected cumulative logic
+            # Extra hours: checkout AFTER package_end_time counts as extra
+            # Checkout exactly AT package_end_time = no extra hours (using > not >=)
+            package_end_datetime = datetime.combine(log_date, package_end_time)
+
             if time_out > package_end_time:
-                package_end_datetime = datetime.combine(log_date, package_end_time)
                 actual_out_datetime = datetime.combine(log_date, time_out)
                 extra_time_delta = actual_out_datetime - package_end_datetime
                 extra_hours = extra_time_delta.total_seconds() / 3600
@@ -11783,7 +11837,7 @@ def get_automatic_breakdown_data(child, month, year):
                 day_extra_charges = Decimal("0.00")
                 applied_rates = []
 
-                # Handle charges BEFORE 5:30 PM
+                # Handle charges BEFORE 5:30 PM (calculate from package_end_time)
                 cutoff_530 = time(17, 30)
                 if package_end_time < cutoff_530 and time_out > package_end_time:
                     end_time_for_before_530 = min(time_out, cutoff_530)
