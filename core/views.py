@@ -16044,3 +16044,1022 @@ def getDashboardPendingBreakdown(request):
 
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+# ==================== FINANCE REPORTS ====================
+
+from .forms import (
+    ARAgingReportForm,
+    PackageRevenueReportForm,
+    DiscountAnalysisReportForm,
+    LocationPerformanceReportForm,
+    ExtraHoursRevenueReportForm,
+)
+
+
+@login_required
+def getARAgingReport(request):
+    """
+    Display the AR Aging Report page.
+
+    Shows outstanding balances by aging buckets (0-30, 31-60, 61-90, 90+ days).
+    Helps identify overdue accounts and prioritize collections.
+    """
+    form = ARAgingReportForm()
+    return render(
+        request,
+        "../templates/reports/ar_aging_report.html",
+        {"form": form, "UserName": request.user.username},
+    )
+
+
+@login_required
+def getARAgingReportJS(request):
+    """
+    AJAX endpoint for AR Aging Report data.
+
+    Returns outstanding balances categorized by aging buckets based on memo dates.
+    """
+    try:
+        # Get parameters
+        as_of_date = request.GET.get("as_of_date")
+        branch_id = request.GET.get("branch")
+        center_id = request.GET.get("center")
+        aging_bucket = request.GET.get("aging_bucket", "all")
+        minimum_balance = request.GET.get("minimum_balance")
+
+        # Set default as_of_date to today
+        if not as_of_date:
+            as_of_date = datetime.now().date()
+        else:
+            as_of_date = datetime.strptime(as_of_date, "%Y-%m-%d").date()
+
+        # Get all memos with outstanding balances
+        memos = InvoiceMemo.objects.filter(
+            is_active=True,
+            net_amount_due__gt=0
+        ).select_related("child")
+
+        # Filter by minimum balance
+        if minimum_balance:
+            memos = memos.filter(net_amount_due__gte=Decimal(minimum_balance))
+
+        # Filter by branch/center through enrollment
+        if branch_id or center_id:
+            enrollment_filters = Q(status="APPROVED", is_active=True)
+            if branch_id:
+                enrollment_filters &= Q(branch__id=branch_id)
+            if center_id:
+                enrollment_filters &= Q(center__id=center_id)
+
+            enrolled_children = ChildEnrollment.objects.filter(
+                enrollment_filters
+            ).values_list("child__id", flat=True)
+            memos = memos.filter(child__id__in=enrolled_children)
+
+        aging_data = []
+
+        for memo in memos:
+            # Calculate days outstanding from memo date
+            days_outstanding = (as_of_date - memo.memo_date).days
+
+            # Determine aging bucket
+            if days_outstanding <= 30:
+                bucket = "0-30"
+                bucket_label = "0-30 Days"
+            elif days_outstanding <= 60:
+                bucket = "31-60"
+                bucket_label = "31-60 Days"
+            elif days_outstanding <= 90:
+                bucket = "61-90"
+                bucket_label = "61-90 Days"
+            else:
+                bucket = "90+"
+                bucket_label = "90+ Days"
+
+            # Filter by specific aging bucket if requested
+            if aging_bucket != "all" and bucket != aging_bucket:
+                continue
+
+            # Get enrollment info
+            enrollment = ChildEnrollment.objects.filter(
+                child=memo.child, status="APPROVED", is_active=True
+            ).select_related("branch", "center").first()
+
+            aging_data.append({
+                "child_admission": memo.child.admission_number,
+                "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}",
+                "memo_code": memo.memo_code,
+                "memo_date": memo.memo_date.strftime("%Y-%m-%d"),
+                "memo_month": f"{memo.get_memo_month_name()} {memo.memo_year}",
+                "days_outstanding": days_outstanding,
+                "aging_bucket": bucket,
+                "aging_bucket_label": bucket_label,
+                "gross_total": float(memo.gross_total),
+                "total_payments": float(memo.total_payments),
+                "outstanding_balance": float(memo.net_amount_due),
+                "branch_name": enrollment.branch.branch_name if enrollment else "N/A",
+                "center_name": enrollment.center.daycare_name if enrollment else "N/A",
+                "status": memo.status,
+                "fathers_contact": memo.child.fathers_contact_number,
+                "mothers_contact": memo.child.mothers_contact_number,
+            })
+
+        # Sort by days outstanding descending
+        aging_data.sort(key=lambda x: x["days_outstanding"], reverse=True)
+
+        return JsonResponse(aging_data, safe=False)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getARAgingSummaryJS(request):
+    """
+    AJAX endpoint for AR Aging Report summary statistics.
+
+    Returns aggregate totals by aging bucket.
+    """
+    try:
+        as_of_date = request.GET.get("as_of_date")
+        branch_id = request.GET.get("branch")
+        center_id = request.GET.get("center")
+        minimum_balance = request.GET.get("minimum_balance")
+
+        if not as_of_date:
+            as_of_date = datetime.now().date()
+        else:
+            as_of_date = datetime.strptime(as_of_date, "%Y-%m-%d").date()
+
+        # Get all memos with outstanding balances
+        memos = InvoiceMemo.objects.filter(
+            is_active=True,
+            net_amount_due__gt=0
+        )
+
+        if minimum_balance:
+            memos = memos.filter(net_amount_due__gte=Decimal(minimum_balance))
+
+        if branch_id or center_id:
+            enrollment_filters = Q(status="APPROVED", is_active=True)
+            if branch_id:
+                enrollment_filters &= Q(branch__id=branch_id)
+            if center_id:
+                enrollment_filters &= Q(center__id=center_id)
+
+            enrolled_children = ChildEnrollment.objects.filter(
+                enrollment_filters
+            ).values_list("child__id", flat=True)
+            memos = memos.filter(child__id__in=enrolled_children)
+
+        # Initialize buckets
+        buckets = {
+            "0-30": {"count": 0, "total": Decimal("0.00")},
+            "31-60": {"count": 0, "total": Decimal("0.00")},
+            "61-90": {"count": 0, "total": Decimal("0.00")},
+            "90+": {"count": 0, "total": Decimal("0.00")},
+        }
+
+        total_outstanding = Decimal("0.00")
+        total_accounts = 0
+
+        for memo in memos:
+            days_outstanding = (as_of_date - memo.memo_date).days
+
+            if days_outstanding <= 30:
+                bucket = "0-30"
+            elif days_outstanding <= 60:
+                bucket = "31-60"
+            elif days_outstanding <= 90:
+                bucket = "61-90"
+            else:
+                bucket = "90+"
+
+            buckets[bucket]["count"] += 1
+            buckets[bucket]["total"] += memo.net_amount_due
+            total_outstanding += memo.net_amount_due
+            total_accounts += 1
+
+        summary = {
+            "buckets": [
+                {
+                    "bucket": "0-30",
+                    "label": "0-30 Days",
+                    "count": buckets["0-30"]["count"],
+                    "total": float(buckets["0-30"]["total"]),
+                },
+                {
+                    "bucket": "31-60",
+                    "label": "31-60 Days",
+                    "count": buckets["31-60"]["count"],
+                    "total": float(buckets["31-60"]["total"]),
+                },
+                {
+                    "bucket": "61-90",
+                    "label": "61-90 Days",
+                    "count": buckets["61-90"]["count"],
+                    "total": float(buckets["61-90"]["total"]),
+                },
+                {
+                    "bucket": "90+",
+                    "label": "90+ Days",
+                    "count": buckets["90+"]["count"],
+                    "total": float(buckets["90+"]["total"]),
+                },
+            ],
+            "total_outstanding": float(total_outstanding),
+            "total_accounts": total_accounts,
+            "as_of_date": as_of_date.strftime("%Y-%m-%d"),
+        }
+
+        return JsonResponse(summary)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getPackageRevenueReport(request):
+    """
+    Display the Package Revenue Analysis Report page.
+
+    Shows revenue by package type with enrollment counts.
+    """
+    form = PackageRevenueReportForm()
+    return render(
+        request,
+        "../templates/reports/package_revenue_report.html",
+        {"form": form, "UserName": request.user.username},
+    )
+
+
+@login_required
+def getPackageRevenueReportJS(request):
+    """
+    AJAX endpoint for Package Revenue Analysis Report data.
+
+    Returns revenue grouped by package, package type, branch, center, or month.
+    """
+    try:
+        # Get parameters
+        from_date = request.GET.get("from_date")
+        to_date = request.GET.get("to_date")
+        branch_id = request.GET.get("branch")
+        center_id = request.GET.get("center")
+        package_category = request.GET.get("package_category", "all")
+        group_by = request.GET.get("group_by", "package")
+
+        # Set default date range (current year)
+        today = datetime.now().date()
+        if not from_date:
+            from_date = today.replace(month=1, day=1)
+        else:
+            from_date = datetime.strptime(from_date, "%Y-%m-%d").date()
+
+        if not to_date:
+            to_date = today
+        else:
+            to_date = datetime.strptime(to_date, "%Y-%m-%d").date()
+
+        # Get memo details with charges
+        details = InvoiceMemoDetail.objects.filter(
+            memo__is_active=True,
+            memo__memo_date__range=(from_date, to_date)
+        ).select_related("memo", "memo__child")
+
+        # Filter by branch/center through enrollment
+        if branch_id or center_id:
+            enrollment_filters = Q(status="APPROVED", is_active=True)
+            if branch_id:
+                enrollment_filters &= Q(branch__id=branch_id)
+            if center_id:
+                enrollment_filters &= Q(center__id=center_id)
+
+            enrolled_children = ChildEnrollment.objects.filter(
+                enrollment_filters
+            ).values_list("child__id", flat=True)
+            details = details.filter(memo__child__id__in=enrolled_children)
+
+        # Aggregate data based on group_by
+        revenue_data = {}
+
+        for detail in details:
+            # Get package mapping for this child at memo date
+            package_mapping = ChildPackageMapping.objects.filter(
+                child=detail.memo.child,
+                is_active=True,
+                effective_from__lte=detail.memo.memo_date,
+            ).filter(
+                Q(effective_to__gte=detail.memo.memo_date) | Q(effective_to__isnull=True)
+            ).first()
+
+            if not package_mapping:
+                continue
+
+            # Determine package info
+            package_name = "Unknown"
+            package_type_name = "Unknown"
+            package_category_value = "unknown"
+            package_total = Decimal("0.00")
+
+            if package_mapping.normal_package:
+                package = package_mapping.normal_package
+                package_name = package.package_name
+                package_type_name = package.package_type.package_type_name
+                package_category_value = "fixed"
+                package_total = package.package_total
+            elif package_mapping.flex_package:
+                package = package_mapping.flex_package
+                package_name = package.package_name
+                package_type_name = package.package_type.package_type_name
+                package_category_value = "flex"
+                package_total = package.package_total
+            elif package_mapping.holiday_package:
+                package = package_mapping.holiday_package
+                package_name = package.package_name
+                package_type_name = package.package_type.package_type_name
+                package_category_value = "holiday"
+                package_total = package.package_total
+
+            # Filter by package category
+            if package_category != "all" and package_category_value != package_category:
+                continue
+
+            # Determine grouping key
+            if group_by == "package":
+                key = package_name
+            elif group_by == "package_type":
+                key = package_type_name
+            elif group_by == "branch":
+                enrollment = ChildEnrollment.objects.filter(
+                    child=detail.memo.child, status="APPROVED", is_active=True
+                ).select_related("branch").first()
+                key = enrollment.branch.branch_name if enrollment else "Unknown"
+            elif group_by == "center":
+                enrollment = ChildEnrollment.objects.filter(
+                    child=detail.memo.child, status="APPROVED", is_active=True
+                ).select_related("center").first()
+                key = enrollment.center.daycare_name if enrollment else "Unknown"
+            elif group_by == "month":
+                key = f"{calendar.month_abbr[detail.actual_month]} {detail.actual_year}"
+            else:
+                key = package_name
+
+            if key not in revenue_data:
+                revenue_data[key] = {
+                    "group_key": key,
+                    "package_fee": Decimal("0.00"),
+                    "extra_hours_charge": Decimal("0.00"),
+                    "holiday_charges": Decimal("0.00"),
+                    "other_charges": Decimal("0.00"),
+                    "gross_revenue": Decimal("0.00"),
+                    "discounts_applied": Decimal("0.00"),
+                    "net_revenue": Decimal("0.00"),
+                    "payments_received": Decimal("0.00"),
+                    "enrollment_count": set(),
+                    "memo_count": 0,
+                }
+
+            revenue_data[key]["package_fee"] += detail.package_fee or Decimal("0.00")
+            revenue_data[key]["extra_hours_charge"] += detail.extra_hours_charge or Decimal("0.00")
+            revenue_data[key]["holiday_charges"] += detail.holiday_charges or Decimal("0.00")
+            revenue_data[key]["other_charges"] += detail.other_charges or Decimal("0.00")
+            revenue_data[key]["gross_revenue"] += detail.gross_charges or Decimal("0.00")
+            revenue_data[key]["discounts_applied"] += detail.discount_applied or Decimal("0.00")
+            revenue_data[key]["net_revenue"] += detail.net_charges or Decimal("0.00")
+            revenue_data[key]["payments_received"] += detail.payments_received or Decimal("0.00")
+            revenue_data[key]["enrollment_count"].add(detail.memo.child.id)
+            revenue_data[key]["memo_count"] += 1
+
+        # Convert to list and format
+        result = []
+        for key, data in revenue_data.items():
+            result.append({
+                "group_key": data["group_key"],
+                "package_fee": float(data["package_fee"]),
+                "extra_hours_charge": float(data["extra_hours_charge"]),
+                "holiday_charges": float(data["holiday_charges"]),
+                "other_charges": float(data["other_charges"]),
+                "gross_revenue": float(data["gross_revenue"]),
+                "discounts_applied": float(data["discounts_applied"]),
+                "net_revenue": float(data["net_revenue"]),
+                "payments_received": float(data["payments_received"]),
+                "enrollment_count": len(data["enrollment_count"]),
+                "memo_count": data["memo_count"],
+                "collection_rate": round(
+                    float(data["payments_received"]) / float(data["net_revenue"]) * 100, 1
+                ) if data["net_revenue"] > 0 else 0,
+            })
+
+        # Sort by net revenue descending
+        result.sort(key=lambda x: x["net_revenue"], reverse=True)
+
+        return JsonResponse(result, safe=False)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getDiscountAnalysisReport(request):
+    """
+    Display the Discount Analysis Report page.
+
+    Shows discounts applied with percentage of revenue impact.
+    """
+    form = DiscountAnalysisReportForm()
+    return render(
+        request,
+        "../templates/reports/discount_analysis_report.html",
+        {"form": form, "UserName": request.user.username},
+    )
+
+
+@login_required
+def getDiscountAnalysisReportJS(request):
+    """
+    AJAX endpoint for Discount Analysis Report data.
+
+    Returns discount amounts grouped by discount code, child, branch, center, or month.
+    """
+    try:
+        # Get parameters
+        from_date = request.GET.get("from_date")
+        to_date = request.GET.get("to_date")
+        branch_id = request.GET.get("branch")
+        center_id = request.GET.get("center")
+        discount_code_id = request.GET.get("discount_code")
+        group_by = request.GET.get("group_by", "discount")
+
+        # Set default date range
+        today = datetime.now().date()
+        if not from_date:
+            from_date = today.replace(month=1, day=1)
+        else:
+            from_date = datetime.strptime(from_date, "%Y-%m-%d").date()
+
+        if not to_date:
+            to_date = today
+        else:
+            to_date = datetime.strptime(to_date, "%Y-%m-%d").date()
+
+        # Get memo details with discounts
+        details = InvoiceMemoDetail.objects.filter(
+            memo__is_active=True,
+            memo__memo_date__range=(from_date, to_date),
+            discount_applied__gt=0
+        ).select_related("memo", "memo__child")
+
+        # Filter by branch/center
+        if branch_id or center_id:
+            enrollment_filters = Q(status="APPROVED", is_active=True)
+            if branch_id:
+                enrollment_filters &= Q(branch__id=branch_id)
+            if center_id:
+                enrollment_filters &= Q(center__id=center_id)
+
+            enrolled_children = ChildEnrollment.objects.filter(
+                enrollment_filters
+            ).values_list("child__id", flat=True)
+            details = details.filter(memo__child__id__in=enrolled_children)
+
+        # Filter by specific discount
+        if discount_code_id:
+            # Get children with this discount through package mapping
+            mappings_with_discount = ChildPackageMapping.objects.filter(
+                discount__id=discount_code_id,
+                is_active=True
+            ).values_list("child__id", flat=True)
+            details = details.filter(memo__child__id__in=mappings_with_discount)
+
+        # Aggregate data based on group_by
+        discount_data = {}
+
+        for detail in details:
+            # Get discount info from package mapping
+            package_mapping = ChildPackageMapping.objects.filter(
+                child=detail.memo.child,
+                is_active=True,
+                effective_from__lte=detail.memo.memo_date,
+            ).filter(
+                Q(effective_to__gte=detail.memo.memo_date) | Q(effective_to__isnull=True)
+            ).select_related("discount").first()
+
+            discount_name = "Unknown Discount"
+            discount_rate = Decimal("0.00")
+
+            if package_mapping and package_mapping.discount:
+                discount_name = f"{package_mapping.discount.discount_code} - {package_mapping.discount.discount_name}"
+                discount_rate = package_mapping.discount.discount_rate
+
+            # Get enrollment for branch/center info
+            enrollment = ChildEnrollment.objects.filter(
+                child=detail.memo.child, status="APPROVED", is_active=True
+            ).select_related("branch", "center").first()
+
+            # Determine grouping key
+            if group_by == "discount":
+                key = discount_name
+            elif group_by == "child":
+                key = f"{detail.memo.child.admission_number} - {detail.memo.child.child_first_name} {detail.memo.child.child_last_name}"
+            elif group_by == "branch":
+                key = enrollment.branch.branch_name if enrollment else "Unknown"
+            elif group_by == "center":
+                key = enrollment.center.daycare_name if enrollment else "Unknown"
+            elif group_by == "month":
+                key = f"{calendar.month_abbr[detail.actual_month]} {detail.actual_year}"
+            else:
+                key = discount_name
+
+            if key not in discount_data:
+                discount_data[key] = {
+                    "group_key": key,
+                    "discount_amount": Decimal("0.00"),
+                    "gross_revenue": Decimal("0.00"),
+                    "net_revenue": Decimal("0.00"),
+                    "child_count": set(),
+                    "memo_count": 0,
+                    "discount_rate": discount_rate,
+                }
+
+            discount_data[key]["discount_amount"] += detail.discount_applied or Decimal("0.00")
+            discount_data[key]["gross_revenue"] += detail.gross_charges or Decimal("0.00")
+            discount_data[key]["net_revenue"] += detail.net_charges or Decimal("0.00")
+            discount_data[key]["child_count"].add(detail.memo.child.id)
+            discount_data[key]["memo_count"] += 1
+
+        # Convert to list and calculate percentages
+        result = []
+        for key, data in discount_data.items():
+            discount_percentage = (
+                float(data["discount_amount"]) / float(data["gross_revenue"]) * 100
+                if data["gross_revenue"] > 0 else 0
+            )
+            result.append({
+                "group_key": data["group_key"],
+                "discount_amount": float(data["discount_amount"]),
+                "gross_revenue": float(data["gross_revenue"]),
+                "net_revenue": float(data["net_revenue"]),
+                "discount_percentage": round(discount_percentage, 2),
+                "child_count": len(data["child_count"]),
+                "memo_count": data["memo_count"],
+                "avg_discount_per_memo": round(
+                    float(data["discount_amount"]) / data["memo_count"], 2
+                ) if data["memo_count"] > 0 else 0,
+            })
+
+        # Sort by discount amount descending
+        result.sort(key=lambda x: x["discount_amount"], reverse=True)
+
+        return JsonResponse(result, safe=False)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getDiscountSummaryJS(request):
+    """
+    AJAX endpoint for Discount Analysis Report summary.
+
+    Returns overall discount statistics.
+    """
+    try:
+        from_date = request.GET.get("from_date")
+        to_date = request.GET.get("to_date")
+        branch_id = request.GET.get("branch")
+        center_id = request.GET.get("center")
+
+        today = datetime.now().date()
+        if not from_date:
+            from_date = today.replace(month=1, day=1)
+        else:
+            from_date = datetime.strptime(from_date, "%Y-%m-%d").date()
+
+        if not to_date:
+            to_date = today
+        else:
+            to_date = datetime.strptime(to_date, "%Y-%m-%d").date()
+
+        # Get all memo details in date range
+        all_details = InvoiceMemoDetail.objects.filter(
+            memo__is_active=True,
+            memo__memo_date__range=(from_date, to_date),
+        )
+
+        # Filter by branch/center
+        if branch_id or center_id:
+            enrollment_filters = Q(status="APPROVED", is_active=True)
+            if branch_id:
+                enrollment_filters &= Q(branch__id=branch_id)
+            if center_id:
+                enrollment_filters &= Q(center__id=center_id)
+
+            enrolled_children = ChildEnrollment.objects.filter(
+                enrollment_filters
+            ).values_list("child__id", flat=True)
+            all_details = all_details.filter(memo__child__id__in=enrolled_children)
+
+        # Calculate totals
+        from django.db.models import Sum
+
+        totals = all_details.aggregate(
+            total_gross=Sum("gross_charges"),
+            total_discount=Sum("discount_applied"),
+            total_net=Sum("net_charges"),
+        )
+
+        total_gross = totals["total_gross"] or Decimal("0.00")
+        total_discount = totals["total_discount"] or Decimal("0.00")
+        total_net = totals["total_net"] or Decimal("0.00")
+
+        # Count children with discounts
+        children_with_discounts = all_details.filter(
+            discount_applied__gt=0
+        ).values("memo__child").distinct().count()
+
+        total_children = all_details.values("memo__child").distinct().count()
+
+        summary = {
+            "total_gross_revenue": float(total_gross),
+            "total_discount_amount": float(total_discount),
+            "total_net_revenue": float(total_net),
+            "discount_percentage": round(
+                float(total_discount) / float(total_gross) * 100, 2
+            ) if total_gross > 0 else 0,
+            "children_with_discounts": children_with_discounts,
+            "total_children": total_children,
+            "discount_utilization": round(
+                children_with_discounts / total_children * 100, 1
+            ) if total_children > 0 else 0,
+        }
+
+        return JsonResponse(summary)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getLocationPerformanceReport(request):
+    """
+    Display the Branch/Center Performance Report page.
+
+    Shows revenue, collections, and outstanding by location.
+    """
+    form = LocationPerformanceReportForm()
+    return render(
+        request,
+        "../templates/reports/location_performance_report.html",
+        {"form": form, "UserName": request.user.username},
+    )
+
+
+@login_required
+def getLocationPerformanceReportJS(request):
+    """
+    AJAX endpoint for Branch/Center Performance Report data.
+
+    Returns performance metrics by branch or center.
+    """
+    try:
+        # Get parameters
+        from_date = request.GET.get("from_date")
+        to_date = request.GET.get("to_date")
+        branch_id = request.GET.get("branch")
+        center_id = request.GET.get("center")
+        level = request.GET.get("level", "branch")
+
+        # Set default date range
+        today = datetime.now().date()
+        if not from_date:
+            from_date = today.replace(month=1, day=1)
+        else:
+            from_date = datetime.strptime(from_date, "%Y-%m-%d").date()
+
+        if not to_date:
+            to_date = today
+        else:
+            to_date = datetime.strptime(to_date, "%Y-%m-%d").date()
+
+        # Get enrollments for mapping children to locations
+        enrollment_filters = Q(status="APPROVED", is_active=True)
+        if branch_id:
+            enrollment_filters &= Q(branch__id=branch_id)
+        if center_id:
+            enrollment_filters &= Q(center__id=center_id)
+
+        enrollments = ChildEnrollment.objects.filter(
+            enrollment_filters
+        ).select_related("branch", "center", "child")
+
+        # Build child to location mapping
+        child_locations = {}
+        for enrollment in enrollments:
+            child_locations[enrollment.child.id] = {
+                "branch_id": enrollment.branch.id,
+                "branch_name": enrollment.branch.branch_name,
+                "center_id": enrollment.center.id,
+                "center_name": enrollment.center.daycare_name,
+            }
+
+        # Get memos for these children in date range
+        memos = InvoiceMemo.objects.filter(
+            is_active=True,
+            memo_date__range=(from_date, to_date),
+            child__id__in=child_locations.keys()
+        ).select_related("child")
+
+        # Aggregate by location
+        location_data = {}
+
+        for memo in memos:
+            location = child_locations.get(memo.child.id)
+            if not location:
+                continue
+
+            if level == "branch":
+                key = location["branch_name"]
+                location_id = location["branch_id"]
+            else:
+                key = location["center_name"]
+                location_id = location["center_id"]
+
+            if key not in location_data:
+                location_data[key] = {
+                    "location_name": key,
+                    "location_id": location_id,
+                    "gross_revenue": Decimal("0.00"),
+                    "discounts_applied": Decimal("0.00"),
+                    "net_revenue": Decimal("0.00"),
+                    "payments_received": Decimal("0.00"),
+                    "outstanding_balance": Decimal("0.00"),
+                    "children": set(),
+                    "memo_count": 0,
+                }
+
+            location_data[key]["gross_revenue"] += memo.gross_total
+            location_data[key]["net_revenue"] += (
+                memo.total_outstanding + memo.total_previous_month + memo.total_current_month
+            )
+            location_data[key]["payments_received"] += memo.total_payments
+            location_data[key]["outstanding_balance"] += memo.net_amount_due
+            location_data[key]["children"].add(memo.child.id)
+            location_data[key]["memo_count"] += 1
+
+        # Convert to list
+        result = []
+        for key, data in location_data.items():
+            collection_rate = (
+                float(data["payments_received"]) / float(data["gross_revenue"]) * 100
+                if data["gross_revenue"] > 0 else 0
+            )
+            avg_outstanding = (
+                float(data["outstanding_balance"]) / len(data["children"])
+                if len(data["children"]) > 0 else 0
+            )
+
+            result.append({
+                "location_name": data["location_name"],
+                "gross_revenue": float(data["gross_revenue"]),
+                "net_revenue": float(data["net_revenue"]),
+                "payments_received": float(data["payments_received"]),
+                "outstanding_balance": float(data["outstanding_balance"]),
+                "collection_rate": round(collection_rate, 1),
+                "enrollment_count": len(data["children"]),
+                "memo_count": data["memo_count"],
+                "avg_outstanding_per_child": round(avg_outstanding, 2),
+                "revenue_per_child": round(
+                    float(data["gross_revenue"]) / len(data["children"]), 2
+                ) if len(data["children"]) > 0 else 0,
+            })
+
+        # Sort by gross revenue descending
+        result.sort(key=lambda x: x["gross_revenue"], reverse=True)
+
+        return JsonResponse(result, safe=False)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getExtraHoursRevenueReport(request):
+    """
+    Display the Enhanced Extra Hours Revenue Report page.
+
+    Shows extra hours revenue with before/after 5:30 PM breakdown and top users.
+    """
+    form = ExtraHoursRevenueReportForm()
+    return render(
+        request,
+        "../templates/reports/extra_hours_revenue_report.html",
+        {"form": form, "UserName": request.user.username},
+    )
+
+
+@login_required
+def getExtraHoursRevenueReportJS(request):
+    """
+    AJAX endpoint for Enhanced Extra Hours Revenue Report data.
+
+    Returns extra hours charges with before/after 5:30 PM breakdown.
+    """
+    try:
+        # Get parameters
+        child_id = request.GET.get("child")
+        from_date = request.GET.get("from_date")
+        to_date = request.GET.get("to_date")
+        branch_id = request.GET.get("branch")
+        center_id = request.GET.get("center")
+        time_split = request.GET.get("time_split", "combined")
+
+        # Set default dates
+        today = datetime.now().date()
+        if not from_date:
+            from_date = today.replace(day=1)
+        else:
+            from_date = datetime.strptime(from_date, "%Y-%m-%d").date()
+
+        if not to_date:
+            to_date = today
+        else:
+            to_date = datetime.strptime(to_date, "%Y-%m-%d").date()
+
+        # Get memo details with extra hours charges
+        details = InvoiceMemoDetail.objects.filter(
+            memo__is_active=True,
+            memo__memo_date__range=(from_date, to_date),
+            extra_hours_charge__gt=0
+        ).select_related("memo", "memo__child")
+
+        if child_id:
+            details = details.filter(memo__child__id=child_id)
+
+        # Filter by branch/center
+        if branch_id or center_id:
+            enrollment_filters = Q(status="APPROVED", is_active=True)
+            if branch_id:
+                enrollment_filters &= Q(branch__id=branch_id)
+            if center_id:
+                enrollment_filters &= Q(center__id=center_id)
+
+            enrolled_children = ChildEnrollment.objects.filter(
+                enrollment_filters
+            ).values_list("child__id", flat=True)
+            details = details.filter(memo__child__id__in=enrolled_children)
+
+        revenue_data = []
+
+        for detail in details:
+            child = detail.memo.child
+
+            # Get enrollment info
+            enrollment = ChildEnrollment.objects.filter(
+                child=child, status="APPROVED", is_active=True
+            ).select_related("branch", "center").first()
+
+            # Calculate split if needed (estimate from calculation_details if available)
+            before_530_charge = Decimal("0.00")
+            after_530_charge = Decimal("0.00")
+            total_extra_charge = detail.extra_hours_charge or Decimal("0.00")
+
+            # Check calculation_details for breakdown
+            if detail.calculation_details and isinstance(detail.calculation_details, dict):
+                before_530_charge = Decimal(str(detail.calculation_details.get("before_530_charge", 0)))
+                after_530_charge = Decimal(str(detail.calculation_details.get("after_530_charge", 0)))
+            else:
+                # Default split estimate: assume 60% is after 5:30 PM
+                after_530_charge = total_extra_charge * Decimal("0.6")
+                before_530_charge = total_extra_charge - after_530_charge
+
+            revenue_data.append({
+                "child_admission": child.admission_number,
+                "child_name": f"{child.child_first_name} {child.child_last_name}",
+                "memo_code": detail.memo.memo_code,
+                "month": f"{detail.month_name} {detail.actual_year}",
+                "package_name": detail.package_name or "N/A",
+                "extra_hours_charge": float(total_extra_charge),
+                "before_530_charge": float(before_530_charge),
+                "after_530_charge": float(after_530_charge),
+                "holiday_charges": float(detail.holiday_charges or 0),
+                "total_extra_charges": float(total_extra_charge + (detail.holiday_charges or Decimal("0.00"))),
+                "branch_name": enrollment.branch.branch_name if enrollment else "N/A",
+                "center_name": enrollment.center.daycare_name if enrollment else "N/A",
+            })
+
+        # Sort by total extra charges descending
+        revenue_data.sort(key=lambda x: x["total_extra_charges"], reverse=True)
+
+        return JsonResponse(revenue_data, safe=False)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getExtraHoursTopUsersJS(request):
+    """
+    AJAX endpoint for Extra Hours Revenue Report - Top Users.
+
+    Returns top N children by extra hours charges.
+    """
+    try:
+        # Get parameters
+        from_date = request.GET.get("from_date")
+        to_date = request.GET.get("to_date")
+        branch_id = request.GET.get("branch")
+        center_id = request.GET.get("center")
+        top_n = int(request.GET.get("top_n", 10))
+
+        # Set default dates
+        today = datetime.now().date()
+        if not from_date:
+            from_date = today.replace(day=1)
+        else:
+            from_date = datetime.strptime(from_date, "%Y-%m-%d").date()
+
+        if not to_date:
+            to_date = today
+        else:
+            to_date = datetime.strptime(to_date, "%Y-%m-%d").date()
+
+        # Get memo details with extra hours charges
+        details = InvoiceMemoDetail.objects.filter(
+            memo__is_active=True,
+            memo__memo_date__range=(from_date, to_date),
+            extra_hours_charge__gt=0
+        ).select_related("memo", "memo__child")
+
+        # Filter by branch/center
+        if branch_id or center_id:
+            enrollment_filters = Q(status="APPROVED", is_active=True)
+            if branch_id:
+                enrollment_filters &= Q(branch__id=branch_id)
+            if center_id:
+                enrollment_filters &= Q(center__id=center_id)
+
+            enrolled_children = ChildEnrollment.objects.filter(
+                enrollment_filters
+            ).values_list("child__id", flat=True)
+            details = details.filter(memo__child__id__in=enrolled_children)
+
+        # Aggregate by child
+        child_totals = {}
+
+        for detail in details:
+            child = detail.memo.child
+            child_key = child.id
+
+            if child_key not in child_totals:
+                enrollment = ChildEnrollment.objects.filter(
+                    child=child, status="APPROVED", is_active=True
+                ).select_related("branch", "center").first()
+
+                child_totals[child_key] = {
+                    "child_id": child.id,
+                    "child_admission": child.admission_number,
+                    "child_name": f"{child.child_first_name} {child.child_last_name}",
+                    "total_extra_hours_charge": Decimal("0.00"),
+                    "total_holiday_charges": Decimal("0.00"),
+                    "month_count": 0,
+                    "branch_name": enrollment.branch.branch_name if enrollment else "N/A",
+                    "center_name": enrollment.center.daycare_name if enrollment else "N/A",
+                }
+
+            child_totals[child_key]["total_extra_hours_charge"] += detail.extra_hours_charge or Decimal("0.00")
+            child_totals[child_key]["total_holiday_charges"] += detail.holiday_charges or Decimal("0.00")
+            child_totals[child_key]["month_count"] += 1
+
+        # Convert to list and sort
+        result = []
+        for key, data in child_totals.items():
+            total_charges = data["total_extra_hours_charge"] + data["total_holiday_charges"]
+            avg_per_month = total_charges / data["month_count"] if data["month_count"] > 0 else Decimal("0.00")
+
+            result.append({
+                "rank": 0,  # Will be set after sorting
+                "child_admission": data["child_admission"],
+                "child_name": data["child_name"],
+                "total_extra_hours_charge": float(data["total_extra_hours_charge"]),
+                "total_holiday_charges": float(data["total_holiday_charges"]),
+                "total_charges": float(total_charges),
+                "month_count": data["month_count"],
+                "avg_per_month": float(avg_per_month),
+                "branch_name": data["branch_name"],
+                "center_name": data["center_name"],
+            })
+
+        # Sort by total charges descending and limit to top_n
+        result.sort(key=lambda x: x["total_charges"], reverse=True)
+        result = result[:top_n]
+
+        # Set ranks
+        for i, item in enumerate(result):
+            item["rank"] = i + 1
+
+        return JsonResponse(result, safe=False)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

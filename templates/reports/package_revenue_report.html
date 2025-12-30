@@ -1,0 +1,463 @@
+{% extends "base.html" %} {% load static %}
+{% block PageTitle %}Package Revenue Analysis{% endblock %}
+{% block UserName %} {{ UserName}}{% endblock %}
+{% block Title %} FINANCE REPORTS {% endblock %}
+{% block functionTitle%}PACKAGE REVENUE ANALYSIS{% endblock %}
+{% block content %}
+
+<div>
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card" id="packageRevenueReport">
+                <div class="card-header border-0">
+                    <div class="row align-items-center gy-3">
+                        <div class="col-sm">
+                            <h5 class="card-title mb-0">Package Revenue Analysis Report</h5>
+                        </div>
+                        <div class="col-sm-auto">
+                            <div class="d-flex gap-1 flex-wrap">
+                                <button type="button" class="btn btn-info" id="btnExport">
+                                    <i class="ri-file-excel-line align-bottom me-1"></i> Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body border border-dashed border-end-0 border-start-0">
+                    <div class="row g-3">
+                        <!-- From Date -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">From Date</label>
+                            <input type="date" class="form-control" id="from_date" name="from_date">
+                        </div>
+
+                        <!-- To Date -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">To Date</label>
+                            <input type="date" class="form-control" id="to_date" name="to_date">
+                        </div>
+
+                        <!-- Branch Selection -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">Branch</label>
+                            <select class="form-control" id="branch" name="branch">
+                                <option value="">-All Branches-</option>
+                                {% for branch in form.branch.field.queryset %}<option value="{{ branch.id }}">{{ branch.branch_name }}</option>{% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Center Selection -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">Center</label>
+                            <select class="form-control" id="center" name="center">
+                                <option value="">-All Centers-</option>
+                                {% for center in form.center.field.queryset %}<option value="{{ center.id }}">{{ center.daycare_name }}</option>{% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Package Category -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">Package Category</label>
+                            <select class="form-control" id="package_category" name="package_category">
+                                <option value="all">All Categories</option>
+                                <option value="fixed">Fixed Packages</option>
+                                <option value="flex">Flex Packages</option>
+                                <option value="holiday">Holiday Packages</option>
+                            </select>
+                        </div>
+
+                        <!-- Group By -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">Group By</label>
+                            <select class="form-control" id="group_by" name="group_by">
+                                <option value="package">By Package</option>
+                                <option value="package_type">By Package Type</option>
+                                <option value="branch">By Branch</option>
+                                <option value="center">By Center</option>
+                                <option value="month">By Month</option>
+                            </select>
+                        </div>
+
+                        <!-- Search Button -->
+                        <div class="col-xl-1 col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button id="btnSearch" type="button" class="btn btn-primary w-100">
+                                    <i class="ri-search-line me-1"></i> <span id="searchText">Search</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Clear Button -->
+                        <div class="col-xl-1 col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button id="btnClear" type="button" class="btn btn-secondary w-100">
+                                    <i class="ri-refresh-line me-1"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="card-body" id="summaryCards" style="display: none;">
+                    <div class="row">
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate bg-primary-subtle">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Gross Revenue</p>
+                                            <h4 class="fw-semibold flex-shrink-0 mb-0" id="totalGross">0.00</h4>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-primary-subtle rounded fs-3">
+                                                    <i class="bx bx-money text-primary"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate bg-warning-subtle">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Discounts</p>
+                                            <h4 class="fw-semibold flex-shrink-0 mb-0" id="totalDiscounts">0.00</h4>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-warning-subtle rounded fs-3">
+                                                    <i class="bx bx-minus-circle text-warning"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate bg-success-subtle">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Net Revenue</p>
+                                            <h4 class="fw-semibold flex-shrink-0 mb-0" id="totalNet">0.00</h4>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-success-subtle rounded fs-3">
+                                                    <i class="bx bx-check-circle text-success"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate bg-info-subtle">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Payments</p>
+                                            <h4 class="fw-semibold flex-shrink-0 mb-0" id="totalPayments">0.00</h4>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-info-subtle rounded fs-3">
+                                                    <i class="bx bx-credit-card text-info"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Report Table -->
+                <div class="card-body pt-0" id="mainReportSection">
+                    <div id="loadingMessage" style="display: none;">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading package revenue data...</p>
+                        </div>
+                    </div>
+
+                    <div id="noDataMessage" style="display: none;">
+                        <div class="text-center py-5">
+                            <i class="ri-inbox-line display-4 text-muted"></i>
+                            <h5 class="mt-3">No Revenue Data</h5>
+                            <p class="text-muted">There are no revenue records matching your criteria.</p>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive" id="tableContainer" style="width: 100%;">
+                        <table id="packageRevenueTable" class="table table-striped table-hover" style="width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th style="min-width: 150px;">Group</th>
+                                    <th style="min-width: 100px;">Package Fee</th>
+                                    <th style="min-width: 100px;">Extra Hours</th>
+                                    <th style="min-width: 100px;">Holiday</th>
+                                    <th style="min-width: 100px;">Gross Revenue</th>
+                                    <th style="min-width: 100px;">Discounts</th>
+                                    <th style="min-width: 100px;">Net Revenue</th>
+                                    <th style="min-width: 100px;">Payments</th>
+                                    <th style="min-width: 80px;">Collection %</th>
+                                    <th style="min-width: 80px;">Enrollments</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- jQuery -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<!-- Select2 -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<!--datatable js-->
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+
+<script>
+var $ = jQuery;
+var dataTable;
+var currentReportData = [];
+
+jQuery(document).ready(function () {
+    console.log("Initializing Package Revenue Report...");
+
+    initializeDataTable();
+    setDefaultDates();
+    setupEventHandlers();
+    showInitialState();
+});
+
+function initializeDataTable() {
+    try {
+        dataTable = $("#packageRevenueTable").DataTable({
+            responsive: true,
+            autoWidth: true,
+            dom: "Bfrtip",
+            pageLength: 50,
+            scrollX: true,
+            buttons: [
+                { extend: 'excel', title: 'Package Revenue Report' },
+                { extend: 'print', title: 'Package Revenue Report' }
+            ],
+            order: [[6, "desc"]], // Sort by net revenue descending
+            columnDefs: [
+                { targets: [1, 2, 3, 4, 5, 6, 7], className: 'text-end' },
+                { targets: [8, 9], className: 'text-center' },
+            ],
+            language: {
+                emptyTable: "No revenue data available"
+            }
+        });
+        console.log("DataTable initialized successfully");
+    } catch (error) {
+        console.error("Error initializing DataTable:", error);
+    }
+}
+
+function setupEventHandlers() {
+    jQuery("#btnSearch").click(function() { loadReportData(); });
+    jQuery("#btnClear").click(function() { clearFilters(); });
+    jQuery("#btnExport").click(function() { dataTable.button('.buttons-excel').trigger(); });
+}
+
+function setDefaultDates() {
+    var today = new Date();
+    var firstDayOfYear = new Date(today.getFullYear(), 0, 1);
+
+    jQuery("#from_date").val(formatDate(firstDayOfYear));
+    jQuery("#to_date").val(formatDate(today));
+}
+
+function formatDate(date) {
+    return date.getFullYear() + '-' +
+           String(date.getMonth() + 1).padStart(2, '0') + '-' +
+           String(date.getDate()).padStart(2, '0');
+}
+
+function clearFilters() {
+    jQuery("#branch").val('');
+    jQuery("#center").val('');
+    jQuery("#package_category").val('all');
+    jQuery("#group_by").val('package');
+    setDefaultDates();
+
+    if (dataTable) { dataTable.clear().draw(); }
+    jQuery("#summaryCards").hide();
+    showInitialState();
+}
+
+function loadReportData() {
+    console.log("Loading package revenue data...");
+    hideWelcomeMessage();
+
+    var data = {
+        from_date: jQuery("#from_date").val(),
+        to_date: jQuery("#to_date").val(),
+        branch: jQuery("#branch").val() || '',
+        center: jQuery("#center").val() || '',
+        package_category: jQuery("#package_category").val(),
+        group_by: jQuery("#group_by").val()
+    };
+
+    showLoading();
+    hideNoDataMessage();
+    if (dataTable) { dataTable.clear(); }
+
+    jQuery.ajax({
+        type: "GET",
+        url: "{% url 'core:get_package_revenue_report_js' %}",
+        dataType: "json",
+        data: data,
+        beforeSend: function () {
+            jQuery("#btnSearch").prop('disabled', true);
+            jQuery("#searchText").text('Loading...');
+        },
+        success: function (response) {
+            hideLoading();
+            currentReportData = response;
+            console.log("Data loaded successfully:", response.length, "records");
+
+            if (!Array.isArray(response) || response.length === 0) {
+                showNoDataMessage();
+                return;
+            }
+
+            populateTable(response);
+            updateSummaryCards(response);
+            jQuery("#summaryCards").show();
+        },
+        error: function (xhr) {
+            hideLoading();
+            console.error("Error loading data:", xhr);
+            showErrorAlert("Error loading data: " + xhr.statusText);
+        },
+        complete: function() {
+            jQuery("#btnSearch").prop('disabled', false);
+            jQuery("#searchText").text('Search');
+        }
+    });
+}
+
+function populateTable(data) {
+    jQuery.each(data, function (i, item) {
+        var collectionClass = item.collection_rate >= 80 ? 'text-success' : (item.collection_rate >= 50 ? 'text-warning' : 'text-danger');
+
+        dataTable.row.add([
+            '<strong>' + item.group_key + '</strong>',
+            formatCurrency(item.package_fee),
+            formatCurrency(item.extra_hours_charge),
+            formatCurrency(item.holiday_charges),
+            '<strong>' + formatCurrency(item.gross_revenue) + '</strong>',
+            formatCurrency(item.discounts_applied),
+            '<strong class="text-success">' + formatCurrency(item.net_revenue) + '</strong>',
+            formatCurrency(item.payments_received),
+            '<span class="' + collectionClass + '">' + item.collection_rate + '%</span>',
+            item.enrollment_count
+        ]).draw(false);
+    });
+
+    setTimeout(function() { dataTable.columns.adjust().responsive.recalc(); }, 100);
+}
+
+function updateSummaryCards(data) {
+    var totalGross = 0, totalDiscounts = 0, totalNet = 0, totalPayments = 0;
+
+    data.forEach(function(item) {
+        totalGross += item.gross_revenue;
+        totalDiscounts += item.discounts_applied;
+        totalNet += item.net_revenue;
+        totalPayments += item.payments_received;
+    });
+
+    jQuery("#totalGross").text('Rs. ' + formatNumber(totalGross));
+    jQuery("#totalDiscounts").text('Rs. ' + formatNumber(totalDiscounts));
+    jQuery("#totalNet").text('Rs. ' + formatNumber(totalNet));
+    jQuery("#totalPayments").text('Rs. ' + formatNumber(totalPayments));
+}
+
+function formatCurrency(amount) {
+    return 'Rs. ' + parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatNumber(amount) {
+    return parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function showLoading() { jQuery("#loadingMessage").show(); jQuery("#tableContainer").hide(); }
+function hideLoading() { jQuery("#loadingMessage").hide(); jQuery("#tableContainer").show(); }
+
+function showInitialState() {
+    jQuery("#summaryCards").hide();
+    showWelcomeMessage();
+}
+
+function showWelcomeMessage() {
+    var welcomeHtml = '<div class="text-center py-5" id="welcomeMessage">';
+    welcomeHtml += '<i class="ri-pie-chart-line display-4 text-primary"></i>';
+    welcomeHtml += '<h5 class="mt-3">Package Revenue Analysis</h5>';
+    welcomeHtml += '<p class="text-muted">Select your criteria and click "Search" to analyze revenue by package.</p>';
+    welcomeHtml += '</div>';
+    jQuery("#tableContainer").html(welcomeHtml);
+}
+
+function hideWelcomeMessage() {
+    jQuery("#welcomeMessage").remove();
+    var tableHtml = '<table id="packageRevenueTable" class="table table-striped table-hover" style="width: 100%;">';
+    tableHtml += '<thead><tr>';
+    tableHtml += '<th>Group</th><th>Package Fee</th><th>Extra Hours</th><th>Holiday</th>';
+    tableHtml += '<th>Gross Revenue</th><th>Discounts</th><th>Net Revenue</th><th>Payments</th><th>Collection %</th><th>Enrollments</th>';
+    tableHtml += '</tr></thead><tbody></tbody></table>';
+    jQuery("#tableContainer").html(tableHtml);
+    initializeDataTable();
+}
+
+function showNoDataMessage() { jQuery("#noDataMessage").show(); jQuery("#tableContainer").hide(); }
+function hideNoDataMessage() { jQuery("#noDataMessage").hide(); jQuery("#tableContainer").show(); }
+
+function showErrorAlert(message) {
+    var alertHtml = '<div class="alert alert-danger alert-dismissible fade show" role="alert">';
+    alertHtml += '<i class="ri-error-warning-line me-2"></i>' + message;
+    alertHtml += '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+    jQuery("#mainReportSection").prepend(alertHtml);
+    setTimeout(function() { jQuery(".alert-danger").fadeOut(); }, 5000);
+}
+</script>
+
+<script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'assets/js/app.js' %}"></script>
+{% endblock %}

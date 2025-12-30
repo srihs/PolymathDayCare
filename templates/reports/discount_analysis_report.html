@@ -1,0 +1,440 @@
+{% extends "base.html" %} {% load static %}
+{% block PageTitle %}Discount Analysis{% endblock %}
+{% block UserName %} {{ UserName}}{% endblock %}
+{% block Title %} FINANCE REPORTS {% endblock %}
+{% block functionTitle%}DISCOUNT ANALYSIS REPORT{% endblock %}
+{% block content %}
+
+<div>
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card" id="discountAnalysisReport">
+                <div class="card-header border-0">
+                    <div class="row align-items-center gy-3">
+                        <div class="col-sm">
+                            <h5 class="card-title mb-0">Discount Analysis Report</h5>
+                        </div>
+                        <div class="col-sm-auto">
+                            <div class="d-flex gap-1 flex-wrap">
+                                <button type="button" class="btn btn-success" id="btnSummary">
+                                    <i class="ri-bar-chart-line align-bottom me-1"></i> View Summary
+                                </button>
+                                <button type="button" class="btn btn-info" id="btnExport">
+                                    <i class="ri-file-excel-line align-bottom me-1"></i> Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body border border-dashed border-end-0 border-start-0">
+                    <div class="row g-3">
+                        <!-- From Date -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">From Date</label>
+                            <input type="date" class="form-control" id="from_date" name="from_date">
+                        </div>
+
+                        <!-- To Date -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">To Date</label>
+                            <input type="date" class="form-control" id="to_date" name="to_date">
+                        </div>
+
+                        <!-- Branch Selection -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">Branch</label>
+                            <select class="form-control" id="branch" name="branch">
+                                <option value="">-All Branches-</option>
+                                {% for branch in form.branch.field.queryset %}<option value="{{ branch.id }}">{{ branch.branch_name }}</option>{% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Center Selection -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">Center</label>
+                            <select class="form-control" id="center" name="center">
+                                <option value="">-All Centers-</option>
+                                {% for center in form.center.field.queryset %}<option value="{{ center.id }}">{{ center.daycare_name }}</option>{% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Discount Code -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">Discount Code</label>
+                            <select class="form-control" id="discount_code" name="discount_code">
+                                <option value="">-All Discounts-</option>
+                                {% for discount in form.discount_code.field.queryset %}<option value="{{ discount.id }}">{{ discount.discount_code }}</option>{% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Group By -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">Group By</label>
+                            <select class="form-control" id="group_by" name="group_by">
+                                <option value="discount">By Discount Code</option>
+                                <option value="child">By Child</option>
+                                <option value="branch">By Branch</option>
+                                <option value="center">By Center</option>
+                                <option value="month">By Month</option>
+                            </select>
+                        </div>
+
+                        <!-- Search Button -->
+                        <div class="col-xl-1 col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button id="btnSearch" type="button" class="btn btn-primary w-100">
+                                    <i class="ri-search-line me-1"></i> <span id="searchText">Search</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Clear Button -->
+                        <div class="col-xl-1 col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button id="btnClear" type="button" class="btn btn-secondary w-100">
+                                    <i class="ri-refresh-line me-1"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="card-body" id="summaryCards" style="display: none;">
+                    <div class="row">
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate bg-primary-subtle">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Gross Revenue</p>
+                                            <h4 class="fw-semibold flex-shrink-0 mb-0" id="totalGross">0.00</h4>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-primary-subtle rounded fs-3">
+                                                    <i class="bx bx-money text-primary"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate bg-warning-subtle">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Total Discounts</p>
+                                            <h4 class="fw-semibold flex-shrink-0 mb-0" id="totalDiscounts">0.00</h4>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-warning-subtle rounded fs-3">
+                                                    <i class="bx bx-percent text-warning"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate bg-info-subtle">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Discount %</p>
+                                            <h4 class="fw-semibold flex-shrink-0 mb-0" id="discountPercent">0%</h4>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-info-subtle rounded fs-3">
+                                                    <i class="bx bx-trending-down text-info"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate bg-success-subtle">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Children with Discounts</p>
+                                            <h4 class="fw-semibold flex-shrink-0 mb-0" id="childrenWithDiscount">0</h4>
+                                            <span class="text-muted" id="discountUtilization">0% of total</span>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-success-subtle rounded fs-3">
+                                                    <i class="bx bx-user-check text-success"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Report Table -->
+                <div class="card-body pt-0" id="mainReportSection">
+                    <div id="loadingMessage" style="display: none;">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading discount analysis data...</p>
+                        </div>
+                    </div>
+
+                    <div id="noDataMessage" style="display: none;">
+                        <div class="text-center py-5">
+                            <i class="ri-inbox-line display-4 text-muted"></i>
+                            <h5 class="mt-3">No Discount Data</h5>
+                            <p class="text-muted">There are no discounts applied matching your criteria.</p>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive" id="tableContainer" style="width: 100%;">
+                        <table id="discountAnalysisTable" class="table table-striped table-hover" style="width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th style="min-width: 150px;">Group</th>
+                                    <th style="min-width: 100px;">Discount Amount</th>
+                                    <th style="min-width: 100px;">Gross Revenue</th>
+                                    <th style="min-width: 100px;">Net Revenue</th>
+                                    <th style="min-width: 80px;">Discount %</th>
+                                    <th style="min-width: 80px;">Children</th>
+                                    <th style="min-width: 80px;">Memos</th>
+                                    <th style="min-width: 100px;">Avg/Memo</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- jQuery -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<!--datatable js-->
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+
+<script>
+var $ = jQuery;
+var dataTable;
+
+jQuery(document).ready(function () {
+    initializeDataTable();
+    setDefaultDates();
+    setupEventHandlers();
+    showInitialState();
+});
+
+function initializeDataTable() {
+    dataTable = $("#discountAnalysisTable").DataTable({
+        responsive: true,
+        autoWidth: true,
+        dom: "Bfrtip",
+        pageLength: 50,
+        scrollX: true,
+        buttons: [
+            { extend: 'excel', title: 'Discount Analysis Report' },
+            { extend: 'print', title: 'Discount Analysis Report' }
+        ],
+        order: [[1, "desc"]],
+        columnDefs: [
+            { targets: [1, 2, 3, 7], className: 'text-end' },
+            { targets: [4, 5, 6], className: 'text-center' },
+        ],
+        language: { emptyTable: "No discount data available" }
+    });
+}
+
+function setupEventHandlers() {
+    jQuery("#btnSearch").click(function() { loadReportData(); });
+    jQuery("#btnClear").click(function() { clearFilters(); });
+    jQuery("#btnSummary").click(function() { toggleSummaryView(); });
+    jQuery("#btnExport").click(function() { dataTable.button('.buttons-excel').trigger(); });
+}
+
+function setDefaultDates() {
+    var today = new Date();
+    var firstDayOfYear = new Date(today.getFullYear(), 0, 1);
+    jQuery("#from_date").val(formatDate(firstDayOfYear));
+    jQuery("#to_date").val(formatDate(today));
+}
+
+function formatDate(date) {
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+}
+
+function clearFilters() {
+    jQuery("#branch, #center, #discount_code").val('');
+    jQuery("#group_by").val('discount');
+    setDefaultDates();
+    if (dataTable) dataTable.clear().draw();
+    jQuery("#summaryCards").hide();
+    showInitialState();
+}
+
+function loadReportData() {
+    hideWelcomeMessage();
+    var data = {
+        from_date: jQuery("#from_date").val(),
+        to_date: jQuery("#to_date").val(),
+        branch: jQuery("#branch").val() || '',
+        center: jQuery("#center").val() || '',
+        discount_code: jQuery("#discount_code").val() || '',
+        group_by: jQuery("#group_by").val()
+    };
+
+    showLoading();
+    hideNoDataMessage();
+    if (dataTable) dataTable.clear();
+
+    // Load summary
+    loadSummaryData(data);
+
+    jQuery.ajax({
+        type: "GET",
+        url: "{% url 'core:get_discount_analysis_report_js' %}",
+        dataType: "json",
+        data: data,
+        beforeSend: function() {
+            jQuery("#btnSearch").prop('disabled', true);
+            jQuery("#searchText").text('Loading...');
+        },
+        success: function(response) {
+            hideLoading();
+            if (!Array.isArray(response) || response.length === 0) {
+                showNoDataMessage();
+                return;
+            }
+            populateTable(response);
+        },
+        error: function(xhr) {
+            hideLoading();
+            showErrorAlert("Error loading data: " + xhr.statusText);
+        },
+        complete: function() {
+            jQuery("#btnSearch").prop('disabled', false);
+            jQuery("#searchText").text('Search');
+        }
+    });
+}
+
+function loadSummaryData(data) {
+    jQuery.ajax({
+        type: "GET",
+        url: "{% url 'core:get_discount_summary_js' %}",
+        dataType: "json",
+        data: data,
+        success: function(response) {
+            jQuery("#totalGross").text('Rs. ' + formatNumber(response.total_gross_revenue));
+            jQuery("#totalDiscounts").text('Rs. ' + formatNumber(response.total_discount_amount));
+            jQuery("#discountPercent").text(response.discount_percentage + '%');
+            jQuery("#childrenWithDiscount").text(response.children_with_discounts);
+            jQuery("#discountUtilization").text(response.discount_utilization + '% of total');
+            jQuery("#summaryCards").show();
+        }
+    });
+}
+
+function populateTable(data) {
+    jQuery.each(data, function(i, item) {
+        dataTable.row.add([
+            '<strong>' + item.group_key + '</strong>',
+            '<span class="text-warning">' + formatCurrency(item.discount_amount) + '</span>',
+            formatCurrency(item.gross_revenue),
+            formatCurrency(item.net_revenue),
+            '<span class="badge bg-info">' + item.discount_percentage + '%</span>',
+            item.child_count,
+            item.memo_count,
+            formatCurrency(item.avg_discount_per_memo)
+        ]).draw(false);
+    });
+    setTimeout(function() { dataTable.columns.adjust().responsive.recalc(); }, 100);
+}
+
+function toggleSummaryView() {
+    var summaryCards = jQuery("#summaryCards");
+    var btn = jQuery("#btnSummary");
+    if (summaryCards.is(':visible')) {
+        summaryCards.hide();
+        btn.html('<i class="ri-bar-chart-line align-bottom me-1"></i> View Summary');
+    } else {
+        summaryCards.show();
+        btn.html('<i class="ri-table-line align-bottom me-1"></i> Hide Summary');
+    }
+}
+
+function formatCurrency(amount) {
+    return 'Rs. ' + parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatNumber(amount) {
+    return parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function showLoading() { jQuery("#loadingMessage").show(); jQuery("#tableContainer").hide(); }
+function hideLoading() { jQuery("#loadingMessage").hide(); jQuery("#tableContainer").show(); }
+function showInitialState() { jQuery("#summaryCards").hide(); showWelcomeMessage(); }
+
+function showWelcomeMessage() {
+    var html = '<div class="text-center py-5" id="welcomeMessage">';
+    html += '<i class="ri-percent-line display-4 text-primary"></i>';
+    html += '<h5 class="mt-3">Discount Analysis Report</h5>';
+    html += '<p class="text-muted">Analyze discounts applied and their impact on revenue.</p></div>';
+    jQuery("#tableContainer").html(html);
+}
+
+function hideWelcomeMessage() {
+    jQuery("#welcomeMessage").remove();
+    var tableHtml = '<table id="discountAnalysisTable" class="table table-striped table-hover" style="width: 100%;"><thead><tr>';
+    tableHtml += '<th>Group</th><th>Discount Amount</th><th>Gross Revenue</th><th>Net Revenue</th>';
+    tableHtml += '<th>Discount %</th><th>Children</th><th>Memos</th><th>Avg/Memo</th>';
+    tableHtml += '</tr></thead><tbody></tbody></table>';
+    jQuery("#tableContainer").html(tableHtml);
+    initializeDataTable();
+}
+
+function showNoDataMessage() { jQuery("#noDataMessage").show(); jQuery("#tableContainer").hide(); }
+function hideNoDataMessage() { jQuery("#noDataMessage").hide(); jQuery("#tableContainer").show(); }
+
+function showErrorAlert(message) {
+    var html = '<div class="alert alert-danger alert-dismissible fade show" role="alert">';
+    html += '<i class="ri-error-warning-line me-2"></i>' + message;
+    html += '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+    jQuery("#mainReportSection").prepend(html);
+    setTimeout(function() { jQuery(".alert-danger").fadeOut(); }, 5000);
+}
+</script>
+
+<script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'assets/js/app.js' %}"></script>
+{% endblock %}

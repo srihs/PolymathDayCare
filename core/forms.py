@@ -2981,8 +2981,366 @@ class BulkAttendanceFixForm(forms.Form):
                 for field in required_fields:
                     if field not in fix or not fix[field]:
                         raise forms.ValidationError(f"Fix {i+1}: Missing {field}")
-            
+
             return fixes
-            
+
         except json.JSONDecodeError:
             raise forms.ValidationError("Invalid JSON format")
+
+
+# ==================== FINANCE REPORTS FORMS ====================
+
+
+class ARAgingReportForm(forms.Form):
+    """Form for AR Aging Report filters"""
+
+    AGING_BUCKET_CHOICES = [
+        ("all", "All Buckets"),
+        ("0-30", "0-30 Days"),
+        ("31-60", "31-60 Days"),
+        ("61-90", "61-90 Days"),
+        ("90+", "90+ Days"),
+    ]
+
+    as_of_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(
+            attrs={
+                "class": "form-control",
+                "id": "as_of_date",
+                "type": "date",
+                "placeholder": "As of Date",
+            }
+        ),
+    )
+
+    branch = forms.ModelChoiceField(
+        queryset=Branch.objects.filter(is_active=True).order_by("branch_code"),
+        empty_label="-All Branches-",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control", "id": "branch"}),
+    )
+
+    center = forms.ModelChoiceField(
+        queryset=DayCare.objects.filter(is_active=True).order_by("daycare_code"),
+        empty_label="-All Centers-",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control", "id": "center"}),
+    )
+
+    aging_bucket = forms.ChoiceField(
+        choices=AGING_BUCKET_CHOICES,
+        initial="all",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "id": "aging_bucket",
+            }
+        ),
+    )
+
+    minimum_balance = forms.DecimalField(
+        required=False,
+        min_value=0,
+        widget=forms.NumberInput(
+            attrs={
+                "class": "form-control",
+                "id": "minimum_balance",
+                "placeholder": "0.00",
+                "step": "0.01",
+            }
+        ),
+    )
+
+
+class PackageRevenueReportForm(forms.Form):
+    """Form for Package Revenue Analysis Report filters"""
+
+    GROUP_BY_CHOICES = [
+        ("package", "By Package"),
+        ("package_type", "By Package Type"),
+        ("branch", "By Branch"),
+        ("center", "By Center"),
+        ("month", "By Month"),
+    ]
+
+    PACKAGE_CATEGORY_CHOICES = [
+        ("all", "All Categories"),
+        ("fixed", "Fixed Packages"),
+        ("flex", "Flex Packages"),
+        ("holiday", "Holiday Packages"),
+    ]
+
+    from_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(
+            attrs={
+                "class": "form-control",
+                "id": "from_date",
+                "type": "date",
+                "placeholder": "From Date",
+            }
+        ),
+    )
+
+    to_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(
+            attrs={
+                "class": "form-control",
+                "id": "to_date",
+                "type": "date",
+                "placeholder": "To Date",
+            }
+        ),
+    )
+
+    branch = forms.ModelChoiceField(
+        queryset=Branch.objects.filter(is_active=True).order_by("branch_code"),
+        empty_label="-All Branches-",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control", "id": "branch"}),
+    )
+
+    center = forms.ModelChoiceField(
+        queryset=DayCare.objects.filter(is_active=True).order_by("daycare_code"),
+        empty_label="-All Centers-",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control", "id": "center"}),
+    )
+
+    package_category = forms.ChoiceField(
+        choices=PACKAGE_CATEGORY_CHOICES,
+        initial="all",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "id": "package_category",
+            }
+        ),
+    )
+
+    group_by = forms.ChoiceField(
+        choices=GROUP_BY_CHOICES,
+        initial="package",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "id": "group_by",
+            }
+        ),
+    )
+
+
+class DiscountAnalysisReportForm(forms.Form):
+    """Form for Discount Analysis Report filters"""
+
+    GROUP_BY_CHOICES = [
+        ("discount", "By Discount Code"),
+        ("child", "By Child"),
+        ("branch", "By Branch"),
+        ("center", "By Center"),
+        ("month", "By Month"),
+    ]
+
+    from_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(
+            attrs={
+                "class": "form-control",
+                "id": "from_date",
+                "type": "date",
+                "placeholder": "From Date",
+            }
+        ),
+    )
+
+    to_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(
+            attrs={
+                "class": "form-control",
+                "id": "to_date",
+                "type": "date",
+                "placeholder": "To Date",
+            }
+        ),
+    )
+
+    branch = forms.ModelChoiceField(
+        queryset=Branch.objects.filter(is_active=True).order_by("branch_code"),
+        empty_label="-All Branches-",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control", "id": "branch"}),
+    )
+
+    center = forms.ModelChoiceField(
+        queryset=DayCare.objects.filter(is_active=True).order_by("daycare_code"),
+        empty_label="-All Centers-",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control", "id": "center"}),
+    )
+
+    discount_code = forms.ModelChoiceField(
+        queryset=Discount.objects.filter(is_active=True, status="APPROVED").order_by(
+            "discount_code"
+        ),
+        empty_label="-All Discounts-",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control", "id": "discount_code"}),
+    )
+
+    group_by = forms.ChoiceField(
+        choices=GROUP_BY_CHOICES,
+        initial="discount",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "id": "group_by",
+            }
+        ),
+    )
+
+
+class LocationPerformanceReportForm(forms.Form):
+    """Form for Branch/Center Performance Report filters"""
+
+    LEVEL_CHOICES = [
+        ("branch", "Branch Level"),
+        ("center", "Center Level"),
+    ]
+
+    from_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(
+            attrs={
+                "class": "form-control",
+                "id": "from_date",
+                "type": "date",
+                "placeholder": "From Date",
+            }
+        ),
+    )
+
+    to_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(
+            attrs={
+                "class": "form-control",
+                "id": "to_date",
+                "type": "date",
+                "placeholder": "To Date",
+            }
+        ),
+    )
+
+    branch = forms.ModelChoiceField(
+        queryset=Branch.objects.filter(is_active=True).order_by("branch_code"),
+        empty_label="-All Branches-",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control", "id": "branch"}),
+    )
+
+    center = forms.ModelChoiceField(
+        queryset=DayCare.objects.filter(is_active=True).order_by("daycare_code"),
+        empty_label="-All Centers-",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control", "id": "center"}),
+    )
+
+    level = forms.ChoiceField(
+        choices=LEVEL_CHOICES,
+        initial="branch",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "id": "level",
+            }
+        ),
+    )
+
+
+class ExtraHoursRevenueReportForm(forms.Form):
+    """Form for Enhanced Extra Hours Revenue Report filters"""
+
+    TIME_SPLIT_CHOICES = [
+        ("combined", "Combined Total"),
+        ("split", "Before/After 5:30 PM Split"),
+    ]
+
+    child = forms.ModelChoiceField(
+        queryset=Child.objects.filter(
+            is_active=True, enrollement_approved=True
+        ).order_by("admission_number"),
+        empty_label="-All Children-",
+        required=False,
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "id": "child",
+            }
+        ),
+    )
+
+    from_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(
+            attrs={
+                "class": "form-control",
+                "id": "from_date",
+                "type": "date",
+                "placeholder": "From Date",
+            }
+        ),
+    )
+
+    to_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(
+            attrs={
+                "class": "form-control",
+                "id": "to_date",
+                "type": "date",
+                "placeholder": "To Date",
+            }
+        ),
+    )
+
+    branch = forms.ModelChoiceField(
+        queryset=Branch.objects.filter(is_active=True).order_by("branch_code"),
+        empty_label="-All Branches-",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control", "id": "branch"}),
+    )
+
+    center = forms.ModelChoiceField(
+        queryset=DayCare.objects.filter(is_active=True).order_by("daycare_code"),
+        empty_label="-All Centers-",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control", "id": "center"}),
+    )
+
+    time_split = forms.ChoiceField(
+        choices=TIME_SPLIT_CHOICES,
+        initial="combined",
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "id": "time_split",
+            }
+        ),
+    )
+
+    top_n = forms.IntegerField(
+        required=False,
+        min_value=1,
+        max_value=50,
+        initial=10,
+        widget=forms.NumberInput(
+            attrs={
+                "class": "form-control",
+                "id": "top_n",
+                "placeholder": "10",
+            }
+        ),
+    )

@@ -1,0 +1,524 @@
+{% extends "base.html" %} {% load static %}
+{% block PageTitle %}Extra Hours Revenue{% endblock %}
+{% block UserName %} {{ UserName}}{% endblock %}
+{% block Title %} FINANCE REPORTS {% endblock %}
+{% block functionTitle%}EXTRA HOURS REVENUE REPORT{% endblock %}
+{% block content %}
+
+<div>
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card" id="extraHoursRevenueReport">
+                <div class="card-header border-0">
+                    <div class="row align-items-center gy-3">
+                        <div class="col-sm">
+                            <h5 class="card-title mb-0">Extra Hours Revenue Report (Enhanced)</h5>
+                        </div>
+                        <div class="col-sm-auto">
+                            <div class="d-flex gap-1 flex-wrap">
+                                <button type="button" class="btn btn-warning" id="btnTopUsers">
+                                    <i class="ri-trophy-line align-bottom me-1"></i> Top Users
+                                </button>
+                                <button type="button" class="btn btn-info" id="btnExport">
+                                    <i class="ri-file-excel-line align-bottom me-1"></i> Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body border border-dashed border-end-0 border-start-0">
+                    <div class="row g-3">
+                        <!-- Child Selection -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">Child</label>
+                            <select class="form-control" id="child" name="child">
+                                <option value="">-All Children-</option>
+                                {% for child in form.child.field.queryset %}<option value="{{ child.id }}">{{ child.admission_number }} - {{ child.child_first_name }}</option>{% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- From Date -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">From Date</label>
+                            <input type="date" class="form-control" id="from_date" name="from_date">
+                        </div>
+
+                        <!-- To Date -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">To Date</label>
+                            <input type="date" class="form-control" id="to_date" name="to_date">
+                        </div>
+
+                        <!-- Branch Selection -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">Branch</label>
+                            <select class="form-control" id="branch" name="branch">
+                                <option value="">-All Branches-</option>
+                                {% for branch in form.branch.field.queryset %}<option value="{{ branch.id }}">{{ branch.branch_name }}</option>{% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Center Selection -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">Center</label>
+                            <select class="form-control" id="center" name="center">
+                                <option value="">-All Centers-</option>
+                                {% for center in form.center.field.queryset %}<option value="{{ center.id }}">{{ center.daycare_name }}</option>{% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Time Split -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">Time Split</label>
+                            <select class="form-control" id="time_split" name="time_split">
+                                <option value="combined">Combined Total</option>
+                                <option value="split">Before/After 5:30 PM</option>
+                            </select>
+                        </div>
+
+                        <!-- Top N -->
+                        <div class="col-xl-1 col-md-2">
+                            <label class="form-label">Top N</label>
+                            <input type="number" class="form-control" id="top_n" name="top_n" value="10" min="1" max="50">
+                        </div>
+
+                        <!-- Search Button -->
+                        <div class="col-xl-1 col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button id="btnSearch" type="button" class="btn btn-primary w-100">
+                                    <i class="ri-search-line me-1"></i> <span id="searchText">Search</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Clear Button -->
+                        <div class="col-xl-1 col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button id="btnClear" type="button" class="btn btn-secondary w-100">
+                                    <i class="ri-refresh-line me-1"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="card-body" id="summaryCards" style="display: none;">
+                    <div class="row">
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate bg-primary-subtle">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Total Extra Hours</p>
+                                            <h4 class="fw-semibold flex-shrink-0 mb-0" id="totalExtraHours">0.00</h4>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-primary-subtle rounded fs-3">
+                                                    <i class="bx bx-time text-primary"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate bg-info-subtle">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Before 5:30 PM</p>
+                                            <h4 class="fw-semibold flex-shrink-0 mb-0" id="totalBefore530">0.00</h4>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-info-subtle rounded fs-3">
+                                                    <i class="bx bx-sun text-info"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate bg-warning-subtle">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">After 5:30 PM</p>
+                                            <h4 class="fw-semibold flex-shrink-0 mb-0" id="totalAfter530">0.00</h4>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-warning-subtle rounded fs-3">
+                                                    <i class="bx bx-moon text-warning"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate bg-success-subtle">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Holiday Charges</p>
+                                            <h4 class="fw-semibold flex-shrink-0 mb-0" id="totalHoliday">0.00</h4>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-success-subtle rounded fs-3">
+                                                    <i class="bx bx-calendar text-success"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Report Table -->
+                <div class="card-body pt-0" id="mainReportSection">
+                    <div id="loadingMessage" style="display: none;">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading extra hours revenue data...</p>
+                        </div>
+                    </div>
+
+                    <div id="noDataMessage" style="display: none;">
+                        <div class="text-center py-5">
+                            <i class="ri-inbox-line display-4 text-muted"></i>
+                            <h5 class="mt-3">No Extra Hours Data</h5>
+                            <p class="text-muted">There are no extra hours charges matching your criteria.</p>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive" id="tableContainer" style="width: 100%;">
+                        <table id="extraHoursRevenueTable" class="table table-striped table-hover" style="width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th style="min-width: 150px;">Child</th>
+                                    <th style="min-width: 100px;">Memo Code</th>
+                                    <th style="min-width: 100px;">Month</th>
+                                    <th style="min-width: 120px;">Package</th>
+                                    <th style="min-width: 100px;">Before 5:30</th>
+                                    <th style="min-width: 100px;">After 5:30</th>
+                                    <th style="min-width: 100px;">Extra Hours</th>
+                                    <th style="min-width: 100px;">Holiday</th>
+                                    <th style="min-width: 100px;">Total</th>
+                                    <th style="min-width: 100px;">Branch</th>
+                                    <th style="min-width: 100px;">Center</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Users Modal -->
+<div class="modal fade" id="topUsersModal" tabindex="-1" aria-labelledby="topUsersModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="topUsersModalLabel"><i class="ri-trophy-line me-2"></i>Top Extra Hours Users</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="topUsersLoading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                </div>
+                <div id="topUsersContent" style="display: none;">
+                    <table class="table table-striped" id="topUsersTable">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Child</th>
+                                <th>Extra Hours</th>
+                                <th>Holiday</th>
+                                <th>Total</th>
+                                <th>Months</th>
+                                <th>Avg/Month</th>
+                                <th>Branch</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- jQuery -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<!--datatable js-->
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+
+<script>
+var $ = jQuery;
+var dataTable;
+
+jQuery(document).ready(function () {
+    initializeDataTable();
+    setDefaultDates();
+    setupEventHandlers();
+    showInitialState();
+});
+
+function initializeDataTable() {
+    dataTable = $("#extraHoursRevenueTable").DataTable({
+        responsive: true,
+        autoWidth: true,
+        dom: "Bfrtip",
+        pageLength: 50,
+        scrollX: true,
+        buttons: [
+            { extend: 'excel', title: 'Extra Hours Revenue Report' },
+            { extend: 'print', title: 'Extra Hours Revenue Report' }
+        ],
+        order: [[8, "desc"]],
+        columnDefs: [
+            { targets: [4, 5, 6, 7, 8], className: 'text-end' },
+        ],
+        language: { emptyTable: "No extra hours data available" }
+    });
+}
+
+function setupEventHandlers() {
+    jQuery("#btnSearch").click(function() { loadReportData(); });
+    jQuery("#btnClear").click(function() { clearFilters(); });
+    jQuery("#btnTopUsers").click(function() { loadTopUsers(); });
+    jQuery("#btnExport").click(function() { dataTable.button('.buttons-excel').trigger(); });
+}
+
+function setDefaultDates() {
+    var today = new Date();
+    var firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    jQuery("#from_date").val(formatDate(firstDayOfMonth));
+    jQuery("#to_date").val(formatDate(today));
+}
+
+function formatDate(date) {
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+}
+
+function clearFilters() {
+    jQuery("#child, #branch, #center").val('');
+    jQuery("#time_split").val('combined');
+    jQuery("#top_n").val('10');
+    setDefaultDates();
+    if (dataTable) dataTable.clear().draw();
+    jQuery("#summaryCards").hide();
+    showInitialState();
+}
+
+function loadReportData() {
+    hideWelcomeMessage();
+    var data = {
+        child: jQuery("#child").val() || '',
+        from_date: jQuery("#from_date").val(),
+        to_date: jQuery("#to_date").val(),
+        branch: jQuery("#branch").val() || '',
+        center: jQuery("#center").val() || '',
+        time_split: jQuery("#time_split").val()
+    };
+
+    showLoading();
+    hideNoDataMessage();
+    if (dataTable) dataTable.clear();
+
+    jQuery.ajax({
+        type: "GET",
+        url: "{% url 'core:get_extra_hours_revenue_report_js' %}",
+        dataType: "json",
+        data: data,
+        beforeSend: function() {
+            jQuery("#btnSearch").prop('disabled', true);
+            jQuery("#searchText").text('Loading...');
+        },
+        success: function(response) {
+            hideLoading();
+            if (!Array.isArray(response) || response.length === 0) {
+                showNoDataMessage();
+                return;
+            }
+            populateTable(response);
+            updateSummaryCards(response);
+            jQuery("#summaryCards").show();
+        },
+        error: function(xhr) {
+            hideLoading();
+            showErrorAlert("Error loading data: " + xhr.statusText);
+        },
+        complete: function() {
+            jQuery("#btnSearch").prop('disabled', false);
+            jQuery("#searchText").text('Search');
+        }
+    });
+}
+
+function populateTable(data) {
+    jQuery.each(data, function(i, item) {
+        dataTable.row.add([
+            item.child_admission + ' - ' + item.child_name,
+            item.memo_code,
+            item.month,
+            item.package_name,
+            '<span class="text-info">' + formatCurrency(item.before_530_charge) + '</span>',
+            '<span class="text-warning">' + formatCurrency(item.after_530_charge) + '</span>',
+            formatCurrency(item.extra_hours_charge),
+            formatCurrency(item.holiday_charges),
+            '<strong class="text-primary">' + formatCurrency(item.total_extra_charges) + '</strong>',
+            item.branch_name,
+            item.center_name
+        ]).draw(false);
+    });
+    setTimeout(function() { dataTable.columns.adjust().responsive.recalc(); }, 100);
+}
+
+function updateSummaryCards(data) {
+    var totalExtraHours = 0, totalBefore530 = 0, totalAfter530 = 0, totalHoliday = 0;
+    data.forEach(function(item) {
+        totalExtraHours += item.extra_hours_charge;
+        totalBefore530 += item.before_530_charge;
+        totalAfter530 += item.after_530_charge;
+        totalHoliday += item.holiday_charges;
+    });
+
+    jQuery("#totalExtraHours").text('Rs. ' + formatNumber(totalExtraHours));
+    jQuery("#totalBefore530").text('Rs. ' + formatNumber(totalBefore530));
+    jQuery("#totalAfter530").text('Rs. ' + formatNumber(totalAfter530));
+    jQuery("#totalHoliday").text('Rs. ' + formatNumber(totalHoliday));
+}
+
+function loadTopUsers() {
+    var data = {
+        from_date: jQuery("#from_date").val(),
+        to_date: jQuery("#to_date").val(),
+        branch: jQuery("#branch").val() || '',
+        center: jQuery("#center").val() || '',
+        top_n: jQuery("#top_n").val() || 10
+    };
+
+    jQuery("#topUsersLoading").show();
+    jQuery("#topUsersContent").hide();
+    jQuery("#topUsersTable tbody").empty();
+
+    var modal = new bootstrap.Modal(document.getElementById('topUsersModal'));
+    modal.show();
+
+    jQuery.ajax({
+        type: "GET",
+        url: "{% url 'core:get_extra_hours_top_users_js' %}",
+        dataType: "json",
+        data: data,
+        success: function(response) {
+            jQuery("#topUsersLoading").hide();
+            jQuery("#topUsersContent").show();
+
+            if (!Array.isArray(response) || response.length === 0) {
+                jQuery("#topUsersTable tbody").html('<tr><td colspan="8" class="text-center">No data available</td></tr>');
+                return;
+            }
+
+            response.forEach(function(item) {
+                var rankIcon = item.rank <= 3 ? '<i class="ri-medal-line text-warning"></i>' : '';
+                var row = '<tr>';
+                row += '<td>' + rankIcon + ' #' + item.rank + '</td>';
+                row += '<td>' + item.child_admission + ' - ' + item.child_name + '</td>';
+                row += '<td class="text-end">' + formatCurrency(item.total_extra_hours_charge) + '</td>';
+                row += '<td class="text-end">' + formatCurrency(item.total_holiday_charges) + '</td>';
+                row += '<td class="text-end text-primary fw-bold">' + formatCurrency(item.total_charges) + '</td>';
+                row += '<td class="text-center">' + item.month_count + '</td>';
+                row += '<td class="text-end">' + formatCurrency(item.avg_per_month) + '</td>';
+                row += '<td>' + item.branch_name + '</td>';
+                row += '</tr>';
+                jQuery("#topUsersTable tbody").append(row);
+            });
+        },
+        error: function(xhr) {
+            jQuery("#topUsersLoading").hide();
+            jQuery("#topUsersContent").html('<div class="alert alert-danger">Error loading top users</div>');
+        }
+    });
+}
+
+function formatCurrency(amount) {
+    return 'Rs. ' + parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatNumber(amount) {
+    return parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function showLoading() { jQuery("#loadingMessage").show(); jQuery("#tableContainer").hide(); }
+function hideLoading() { jQuery("#loadingMessage").hide(); jQuery("#tableContainer").show(); }
+function showInitialState() { jQuery("#summaryCards").hide(); showWelcomeMessage(); }
+
+function showWelcomeMessage() {
+    var html = '<div class="text-center py-5" id="welcomeMessage">';
+    html += '<i class="ri-time-line display-4 text-primary"></i>';
+    html += '<h5 class="mt-3">Extra Hours Revenue Report</h5>';
+    html += '<p class="text-muted">Analyze extra hours charges with before/after 5:30 PM breakdown.</p>';
+    html += '<p class="text-muted"><small>Use "Top Users" to see children with highest extra hours charges.</small></p></div>';
+    jQuery("#tableContainer").html(html);
+}
+
+function hideWelcomeMessage() {
+    jQuery("#welcomeMessage").remove();
+    var tableHtml = '<table id="extraHoursRevenueTable" class="table table-striped table-hover" style="width: 100%;"><thead><tr>';
+    tableHtml += '<th>Child</th><th>Memo Code</th><th>Month</th><th>Package</th>';
+    tableHtml += '<th>Before 5:30</th><th>After 5:30</th><th>Extra Hours</th><th>Holiday</th><th>Total</th>';
+    tableHtml += '<th>Branch</th><th>Center</th>';
+    tableHtml += '</tr></thead><tbody></tbody></table>';
+    jQuery("#tableContainer").html(tableHtml);
+    initializeDataTable();
+}
+
+function showNoDataMessage() { jQuery("#noDataMessage").show(); jQuery("#tableContainer").hide(); }
+function hideNoDataMessage() { jQuery("#noDataMessage").hide(); jQuery("#tableContainer").show(); }
+
+function showErrorAlert(message) {
+    var html = '<div class="alert alert-danger alert-dismissible fade show" role="alert">';
+    html += '<i class="ri-error-warning-line me-2"></i>' + message;
+    html += '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+    jQuery("#mainReportSection").prepend(html);
+    setTimeout(function() { jQuery(".alert-danger").fadeOut(); }, 5000);
+}
+</script>
+
+<script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'assets/js/app.js' %}"></script>
+{% endblock %}

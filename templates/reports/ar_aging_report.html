@@ -1,0 +1,579 @@
+{% extends "base.html" %} {% load static %}
+{% block PageTitle %}AR Aging Report{% endblock %}
+{% block UserName %} {{ UserName}}{% endblock %}
+{% block Title %} FINANCE REPORTS {% endblock %}
+{% block functionTitle%}AR AGING REPORT{% endblock %}
+{% block content %}
+
+<div>
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card" id="arAgingReport">
+                <div class="card-header border-0">
+                    <div class="row align-items-center gy-3">
+                        <div class="col-sm">
+                            <h5 class="card-title mb-0">Accounts Receivable Aging Report</h5>
+                        </div>
+                        <div class="col-sm-auto">
+                            <div class="d-flex gap-1 flex-wrap">
+                                <button type="button" class="btn btn-success" id="btnSummary">
+                                    <i class="ri-bar-chart-line align-bottom me-1"></i> View Summary
+                                </button>
+                                <button type="button" class="btn btn-info" id="btnExport">
+                                    <i class="ri-file-excel-line align-bottom me-1"></i> Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body border border-dashed border-end-0 border-start-0">
+                    <div class="row g-3">
+                        <!-- As of Date -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">As of Date</label>
+                            <input type="date" class="form-control" id="as_of_date" name="as_of_date">
+                        </div>
+
+                        <!-- Branch Selection -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">Branch</label>
+                            <select class="form-control" id="branch" name="branch">
+                                <option value="">-All Branches-</option>
+                                {% for branch in form.branch.field.queryset %}<option value="{{ branch.id }}">{{ branch.branch_name }}</option>{% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Center Selection -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">Center</label>
+                            <select class="form-control" id="center" name="center">
+                                <option value="">-All Centers-</option>
+                                {% for center in form.center.field.queryset %}<option value="{{ center.id }}">{{ center.daycare_name }}</option>{% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Aging Bucket -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">Aging Bucket</label>
+                            <select class="form-control" id="aging_bucket" name="aging_bucket">
+                                <option value="all">All Buckets</option>
+                                <option value="0-30">0-30 Days</option>
+                                <option value="31-60">31-60 Days</option>
+                                <option value="61-90">61-90 Days</option>
+                                <option value="90+">90+ Days</option>
+                            </select>
+                        </div>
+
+                        <!-- Minimum Balance -->
+                        <div class="col-xl-2 col-md-3">
+                            <label class="form-label">Minimum Balance</label>
+                            <input type="number" class="form-control" id="minimum_balance" name="minimum_balance" placeholder="0.00" step="0.01">
+                        </div>
+
+                        <!-- Search Button -->
+                        <div class="col-xl-1 col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button id="btnSearch" type="button" class="btn btn-primary w-100">
+                                    <i class="ri-search-line me-1"></i> <span id="searchText">Search</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Clear Button -->
+                        <div class="col-xl-1 col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button id="btnClear" type="button" class="btn btn-secondary w-100">
+                                    <i class="ri-refresh-line me-1"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="card-body" id="summaryCards" style="display: none;">
+                    <div class="row">
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate bg-danger-subtle">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">90+ Days</p>
+                                            <div class="d-flex align-items-center">
+                                                <h4 class="fw-semibold flex-shrink-0 mb-0" id="bucket90Plus">0.00</h4>
+                                                <span class="text-muted ms-2">LKR</span>
+                                            </div>
+                                            <span class="badge bg-danger" id="count90Plus">0 accounts</span>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-danger-subtle rounded fs-3">
+                                                    <i class="bx bx-error-circle text-danger"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate bg-warning-subtle">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">61-90 Days</p>
+                                            <div class="d-flex align-items-center">
+                                                <h4 class="fw-semibold flex-shrink-0 mb-0" id="bucket6190">0.00</h4>
+                                                <span class="text-muted ms-2">LKR</span>
+                                            </div>
+                                            <span class="badge bg-warning" id="count6190">0 accounts</span>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-warning-subtle rounded fs-3">
+                                                    <i class="bx bx-alarm-exclamation text-warning"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate bg-info-subtle">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">31-60 Days</p>
+                                            <div class="d-flex align-items-center">
+                                                <h4 class="fw-semibold flex-shrink-0 mb-0" id="bucket3160">0.00</h4>
+                                                <span class="text-muted ms-2">LKR</span>
+                                            </div>
+                                            <span class="badge bg-info" id="count3160">0 accounts</span>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-info-subtle rounded fs-3">
+                                                    <i class="bx bx-time text-info"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate bg-success-subtle">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">0-30 Days</p>
+                                            <div class="d-flex align-items-center">
+                                                <h4 class="fw-semibold flex-shrink-0 mb-0" id="bucket030">0.00</h4>
+                                                <span class="text-muted ms-2">LKR</span>
+                                            </div>
+                                            <span class="badge bg-success" id="count030">0 accounts</span>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-success-subtle rounded fs-3">
+                                                    <i class="bx bx-check-circle text-success"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Total Outstanding -->
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <div class="alert alert-primary d-flex align-items-center justify-content-between">
+                                <span><strong>Total Outstanding:</strong></span>
+                                <span class="fs-4 fw-bold" id="totalOutstanding">Rs. 0.00</span>
+                                <span id="totalAccounts">0 accounts</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Report Table -->
+                <div class="card-body pt-0" id="mainReportSection">
+                    <div id="loadingMessage" style="display: none;">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading AR aging data...</p>
+                        </div>
+                    </div>
+
+                    <div id="noDataMessage" style="display: none;">
+                        <div class="text-center py-5">
+                            <i class="ri-check-double-line display-4 text-success"></i>
+                            <h5 class="mt-3">No Outstanding Balances</h5>
+                            <p class="text-muted">There are no outstanding balances matching your criteria.</p>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive" id="tableContainer" style="width: 100%;">
+                        <table id="arAgingTable" class="table table-striped table-hover" style="width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th style="min-width: 120px;">Child</th>
+                                    <th style="min-width: 100px;">Memo Code</th>
+                                    <th style="min-width: 100px;">Memo Month</th>
+                                    <th style="min-width: 80px;">Days</th>
+                                    <th style="min-width: 80px;">Bucket</th>
+                                    <th style="min-width: 100px;">Gross Total</th>
+                                    <th style="min-width: 100px;">Payments</th>
+                                    <th style="min-width: 100px;">Outstanding</th>
+                                    <th style="min-width: 100px;">Branch</th>
+                                    <th style="min-width: 100px;">Center</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- jQuery -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<!-- Select2 -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<!--datatable js-->
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+
+<script>
+var $ = jQuery;
+var dataTable;
+var currentReportData = [];
+
+jQuery(document).ready(function () {
+    console.log("Initializing AR Aging Report...");
+
+    // Initialize DataTable
+    initializeDataTable();
+
+    // Set default date to today
+    setDefaultDate();
+
+    // Event handlers
+    setupEventHandlers();
+
+    // Show initial state
+    showInitialState();
+});
+
+function initializeDataTable() {
+    try {
+        dataTable = $("#arAgingTable").DataTable({
+            responsive: true,
+            autoWidth: true,
+            dom: "Bfrtip",
+            pageLength: 50,
+            scrollX: true,
+            buttons: [
+                {
+                    extend: 'excel',
+                    title: 'AR Aging Report',
+                },
+                {
+                    extend: 'print',
+                    title: 'AR Aging Report',
+                }
+            ],
+            order: [[3, "desc"]], // Sort by days outstanding descending
+            columnDefs: [
+                { targets: [5, 6, 7], className: 'text-end' },
+            ],
+            language: {
+                emptyTable: "No aging data available"
+            }
+        });
+        console.log("DataTable initialized successfully");
+    } catch (error) {
+        console.error("Error initializing DataTable:", error);
+    }
+}
+
+function setupEventHandlers() {
+    jQuery("#btnSearch").click(function() {
+        loadReportData();
+    });
+
+    jQuery("#btnClear").click(function() {
+        clearFilters();
+    });
+
+    jQuery("#btnSummary").click(function() {
+        toggleSummaryView();
+    });
+
+    jQuery("#btnExport").click(function() {
+        dataTable.button('.buttons-excel').trigger();
+    });
+}
+
+function setDefaultDate() {
+    var today = new Date();
+    jQuery("#as_of_date").val(formatDate(today));
+}
+
+function formatDate(date) {
+    return date.getFullYear() + '-' +
+           String(date.getMonth() + 1).padStart(2, '0') + '-' +
+           String(date.getDate()).padStart(2, '0');
+}
+
+function clearFilters() {
+    jQuery("#branch").val('');
+    jQuery("#center").val('');
+    jQuery("#aging_bucket").val('all');
+    jQuery("#minimum_balance").val('');
+    setDefaultDate();
+
+    if (dataTable) {
+        dataTable.clear().draw();
+    }
+
+    jQuery("#summaryCards").hide();
+    showInitialState();
+}
+
+function loadReportData() {
+    console.log("Loading AR aging data...");
+
+    hideWelcomeMessage();
+
+    var data = {
+        as_of_date: jQuery("#as_of_date").val(),
+        branch: jQuery("#branch").val() || '',
+        center: jQuery("#center").val() || '',
+        aging_bucket: jQuery("#aging_bucket").val(),
+        minimum_balance: jQuery("#minimum_balance").val() || ''
+    };
+
+    showLoading();
+    hideNoDataMessage();
+
+    if (dataTable) {
+        dataTable.clear();
+    }
+
+    // Load summary
+    loadSummaryData(data);
+
+    jQuery.ajax({
+        type: "GET",
+        url: "{% url 'core:get_ar_aging_report_js' %}",
+        dataType: "json",
+        data: data,
+        beforeSend: function () {
+            jQuery("#btnSearch").prop('disabled', true);
+            jQuery("#searchText").text('Loading...');
+        },
+        success: function (response) {
+            hideLoading();
+            currentReportData = response;
+
+            console.log("Data loaded successfully:", response.length, "records");
+
+            if (!Array.isArray(response) || response.length === 0) {
+                showNoDataMessage();
+                return;
+            }
+
+            populateTable(response);
+        },
+        error: function (xhr, textStatus, errorThrown) {
+            hideLoading();
+            console.error("Error loading data:", xhr);
+            showErrorAlert("Error loading data: " + xhr.statusText);
+        },
+        complete: function() {
+            jQuery("#btnSearch").prop('disabled', false);
+            jQuery("#searchText").text('Search');
+        }
+    });
+}
+
+function loadSummaryData(data) {
+    jQuery.ajax({
+        type: "GET",
+        url: "{% url 'core:get_ar_aging_summary_js' %}",
+        dataType: "json",
+        data: data,
+        success: function (response) {
+            updateSummaryCards(response);
+            jQuery("#summaryCards").show();
+        },
+        error: function (xhr) {
+            console.error("Error loading summary:", xhr);
+        }
+    });
+}
+
+function populateTable(data) {
+    jQuery.each(data, function (i, item) {
+        var bucketClass = getBucketClass(item.aging_bucket);
+
+        dataTable.row.add([
+            item.child_admission + ' - ' + item.child_name,
+            item.memo_code,
+            item.memo_month,
+            item.days_outstanding,
+            '<span class="badge ' + bucketClass + '">' + item.aging_bucket_label + '</span>',
+            formatCurrency(item.gross_total),
+            formatCurrency(item.total_payments),
+            '<strong>' + formatCurrency(item.outstanding_balance) + '</strong>',
+            item.branch_name,
+            item.center_name
+        ]).draw(false);
+    });
+
+    setTimeout(function() {
+        dataTable.columns.adjust().responsive.recalc();
+    }, 100);
+}
+
+function getBucketClass(bucket) {
+    switch(bucket) {
+        case '0-30': return 'bg-success';
+        case '31-60': return 'bg-info';
+        case '61-90': return 'bg-warning';
+        case '90+': return 'bg-danger';
+        default: return 'bg-secondary';
+    }
+}
+
+function updateSummaryCards(summary) {
+    // Update bucket totals
+    summary.buckets.forEach(function(bucket) {
+        var bucketId = bucket.bucket.replace('-', '').replace('+', 'Plus');
+        jQuery("#bucket" + bucketId).text(formatNumber(bucket.total));
+        jQuery("#count" + bucketId).text(bucket.count + ' accounts');
+    });
+
+    // Update total
+    jQuery("#totalOutstanding").text('Rs. ' + formatNumber(summary.total_outstanding));
+    jQuery("#totalAccounts").text(summary.total_accounts + ' accounts');
+}
+
+function formatCurrency(amount) {
+    return 'Rs. ' + parseFloat(amount).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+function formatNumber(amount) {
+    return parseFloat(amount).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+function toggleSummaryView() {
+    var summaryCards = jQuery("#summaryCards");
+    var btn = jQuery("#btnSummary");
+
+    if (summaryCards.is(':visible')) {
+        summaryCards.hide();
+        btn.html('<i class="ri-bar-chart-line align-bottom me-1"></i> View Summary');
+    } else {
+        summaryCards.show();
+        btn.html('<i class="ri-table-line align-bottom me-1"></i> Hide Summary');
+    }
+}
+
+function showLoading() {
+    jQuery("#loadingMessage").show();
+    jQuery("#tableContainer").hide();
+}
+
+function hideLoading() {
+    jQuery("#loadingMessage").hide();
+    jQuery("#tableContainer").show();
+}
+
+function showInitialState() {
+    jQuery("#summaryCards").hide();
+    showWelcomeMessage();
+}
+
+function showWelcomeMessage() {
+    var welcomeHtml = '<div class="text-center py-5" id="welcomeMessage">';
+    welcomeHtml += '<i class="ri-calendar-todo-line display-4 text-primary"></i>';
+    welcomeHtml += '<h5 class="mt-3">AR Aging Report</h5>';
+    welcomeHtml += '<p class="text-muted">Select your criteria and click "Search" to view outstanding balances by aging.</p>';
+    welcomeHtml += '<p class="text-muted"><small>This report helps identify overdue accounts and prioritize collections.</small></p>';
+    welcomeHtml += '</div>';
+
+    jQuery("#tableContainer").html(welcomeHtml);
+}
+
+function hideWelcomeMessage() {
+    jQuery("#welcomeMessage").remove();
+    var tableHtml = '<table id="arAgingTable" class="table table-striped table-hover" style="width: 100%;">';
+    tableHtml += '<thead><tr>';
+    tableHtml += '<th>Child</th><th>Memo Code</th><th>Memo Month</th><th>Days</th><th>Bucket</th>';
+    tableHtml += '<th>Gross Total</th><th>Payments</th><th>Outstanding</th><th>Branch</th><th>Center</th>';
+    tableHtml += '</tr></thead><tbody></tbody></table>';
+
+    jQuery("#tableContainer").html(tableHtml);
+    initializeDataTable();
+}
+
+function showNoDataMessage() {
+    jQuery("#noDataMessage").show();
+    jQuery("#tableContainer").hide();
+}
+
+function hideNoDataMessage() {
+    jQuery("#noDataMessage").hide();
+    jQuery("#tableContainer").show();
+}
+
+function showErrorAlert(message) {
+    var alertHtml = '<div class="alert alert-danger alert-dismissible fade show" role="alert">';
+    alertHtml += '<i class="ri-error-warning-line me-2"></i>' + message;
+    alertHtml += '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+    alertHtml += '</div>';
+
+    jQuery("#mainReportSection").prepend(alertHtml);
+
+    setTimeout(function() {
+        jQuery(".alert-danger").fadeOut();
+    }, 5000);
+}
+
+</script>
+
+<script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'assets/js/app.js' %}"></script>
+
+{% endblock %}
