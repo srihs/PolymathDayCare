@@ -68,6 +68,7 @@ wheels/
 *.manifest
 *.spec
 qr/
+docs/
 
 # Installer logs
 pip-log.txt
@@ -139,4 +140,33 @@ GitHub.sublime-settings
 !.vscode/extensions.json
 .history
 
+# Claude Code settings (local only)
+.claude/settings.local.json
 settings.local.json
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Secrets and credentials
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# Static files collected for production
+staticfiles/
+
+# Documentation build artifacts (auto-generated)
+docs/FINANCE_REPORTS_IMPLEMENTATION_PLAN.md
