@@ -4452,6 +4452,7 @@ def attendanceReportsJS(request):
                 ),
             )
             .values(  # Structuring output
+                "child",  # Include child ID for package mapping lookup
                 "admission_number",
                 "child_name",
                 "date_logged",
@@ -4461,8 +4462,27 @@ def attendanceReportsJS(request):
             )
         )
 
+        # Build a cache of child package mappings for efficient lookup
+        # Get unique child IDs from the attendance logs
+        child_ids = set(log["child"] for log in attendance_logs)
+
+        # Get all active package mappings for these children
+        package_mappings = {}
+        for mapping in ChildPackageMapping.objects.filter(
+            child_id__in=child_ids, is_active=True
+        ).select_related(
+            "normal_package",
+            "vacation_package",
+            "holiday_package",
+            "flex_package",
+            "normal_package__package_type",
+        ):
+            package_mappings[mapping.child_id] = mapping
+
         # Now modify the records based on the scenario you described
         for log in attendance_logs:
+            child_id = log["child"]
+
             # If there is only one log, we check the time
             if log["log_count"] == 1:
                 in_time = log["in_time"]
@@ -4477,6 +4497,52 @@ def attendanceReportsJS(request):
                 else:
                     # If it's before 4:00 PM, we keep it as the in_time and set out_time to None
                     log["out_time"] = None
+
+            # Add package information
+            package_mapping = package_mappings.get(child_id)
+            if package_mapping:
+                # Determine active package name
+                if package_mapping.normal_package:
+                    pkg = package_mapping.normal_package
+                    log["package_name"] = pkg.package_name
+                    log["package_end_time"] = (
+                        pkg.to_time.strftime("%H:%M") if pkg.to_time else None
+                    )
+                elif package_mapping.flex_package:
+                    pkg = package_mapping.flex_package
+                    log["package_name"] = f"{pkg.package_name} (Flex)"
+                    log["package_end_time"] = None  # Flex packages don't have fixed end time
+                else:
+                    log["package_name"] = "No Package"
+                    log["package_end_time"] = None
+
+                # Calculate extra hours if both in_time and out_time exist
+                log["has_extra_hours"] = False
+                log["extra_hours_display"] = ""
+
+                if log["in_time"] and log["out_time"] and log["package_end_time"]:
+                    out_time = log["out_time"]
+                    package_end = datetime.strptime(
+                        log["package_end_time"], "%H:%M"
+                    ).time()
+
+                    if out_time > package_end:
+                        log["has_extra_hours"] = True
+                        # Calculate extra minutes
+                        out_dt = datetime.combine(datetime.today(), out_time)
+                        pkg_end_dt = datetime.combine(datetime.today(), package_end)
+                        extra_minutes = int((out_dt - pkg_end_dt).total_seconds() / 60)
+                        hours = extra_minutes // 60
+                        mins = extra_minutes % 60
+                        if hours > 0:
+                            log["extra_hours_display"] = f"{hours}h {mins}m"
+                        else:
+                            log["extra_hours_display"] = f"{mins}m"
+            else:
+                log["package_name"] = "No Mapping"
+                log["package_end_time"] = None
+                log["has_extra_hours"] = False
+                log["extra_hours_display"] = ""
 
     return JsonResponse(attendance_logs, safe=False)
 

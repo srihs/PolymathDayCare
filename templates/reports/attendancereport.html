@@ -72,7 +72,7 @@
                 <!-- Summary Cards -->
                 <div class="card-body" id="summaryCards" style="display: none;">
                     <div class="row">
-                        <div class="col-xl-4 col-md-6">
+                        <div class="col-xl-3 col-md-6">
                             <div class="card card-animate">
                                 <div class="card-body">
                                     <div class="d-flex align-items-center">
@@ -95,7 +95,7 @@
                             </div>
                         </div>
 
-                        <div class="col-xl-4 col-md-6">
+                        <div class="col-xl-3 col-md-6">
                             <div class="card card-animate">
                                 <div class="card-body">
                                     <div class="d-flex align-items-center">
@@ -118,7 +118,7 @@
                             </div>
                         </div>
 
-                        <div class="col-xl-4 col-md-6">
+                        <div class="col-xl-3 col-md-6">
                             <div class="card card-animate">
                                 <div class="card-body">
                                     <div class="d-flex align-items-center">
@@ -133,6 +133,29 @@
                                             <div class="avatar-sm">
                                                 <span class="avatar-title bg-danger-subtle rounded fs-3">
                                                     <i class="bx bx-log-out text-danger"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Extra Hours</p>
+                                            <div class="d-flex align-items-center">
+                                                <h4 class="fw-semibold flex-shrink-0 mb-0" id="extraHoursCount">0</h4>
+                                                <span class="text-muted ms-2">records</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-sm">
+                                                <span class="avatar-title bg-info-subtle rounded fs-3">
+                                                    <i class="bx bx-time-five text-info"></i>
                                                 </span>
                                             </div>
                                         </div>
@@ -176,9 +199,11 @@
                                 <tr>
                                     <th style="min-width: 100px;">Child Code</th>
                                     <th style="min-width: 150px;">Child Name</th>
+                                    <th style="min-width: 150px;">Package</th>
                                     <th style="min-width: 100px;">Date</th>
                                     <th style="min-width: 80px;">In Time</th>
                                     <th style="min-width: 80px;">Out Time</th>
+                                    <th style="min-width: 100px;">Extra Hours</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -271,7 +296,7 @@ function initializeDataTable() {
              '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
         pageLength: 50,
         buttons: ["excel", "print"],
-        order: [[2, "desc"]], // Order by date descending
+        order: [[3, "desc"]], // Order by date descending (column index 3 now)
         language: {
             emptyTable: "No attendance records found",
             info: "Showing _START_ to _END_ of _TOTAL_ records",
@@ -379,6 +404,7 @@ function displayAttendanceData(data) {
 
     var missingIn = 0;
     var missingOut = 0;
+    var extraHoursCount = 0;
 
     jQuery.each(data, function(i, item) {
         var inTime = item.in_time ? formatTime(item.in_time) : '<span class="badge bg-danger">No record</span>';
@@ -387,12 +413,26 @@ function displayAttendanceData(data) {
         if (!item.in_time) missingIn++;
         if (!item.out_time) missingOut++;
 
+        // Package name display
+        var packageName = item.package_name || '<span class="text-muted">-</span>';
+
+        // Extra hours display with badge
+        var extraHours = '';
+        if (item.has_extra_hours && item.extra_hours_display) {
+            extraHours = '<span class="badge bg-warning text-dark">' + item.extra_hours_display + '</span>';
+            extraHoursCount++;
+        } else {
+            extraHours = '<span class="text-muted">-</span>';
+        }
+
         dataTable.row.add([
             item.admission_number,
             item.child_name,
+            packageName,
             formatDate(item.date_logged),
             inTime,
-            outTime
+            outTime,
+            extraHours
         ]);
     });
 
@@ -402,6 +442,7 @@ function displayAttendanceData(data) {
     jQuery('#totalRecords').text(data.length);
     jQuery('#missingInTime').text(missingIn);
     jQuery('#missingOutTime').text(missingOut);
+    jQuery('#extraHoursCount').text(extraHoursCount);
 }
 
 function formatTime(time) {
