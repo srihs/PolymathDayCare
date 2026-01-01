@@ -9777,6 +9777,8 @@ def getChildPackageDetails(request):
         no_days_month = 0
         package_term = ""
 
+        # Priority order: normal_package > flex_package > holiday_package
+        # Holiday package is only a fallback for children without normal/flex packages
         if package_mapping.normal_package:
             pkg = package_mapping.normal_package
             package_name = pkg.package_name
@@ -9789,6 +9791,16 @@ def getChildPackageDetails(request):
             no_days_week = pkg.no_days_week or 0
             no_days_month = pkg.no_days_months or 0
             package_term = pkg.package_term.package_type_name if pkg.package_term else "Fixed"
+        elif package_mapping.flex_package:
+            pkg = package_mapping.flex_package
+            package_name = f"{pkg.package_name} (Flex)"
+            package_fee = float(pkg.package_total)
+            package_type = pkg.package_type.package_type_name if pkg.package_type else "Flex"
+            package_code = pkg.package_code
+            no_hours = float(pkg.no_hours) if pkg.no_hours else 0
+            no_days_week = pkg.no_days_week or 0
+            no_days_month = pkg.no_days_months or 0
+            package_term = pkg.package_term.package_type_name if pkg.package_term else "Flexible"
         elif package_mapping.holiday_package:
             pkg = package_mapping.holiday_package
             package_name = f"{pkg.package_name} (Holiday)"
@@ -9801,16 +9813,6 @@ def getChildPackageDetails(request):
             no_days_week = pkg.no_days_week or 0
             no_days_month = pkg.no_days_months or 0
             package_term = pkg.package_term.package_type_name if pkg.package_term else "Fixed"
-        elif package_mapping.flex_package:
-            pkg = package_mapping.flex_package
-            package_name = f"{pkg.package_name} (Flex)"
-            package_fee = float(pkg.package_total)
-            package_type = pkg.package_type.package_type if pkg.package_type else "Flex"
-            package_code = pkg.package_code
-            no_hours = float(pkg.no_hours) if pkg.no_hours else 0
-            no_days_week = pkg.no_days_week or 0
-            no_days_month = pkg.no_days_months or 0
-            package_term = pkg.package_term.package_type_name if pkg.package_term else "Flexible"
 
         # Get discount information
         discount_rate = 0
