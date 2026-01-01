@@ -5751,14 +5751,20 @@ def savePackageRequest(request):
                         request,
                         "You can only select one package: either a new fixed package or a new flex package.",
                     )
-                if request.POST.get("old_holiday_package") is not None:
+                if (
+                    request.POST.get("old_holiday_package") is not None
+                    and request.POST.get("old_holiday_package") != ""
+                ):
                     objHolidayPackage = FixedPackage.objects.filter(
                         pk=request.POST.get("old_holiday_package")
                     ).first()
                     if objHolidayPackage is not None:
                         objPackageChangeRequest.old_holiday_package = objHolidayPackage
                 # Handle vacation package - if new not selected, use old
-                if request.POST.get("old_vacation_package") is not None:
+                if (
+                    request.POST.get("old_vacation_package") is not None
+                    and request.POST.get("old_vacation_package") != ""
+                ):
                     objOldVacationPackage = FixedPackage.objects.filter(
                         pk=request.POST.get("old_vacation_package")
                     ).first()
