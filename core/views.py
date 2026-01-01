@@ -9765,19 +9765,52 @@ def getChildPackageDetails(request):
                 status=404,
             )
 
-        # Determine which package is active
+        # Determine which package is active and gather details
         package_name = "Unknown Package"
         package_fee = 0
+        package_type = ""
+        package_code = ""
+        from_time = ""
+        to_time = ""
+        no_hours = 0
+        no_days_week = 0
+        no_days_month = 0
+        package_term = ""
 
         if package_mapping.normal_package:
-            package_name = package_mapping.normal_package.package_name
-            package_fee = float(package_mapping.normal_package.package_total)
+            pkg = package_mapping.normal_package
+            package_name = pkg.package_name
+            package_fee = float(pkg.package_total)
+            package_type = pkg.package_type.package_type_name if pkg.package_type else "Normal"
+            package_code = pkg.package_code
+            from_time = pkg.from_time.strftime("%I:%M %p") if pkg.from_time else ""
+            to_time = pkg.to_time.strftime("%I:%M %p") if pkg.to_time else ""
+            no_hours = float(pkg.no_hours) if pkg.no_hours else 0
+            no_days_week = pkg.no_days_week or 0
+            no_days_month = pkg.no_days_months or 0
+            package_term = pkg.package_term.package_type_name if pkg.package_term else "Fixed"
         elif package_mapping.holiday_package:
-            package_name = f"{package_mapping.holiday_package.package_name} (Holiday)"
-            package_fee = float(package_mapping.holiday_package.package_total)
+            pkg = package_mapping.holiday_package
+            package_name = f"{pkg.package_name} (Holiday)"
+            package_fee = float(pkg.package_total)
+            package_type = "Holiday"
+            package_code = pkg.package_code
+            from_time = pkg.from_time.strftime("%I:%M %p") if pkg.from_time else ""
+            to_time = pkg.to_time.strftime("%I:%M %p") if pkg.to_time else ""
+            no_hours = float(pkg.no_hours) if pkg.no_hours else 0
+            no_days_week = pkg.no_days_week or 0
+            no_days_month = pkg.no_days_months or 0
+            package_term = pkg.package_term.package_type_name if pkg.package_term else "Fixed"
         elif package_mapping.flex_package:
-            package_name = f"{package_mapping.flex_package.package_name} (Flex)"
-            package_fee = float(package_mapping.flex_package.package_total)
+            pkg = package_mapping.flex_package
+            package_name = f"{pkg.package_name} (Flex)"
+            package_fee = float(pkg.package_total)
+            package_type = pkg.package_type.package_type if pkg.package_type else "Flex"
+            package_code = pkg.package_code
+            no_hours = float(pkg.no_hours) if pkg.no_hours else 0
+            no_days_week = pkg.no_days_week or 0
+            no_days_month = pkg.no_days_months or 0
+            package_term = pkg.package_term.package_type_name if pkg.package_term else "Flexible"
 
         # Get discount information
         discount_rate = 0
@@ -9790,6 +9823,18 @@ def getChildPackageDetails(request):
             discount_rate = float(package_mapping.discount.discount_rate)
             discount_name = package_mapping.discount.discount_name
 
+        # Get effective dates
+        effective_from = (
+            package_mapping.effective_from.strftime("%Y-%m-%d")
+            if package_mapping.effective_from
+            else ""
+        )
+        effective_to = (
+            package_mapping.effective_to.strftime("%Y-%m-%d")
+            if package_mapping.effective_to
+            else "Present"
+        )
+
         return JsonResponse(
             {
                 "package_name": package_name,
@@ -9798,6 +9843,17 @@ def getChildPackageDetails(request):
                 "admission_number": child.admission_number,
                 "discount_rate": discount_rate,
                 "discount_name": discount_name,
+                # Additional package details
+                "package_code": package_code,
+                "package_type": package_type,
+                "package_term": package_term,
+                "from_time": from_time,
+                "to_time": to_time,
+                "no_hours": no_hours,
+                "no_days_week": no_days_week,
+                "no_days_month": no_days_month,
+                "effective_from": effective_from,
+                "effective_to": effective_to,
             }
         )
 

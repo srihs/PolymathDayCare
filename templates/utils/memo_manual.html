@@ -294,8 +294,8 @@
         {% csrf_token %}
         
         <!-- Basic Information -->
-        <div class="row form-row">  
-            <div class="col-12">
+        <div class="row form-row">
+            <div class="col-md-6">
                 <label class="form-label">Child *</label>
                 <select class="form-control" name="child" id="child" required>
                     <option value="">Search by admission number or child name...</option>
@@ -304,6 +304,44 @@
                     {% endfor %}
                 </select>
                 <small class="text-muted">Search by typing admission number or child name ({{ children.count }} children available)</small>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Current Package Details</label>
+                <div id="package-info-container" class="border rounded p-3 bg-light" style="min-height: 80px;">
+                    <div id="package-info-placeholder" class="text-muted text-center py-2">
+                        <i class="ri-information-line me-1"></i> Select a child to view package details
+                    </div>
+                    <div id="package-info-content" style="display: none;">
+                        <div class="row">
+                            <div class="col-4">
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Package Name</small>
+                                    <strong id="pkg-name">-</strong>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Package Fee</small>
+                                    <span id="pkg-fee" class="text-success fw-bold">-</span>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Timing</small>
+                                    <span id="pkg-timing">-</span>
+                                </div>
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Hours / Days</small>
+                                    <span id="pkg-hours-days">-</span>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="mb-2">
+                                    <small class="text-muted d-block">Discount</small>
+                                    <span id="pkg-discount">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -1948,6 +1986,70 @@ function showDiscountInfo(discountName, discountRate) {
     `);
 }
 
+// Function to load and display package details for selected child
+function loadPackageDetails(childId) {
+    if (!childId) {
+        clearPackageInfo();
+        return;
+    }
+
+    // Show loading state
+    $('#package-info-placeholder').html('<i class="ri-loader-4-line ri-spin me-1"></i> Loading package details...').show();
+    $('#package-info-content').hide();
+
+    $.ajax({
+        url: "{% url 'core:get_child_package_details' %}",
+        data: { child_id: childId },
+        success: function(response) {
+            // Update package info display
+            $('#pkg-name').text(response.package_name || '-');
+
+            // Format package fee
+            const fee = parseFloat(response.package_fee) || 0;
+            $('#pkg-fee').text('Rs. ' + fee.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+
+            // Format timing
+            let timing = '-';
+            if (response.from_time && response.to_time) {
+                timing = response.from_time + ' - ' + response.to_time;
+            }
+            $('#pkg-timing').text(timing);
+
+            // Format hours/days
+            let hoursDays = '-';
+            if (response.no_hours) {
+                hoursDays = response.no_hours + ' hrs';
+                if (response.no_days_week) {
+                    hoursDays += ' / ' + response.no_days_week + ' days/wk';
+                }
+            }
+            $('#pkg-hours-days').text(hoursDays);
+
+            // Format discount
+            let discount = 'None';
+            if (response.discount_rate && response.discount_rate > 0) {
+                discount = response.discount_name + ' (' + response.discount_rate + '%)';
+            }
+            $('#pkg-discount').text(discount);
+
+            // Show the content
+            $('#package-info-placeholder').hide();
+            $('#package-info-content').show();
+        },
+        error: function() {
+            $('#package-info-placeholder').html('<i class="ri-error-warning-line me-1 text-warning"></i> Unable to load package details').show();
+            $('#package-info-content').hide();
+        }
+    });
+}
+
+// Function to clear package info display
+function clearPackageInfo() {
+    $('#package-info-placeholder').html('<i class="ri-information-line me-1"></i> Select a child to view package details').show();
+    $('#package-info-content').hide();
+    $('#pkg-name, #pkg-fee, #pkg-timing, #pkg-hours-days, #pkg-discount').text('-');
+}
+
 function clearAllManualFields() {
     // Clear all amount fields (both hidden and display inputs)
     // Outstanding hidden inputs (now includes extra charges)
@@ -2218,6 +2320,8 @@ $(document).ready(function() {
         if (childId) {
             clearAllManualFields();
             updateMonthNames();
+            // Load package details immediately when child is selected
+            loadPackageDetails(childId);
 
             const month = $('#month').val();
             const year = $('#year').val();
@@ -2236,6 +2340,7 @@ $(document).ready(function() {
             }
         } else {
             clearAllManualFields();
+            clearPackageInfo();
         }
     });
 
