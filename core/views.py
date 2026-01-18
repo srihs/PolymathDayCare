@@ -82,6 +82,7 @@ from .forms import (
 )
 from .models import (
     AttendanceLog,
+    AttendanceLogAudit,
     Branch,
     CenterChangerequest,
     Child,
@@ -17126,4 +17127,560 @@ def getExtraHoursTopUsersJS(request):
         return JsonResponse(result, safe=False)
 
     except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# Attendance Log Editing Functions (Superuser Only)
+
+
+def get_client_ip(request):
+    """
+    Extract client IP address from request headers.
+
+    Checks X-Forwarded-For header first (for proxied requests),
+    falls back to REMOTE_ADDR.
+
+    Args:
+        request: HttpRequest object
+
+    Returns:
+        str: Client IP address or None if not available
+    """
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(",")[0].strip()
+    else:
+        ip = request.META.get("REMOTE_ADDR")
+    return ip
+
+
+@login_required
+def getAttendanceLogsForEdit(request):
+    """
+    Render the attendance log editing page for superusers.
+
+    This view provides the interface for superusers to search, view, and edit
+    attendance log records. Only superusers have access to modify historical
+    attendance data to maintain audit integrity.
+
+    Args:
+        request (HttpRequest): The HTTP request object
+
+    Returns:
+        HttpResponse: Renders attendance_log_edit.html template for superusers
+        HttpResponse: Redirects to home page for non-superusers
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Requires superuser status for access
+        - Non-superusers are redirected with an error message
+
+    Template Context:
+        - UserName: Current authenticated user's username
+        - children: QuerySet of active enrolled children for filtering
+        - centers: QuerySet of active daycare centers for filtering
+
+    Business Logic:
+        - Provides search interface for attendance records
+        - Allows filtering by child, date range, and center
+        - Supports editing of date_logged and time_logged fields
+        - All edits are tracked in AttendanceLogAudit model
+    """
+    if not request.user.is_superuser:
+        messages.error(request, "You do not have permission to access this page.")
+        return redirect("core:index")
+
+    # Get active enrolled children for dropdown filter
+    children = Child.objects.filter(
+        is_active=True,
+        is_enrolled=True,
+        enrollement_approved=True,
+    ).order_by("admission_number")
+
+    # Get active centers for dropdown filter
+    centers = DayCare.objects.filter(is_active=True).order_by("daycare_name")
+
+    context = {
+        "UserName": request.user.username,
+        "children": children,
+        "centers": centers,
+    }
+
+    return render(request, "../templates/utils/attendance_log_edit.html", context)
+
+
+@login_required
+def getAttendanceLogsForEditJS(request):
+    """
+    Provide AJAX-based attendance log data for the edit interface.
+
+    This view returns filtered attendance log records in JSON format for
+    display in the attendance log editing DataTable. Only superusers can
+    access this endpoint.
+
+    Args:
+        request (HttpRequest): AJAX GET request with optional filter parameters:
+            - child_id: Integer child ID for filtering
+            - from_date: String start date in YYYY-MM-DD format
+            - to_date: String end date in YYYY-MM-DD format
+            - center_id: Integer center ID for filtering
+
+    Returns:
+        JsonResponse: JSON array of attendance log records with:
+            - id: Integer attendance log ID
+            - child_name: String child's full name
+            - admission_number: String child's admission number
+            - date_logged: String date in YYYY-MM-DD format
+            - time_logged: String time in HH:MM:SS format
+            - center_name: String name of the daycare center
+            - last_updated_by: String username of last updater
+            - last_updated_at: String datetime of last update
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Requires superuser status (returns 403 JSON error if not)
+        - Only returns active attendance records
+
+    Query Optimization:
+        - Uses select_related for child and enrollment data
+        - Applies filters efficiently using Q objects
+        - Orders results by date descending for recent records first
+    """
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {"error": "Permission denied. Superuser access required."}, status=403
+        )
+
+    try:
+        # Get filter parameters
+        child_id = request.GET.get("child_id")
+        from_date = request.GET.get("from_date")
+        to_date = request.GET.get("to_date")
+        center_id = request.GET.get("center_id")
+
+        # Build filter conditions
+        filters = Q(is_active=True)
+
+        if child_id:
+            filters &= Q(child_id=child_id)
+
+        if from_date:
+            filters &= Q(date_logged__gte=from_date)
+
+        if to_date:
+            filters &= Q(date_logged__lte=to_date)
+
+        # Query attendance logs with related data
+        attendance_logs = AttendanceLog.objects.filter(filters).select_related(
+            "child"
+        ).order_by("-date_logged", "-time_logged")
+
+        # If center filter is specified, filter by enrollment center
+        if center_id:
+            # Get children enrolled at the specified center
+            enrolled_children = ChildEnrollment.objects.filter(
+                center_id=center_id,
+                status="APPROVED",
+                is_active=True,
+            ).values_list("child_id", flat=True)
+            attendance_logs = attendance_logs.filter(child_id__in=enrolled_children)
+
+        # Build result list
+        result = []
+        for log in attendance_logs:
+            # Get enrollment info for center name
+            enrollment = ChildEnrollment.objects.filter(
+                child=log.child,
+                status="APPROVED",
+                is_active=True,
+            ).select_related("center").first()
+
+            center_name = ""
+            if enrollment and enrollment.center:
+                center_name = enrollment.center.daycare_name
+
+            result.append({
+                "id": log.id,
+                "child_name": f"{log.child.child_first_name} {log.child.child_last_name}",
+                "admission_number": log.child.admission_number,
+                "date_logged": log.date_logged.strftime("%Y-%m-%d"),
+                "time_logged": log.time_logged.strftime("%H:%M:%S"),
+                "center_name": center_name,
+                "last_updated_by": log.user_updated or log.user_created or "System",
+                "last_updated_at": log.date_updated.strftime("%Y-%m-%d %H:%M:%S")
+                if log.date_updated
+                else (
+                    log.date_created.strftime("%Y-%m-%d %H:%M:%S")
+                    if log.date_created
+                    else "N/A"
+                ),
+            })
+
+        return JsonResponse(result, safe=False)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def updateAttendanceLogEntry(request):
+    """
+    Update an attendance log record and create an audit trail.
+
+    This view handles POST requests to update the date_logged and time_logged
+    fields of an attendance record. All changes are tracked in the
+    AttendanceLogAudit model for compliance and auditing purposes.
+
+    Args:
+        request (HttpRequest): POST request with:
+            - attendance_id: Integer ID of the attendance record to update
+            - new_date: String new date in YYYY-MM-DD format
+            - new_time: String new time in HH:MM or HH:MM:SS format
+            - edit_reason: String optional reason for the edit
+
+    Returns:
+        JsonResponse: Success response with:
+            - success: Boolean True
+            - message: String success message
+            - attendance_id: Integer ID of updated record
+        JsonResponse: Error response with:
+            - error: String error message
+            - status: HTTP status code (400, 403, 404, 405, or 500)
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Requires superuser status (returns 403 JSON error if not)
+        - Records client IP address for audit trail
+        - Creates immutable audit record before modifying data
+
+    Business Logic:
+        - Validates attendance record exists and is active
+        - Creates AttendanceLogAudit record with old and new values
+        - Updates the attendance log record with new values
+        - Updates audit fields (user_updated, date_updated)
+
+    Audit Trail:
+        - Records old_date_logged and old_time_logged
+        - Records new_date_logged and new_time_logged
+        - Records edited_by username and edited_at timestamp
+        - Records edit_reason if provided
+        - Records client IP address
+
+    Error Handling:
+        - Returns 400 for missing required parameters
+        - Returns 403 for non-superuser access
+        - Returns 404 for non-existent attendance record
+        - Returns 405 for non-POST requests
+        - Returns 500 for unexpected errors
+    """
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {"error": "Permission denied. Superuser access required."}, status=403
+        )
+
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method. POST required."}, status=405)
+
+    try:
+        # Get POST parameters
+        attendance_id = request.POST.get("attendance_id")
+        new_date = request.POST.get("new_date")
+        new_time = request.POST.get("new_time")
+        edit_reason = request.POST.get("edit_reason", "")
+
+        # Validate required parameters
+        if not attendance_id:
+            return JsonResponse({"error": "Attendance ID is required."}, status=400)
+
+        if not new_date:
+            return JsonResponse({"error": "New date is required."}, status=400)
+
+        if not new_time:
+            return JsonResponse({"error": "New time is required."}, status=400)
+
+        # Get the attendance record
+        try:
+            attendance = AttendanceLog.objects.get(id=attendance_id, is_active=True)
+        except AttendanceLog.DoesNotExist:
+            return JsonResponse({"error": "Attendance record not found."}, status=404)
+
+        # Parse new date and time
+        try:
+            parsed_date = datetime.strptime(new_date, "%Y-%m-%d").date()
+        except ValueError:
+            return JsonResponse(
+                {"error": "Invalid date format. Use YYYY-MM-DD."}, status=400
+            )
+
+        try:
+            # Handle both HH:MM and HH:MM:SS formats
+            if len(new_time) == 5:
+                parsed_time = datetime.strptime(new_time, "%H:%M").time()
+            else:
+                parsed_time = datetime.strptime(new_time, "%H:%M:%S").time()
+        except ValueError:
+            return JsonResponse(
+                {"error": "Invalid time format. Use HH:MM or HH:MM:SS."}, status=400
+            )
+
+        # Get client IP address
+        client_ip = get_client_ip(request)
+
+        # Create audit record before making changes
+        with transaction.atomic():
+            # Create audit trail entry
+            AttendanceLogAudit.objects.create(
+                attendance_log=attendance,
+                child=attendance.child,
+                old_date_logged=attendance.date_logged,
+                old_time_logged=attendance.time_logged,
+                new_date_logged=parsed_date,
+                new_time_logged=parsed_time,
+                edited_by=request.user.username,
+                edit_reason=edit_reason if edit_reason else None,
+                ip_address=client_ip,
+                user_created=request.user.username,
+            )
+
+            # Update the attendance record
+            attendance.date_logged = parsed_date
+            attendance.time_logged = parsed_time
+            attendance.user_updated = request.user.username
+            attendance.save(update_fields=["date_logged", "time_logged", "user_updated", "date_updated"])
+
+        return JsonResponse({
+            "success": True,
+            "message": "Attendance record updated successfully.",
+            "attendance_id": attendance_id,
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getAttendanceLogByIdJS(request, pk):
+    """
+    Retrieve a single attendance log record by ID for editing.
+
+    This view returns detailed information about a specific attendance log
+    record for display in the edit modal. Only superusers can access this
+    endpoint.
+
+    Args:
+        request (HttpRequest): GET request
+        pk (int): Primary key of the attendance log record
+
+    Returns:
+        JsonResponse: Success response with:
+            - success: Boolean True
+            - data: Object containing:
+                - id: Integer attendance log ID
+                - child_id: Integer child ID
+                - child_name: String child's full name
+                - admission_number: String child's admission number
+                - date_logged: String date in YYYY-MM-DD format
+                - time_logged: String time in HH:MM:SS format
+                - center_name: String daycare center name
+                - audit_count: Integer number of previous edits
+        JsonResponse: Error response with:
+            - error: String error message
+            - status: HTTP status code (403, 404, or 500)
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Requires superuser status (returns 403 JSON error if not)
+
+    Business Logic:
+        - Returns full attendance record details for edit form population
+        - Includes audit count to show edit history
+        - Includes center name from active enrollment
+    """
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {"error": "Permission denied. Superuser access required."}, status=403
+        )
+
+    try:
+        # Get the attendance record
+        try:
+            attendance = AttendanceLog.objects.select_related("child").get(
+                id=pk, is_active=True
+            )
+        except AttendanceLog.DoesNotExist:
+            return JsonResponse({"error": "Attendance record not found."}, status=404)
+
+        # Get enrollment info for center name
+        enrollment = ChildEnrollment.objects.filter(
+            child=attendance.child,
+            status="APPROVED",
+            is_active=True,
+        ).select_related("center").first()
+
+        center_name = ""
+        if enrollment and enrollment.center:
+            center_name = enrollment.center.daycare_name
+
+        # Get audit count for this record
+        audit_count = AttendanceLogAudit.objects.filter(
+            attendance_log=attendance
+        ).count()
+
+        data = {
+            "id": attendance.id,
+            "child_id": attendance.child.id,
+            "child_name": f"{attendance.child.child_first_name} {attendance.child.child_last_name}",
+            "admission_number": attendance.child.admission_number,
+            "date_logged": attendance.date_logged.strftime("%Y-%m-%d"),
+            "time_logged": attendance.time_logged.strftime("%H:%M:%S"),
+            "center_name": center_name,
+            "audit_count": audit_count,
+        }
+
+        return JsonResponse({"success": True, "data": data})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getAttendanceAuditTrail(request):
+    """
+    Render the attendance audit trail page for superusers.
+
+    This view provides a read-only interface for superusers to view all changes
+    made to attendance log records. The audit trail records are immutable and
+    provide a complete history of all edits.
+
+    Args:
+        request (HttpRequest): The HTTP request object
+
+    Returns:
+        HttpResponse: Renders attendance_audit_trail.html template for superusers
+        HttpResponse: Redirects to home page for non-superusers
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Requires superuser status for access
+        - Non-superusers are redirected with an error message
+
+    Template Context:
+        - UserName: Current authenticated user's username
+        - children: QuerySet of active enrolled children for filtering
+
+    Business Logic:
+        - Provides search interface for audit trail records
+        - Allows filtering by child and date range (edited date)
+        - Shows: child name, admission no, old/new date/time, edited by,
+          edited at, edit reason, and IP address
+    """
+    if not request.user.is_superuser:
+        messages.error(request, "You do not have permission to access this page.")
+        return redirect("core:home")
+
+    # Get active enrolled children for dropdown filter
+    children = Child.objects.filter(
+        is_active=True,
+        is_enrolled=True,
+        enrollement_approved=True,
+    ).order_by("admission_number")
+
+    context = {
+        "UserName": request.user.username,
+        "children": children,
+    }
+
+    return render(request, "../templates/utils/attendance_audit_trail.html", context)
+
+
+@login_required
+def getAttendanceAuditTrailJS(request):
+    """
+    Provide AJAX-based attendance audit trail data.
+
+    This view returns filtered audit trail records in JSON format for
+    display in the audit trail DataTable. Only superusers can access
+    this endpoint.
+
+    Args:
+        request (HttpRequest): AJAX GET request with optional filter parameters:
+            - child_id: Integer child ID for filtering
+            - from_date: String start date in YYYY-MM-DD format (filters edited_at)
+            - to_date: String end date in YYYY-MM-DD format (filters edited_at)
+
+    Returns:
+        JsonResponse: JSON array of audit trail records with:
+            - id: Integer audit record ID
+            - child_name: String child's full name
+            - admission_number: String child's admission number
+            - old_date_logged: String original date in YYYY-MM-DD format
+            - old_time_logged: String original time in HH:MM:SS format
+            - new_date_logged: String new date in YYYY-MM-DD format
+            - new_time_logged: String new time in HH:MM:SS format
+            - edited_by: String username of editor
+            - edited_at: String datetime of edit in ISO format
+            - edit_reason: String reason for edit (nullable)
+            - ip_address: String IP address of editor (nullable)
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Requires superuser status (returns 403 JSON error if not)
+
+    Query Optimization:
+        - Uses select_related for child data
+        - Applies filters efficiently using Q objects
+        - Orders results by edited_at descending for recent edits first
+    """
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {"error": "Permission denied. Superuser access required."}, status=403
+        )
+
+    try:
+        # Get filter parameters
+        child_id = request.GET.get("child_id")
+        from_date = request.GET.get("from_date")
+        to_date = request.GET.get("to_date")
+
+        # Build filter conditions
+        filters = Q(is_active=True)
+
+        if child_id:
+            filters &= Q(child_id=child_id)
+
+        if from_date:
+            filters &= Q(edited_at__date__gte=from_date)
+
+        if to_date:
+            filters &= Q(edited_at__date__lte=to_date)
+
+        # Query audit records with related data
+        audit_records = AttendanceLogAudit.objects.filter(filters).select_related(
+            "child"
+        ).order_by("-edited_at")
+
+        # Build result list
+        result = []
+        for audit in audit_records:
+            result.append({
+                "id": audit.id,
+                "child_name": f"{audit.child.child_first_name} {audit.child.child_last_name}",
+                "admission_number": audit.child.admission_number,
+                "old_date_logged": audit.old_date_logged.strftime("%Y-%m-%d"),
+                "old_time_logged": audit.old_time_logged.strftime("%H:%M:%S"),
+                "new_date_logged": audit.new_date_logged.strftime("%Y-%m-%d"),
+                "new_time_logged": audit.new_time_logged.strftime("%H:%M:%S"),
+                "edited_by": audit.edited_by,
+                "edited_at": audit.edited_at.strftime("%Y-%m-%d %H:%M:%S"),
+                "edit_reason": audit.edit_reason or "",
+                "ip_address": audit.ip_address or "",
+            })
+
+        return JsonResponse(result, safe=False)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JsonResponse({"error": str(e)}, status=500)

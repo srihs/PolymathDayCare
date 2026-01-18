@@ -515,6 +515,67 @@ class AttendanceLog(BaseClass):
         )
 
 
+class AttendanceLogAudit(BaseClass):
+    """
+    Audit trail for tracking all changes made to attendance log records.
+    Stores old and new values for date_logged and time_logged fields,
+    along with who made the change and when.
+    """
+
+    attendance_log = models.ForeignKey(
+        "AttendanceLog",
+        on_delete=models.CASCADE,
+        related_name="audit_trail",
+        help_text="The attendance log record that was edited",
+    )
+    child = models.ForeignKey(
+        "Child",
+        on_delete=models.CASCADE,
+        related_name="attendance_audits",
+        help_text="Child reference for easier querying",
+    )
+
+    # Old values before edit
+    old_date_logged = models.DateField(help_text="Original date logged before edit")
+    old_time_logged = models.TimeField(help_text="Original time logged before edit")
+
+    # New values after edit
+    new_date_logged = models.DateField(help_text="New date logged after edit")
+    new_time_logged = models.TimeField(help_text="New time logged after edit")
+
+    # Edit metadata
+    edited_by = models.CharField(
+        max_length=50, help_text="Username of the person who made the change"
+    )
+    edited_at = models.DateTimeField(
+        default=timezone.now, help_text="Timestamp when the change was made"
+    )
+    edit_reason = models.TextField(
+        null=True, blank=True, help_text="Optional reason for the edit"
+    )
+    ip_address = models.GenericIPAddressField(
+        null=True, blank=True, help_text="IP address of the editor"
+    )
+
+    class Meta:
+        verbose_name = "Attendance Log Audit"
+        verbose_name_plural = "Attendance Log Audits"
+        db_table = "dc_attendance_log_audit"
+        ordering = ["-edited_at"]
+        indexes = [
+            models.Index(fields=["child", "edited_at"]),
+            models.Index(fields=["attendance_log", "edited_at"]),
+            models.Index(fields=["edited_by", "edited_at"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.child.admission_number} - "
+            f"{self.old_date_logged} -> {self.new_date_logged} "
+            f"(edited by {self.edited_by} at {self.edited_at.strftime('%Y-%m-%d %H:%M')})"
+        )
+
+
 class ExtraChargesHistory(BaseClass):
     extra_charges_after530 = models.ForeignKey(
         ExtraHoursAfter530, on_delete=models.CASCADE, null=True, blank=True

@@ -1,0 +1,678 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block UserName %}{{ UserName }}{% endblock %}
+{% block PageTitle %}Attendance Log Edit{% endblock %}
+{% block Title %}UTILITIES{% endblock %}
+{% block functionTitle %}ATTENDANCE LOG EDIT{% endblock %}
+
+{% block content %}
+
+<!-- Superuser Warning Banner -->
+<div class="alert alert-danger border-2 shadow-sm mb-4" role="alert">
+  <div class="d-flex align-items-center">
+    <i class="ri-shield-user-line fs-3 me-3"></i>
+    <div>
+      <h5 class="alert-heading mb-1">Superuser Access Only</h5>
+      <p class="mb-0">This page allows direct editing of attendance records. All changes are logged and auditable. Use with caution.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Messages Section -->
+<div id="messagesDiv">
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show" role="alert">
+        <strong><center>{{ message }}</center></strong>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
+
+<!-- Search and Filter Card -->
+<div class="card mb-3">
+  <div class="card-header border-0">
+    <div class="d-flex align-items-center">
+      <h5 class="card-title mb-0 flex-grow-1">
+        <i class="ri-search-line me-2"></i>Search Attendance Logs
+      </h5>
+      <div class="flex-shrink-0">
+        <a href="{% url 'core:attendance_audit_trail' %}" class="btn btn-info btn-sm">
+          <i class="ri-history-line me-1"></i>View Audit Trail
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <!-- Child Dropdown -->
+      <div class="col-md-4">
+        <label for="childFilter" class="form-label">Child</label>
+        <select id="childFilter" class="form-select select2-child">
+          <option value="">All Children</option>
+          {% for child in children %}
+            <option value="{{ child.id }}" data-admission="{{ child.admission_number }}">
+              {{ child.admission_number }} - {{ child.child_first_name }} {{ child.child_last_name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- From Date -->
+      <div class="col-md-3">
+        <label for="fromDate" class="form-label">From Date</label>
+        <input type="text" id="fromDate" class="form-control flatpickr-date" placeholder="Select date">
+      </div>
+
+      <!-- To Date -->
+      <div class="col-md-3">
+        <label for="toDate" class="form-label">To Date</label>
+        <input type="text" id="toDate" class="form-control flatpickr-date" placeholder="Select date">
+      </div>
+
+      <!-- Search Button -->
+      <div class="col-md-2">
+        <label class="form-label">&nbsp;</label>
+        <div class="d-grid">
+          <button type="button" class="btn btn-primary" id="searchBtn">
+            <i class="ri-search-line me-1"></i> Search
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Results Table Card -->
+<div class="card">
+  <div class="card-header border-0">
+    <div class="d-flex align-items-center">
+      <h5 class="card-title mb-0 flex-grow-1">
+        <i class="ri-file-list-3-line me-2"></i>Attendance Records
+      </h5>
+      <div class="flex-shrink-0">
+        <span class="badge bg-info" id="recordCount">0 records</span>
+      </div>
+    </div>
+  </div>
+  <div class="card-body">
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="text-center py-4" style="display: none;">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-2">Loading attendance records...</p>
+    </div>
+
+    <!-- Initial Message - shown before search -->
+    <div id="initialMessage">
+      <div class="text-center py-5">
+        <i class="ri-search-line display-4 text-muted"></i>
+        <h5 class="mt-3">Search Attendance Records</h5>
+        <p class="text-muted">No attendance records found. Use the search filters above to find records.</p>
+      </div>
+    </div>
+
+    <!-- No Data Message - shown when search returns no results -->
+    <div id="noDataMessage" style="display: none;">
+      <div class="text-center py-5">
+        <i class="ri-calendar-line display-4 text-muted"></i>
+        <h5 class="mt-3">No Records Found</h5>
+        <p class="text-muted">No attendance records found for the selected criteria. Try adjusting your search filters.</p>
+      </div>
+    </div>
+
+    <!-- Table Container - hidden initially -->
+    <div id="tableContainer" style="display: none;">
+      <table id="attendanceTable" class="table table-striped table-hover" style="width: 100%;">
+        <thead class="table-light">
+          <tr>
+            <th>Child Name</th>
+            <th>Admission No</th>
+            <th>Date Logged</th>
+            <th>Time Logged</th>
+            <th>Center</th>
+            <th>Last Modified</th>
+            <th style="width: 100px;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="editModalLabel">
+          <i class="ri-edit-line me-2"></i>Edit Attendance Record
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="editForm">
+          {% csrf_token %}
+          <input type="hidden" id="editRecordId" name="record_id">
+
+          <!-- Read-only Fields -->
+          <div class="mb-3">
+            <label for="editChildName" class="form-label">Child Name</label>
+            <input type="text" id="editChildName" class="form-control" readonly>
+          </div>
+
+          <div class="mb-3">
+            <label for="editAdmissionNo" class="form-label">Admission Number</label>
+            <input type="text" id="editAdmissionNo" class="form-control" readonly>
+          </div>
+
+          <!-- Editable Fields -->
+          <div class="mb-3">
+            <label for="editDate" class="form-label">
+              Date <span class="text-danger">*</span>
+            </label>
+            <input type="text" id="editDate" name="date_logged" class="form-control flatpickr-date" required>
+          </div>
+
+          <div class="mb-3">
+            <label for="editTime" class="form-label">
+              Time <span class="text-danger">*</span>
+            </label>
+            <input type="text" id="editTime" name="time_logged" class="form-control flatpickr-time" required>
+          </div>
+
+          <!-- Edit Reason -->
+          <div class="mb-3">
+            <label for="editReason" class="form-label">
+              Reason for Edit <span class="text-danger">*</span>
+            </label>
+            <textarea id="editReason" name="edit_reason" class="form-control" rows="3" required
+                      placeholder="Please provide a reason for this edit..."></textarea>
+            <div class="form-text">This reason will be logged for audit purposes.</div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="ri-close-line me-1"></i>Cancel
+        </button>
+        <button type="button" class="btn btn-primary" id="saveEditBtn">
+          <i class="ri-save-line me-1"></i>Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- jQuery -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<!-- DataTables JS -->
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+
+<!-- DataTables CSS for responsive design -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.2.9/css/responsive.bootstrap5.min.css">
+
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<!-- Flatpickr -->
+<script src="{% static 'assets/libs/flatpickr/flatpickr.min.js' %}"></script>
+
+<!-- Bootstrap JS -->
+<script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
+<script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
+<script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
+
+<script>
+var $ = jQuery;
+var attendanceTable;
+var editDatePicker;
+var editTimePicker;
+
+jQuery(document).ready(function() {
+  // Initialize components
+  initializeSelect2();
+  initializeDatePickers();
+  initializeDataTable();
+  setupEventHandlers();
+  setupMessageAutoHide();
+
+  // Set default dates (last 7 days)
+  setDefaultDates();
+});
+
+function initializeSelect2() {
+  jQuery('#childFilter').select2({
+    theme: 'bootstrap-5',
+    placeholder: 'Search by admission number or name...',
+    allowClear: true,
+    width: '100%',
+    templateResult: function(data) {
+      if (!data.id) {
+        return data.text;
+      }
+      var admission = jQuery(data.element).data('admission');
+      if (admission) {
+        return jQuery('<span><strong>' + admission + '</strong> - ' + data.text.split(' - ')[1] + '</span>');
+      }
+      return data.text;
+    }
+  });
+}
+
+function initializeDatePickers() {
+  // Filter date pickers
+  jQuery('.flatpickr-date').flatpickr({
+    dateFormat: 'Y-m-d',
+    allowInput: true
+  });
+
+  // Edit modal date picker
+  editDatePicker = flatpickr('#editDate', {
+    dateFormat: 'Y-m-d',
+    allowInput: true,
+    maxDate: 'today'
+  });
+
+  // Edit modal time picker
+  editTimePicker = flatpickr('#editTime', {
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: 'H:i',
+    time_24hr: true,
+    allowInput: true
+  });
+}
+
+function setDefaultDates() {
+  var today = new Date();
+  var weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  jQuery('#fromDate').val(formatDate(weekAgo));
+  jQuery('#toDate').val(formatDate(today));
+}
+
+function formatDate(date) {
+  var year = date.getFullYear();
+  var month = String(date.getMonth() + 1).padStart(2, '0');
+  var day = String(date.getDate()).padStart(2, '0');
+  return year + '-' + month + '-' + day;
+}
+
+function initializeDataTable() {
+  // Initialize DataTable without ajax - data will be loaded on search
+  attendanceTable = jQuery('#attendanceTable').DataTable({
+    responsive: true,
+    destroy: true,
+    columnDefs: [
+      { targets: [0], responsivePriority: 1 },
+      { targets: [2], responsivePriority: 2 },
+      { targets: [3], responsivePriority: 2 },
+      { targets: [-1], responsivePriority: 1, orderable: false, className: 'text-center' }
+    ],
+    dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+         '<"row"<"col-sm-12"B>>' +
+         '<"row"<"col-sm-12"tr>>' +
+         '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+    pageLength: 25,
+    lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+    buttons: [
+      {
+        extend: 'excel',
+        className: 'btn btn-success btn-sm me-1 mb-2',
+        text: '<i class="ri-file-excel-2-line me-1"></i>Excel',
+        exportOptions: {
+          columns: [0, 1, 2, 3, 4, 5]
+        }
+      },
+      {
+        extend: 'print',
+        className: 'btn btn-info btn-sm mb-2',
+        text: '<i class="ri-printer-line me-1"></i>Print',
+        exportOptions: {
+          columns: [0, 1, 2, 3, 4, 5]
+        }
+      }
+    ],
+    order: [[2, 'desc'], [3, 'desc']],
+    language: {
+      search: 'Filter records:',
+      lengthMenu: 'Show _MENU_ records',
+      info: 'Showing _START_ to _END_ of _TOTAL_ records',
+      infoEmpty: 'No records available',
+      infoFiltered: '(filtered from _MAX_ total records)',
+      emptyTable: 'No attendance records found'
+    }
+  });
+}
+
+function setupEventHandlers() {
+  // Search button click
+  jQuery('#searchBtn').on('click', function() {
+    searchRecords();
+  });
+
+  // Edit button click (delegated)
+  jQuery('#attendanceTable').on('click', '.edit-btn', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    var recordId = jQuery(this).data('id');
+    var childName = jQuery(this).data('child');
+    var admissionNo = jQuery(this).data('admission');
+    var dateLogged = jQuery(this).data('date');
+    var timeLogged = jQuery(this).data('time');
+
+    openEditModal(recordId, childName, admissionNo, dateLogged, timeLogged);
+  });
+
+  // Save edit button click
+  jQuery('#saveEditBtn').on('click', function() {
+    saveEdit();
+  });
+
+  // Modal hidden event - clear form
+  jQuery('#editModal').on('hidden.bs.modal', function() {
+    clearEditForm();
+  });
+
+  // Enter key on search filters
+  jQuery('#fromDate, #toDate').on('keypress', function(e) {
+    if (e.which === 13) {
+      searchRecords();
+    }
+  });
+}
+
+function searchRecords() {
+  // Hide all state messages, show loading
+  jQuery('#initialMessage').hide();
+  jQuery('#noDataMessage').hide();
+  jQuery('#tableContainer').hide();
+  showLoading(true);
+
+  // Disable search button
+  jQuery('#searchBtn').prop('disabled', true).html(
+    '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Searching...'
+  );
+
+  // Fetch data via AJAX
+  jQuery.ajax({
+    type: 'GET',
+    url: "{% url 'core:attendance_log_edit_data' %}",
+    data: {
+      child_id: jQuery('#childFilter').val(),
+      from_date: jQuery('#fromDate').val(),
+      to_date: jQuery('#toDate').val()
+    },
+    dataType: 'json',
+    success: function(response) {
+      showLoading(false);
+      jQuery('#searchBtn').prop('disabled', false).html('<i class="ri-search-line me-1"></i> Search');
+
+      if (response && response.length > 0) {
+        displayAttendanceData(response);
+        jQuery('#tableContainer').show();
+        jQuery('#recordCount').text(response.length + ' records');
+      } else {
+        jQuery('#noDataMessage').show();
+        jQuery('#recordCount').text('0 records');
+      }
+    },
+    error: function(xhr, textStatus, errorThrown) {
+      showLoading(false);
+      jQuery('#searchBtn').prop('disabled', false).html('<i class="ri-search-line me-1"></i> Search');
+      console.error('Error loading attendance records:', textStatus);
+      showMessage('Error loading attendance records: ' + textStatus, 'danger');
+      jQuery('#initialMessage').show();
+    }
+  });
+}
+
+function displayAttendanceData(data) {
+  // Clear existing data
+  attendanceTable.clear();
+
+  // Add each record to the table
+  jQuery.each(data, function(i, row) {
+    // Format child name
+    var childNameHtml = '<div class="d-flex align-items-center">' +
+                        '<i class="ri-user-line text-primary me-2"></i>' +
+                        '<span class="fw-medium">' + row.child_name + '</span>' +
+                        '</div>';
+
+    // Format admission number
+    var admissionHtml = '<span class="badge bg-secondary">' + row.admission_number + '</span>';
+
+    // Format date
+    var dateLogged = new Date(row.date_logged);
+    var dateHtml = dateLogged.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+
+    // Format time
+    var timeHtml = '<span class="badge bg-info">' + row.time_logged + '</span>';
+
+    // Format last modified
+    var updatedBy = row.last_updated_by || 'System';
+    var lastModifiedHtml = '-';
+    if (row.last_updated_at) {
+      var lastUpdated = new Date(row.last_updated_at);
+      lastModifiedHtml = '<small>' + lastUpdated.toLocaleString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }) + '<br><span class="text-muted">by ' + updatedBy + '</span></small>';
+    }
+
+    // Format action button
+    var actionHtml = '<button class="btn btn-sm btn-warning edit-btn" ' +
+                     'data-id="' + row.id + '" ' +
+                     'data-child="' + row.child_name + '" ' +
+                     'data-admission="' + row.admission_number + '" ' +
+                     'data-date="' + row.date_logged + '" ' +
+                     'data-time="' + row.time_logged + '">' +
+                     '<i class="ri-edit-line"></i> Edit' +
+                     '</button>';
+
+    attendanceTable.row.add([
+      childNameHtml,
+      admissionHtml,
+      dateHtml,
+      timeHtml,
+      row.center_name,
+      lastModifiedHtml,
+      actionHtml
+    ]);
+  });
+
+  // Draw the table
+  attendanceTable.draw();
+}
+
+function openEditModal(recordId, childName, admissionNo, dateLogged, timeLogged) {
+  // Clear previous form data
+  clearEditForm();
+
+  // Set form values
+  jQuery('#editRecordId').val(recordId);
+  jQuery('#editChildName').val(childName);
+  jQuery('#editAdmissionNo').val(admissionNo);
+
+  // Set date and time pickers
+  if (editDatePicker) {
+    editDatePicker.setDate(dateLogged, false);
+  }
+  if (editTimePicker) {
+    editTimePicker.setDate(timeLogged, false);
+  }
+
+  // Show modal
+  var modal = new bootstrap.Modal(document.getElementById('editModal'));
+  modal.show();
+
+  // Focus on reason field after modal is shown
+  jQuery('#editModal').on('shown.bs.modal', function() {
+    jQuery('#editReason').focus();
+  });
+}
+
+function clearEditForm() {
+  jQuery('#editForm')[0].reset();
+  jQuery('#editRecordId').val('');
+  jQuery('#editChildName').val('');
+  jQuery('#editAdmissionNo').val('');
+
+  if (editDatePicker) {
+    editDatePicker.clear();
+  }
+  if (editTimePicker) {
+    editTimePicker.clear();
+  }
+
+  jQuery('#editReason').val('');
+  jQuery('#editForm').removeClass('was-validated');
+}
+
+function saveEdit() {
+  var recordId = jQuery('#editRecordId').val();
+  var dateLogged = jQuery('#editDate').val();
+  var timeLogged = jQuery('#editTime').val();
+  var editReason = jQuery('#editReason').val().trim();
+
+  // Validation
+  if (!dateLogged) {
+    showMessage('Please select a date', 'warning');
+    jQuery('#editDate').focus();
+    return;
+  }
+
+  if (!timeLogged) {
+    showMessage('Please select a time', 'warning');
+    jQuery('#editTime').focus();
+    return;
+  }
+
+  if (!editReason) {
+    showMessage('Please provide a reason for this edit', 'warning');
+    jQuery('#editReason').focus();
+    return;
+  }
+
+  // Disable save button and show loading
+  jQuery('#saveEditBtn').prop('disabled', true).html(
+    '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Saving...'
+  );
+
+  // Submit via AJAX
+  jQuery.ajax({
+    type: 'POST',
+    url: "{% url 'core:attendance_log_edit_update' %}",
+    data: {
+      attendance_id: recordId,
+      new_date: dateLogged,
+      new_time: timeLogged,
+      edit_reason: editReason,
+      csrfmiddlewaretoken: jQuery('[name=csrfmiddlewaretoken]').val()
+    },
+    success: function(response) {
+      jQuery('#saveEditBtn').prop('disabled', false).html(
+        '<i class="ri-save-line me-1"></i>Save Changes'
+      );
+
+      if (response.success) {
+        // Close modal
+        var modal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
+        if (modal) {
+          modal.hide();
+        }
+
+        showMessage('Attendance record updated successfully!', 'success');
+
+        // Refresh the table by re-running the search
+        searchRecords();
+      } else {
+        showMessage(response.error || 'Failed to update record', 'danger');
+      }
+    },
+    error: function(xhr, textStatus, errorThrown) {
+      jQuery('#saveEditBtn').prop('disabled', false).html(
+        '<i class="ri-save-line me-1"></i>Save Changes'
+      );
+
+      var errorMsg = 'Error updating record';
+      if (xhr.responseJSON && xhr.responseJSON.error) {
+        errorMsg = xhr.responseJSON.error;
+      }
+      showMessage(errorMsg, 'danger');
+    }
+  });
+}
+
+function showLoading(show) {
+  if (show) {
+    jQuery('#loadingIndicator').show();
+  } else {
+    jQuery('#loadingIndicator').hide();
+  }
+}
+
+function showMessage(message, type) {
+  var alertClass = 'alert-' + type;
+  var iconClass = type === 'success' ? 'ri-checkbox-circle-line' :
+                  type === 'warning' ? 'ri-error-warning-line' :
+                  type === 'danger' ? 'ri-close-circle-line' : 'ri-information-line';
+
+  var alertHtml = '<div class="alert ' + alertClass + ' alert-dismissible border-2 bg-body-secondary fade show" role="alert">' +
+                  '<div class="d-flex align-items-center">' +
+                  '<i class="' + iconClass + ' fs-4 me-2"></i>' +
+                  '<strong>' + message + '</strong>' +
+                  '</div>' +
+                  '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                  '</div>';
+
+  jQuery('#messagesDiv').html(alertHtml);
+
+  // Auto-hide success and info messages
+  if (type === 'success' || type === 'info') {
+    setTimeout(function() {
+      jQuery('#messagesDiv .alert').fadeOut();
+    }, 3000);
+  }
+}
+
+function setupMessageAutoHide() {
+  window.setTimeout(function() {
+    var alertDiv = jQuery('#messagesDiv .alert-success');
+    if (alertDiv.length > 0) {
+      alertDiv.fadeTo(1000, 0).slideUp(1000, function() {
+        jQuery(this).remove();
+      });
+    }
+  }, 3000);
+}
+</script>
+
+{% endblock %}

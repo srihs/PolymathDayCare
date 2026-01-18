@@ -617,13 +617,34 @@
                                       aria-controls="sidebaremailTemplates"> <i
                                            class=" ri-folder-zip-fill"></i><span
                                            data-key="t-email-templates">Missing mapping adjustment</span>
-   
+
                                    </a>
-   
+
                                </li>
 
-                               
-   
+                               {% if request.user.is_superuser %}
+                               <li class="nav-item">
+                                   <a href="/attendance_log_edit/" class="nav-link"
+                                      role="button" aria-expanded="false"
+                                      aria-controls="sidebaremailTemplates"> <i
+                                           class="ri-edit-2-line text-warning"></i><span
+                                           data-key="t-email-templates">Edit Attendance Logs</span>
+
+                                   </a>
+
+                               </li>
+                               <li class="nav-item">
+                                   <a href="/attendance_audit_trail/" class="nav-link"
+                                      role="button" aria-expanded="false"
+                                      aria-controls="sidebaremailTemplates"> <i
+                                           class="ri-history-line text-info"></i><span
+                                           data-key="t-email-templates">Attendance Audit Trail</span>
+
+                                   </a>
+
+                               </li>
+                               {% endif %}
+
                            </ul>
                        </div>
                    </li>

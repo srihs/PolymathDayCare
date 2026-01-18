@@ -566,4 +566,36 @@ urlpatterns = [
         views.getExtraHoursTopUsersJS,
         name="get_extra_hours_top_users_js",
     ),
+    # Superuser Attendance Log Editing
+    path(
+        "attendance_log_edit/",
+        views.getAttendanceLogsForEdit,
+        name="attendance_log_edit",
+    ),
+    path(
+        "attendance_log_edit/data/",
+        views.getAttendanceLogsForEditJS,
+        name="attendance_log_edit_data",
+    ),
+    path(
+        "attendance_log_edit/update/",
+        views.updateAttendanceLogEntry,
+        name="attendance_log_edit_update",
+    ),
+    path(
+        "attendance_log_edit/<int:pk>/",
+        views.getAttendanceLogByIdJS,
+        name="attendance_log_by_id",
+    ),
+    # Attendance Audit Trail URLs
+    path(
+        "attendance_audit_trail/",
+        views.getAttendanceAuditTrail,
+        name="attendance_audit_trail",
+    ),
+    path(
+        "attendance_audit_trail/data/",
+        views.getAttendanceAuditTrailJS,
+        name="attendance_audit_trail_data",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
