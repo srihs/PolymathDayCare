@@ -689,6 +689,106 @@ class TimeAdjustmentRequest(BaseClass):
         return f"{self.child.admission_number} - {self.request_date} ({self.status})"
 
 
+class EnrollmentDiscountRequest(BaseClass):
+    """
+    Model to track discount requests for child enrollments.
+    Allows users to request applying a discount to a child's enrollment
+    with an effective date, requiring superuser approval.
+    """
+
+    STATUS_CHOICES = (
+        ("PENDING_APPROVAL", "Pending Approval"),
+        ("APPROVED", "Approved"),
+        ("REJECTED", "Rejected"),
+    )
+
+    # Core request fields
+    child = models.ForeignKey(
+        "Child",
+        on_delete=models.CASCADE,
+        related_name="enrollment_discount_requests",
+        help_text="Child for whom the discount is being requested",
+    )
+    enrollment = models.ForeignKey(
+        "ChildEnrollment",
+        on_delete=models.CASCADE,
+        related_name="discount_requests",
+        help_text="Enrollment to which the discount should be applied",
+    )
+    discount = models.ForeignKey(
+        "Discount",
+        on_delete=models.CASCADE,
+        related_name="enrollment_requests",
+        help_text="The discount code being requested to apply",
+    )
+    effective_from = models.DateField(
+        help_text="Date from which the discount should start applying"
+    )
+    reason = models.TextField(
+        help_text="Reason for requesting the discount"
+    )
+
+    # Request metadata
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="PENDING_APPROVAL",
+    )
+    requested_by = models.CharField(
+        max_length=50,
+        help_text="Username of the person who submitted the request",
+    )
+    requested_date = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Timestamp when the request was submitted",
+    )
+
+    # Approval metadata
+    approved_by = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        help_text="Username of the person who approved/rejected the request",
+    )
+    approved_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when the request was approved/rejected",
+    )
+    rejection_reason = models.TextField(
+        null=True,
+        blank=True,
+        help_text="Reason for rejection if the request was rejected",
+    )
+
+    # Track previous discount (for audit trail)
+    previous_discount = models.ForeignKey(
+        "Discount",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="replaced_by_requests",
+        help_text="The discount that was on the enrollment before this request (for audit trail)",
+    )
+
+    class Meta:
+        verbose_name = "Enrollment Discount Request"
+        verbose_name_plural = "Enrollment Discount Requests"
+        db_table = "dc_enrollment_discount_request"
+        ordering = ["-requested_date"]
+        indexes = [
+            models.Index(fields=["child", "status"]),
+            models.Index(fields=["enrollment", "status"]),
+            models.Index(fields=["status", "requested_date"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.child.admission_number} - {self.discount.discount_code} "
+            f"({self.status})"
+        )
+
+
 class ExtraChargesHistory(BaseClass):
     extra_charges_after530 = models.ForeignKey(
         ExtraHoursAfter530, on_delete=models.CASCADE, null=True, blank=True

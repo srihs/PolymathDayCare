@@ -90,6 +90,7 @@ from .models import (
     ChildPackageMapping,
     DayCare,
     Discount,
+    EnrollmentDiscountRequest,
     ExtraChargesHistory,
     ExtraHoursAfter530,
     ExtraHoursUpTo530,
@@ -6488,6 +6489,40 @@ def calculate_three_month_display_data(child, current_month, current_year):
         raise Exception(f"Error calculating 3-month display: {str(e)}")
 
 
+def get_effective_discount(enrollment, billing_date):
+    """
+    Get the effective discount for an enrollment on a given billing date.
+    Checks for approved EnrollmentDiscountRequest records first,
+    then falls back to the enrollment's default discount.
+
+    This function implements effective-date-based discount resolution:
+    1. Query EnrollmentDiscountRequest for approved requests with effective_from <= billing_date
+    2. Select the most recent approved request (by effective_from date)
+    3. If found, return the discount from the request
+    4. Otherwise, fall back to enrollment.discount
+
+    Args:
+        enrollment: ChildEnrollment object
+        billing_date: date object representing the billing period (typically first day of month)
+
+    Returns:
+        Discount object or None
+    """
+    # Check for approved discount requests with effective date <= billing date
+    approved_request = EnrollmentDiscountRequest.objects.filter(
+        enrollment=enrollment,
+        status="APPROVED",
+        is_active=True,
+        effective_from__lte=billing_date,
+    ).order_by("-effective_from").first()
+
+    if approved_request:
+        return approved_request.discount
+
+    # Fall back to enrollment's default discount
+    return enrollment.discount
+
+
 def calculate_current_month_charges(child, package_mapping, enrollment, month, year):
     """Calculate current month charges (fresh calculation) - FIXED VERSION"""
     try:
@@ -6685,10 +6720,12 @@ def calculate_current_month_charges(child, package_mapping, enrollment, month, y
         # Calculate subtotal
         subtotal = package_fee + extra_hours_charge + holiday_charge
 
-        # Apply discount
+        # Apply discount using effective date logic
         discount_amount = Decimal("0.00")
-        if enrollment.discount and enrollment.discount.status == "Approved":
-            discount_amount = subtotal * (enrollment.discount.discount_rate / 100)
+        billing_date = date(year, month, 1)
+        effective_discount = get_effective_discount(enrollment, billing_date)
+        if effective_discount and effective_discount.status == "Approved":
+            discount_amount = subtotal * (effective_discount.discount_rate / 100)
 
         total_charge = subtotal - discount_amount
 
@@ -7193,10 +7230,12 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
         total_holiday_vacation_charge = holiday_charge + vacation_charge
         subtotal = package_fee + extra_hours_charge + total_holiday_vacation_charge
 
-        # Apply discount
+        # Apply discount using effective date logic
         discount_amount = Decimal("0.00")
-        if enrollment.discount and enrollment.discount.status == "Approved":
-            discount_amount = subtotal * (enrollment.discount.discount_rate / 100)
+        billing_date = date(year, month, 1)
+        effective_discount = get_effective_discount(enrollment, billing_date)
+        if effective_discount and effective_discount.status == "Approved":
+            discount_amount = subtotal * (effective_discount.discount_rate / 100)
 
         total_charge = subtotal - discount_amount
 
@@ -7259,10 +7298,12 @@ def calculate_month_full_package(child, package_mapping, enrollment, month, year
         # Calculate subtotal
         subtotal = package_fee + extra_hours_charge + holiday_charge
 
-        # Apply discount
+        # Apply discount using effective date logic
         discount_amount = Decimal("0.00")
-        if enrollment.discount and enrollment.discount.status == "Approved":
-            discount_amount = subtotal * (enrollment.discount.discount_rate / 100)
+        billing_date = date(year, month, 1)
+        effective_discount = get_effective_discount(enrollment, billing_date)
+        if effective_discount and effective_discount.status == "Approved":
+            discount_amount = subtotal * (effective_discount.discount_rate / 100)
 
         total_charge = subtotal - discount_amount
 
@@ -7715,10 +7756,12 @@ def calculate_enhanced_month_with_attendance(
     # Calculate subtotal
     subtotal = package_fee + extra_hours_charge + holiday_charge
 
-    # Apply discount
+    # Apply discount using effective date logic
     discount_amount = Decimal("0.00")
-    if enrollment.discount and enrollment.discount.status == "Approved":
-        discount_amount = subtotal * (enrollment.discount.discount_rate / 100)
+    billing_date = date(year, month, 1)
+    effective_discount = get_effective_discount(enrollment, billing_date)
+    if effective_discount and effective_discount.status == "Approved":
+        discount_amount = subtotal * (effective_discount.discount_rate / 100)
 
     total_charge = subtotal - discount_amount
 
@@ -7795,10 +7838,12 @@ def calculate_enhanced_advance_month(child, package_mapping, enrollment, month, 
     # For future months, charge full package amount
     package_fee = package_total
 
-    # Apply discount
+    # Apply discount using effective date logic
     discount_amount = Decimal("0.00")
-    if enrollment.discount and enrollment.discount.status == "Approved":
-        discount_amount = package_fee * (enrollment.discount.discount_rate / 100)
+    billing_date = date(year, month, 1)
+    effective_discount = get_effective_discount(enrollment, billing_date)
+    if effective_discount and effective_discount.status == "Approved":
+        discount_amount = package_fee * (effective_discount.discount_rate / 100)
 
     total_charge = package_fee - discount_amount
 
@@ -18300,6 +18345,583 @@ def rejectTimeAdjustmentRequest(request):
         return JsonResponse({
             "success": True,
             "message": "Time adjustment request has been rejected."
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# ============================================================================
+# Enrollment Discount Request Views
+# ============================================================================
+
+
+@login_required
+def getEnrollmentDiscountRequest(request):
+    """
+    Render the enrollment discount request form page.
+
+    This view displays the form for users to submit discount requests
+    for child enrollments. It loads active children with approved enrollments
+    and available discounts for selection.
+
+    Args:
+        request (HttpRequest): The HTTP request object containing user session data
+
+    Returns:
+        HttpResponse: Renders the enrollment_discount_request.html template with:
+            - UserName: Current authenticated user's username
+            - children: QuerySet of active children with approved enrollments
+            - discounts: QuerySet of active, approved discounts
+
+    Security:
+        - Requires user authentication via @login_required decorator
+    """
+    UserName = request.user.username
+
+    # Get active children with approved enrollments for the dropdown
+    children = Child.objects.filter(
+        is_active=True,
+        is_enrolled=True,
+        enrollement_approved=True
+    ).order_by("child_first_name", "child_last_name")
+
+    # Get active, approved discounts for the dropdown
+    discounts = Discount.objects.filter(
+        is_active=True,
+        status="Approved"
+    ).order_by("discount_code")
+
+    return render(
+        request,
+        "enrollment_discount_request.html",
+        {
+            "UserName": UserName,
+            "children": children,
+            "discounts": discounts,
+        },
+    )
+
+
+@login_required
+def saveEnrollmentDiscountRequest(request):
+    """
+    Save a new enrollment discount request via AJAX POST.
+
+    This view processes and saves new discount requests submitted
+    by users. It validates the input and creates a new EnrollmentDiscountRequest
+    record with PENDING_APPROVAL status.
+
+    Args:
+        request (HttpRequest): POST request with form data:
+            - child_id: Integer ID of the child
+            - enrollment_id: Integer ID of the enrollment
+            - discount_id: Integer ID of the discount to apply
+            - effective_from: String date in YYYY-MM-DD format
+            - reason: String reason for the discount request
+
+    Returns:
+        JsonResponse: JSON response with:
+            - success: Boolean indicating success
+            - message: String success message
+            OR
+            - error: String error message (on failure)
+
+    Business Logic:
+        - Validates required fields (child_id, enrollment_id, discount_id, effective_from, reason)
+        - Validates that effective_from is not in the future
+        - Stores the previous discount from the enrollment for audit trail
+        - Creates EnrollmentDiscountRequest with status PENDING_APPROVAL
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Only accepts POST requests
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST method is allowed"}, status=405)
+
+    try:
+        # Get form data
+        child_id = request.POST.get("child_id")
+        enrollment_id = request.POST.get("enrollment_id")
+        discount_id = request.POST.get("discount_id")
+        effective_from_str = request.POST.get("effective_from")
+        reason = request.POST.get("reason")
+
+        # Validate required fields
+        if not child_id:
+            return JsonResponse({"error": "Child is required"}, status=400)
+        if not enrollment_id:
+            return JsonResponse({"error": "Enrollment is required"}, status=400)
+        if not discount_id:
+            return JsonResponse({"error": "Discount is required"}, status=400)
+        if not effective_from_str:
+            return JsonResponse({"error": "Effective from date is required"}, status=400)
+        if not reason or not reason.strip():
+            return JsonResponse({"error": "Reason is required"}, status=400)
+
+        # Parse effective_from date
+        effective_from = datetime.strptime(effective_from_str, "%Y-%m-%d").date()
+
+        # Validate that the date is not in the future
+        if effective_from > date.today():
+            return JsonResponse(
+                {"error": "Effective from date cannot be in the future."},
+                status=400
+            )
+
+        # Get the child object
+        try:
+            child = Child.objects.get(pk=child_id)
+        except Child.DoesNotExist:
+            return JsonResponse({"error": "Child not found"}, status=404)
+
+        # Get the enrollment object
+        try:
+            enrollment = ChildEnrollment.objects.get(pk=enrollment_id, child=child)
+        except ChildEnrollment.DoesNotExist:
+            return JsonResponse({"error": "Enrollment not found"}, status=404)
+
+        # Get the discount object
+        try:
+            discount = Discount.objects.get(pk=discount_id)
+        except Discount.DoesNotExist:
+            return JsonResponse({"error": "Discount not found"}, status=404)
+
+        # Store the previous discount (can be None)
+        previous_discount = enrollment.discount
+
+        # Create the enrollment discount request
+        discount_request = EnrollmentDiscountRequest(
+            child=child,
+            enrollment=enrollment,
+            discount=discount,
+            effective_from=effective_from,
+            reason=reason.strip(),
+            status="PENDING_APPROVAL",
+            requested_by=request.user.username,
+            previous_discount=previous_discount,
+            user_created=request.user.username,
+            user_updated=request.user.username,
+        )
+        discount_request.save()
+
+        return JsonResponse({
+            "success": True,
+            "message": "Discount request submitted successfully. Pending approval."
+        })
+
+    except ValueError as e:
+        return JsonResponse({"error": f"Invalid date format: {str(e)}"}, status=400)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getEnrollmentDiscountRequestsJS(request):
+    """
+    Get list of enrollment discount requests as JSON for AJAX display.
+
+    This view returns discount requests filtered based on user role.
+    Superusers can see all requests, while regular users only see their own.
+
+    Args:
+        request (HttpRequest): GET request with optional filter parameters
+
+    Returns:
+        JsonResponse: JSON array of discount request records with:
+            - id: Integer request ID
+            - child_name: String child's full name with admission number
+            - admission_number: String child's admission number
+            - enrollment_code: String enrollment code
+            - discount_code: String discount code being requested
+            - discount_percentage: Decimal discount percentage
+            - effective_from: String date in YYYY-MM-DD format
+            - reason: String reason for request
+            - status: String status (PENDING_APPROVAL/APPROVED/REJECTED)
+            - requested_by: String username of requester
+            - requested_date: String datetime in ISO format
+            - previous_discount_code: String or null (previous discount if any)
+            - rejection_reason: String or null
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Superusers see all requests; regular users see only their own
+    """
+    try:
+        # Build query based on user role
+        if request.user.is_superuser:
+            requests_qs = EnrollmentDiscountRequest.objects.filter(
+                is_active=True
+            ).select_related("child", "enrollment", "discount", "previous_discount").order_by("-requested_date")
+        else:
+            requests_qs = EnrollmentDiscountRequest.objects.filter(
+                is_active=True,
+                requested_by=request.user.username
+            ).select_related("child", "enrollment", "discount", "previous_discount").order_by("-requested_date")
+
+        # Build result list
+        result = []
+        for req in requests_qs:
+            result.append({
+                "id": req.id,
+                "child_name": f"{req.child.admission_number} - {req.child.child_first_name} {req.child.child_last_name}",
+                "admission_number": req.child.admission_number,
+                "enrollment_code": req.enrollment.enrollment_code if req.enrollment else "",
+                "discount_code": req.discount.discount_code,
+                "discount_name": req.discount.discount_name,
+                "discount_rate": float(req.discount.discount_rate),
+                "effective_from": req.effective_from.strftime("%Y-%m-%d"),
+                "reason": req.reason,
+                "status": req.status,
+                "status_display": dict(EnrollmentDiscountRequest.STATUS_CHOICES).get(req.status, req.status),
+                "requested_by": req.requested_by,
+                "requested_date": req.requested_date.strftime("%Y-%m-%d %H:%M:%S"),
+                "approved_by": req.approved_by or "",
+                "approved_date": req.approved_date.strftime("%Y-%m-%d %H:%M:%S") if req.approved_date else "",
+                "previous_discount_code": req.previous_discount.discount_code if req.previous_discount else None,
+                "rejection_reason": req.rejection_reason or "",
+            })
+
+        return JsonResponse(result, safe=False)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getEnrollmentDiscountApprovals(request):
+    """
+    Render the enrollment discount approvals page for superusers.
+
+    This view displays the approval interface where superusers can review,
+    approve, or reject pending enrollment discount requests.
+
+    Args:
+        request (HttpRequest): The HTTP request object containing user session data
+
+    Returns:
+        HttpResponse: Renders the enrollment_discount_approvals.html template with:
+            - UserName: Current authenticated user's username
+            - pending_count: Integer count of pending requests
+        OR
+        HttpResponseRedirect: Redirects to home if user is not a superuser
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Requires superuser status; redirects non-superusers to home
+    """
+    if not request.user.is_superuser:
+        messages.error(request, "You are not authorized to access this page.")
+        return redirect("/")
+
+    UserName = request.user.username
+
+    # Get count of pending requests
+    pending_count = EnrollmentDiscountRequest.objects.filter(
+        is_active=True,
+        status="PENDING_APPROVAL"
+    ).count()
+
+    return render(
+        request,
+        "enrollment_discount_approvals.html",
+        {
+            "UserName": UserName,
+            "pending_count": pending_count,
+        },
+    )
+
+
+@login_required
+def getPendingEnrollmentDiscountRequestsJS(request):
+    """
+    Get pending enrollment discount requests as JSON for superuser approval page.
+
+    This view returns all pending discount requests with child, enrollment,
+    and discount information for the approval interface.
+
+    Args:
+        request (HttpRequest): GET request
+
+    Returns:
+        JsonResponse: JSON array of pending request records with:
+            - id: Integer request ID
+            - child_id: Integer child ID
+            - child_name: String child's full name with admission number
+            - admission_number: String child's admission number
+            - enrollment_id: Integer enrollment ID
+            - enrollment_code: String enrollment code
+            - discount_id: Integer discount ID
+            - discount_code: String discount code being requested
+            - discount_percentage: Decimal discount percentage
+            - effective_from: String date in YYYY-MM-DD format
+            - reason: String reason for request
+            - requested_by: String username of requester
+            - requested_date: String datetime in ISO format
+            - previous_discount_code: String or null (current discount on enrollment)
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Requires superuser status (returns 403 if not)
+    """
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {"error": "Permission denied. Superuser access required."},
+            status=403
+        )
+
+    try:
+        # Get pending requests
+        pending_requests = EnrollmentDiscountRequest.objects.filter(
+            is_active=True,
+            status="PENDING_APPROVAL"
+        ).select_related("child", "enrollment", "discount", "previous_discount").order_by("-requested_date")
+
+        # Build result list
+        result = []
+        for req in pending_requests:
+            result.append({
+                "id": req.id,
+                "child_id": req.child.id,
+                "child_name": f"{req.child.admission_number} - {req.child.child_first_name} {req.child.child_last_name}",
+                "admission_number": req.child.admission_number,
+                "enrollment_id": req.enrollment.id,
+                "enrollment_code": req.enrollment.enrollment_code if req.enrollment else "",
+                "discount_id": req.discount.id,
+                "discount_code": req.discount.discount_code,
+                "discount_name": req.discount.discount_name,
+                "discount_rate": float(req.discount.discount_rate),
+                "effective_from": req.effective_from.strftime("%Y-%m-%d"),
+                "reason": req.reason,
+                "requested_by": req.requested_by,
+                "requested_date": req.requested_date.strftime("%Y-%m-%d %H:%M:%S"),
+                "previous_discount_code": req.previous_discount.discount_code if req.previous_discount else None,
+            })
+
+        return JsonResponse(result, safe=False)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+@transaction.atomic
+def approveEnrollmentDiscountRequest(request):
+    """
+    Approve an enrollment discount request and update the enrollment.
+
+    This view processes approval of a discount request, updating
+    the enrollment's discount field to the requested discount.
+
+    Args:
+        request (HttpRequest): POST request with:
+            - request_id: Integer ID of the EnrollmentDiscountRequest to approve
+
+    Returns:
+        JsonResponse: JSON response with:
+            - success: Boolean indicating success
+            - message: String success message
+            OR
+            - error: String error message (on failure)
+
+    Business Logic:
+        - Updates request status to APPROVED
+        - Records approving user and timestamp
+        - Updates the enrollment's discount to the requested discount
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Requires superuser status (returns 403 if not)
+        - Uses transaction.atomic for database integrity
+    """
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {"error": "Permission denied. Superuser access required."},
+            status=403
+        )
+
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST method is allowed"}, status=405)
+
+    try:
+        request_id = request.POST.get("request_id")
+
+        if not request_id:
+            return JsonResponse({"error": "Request ID is required"}, status=400)
+
+        # Get the discount request
+        try:
+            discount_request = EnrollmentDiscountRequest.objects.select_related(
+                "enrollment", "discount"
+            ).get(
+                pk=request_id,
+                status="PENDING_APPROVAL",
+                is_active=True
+            )
+        except EnrollmentDiscountRequest.DoesNotExist:
+            return JsonResponse(
+                {"error": "Pending discount request not found"},
+                status=404
+            )
+
+        # Update the enrollment's discount
+        enrollment = discount_request.enrollment
+        enrollment.discount = discount_request.discount
+        enrollment.user_updated = request.user.username
+        enrollment.save(update_fields=["discount", "user_updated", "date_updated"])
+
+        # Update the discount request
+        discount_request.status = "APPROVED"
+        discount_request.approved_by = request.user.username
+        discount_request.approved_date = datetime.now()
+        discount_request.user_updated = request.user.username
+        discount_request.save()
+
+        return JsonResponse({
+            "success": True,
+            "message": "Discount request approved. Enrollment discount has been updated."
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def rejectEnrollmentDiscountRequest(request):
+    """
+    Reject an enrollment discount request.
+
+    This view processes rejection of a discount request,
+    updating the status to REJECTED and recording the rejection reason.
+
+    Args:
+        request (HttpRequest): POST request with:
+            - request_id: Integer ID of the EnrollmentDiscountRequest to reject
+            - rejection_reason: Optional string reason for rejection
+
+    Returns:
+        JsonResponse: JSON response with:
+            - success: Boolean indicating success
+            - message: String success message
+            OR
+            - error: String error message (on failure)
+
+    Business Logic:
+        - Updates request status to REJECTED
+        - Records rejection reason if provided
+        - Records rejecting user and timestamp
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Requires superuser status (returns 403 if not)
+    """
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {"error": "Permission denied. Superuser access required."},
+            status=403
+        )
+
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST method is allowed"}, status=405)
+
+    try:
+        request_id = request.POST.get("request_id")
+        rejection_reason = request.POST.get("rejection_reason", "")
+
+        if not request_id:
+            return JsonResponse({"error": "Request ID is required"}, status=400)
+
+        # Get the discount request
+        try:
+            discount_request = EnrollmentDiscountRequest.objects.get(
+                pk=request_id,
+                status="PENDING_APPROVAL",
+                is_active=True
+            )
+        except EnrollmentDiscountRequest.DoesNotExist:
+            return JsonResponse(
+                {"error": "Pending discount request not found"},
+                status=404
+            )
+
+        # Update the discount request
+        discount_request.status = "REJECTED"
+        discount_request.approved_by = request.user.username
+        discount_request.approved_date = datetime.now()
+        discount_request.rejection_reason = rejection_reason.strip() if rejection_reason else None
+        discount_request.user_updated = request.user.username
+        discount_request.save()
+
+        return JsonResponse({
+            "success": True,
+            "message": "Discount request has been rejected."
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getChildEnrollmentInfoJS(request):
+    """
+    Get enrollment information for a child via AJAX.
+    Returns enrollment details including current discount, package, and center.
+    """
+    try:
+        child_id = request.GET.get("child_id")
+        if not child_id:
+            return JsonResponse({"error": "Child ID is required"}, status=400)
+
+        # Get the child's approved enrollment
+        enrollment = ChildEnrollment.objects.filter(
+            child_id=child_id,
+            status="Approved",
+            is_active=True
+        ).select_related("discount", "center", "branch").first()
+
+        if not enrollment:
+            return JsonResponse({
+                "found": False,
+                "message": "No approved enrollment found for this child"
+            })
+
+        # Get package info
+        package_mapping = ChildPackageMapping.objects.filter(
+            child_id=child_id,
+            is_active=True
+        ).select_related("normal_package", "flex_package").first()
+
+        package_name = "N/A"
+        if package_mapping:
+            if package_mapping.normal_package:
+                package_name = package_mapping.normal_package.package_name
+            elif package_mapping.flex_package:
+                package_name = package_mapping.flex_package.package_name
+
+        return JsonResponse({
+            "found": True,
+            "enrollment_id": enrollment.id,
+            "enrollment_code": enrollment.enrollment_code,
+            "enrollment_status": enrollment.status,
+            "enrollment_date": enrollment.enrollment_date.strftime("%Y-%m-%d") if enrollment.enrollment_date else "",
+            "center_name": enrollment.center.daycare_name if enrollment.center else "N/A",
+            "branch_name": enrollment.branch.branch_name if enrollment.branch else "N/A",
+            "current_discount": enrollment.discount.discount_name if enrollment.discount else "No discount",
+            "current_discount_rate": str(enrollment.discount.discount_rate) if enrollment.discount else "0",
+            "package_name": package_name,
         })
 
     except Exception as e:

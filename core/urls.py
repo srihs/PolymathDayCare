@@ -634,4 +634,45 @@ urlpatterns = [
         views.rejectTimeAdjustmentRequest,
         name="reject_time_adjustment_request",
     ),
+    # Enrollment Discount Request URLs
+    path(
+        "get_child_enrollment_info_js/",
+        views.getChildEnrollmentInfoJS,
+        name="get_child_enrollment_info_js",
+    ),
+    path(
+        "enrollment_discount_request/",
+        views.getEnrollmentDiscountRequest,
+        name="enrollment_discount_request",
+    ),
+    path(
+        "enrollment_discount_request/save/",
+        views.saveEnrollmentDiscountRequest,
+        name="save_enrollment_discount_request",
+    ),
+    path(
+        "enrollment_discount_request/list_js/",
+        views.getEnrollmentDiscountRequestsJS,
+        name="get_enrollment_discount_requests_js",
+    ),
+    path(
+        "enrollment_discount_approvals/",
+        views.getEnrollmentDiscountApprovals,
+        name="enrollment_discount_approvals",
+    ),
+    path(
+        "enrollment_discount_approvals/pending_js/",
+        views.getPendingEnrollmentDiscountRequestsJS,
+        name="get_pending_enrollment_discount_requests_js",
+    ),
+    path(
+        "enrollment_discount_approvals/approve/",
+        views.approveEnrollmentDiscountRequest,
+        name="approve_enrollment_discount_request",
+    ),
+    path(
+        "enrollment_discount_approvals/reject/",
+        views.rejectEnrollmentDiscountRequest,
+        name="reject_enrollment_discount_request",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

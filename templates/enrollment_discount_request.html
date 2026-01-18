@@ -1,0 +1,800 @@
+{% extends "base.html" %}
+{% load static %}
+{% block UserName %}{{ UserName }}{% endblock %}
+{% block PageTitle %}Enrollment Discount Request{% endblock %}
+{% block Title %}ENROLLMENT{% endblock %}
+{% block functionTitle %}REQUEST ENROLLMENT DISCOUNT{% endblock %}
+
+{% block content %}
+
+<!-- Info Banner -->
+<div class="alert alert-info alert-dismissible fade show d-flex align-items-start mb-4" role="alert">
+    <i class="ri-information-line fs-4 me-2 mt-1" aria-hidden="true"></i>
+    <div>
+        <strong>Enrollment Discount Request</strong>
+        <p class="mb-0 mt-1">
+            Use this form to request a discount for a child's enrollment. Select the child to view their
+            current enrollment details, then choose an approved discount to apply. All requests require
+            approval from an administrator. You can track the status of your requests in the table below.
+        </p>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close info banner"></button>
+</div>
+
+<!-- Messages Container -->
+<div id="messagesContainer" class="alert-container" role="alert" aria-live="polite">
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show" role="alert">
+        <strong><center>{{ message }}</center></strong>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+
+<!-- Request Form Card -->
+<div class="card mb-4">
+    <div class="card-header border-0">
+        <div class="d-flex align-items-center">
+            <h5 class="card-title mb-0 flex-grow-1">
+                <i class="ri-percent-line me-2" aria-hidden="true"></i>
+                Submit Enrollment Discount Request
+            </h5>
+        </div>
+    </div>
+    <div class="card-body">
+        <form id="enrollmentDiscountForm" class="needs-validation" novalidate autocomplete="off">
+            {% csrf_token %}
+            <div class="row g-3">
+                <!-- Child Selection -->
+                <div class="col-md-6">
+                    <label for="child" class="form-label">
+                        Child <span class="text-danger" aria-hidden="true">*</span>
+                    </label>
+                    <select id="child" name="child" class="form-select" required
+                            aria-describedby="childHelp childError" aria-required="true">
+                        <option value="">-- Select Child --</option>
+                        {% for child in children %}
+                        <option value="{{ child.id }}">
+                            {{ child.admission_number }} - {{ child.child_first_name }} {{ child.child_last_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div id="childHelp" class="form-text">Select the child for whom you want to request a discount.</div>
+                    <div id="childError" class="invalid-feedback">Please select a child.</div>
+                </div>
+
+                <!-- Discount Selection -->
+                <div class="col-md-6">
+                    <label for="discount" class="form-label">
+                        Discount <span class="text-danger" aria-hidden="true">*</span>
+                    </label>
+                    <select id="discount" name="discount" class="form-select" required
+                            aria-describedby="discountHelp discountError" aria-required="true">
+                        <option value="">-- Select Discount --</option>
+                        {% for discount in discounts %}
+                        <option value="{{ discount.id }}" data-rate="{{ discount.discount_rate }}" data-name="{{ discount.discount_name }}">
+                            {{ discount.discount_name }} ({{ discount.discount_rate }}%)
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div id="discountHelp" class="form-text">Select an approved discount to apply.</div>
+                    <div id="discountError" class="invalid-feedback">Please select a discount.</div>
+                </div>
+
+                <!-- Enrollment Info Display (Read-only) -->
+                <div class="col-12">
+                    <div id="enrollmentInfoCard" class="card bg-light d-none">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-3 text-muted">
+                                <i class="ri-file-list-3-line me-1" aria-hidden="true"></i>
+                                Current Enrollment Information
+                            </h6>
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <label class="form-label text-muted small mb-1">Enrollment Code</label>
+                                    <p id="enrollmentCode" class="mb-0 fw-medium">-</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label text-muted small mb-1">Enrollment Status</label>
+                                    <p id="enrollmentStatus" class="mb-0">-</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label text-muted small mb-1">Current Discount</label>
+                                    <p id="currentDiscount" class="mb-0">-</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label text-muted small mb-1">Current Package</label>
+                                    <p id="currentPackage" class="mb-0">-</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label text-muted small mb-1">Center</label>
+                                    <p id="enrollmentCenter" class="mb-0">-</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label text-muted small mb-1">Enrollment Date</label>
+                                    <p id="enrollmentDate" class="mb-0">-</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Loading indicator for enrollment info -->
+                    <div id="enrollmentInfoLoading" class="text-center py-3 d-none">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                            <span class="visually-hidden">Loading enrollment info...</span>
+                        </div>
+                        <span class="ms-2 text-muted">Loading enrollment information...</span>
+                    </div>
+                    <!-- No enrollment alert -->
+                    <div id="noEnrollmentAlert" class="alert alert-warning d-none" role="alert">
+                        <i class="ri-alert-line me-2" aria-hidden="true"></i>
+                        <span id="noEnrollmentMessage">No approved enrollment found for this child.</span>
+                    </div>
+                </div>
+
+                <!-- Effective From Date -->
+                <div class="col-md-6">
+                    <label for="effective_from" class="form-label">
+                        Effective From <span class="text-danger" aria-hidden="true">*</span>
+                    </label>
+                    <input type="text" id="effective_from" name="effective_from" class="form-control"
+                           required placeholder="Select date"
+                           aria-describedby="effectiveFromHelp effectiveFromError" aria-required="true">
+                    <div id="effectiveFromHelp" class="form-text">The date from which the discount should be applied (cannot be a future date).</div>
+                    <div id="effectiveFromError" class="invalid-feedback">Please select a valid date.</div>
+                </div>
+
+                <!-- Spacer for alignment -->
+                <div class="col-md-6"></div>
+
+                <!-- Reason -->
+                <div class="col-12">
+                    <label for="reason" class="form-label">
+                        Reason <span class="text-danger" aria-hidden="true">*</span>
+                    </label>
+                    <textarea id="reason" name="reason" class="form-control" rows="3" required
+                              placeholder="Please explain the reason for this discount request..."
+                              aria-describedby="reasonHelp reasonError" aria-required="true"></textarea>
+                    <div id="reasonHelp" class="form-text">Provide a clear explanation for why this discount should be applied.</div>
+                    <div id="reasonError" class="invalid-feedback">Please provide a reason for the discount request.</div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="col-12">
+                    <div class="hstack gap-2 justify-content-end align-items-center">
+                        <button type="button" id="clearFormBtn" class="btn btn-light">
+                            <i class="ri-refresh-line me-1" aria-hidden="true"></i> Clear
+                        </button>
+                        <button type="submit" id="submitBtn" class="btn btn-primary d-inline-flex align-items-center">
+                            <span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
+                            <i class="ri-send-plane-line me-1" aria-hidden="true"></i>
+                            Submit Request
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Previous Requests Table Card -->
+<div class="card">
+    <div class="card-header border-0">
+        <div class="d-flex align-items-center">
+            <h5 class="card-title mb-0 flex-grow-1">
+                <i class="ri-history-line me-2" aria-hidden="true"></i>
+                My Discount Requests
+            </h5>
+            <div class="flex-shrink-0">
+                <button type="button" id="refreshTableBtn" class="btn btn-sm btn-soft-primary">
+                    <i class="ri-refresh-line me-1" aria-hidden="true"></i> Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="requestsTable" class="table table-striped table-hover" style="width: 100%;">
+                <thead class="table-light">
+                    <tr>
+                        <th>Child Name</th>
+                        <th>Enrollment Code</th>
+                        <th>Requested Discount</th>
+                        <th>Effective From</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        <th>Requested On</th>
+                        <th>Approved By</th>
+                        <th>Approved Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data will be loaded via AJAX -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- jQuery -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<!--datatable js-->
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+
+<script src="{% static 'assets/js/pages/datatables.init.js' %}"></script>
+<script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
+<script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
+<!-- flatpickr -->
+<script src="{% static 'assets/libs/flatpickr/flatpickr.min.js' %}"></script>
+<script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+var $ = jQuery;
+var requestsDataTable;
+var currentEnrollmentId = null;
+
+jQuery(document).ready(function() {
+    // Initialize components
+    initializeSelect2();
+    initializeDatePickers();
+    loadUserRequests();
+    setupEventHandlers();
+    setupMessageAutoHide();
+});
+
+/**
+ * Initialize Select2 for dropdowns
+ */
+function initializeSelect2() {
+    jQuery('#child').select2({
+        theme: 'bootstrap-5',
+        placeholder: '-- Select Child --',
+        allowClear: true,
+        width: '100%'
+    });
+
+    jQuery('#discount').select2({
+        theme: 'bootstrap-5',
+        placeholder: '-- Select Discount --',
+        allowClear: true,
+        width: '100%'
+    });
+}
+
+/**
+ * Initialize Flatpickr date picker for effective from date
+ */
+function initializeDatePickers() {
+    jQuery('#effective_from').flatpickr({
+        dateFormat: 'Y-m-d',
+        maxDate: 'today',
+        allowInput: true,
+        altInput: true,
+        altFormat: 'F j, Y'
+    });
+}
+
+/**
+ * Setup event handlers
+ */
+function setupEventHandlers() {
+    // Child selection change - fetch enrollment info
+    jQuery('#child').on('change', function() {
+        var childId = jQuery(this).val();
+        if (childId) {
+            fetchEnrollmentInfo(childId);
+        } else {
+            hideEnrollmentInfo();
+        }
+    });
+
+    // Form submission
+    jQuery('#enrollmentDiscountForm').on('submit', function(e) {
+        e.preventDefault();
+        submitDiscountRequest();
+    });
+
+    // Clear form button
+    jQuery('#clearFormBtn').on('click', function() {
+        clearForm();
+    });
+
+    // Refresh table button
+    jQuery('#refreshTableBtn').on('click', function() {
+        loadUserRequests();
+    });
+}
+
+/**
+ * Fetch enrollment information for selected child via AJAX
+ * @param {number} childId - The child ID
+ */
+function fetchEnrollmentInfo(childId) {
+    // Show loading indicator
+    jQuery('#enrollmentInfoCard').addClass('d-none');
+    jQuery('#noEnrollmentAlert').addClass('d-none');
+    jQuery('#enrollmentInfoLoading').removeClass('d-none');
+    currentEnrollmentId = null;
+
+    jQuery.ajax({
+        type: 'GET',
+        url: '{% url "core:get_child_enrollment_info_js" %}',
+        data: { child_id: childId },
+        dataType: 'json',
+        success: function(response) {
+            jQuery('#enrollmentInfoLoading').addClass('d-none');
+
+            if (response.found) {
+                currentEnrollmentId = response.enrollment_id;
+
+                // Populate enrollment info
+                jQuery('#enrollmentCode').text(response.enrollment_code || '-');
+                jQuery('#enrollmentStatus').html(getStatusBadge(response.enrollment_status));
+                jQuery('#currentDiscount').text(response.current_discount || 'No discount applied');
+                jQuery('#currentPackage').text(response.package_name || '-');
+                jQuery('#enrollmentCenter').text(response.center_name || '-');
+                jQuery('#enrollmentDate').text(response.enrollment_date ? formatDate(response.enrollment_date) : '-');
+
+                jQuery('#enrollmentInfoCard').removeClass('d-none');
+            } else {
+                jQuery('#noEnrollmentMessage').text('No valid enrollment found for the selected child. Please ensure the child has an approved enrollment.');
+                jQuery('#noEnrollmentAlert').removeClass('d-none');
+            }
+        },
+        error: function(xhr, textStatus, errorThrown) {
+            jQuery('#enrollmentInfoLoading').addClass('d-none');
+            jQuery('#noEnrollmentMessage').text('Error loading enrollment information. Please try again.');
+            jQuery('#noEnrollmentAlert').removeClass('d-none');
+            console.error('Error fetching enrollment info:', textStatus, errorThrown);
+        }
+    });
+}
+
+/**
+ * Hide enrollment info display
+ */
+function hideEnrollmentInfo() {
+    jQuery('#enrollmentInfoCard').addClass('d-none');
+    jQuery('#enrollmentInfoLoading').addClass('d-none');
+    jQuery('#noEnrollmentAlert').addClass('d-none');
+    currentEnrollmentId = null;
+}
+
+/**
+ * Submit discount request via AJAX
+ */
+function submitDiscountRequest() {
+    // Reset validation states
+    jQuery('#enrollmentDiscountForm').addClass('was-validated');
+
+    // Validate form fields
+    var childId = jQuery('#child').val();
+    var discountId = jQuery('#discount').val();
+    var effectiveFrom = jQuery('#effective_from').val();
+    var reason = jQuery('#reason').val().trim();
+
+    // Required field validation
+    if (!childId || !discountId || !effectiveFrom || !reason) {
+        showMessage('Please fill in all required fields.', 'warning');
+        return;
+    }
+
+    // Check if enrollment exists
+    if (!currentEnrollmentId) {
+        showMessage('No valid enrollment found for the selected child. Please ensure the child has an approved enrollment.', 'danger');
+        return;
+    }
+
+    // Validate that the date is not in the future
+    var selectedDate = new Date(effectiveFrom);
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
+    if (selectedDate > today) {
+        showMessage('Effective date cannot be in the future.', 'danger');
+        jQuery('#effective_from').focus();
+        return;
+    }
+
+    // Prepare form data
+    var formData = {
+        child_id: childId,
+        enrollment_id: currentEnrollmentId,
+        discount_id: discountId,
+        effective_from: effectiveFrom,
+        reason: reason,
+        csrfmiddlewaretoken: jQuery('[name=csrfmiddlewaretoken]').val()
+    };
+
+    // Show loading state
+    setLoadingState(true);
+
+    jQuery.ajax({
+        type: 'POST',
+        url: '{% url "core:save_enrollment_discount_request" %}',
+        data: formData,
+        dataType: 'json',
+        success: function(response) {
+            setLoadingState(false);
+
+            if (response.success) {
+                showMessage(response.message || 'Discount request submitted successfully!', 'success');
+                clearForm();
+                loadUserRequests(); // Refresh the table
+            } else {
+                showMessage(response.error || 'Failed to submit request. Please try again.', 'danger');
+            }
+        },
+        error: function(xhr, textStatus, errorThrown) {
+            setLoadingState(false);
+
+            var errorMsg = 'Error submitting request. Please try again.';
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            } else if (xhr.status === 400) {
+                errorMsg = 'Invalid request data. Please check your inputs.';
+            } else if (xhr.status === 403) {
+                errorMsg = 'You do not have permission to perform this action.';
+            } else if (xhr.status === 500) {
+                errorMsg = 'Server error. Please try again later.';
+            }
+
+            showMessage(errorMsg, 'danger');
+            console.error('AJAX Error:', textStatus, errorThrown);
+        }
+    });
+}
+
+/**
+ * Load user's previous requests via AJAX
+ */
+function loadUserRequests() {
+    // Destroy existing DataTable if exists
+    if (requestsDataTable) {
+        requestsDataTable.destroy();
+    }
+
+    requestsDataTable = jQuery('#requestsTable').DataTable({
+        responsive: true,
+        ajax: {
+            url: '{% url "core:get_enrollment_discount_requests_js" %}',
+            dataSrc: '',
+            error: function(xhr, textStatus, errorThrown) {
+                console.error('Error loading requests:', textStatus);
+                showMessage('Error loading previous requests.', 'warning');
+            }
+        },
+        columns: [
+            {
+                data: 'child_name',
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        return '<span class="fw-medium">' + escapeHtml(data) + '</span>';
+                    }
+                    return data;
+                }
+            },
+            {
+                data: 'enrollment_code',
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        return '<code>' + escapeHtml(data) + '</code>';
+                    }
+                    return data;
+                }
+            },
+            {
+                data: 'discount_name',
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        var rate = row.discount_rate || '';
+                        var text = escapeHtml(data);
+                        if (rate) {
+                            text += ' <span class="badge bg-info">' + rate + '%</span>';
+                        }
+                        return text;
+                    }
+                    return data;
+                }
+            },
+            {
+                data: 'effective_from',
+                render: function(data, type, row) {
+                    if (type === 'display' && data) {
+                        return formatDate(data);
+                    }
+                    return data || '-';
+                }
+            },
+            {
+                data: 'reason',
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        var text = escapeHtml(data || '-');
+                        // Truncate long reasons
+                        if (text.length > 50) {
+                            return '<span title="' + text + '">' + text.substring(0, 50) + '...</span>';
+                        }
+                        return text;
+                    }
+                    return data || '-';
+                }
+            },
+            {
+                data: 'status',
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        return getStatusBadge(data);
+                    }
+                    return data;
+                }
+            },
+            {
+                data: 'requested_date',
+                render: function(data, type, row) {
+                    if (type === 'display' && data) {
+                        return formatDateTime(data);
+                    }
+                    return data || '-';
+                }
+            },
+            {
+                data: 'approved_by',
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        return data ? escapeHtml(data) : '<span class="text-muted">-</span>';
+                    }
+                    return data || '-';
+                }
+            },
+            {
+                data: 'approved_date',
+                render: function(data, type, row) {
+                    if (type === 'display' && data) {
+                        return formatDateTime(data);
+                    }
+                    return data ? formatDateTime(data) : '<span class="text-muted">-</span>';
+                }
+            }
+        ],
+        order: [[6, 'desc']], // Order by requested date descending
+        pageLength: 10,
+        lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
+        language: {
+            emptyTable: 'You have not submitted any discount requests yet.',
+            info: 'Showing _START_ to _END_ of _TOTAL_ requests',
+            infoEmpty: 'No requests available',
+            infoFiltered: '(filtered from _MAX_ total requests)',
+            search: 'Search:',
+            paginate: {
+                first: 'First',
+                last: 'Last',
+                next: 'Next',
+                previous: 'Previous'
+            },
+            processing: 'Loading...',
+            loadingRecords: 'Loading requests...',
+            zeroRecords: 'No matching requests found'
+        },
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+             '<"row"<"col-sm-12"tr>>' +
+             '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+        initComplete: function() {
+            console.log('Requests table initialized');
+        }
+    });
+}
+
+/**
+ * Get status badge HTML based on status value
+ * @param {string} status - The status value
+ * @returns {string} HTML string for the badge
+ */
+function getStatusBadge(status) {
+    var badgeClass = 'bg-secondary';
+    var statusText = status || 'Unknown';
+
+    switch (status ? status.toLowerCase() : '') {
+        case 'pending':
+        case 'pending_approval':
+            badgeClass = 'bg-warning text-dark';
+            statusText = 'Pending';
+            break;
+        case 'approved':
+            badgeClass = 'bg-success';
+            statusText = 'Approved';
+            break;
+        case 'rejected':
+            badgeClass = 'bg-danger';
+            statusText = 'Rejected';
+            break;
+    }
+
+    return '<span class="badge ' + badgeClass + '">' + statusText + '</span>';
+}
+
+/**
+ * Clear the form and reset validation states
+ */
+function clearForm() {
+    // Reset form
+    jQuery('#enrollmentDiscountForm')[0].reset();
+    jQuery('#enrollmentDiscountForm').removeClass('was-validated');
+
+    // Clear Select2
+    jQuery('#child').val('').trigger('change');
+    jQuery('#discount').val('').trigger('change');
+
+    // Clear Flatpickr instances
+    var effectiveFromPicker = jQuery('#effective_from')[0]._flatpickr;
+    if (effectiveFromPicker) {
+        effectiveFromPicker.clear();
+    }
+
+    // Hide enrollment info
+    hideEnrollmentInfo();
+
+    // Clear validation classes
+    jQuery('#enrollmentDiscountForm .is-invalid').removeClass('is-invalid');
+    jQuery('#enrollmentDiscountForm .is-valid').removeClass('is-valid');
+}
+
+/**
+ * Set loading state for submit button
+ * @param {boolean} isLoading - Whether to show loading state
+ */
+function setLoadingState(isLoading) {
+    var $btn = jQuery('#submitBtn');
+    var $spinner = $btn.find('.spinner-border');
+
+    if (isLoading) {
+        $btn.prop('disabled', true);
+        $spinner.removeClass('d-none');
+    } else {
+        $btn.prop('disabled', false);
+        $spinner.addClass('d-none');
+    }
+}
+
+/**
+ * Show message in the messages container
+ * @param {string} message - The message text
+ * @param {string} type - The alert type (success, danger, warning, info)
+ */
+function showMessage(message, type) {
+    var alertClass = 'alert-' + type;
+    var iconClass = getAlertIcon(type);
+
+    var alertHtml = '<div class="alert ' + alertClass + ' alert-dismissible border-2 bg-body-secondary fade show" role="alert">' +
+                    '<div class="d-flex align-items-center">' +
+                    '<i class="' + iconClass + ' fs-5 me-2" aria-hidden="true"></i>' +
+                    '<strong>' + escapeHtml(message) + '</strong>' +
+                    '</div>' +
+                    '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                    '</div>';
+
+    jQuery('#messagesContainer').html(alertHtml);
+
+    // Auto-hide success and info messages
+    if (type === 'success' || type === 'info') {
+        setTimeout(function() {
+            jQuery('#messagesContainer .alert').fadeOut(500, function() {
+                jQuery(this).remove();
+            });
+        }, 4000);
+    }
+
+    // Scroll to message
+    jQuery('html, body').animate({
+        scrollTop: jQuery('#messagesContainer').offset().top - 100
+    }, 300);
+}
+
+/**
+ * Get icon class for alert type
+ * @param {string} type - The alert type
+ * @returns {string} Icon class
+ */
+function getAlertIcon(type) {
+    switch (type) {
+        case 'success':
+            return 'ri-check-line';
+        case 'danger':
+            return 'ri-error-warning-line';
+        case 'warning':
+            return 'ri-alert-line';
+        case 'info':
+        default:
+            return 'ri-information-line';
+    }
+}
+
+/**
+ * Setup auto-hide for Django messages
+ */
+function setupMessageAutoHide() {
+    window.setTimeout(function() {
+        var alertDiv = jQuery('#messagesContainer .alert');
+        var successMessageFound = alertDiv.hasClass('alert-success');
+
+        if (successMessageFound) {
+            alertDiv.fadeTo(1000, 0).slideUp(1000, function() {
+                jQuery(this).remove();
+            });
+        }
+    }, 3000);
+}
+
+/**
+ * Format date string to readable format
+ * @param {string} dateStr - Date string
+ * @returns {string} Formatted date
+ */
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    try {
+        var date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    } catch (e) {
+        return dateStr;
+    }
+}
+
+/**
+ * Format datetime string to readable format
+ * @param {string} dateTimeStr - DateTime string
+ * @returns {string} Formatted datetime
+ */
+function formatDateTime(dateTimeStr) {
+    if (!dateTimeStr) return '-';
+    try {
+        var date = new Date(dateTimeStr);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        }) + ' ' + date.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (e) {
+        return dateTimeStr;
+    }
+}
+
+/**
+ * Escape HTML to prevent XSS
+ * @param {string} text - Text to escape
+ * @returns {string} Escaped text
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+
+<!-- App js -->
+<script src="{% static 'assets/js/app.js' %}"></script>
+
+{% endblock %}

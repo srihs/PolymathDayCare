@@ -1,0 +1,671 @@
+{% extends "base.html" %} {% load static %} {% block UserName %} {{ UserName }}
+{% block PageTitle %}Enrollment Discount Approvals{% endblock %}
+{% endblock %} {% block Title %} APPROVALS {% endblock %} {% block functionTitle %}ENROLLMENT DISCOUNT APPROVALS{% endblock %}
+
+{% block content %}
+
+<!-- Warning Banner for Superuser Page -->
+<div class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
+  <div class="d-flex align-items-center">
+    <i class="fas fa-shield-alt fs-4 me-2"></i>
+    <div>
+      <strong>Superuser Access Required</strong>
+      <p class="mb-0 small">This page is for reviewing and processing enrollment discount requests. Approving a request will apply the discount to the child's enrollment.</p>
+    </div>
+  </div>
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<!-- Messages Display -->
+<div class="alert alert-dismissible" role="alert" id="messagesDiv">
+{% if messages %} {% for message in messages %}
+<div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show" role="alert">
+  <strong><center>{{ message }}</center></strong>
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endfor %} {% endif %}
+</div>
+
+<!-- Pending Approvals Card -->
+<div class="card mb-3">
+  <div class="card-header border-0">
+    <div class="d-flex align-items-center">
+      <h5 class="card-title mb-0 flex-grow-1">
+        <i class="fas fa-percent text-warning"></i> Pending Enrollment Discount Requests
+        <span class="badge bg-warning text-dark ms-2" id="pendingCount">{{ pending_count }}</span>
+      </h5>
+      <button id="refreshBtn" class="btn btn-outline-primary btn-sm">
+        <i class="fas fa-sync-alt"></i> Refresh
+      </button>
+    </div>
+  </div>
+  <div class="card-body">
+    <table id="enrollmentDiscountRequestsTable" class="table table-striped table-hover" style="width: 100%;">
+      <thead class="table-light">
+        <tr>
+          <th>Child Name</th>
+          <th>Enrollment Code</th>
+          <th>Requested Discount</th>
+          <th>Effective From</th>
+          <th>Current Discount</th>
+          <th>Reason</th>
+          <th>Requested By</th>
+          <th>Requested On</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Loading Indicator -->
+<div id="loadingIndicator" class="text-center py-4" style="display: none;">
+  <div class="spinner-border text-primary" role="status">
+    <span class="visually-hidden">Loading...</span>
+  </div>
+  <p class="mt-2">Loading enrollment discount requests...</p>
+</div>
+
+<!-- Approval Confirmation Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1" aria-labelledby="approveModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="approveModalLabel">
+          <i class="fas fa-check-circle me-2"></i>Approve Enrollment Discount Request
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="approveRequestId">
+
+        <div class="alert alert-info mb-3" role="alert">
+          <i class="fas fa-info-circle me-2"></i>
+          Approving this request will apply the requested discount to the child's enrollment effective from the specified date.
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Child Name</label>
+            <input type="text" id="approveChildName" class="form-control" readonly>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Admission Number</label>
+            <input type="text" id="approveAdmissionNo" class="form-control" readonly>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Enrollment Code</label>
+            <input type="text" id="approveEnrollmentCode" class="form-control" readonly>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Effective From</label>
+            <input type="text" id="approveEffectiveFrom" class="form-control" readonly>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Current Discount</label>
+            <div id="approveCurrentDiscount" class="form-control bg-light" style="min-height: 40px;"></div>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Requested Discount</label>
+            <div id="approveRequestedDiscount" class="form-control bg-light" style="min-height: 40px;"></div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold">Reason for Request</label>
+          <textarea id="approveReason" class="form-control" rows="3" readonly></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success" id="confirmApproveBtn">
+          <i class="fas fa-check"></i> Approve Request
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Rejection Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="rejectModalLabel">
+          <i class="fas fa-times-circle me-2"></i>Reject Enrollment Discount Request
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="rejectRequestId">
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Child Name</label>
+            <input type="text" id="rejectChildName" class="form-control" readonly>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Admission Number</label>
+            <input type="text" id="rejectAdmissionNo" class="form-control" readonly>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Enrollment Code</label>
+            <input type="text" id="rejectEnrollmentCode" class="form-control" readonly>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Effective From</label>
+            <input type="text" id="rejectEffectiveFrom" class="form-control" readonly>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Requested Discount</label>
+            <div id="rejectRequestedDiscount" class="form-control bg-light" style="min-height: 40px;"></div>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Current Discount</label>
+            <div id="rejectCurrentDiscount" class="form-control bg-light" style="min-height: 40px;"></div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold">Original Request Reason</label>
+          <textarea id="rejectOriginalReason" class="form-control" rows="2" readonly></textarea>
+        </div>
+        <div class="mb-3">
+          <label for="rejectionReason" class="form-label fw-bold">
+            Rejection Reason <span class="text-muted">(Optional)</span>
+          </label>
+          <textarea id="rejectionReason" class="form-control" rows="3"
+                    placeholder="Enter reason for rejecting this request..."></textarea>
+          <div class="form-text">This reason will be recorded and may be visible to the requester.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmRejectBtn">
+          <i class="fas fa-times"></i> Reject Request
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- jQuery -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<!--datatable js-->
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.2.9/css/responsive.bootstrap5.min.css">
+
+<script src="{% static 'assets/js/pages/datatables.init.js' %}"></script>
+<script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
+<script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
+<script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
+
+<script>
+  var $ = jQuery;
+  var enrollmentDiscountDataTable;
+
+  jQuery(document).ready(function() {
+    // Load pending requests on page load
+    loadEnrollmentDiscountRequests();
+
+    // Refresh button handler
+    jQuery('#refreshBtn').on('click', function() {
+      loadEnrollmentDiscountRequests();
+    });
+
+    // Confirm approve button handler
+    jQuery('#confirmApproveBtn').on('click', function() {
+      processApproval();
+    });
+
+    // Confirm reject button handler
+    jQuery('#confirmRejectBtn').on('click', function() {
+      processRejection();
+    });
+
+    // Auto-hide messages
+    setupMessageAutoHide();
+  });
+
+  function loadEnrollmentDiscountRequests() {
+    showLoading(true);
+
+    jQuery.ajax({
+      type: "GET",
+      url: "{% url 'core:get_pending_enrollment_discount_requests_js' %}",
+      success: function(response) {
+        showLoading(false);
+        displayEnrollmentDiscountRequests(response);
+      },
+      error: function(xhr, textStatus, errorThrown) {
+        showLoading(false);
+        var errorMsg = "Error loading enrollment discount requests";
+        if (xhr.responseJSON && xhr.responseJSON.error) {
+          errorMsg = xhr.responseJSON.error;
+        }
+        showMessage(errorMsg, "danger");
+      }
+    });
+  }
+
+  function displayEnrollmentDiscountRequests(data) {
+    if (enrollmentDiscountDataTable) {
+      enrollmentDiscountDataTable.destroy();
+    }
+
+    // Update pending count
+    jQuery('#pendingCount').text(data.length);
+
+    if (data.length === 0) {
+      showMessage("No pending enrollment discount requests", "success");
+    }
+
+    enrollmentDiscountDataTable = jQuery("#enrollmentDiscountRequestsTable").DataTable({
+      destroy: true,
+      responsive: true,
+      scrollX: false,
+      autoWidth: false,
+      data: data,
+      dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+           '<"row"<"col-sm-12"tr>>' +
+           '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+      columns: [
+        {
+          data: "child_name",
+          title: "Child Name",
+          render: function(data, type, row) {
+            if (type === 'display') {
+              return '<div class="d-flex align-items-center">' +
+                     '<i class="fas fa-user-circle text-primary me-2"></i>' +
+                     '<div>' +
+                     '<span class="fw-bold">' + escapeHtml(data) + '</span>' +
+                     '<br><small class="text-muted">' + escapeHtml(row.admission_number) + '</small>' +
+                     '</div>' +
+                     '</div>';
+            }
+            return data;
+          }
+        },
+        {
+          data: "enrollment_code",
+          title: "Enrollment Code",
+          render: function(data, type, row) {
+            if (type === 'display') {
+              return '<span class="badge bg-secondary">' + escapeHtml(data) + '</span>';
+            }
+            return data;
+          }
+        },
+        {
+          data: "requested_discount_name",
+          title: "Requested Discount",
+          render: function(data, type, row) {
+            if (type === 'display') {
+              var rate = row.requested_discount_rate || 0;
+              return '<span class="badge bg-success">' +
+                     '<i class="fas fa-percent me-1"></i>' + escapeHtml(data) +
+                     ' (' + rate + '%)' +
+                     '</span>';
+            }
+            return data;
+          }
+        },
+        {
+          data: "effective_from",
+          title: "Effective From",
+          render: function(data, type, row) {
+            if (type === 'display') {
+              return new Date(data).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+              });
+            }
+            return data;
+          }
+        },
+        {
+          data: "current_discount_name",
+          title: "Current Discount",
+          render: function(data, type, row) {
+            if (type === 'display') {
+              if (data) {
+                var rate = row.current_discount_rate || 0;
+                return '<span class="badge bg-info">' +
+                       '<i class="fas fa-percent me-1"></i>' + escapeHtml(data) +
+                       ' (' + rate + '%)' +
+                       '</span>';
+              }
+              return '<span class="text-muted fst-italic">No discount</span>';
+            }
+            return data || '';
+          }
+        },
+        {
+          data: "reason",
+          title: "Reason",
+          render: function(data, type, row) {
+            if (type === 'display') {
+              if (data) {
+                var shortReason = data.length > 40 ? data.substring(0, 40) + '...' : data;
+                return '<span title="' + escapeHtml(data) + '">' + escapeHtml(shortReason) + '</span>';
+              }
+              return '<span class="text-muted">-</span>';
+            }
+            return data || '';
+          }
+        },
+        {
+          data: "requested_by",
+          title: "Requested By",
+          render: function(data, type, row) {
+            if (type === 'display') {
+              return '<i class="fas fa-user text-muted me-1"></i>' + escapeHtml(data);
+            }
+            return data;
+          }
+        },
+        {
+          data: "requested_date",
+          title: "Requested On",
+          render: function(data, type, row) {
+            if (type === 'display' && data) {
+              var date = new Date(data);
+              return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+              }) + '<br><small class="text-muted">' + date.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
+              }) + '</small>';
+            }
+            return data;
+          }
+        },
+        {
+          data: null,
+          title: "Actions",
+          orderable: false,
+          render: function(data, type, row) {
+            if (type === 'display') {
+              return '<div class="btn-group" role="group">' +
+                     '<button class="btn btn-sm btn-success approve-btn me-1" ' +
+                     'data-id="' + row.id + '" ' +
+                     'data-child="' + escapeHtml(row.child_name) + '" ' +
+                     'data-admission="' + escapeHtml(row.admission_number) + '" ' +
+                     'data-enrollment-code="' + escapeHtml(row.enrollment_code) + '" ' +
+                     'data-effective-from="' + row.effective_from + '" ' +
+                     'data-requested-discount="' + escapeHtml(row.requested_discount_name) + '" ' +
+                     'data-requested-discount-rate="' + (row.requested_discount_rate || 0) + '" ' +
+                     'data-current-discount="' + escapeHtml(row.current_discount_name || '') + '" ' +
+                     'data-current-discount-rate="' + (row.current_discount_rate || 0) + '" ' +
+                     'data-reason="' + escapeHtml(row.reason || '') + '" ' +
+                     'title="Approve Request">' +
+                     '<i class="fas fa-check"></i> Approve' +
+                     '</button>' +
+                     '<button class="btn btn-sm btn-danger reject-btn" ' +
+                     'data-id="' + row.id + '" ' +
+                     'data-child="' + escapeHtml(row.child_name) + '" ' +
+                     'data-admission="' + escapeHtml(row.admission_number) + '" ' +
+                     'data-enrollment-code="' + escapeHtml(row.enrollment_code) + '" ' +
+                     'data-effective-from="' + row.effective_from + '" ' +
+                     'data-requested-discount="' + escapeHtml(row.requested_discount_name) + '" ' +
+                     'data-requested-discount-rate="' + (row.requested_discount_rate || 0) + '" ' +
+                     'data-current-discount="' + escapeHtml(row.current_discount_name || '') + '" ' +
+                     'data-current-discount-rate="' + (row.current_discount_rate || 0) + '" ' +
+                     'data-reason="' + escapeHtml(row.reason || '') + '" ' +
+                     'title="Reject Request">' +
+                     '<i class="fas fa-times"></i> Reject' +
+                     '</button>' +
+                     '</div>';
+            }
+            return '';
+          }
+        }
+      ],
+      order: [[7, "desc"]], // Order by requested date descending
+      pageLength: 25,
+      language: {
+        emptyTable: "No pending enrollment discount requests",
+        info: "Showing _START_ to _END_ of _TOTAL_ requests",
+        infoEmpty: "No requests available"
+      }
+    });
+
+    // Handle approve button clicks
+    jQuery('#enrollmentDiscountRequestsTable').off('click', '.approve-btn').on('click', '.approve-btn', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openApproveModal(jQuery(this));
+    });
+
+    // Handle reject button clicks
+    jQuery('#enrollmentDiscountRequestsTable').off('click', '.reject-btn').on('click', '.reject-btn', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openRejectModal(jQuery(this));
+    });
+  }
+
+  function openApproveModal(btn) {
+    jQuery('#approveRequestId').val(btn.data('id'));
+    jQuery('#approveChildName').val(btn.data('child'));
+    jQuery('#approveAdmissionNo').val(btn.data('admission'));
+    jQuery('#approveEnrollmentCode').val(btn.data('enrollment-code'));
+    jQuery('#approveEffectiveFrom').val(new Date(btn.data('effective-from')).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }));
+    jQuery('#approveReason').val(btn.data('reason') || '');
+
+    // Display current discount
+    var currentDiscount = btn.data('current-discount');
+    var currentRate = btn.data('current-discount-rate');
+    if (currentDiscount) {
+      jQuery('#approveCurrentDiscount').html(
+        '<span class="badge bg-info"><i class="fas fa-percent me-1"></i>' +
+        escapeHtml(currentDiscount) + ' (' + currentRate + '%)</span>'
+      );
+    } else {
+      jQuery('#approveCurrentDiscount').html('<span class="text-muted fst-italic">No current discount</span>');
+    }
+
+    // Display requested discount
+    var requestedDiscount = btn.data('requested-discount');
+    var requestedRate = btn.data('requested-discount-rate');
+    jQuery('#approveRequestedDiscount').html(
+      '<span class="badge bg-success"><i class="fas fa-percent me-1"></i>' +
+      escapeHtml(requestedDiscount) + ' (' + requestedRate + '%)</span>'
+    );
+
+    var modal = new bootstrap.Modal(document.getElementById('approveModal'));
+    modal.show();
+  }
+
+  function openRejectModal(btn) {
+    jQuery('#rejectRequestId').val(btn.data('id'));
+    jQuery('#rejectChildName').val(btn.data('child'));
+    jQuery('#rejectAdmissionNo').val(btn.data('admission'));
+    jQuery('#rejectEnrollmentCode').val(btn.data('enrollment-code'));
+    jQuery('#rejectEffectiveFrom').val(new Date(btn.data('effective-from')).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }));
+    jQuery('#rejectOriginalReason').val(btn.data('reason') || '');
+    jQuery('#rejectionReason').val(''); // Clear previous rejection reason
+
+    // Display current discount
+    var currentDiscount = btn.data('current-discount');
+    var currentRate = btn.data('current-discount-rate');
+    if (currentDiscount) {
+      jQuery('#rejectCurrentDiscount').html(
+        '<span class="badge bg-info"><i class="fas fa-percent me-1"></i>' +
+        escapeHtml(currentDiscount) + ' (' + currentRate + '%)</span>'
+      );
+    } else {
+      jQuery('#rejectCurrentDiscount').html('<span class="text-muted fst-italic">No current discount</span>');
+    }
+
+    // Display requested discount
+    var requestedDiscount = btn.data('requested-discount');
+    var requestedRate = btn.data('requested-discount-rate');
+    jQuery('#rejectRequestedDiscount').html(
+      '<span class="badge bg-success"><i class="fas fa-percent me-1"></i>' +
+      escapeHtml(requestedDiscount) + ' (' + requestedRate + '%)</span>'
+    );
+
+    var modal = new bootstrap.Modal(document.getElementById('rejectModal'));
+    modal.show();
+  }
+
+  function processApproval() {
+    var requestId = jQuery('#approveRequestId').val();
+
+    jQuery('#confirmApproveBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
+
+    jQuery.ajax({
+      type: "POST",
+      url: "{% url 'core:approve_enrollment_discount_request' %}",
+      data: {
+        request_id: requestId,
+        csrfmiddlewaretoken: '{{ csrf_token }}'
+      },
+      success: function(response) {
+        jQuery('#confirmApproveBtn').prop('disabled', false).html('<i class="fas fa-check"></i> Approve Request');
+
+        // Close modal
+        var modal = bootstrap.Modal.getInstance(document.getElementById('approveModal'));
+        modal.hide();
+
+        if (response.success) {
+          showMessage(response.message, "success");
+          // Refresh the table
+          loadEnrollmentDiscountRequests();
+        } else {
+          showMessage(response.error || "Approval failed", "danger");
+        }
+      },
+      error: function(xhr, textStatus, errorThrown) {
+        jQuery('#confirmApproveBtn').prop('disabled', false).html('<i class="fas fa-check"></i> Approve Request');
+
+        var errorMsg = "Error processing approval";
+        if (xhr.responseJSON && xhr.responseJSON.error) {
+          errorMsg = xhr.responseJSON.error;
+        }
+        showMessage(errorMsg, "danger");
+      }
+    });
+  }
+
+  function processRejection() {
+    var requestId = jQuery('#rejectRequestId').val();
+    var rejectionReason = jQuery('#rejectionReason').val();
+
+    jQuery('#confirmRejectBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
+
+    jQuery.ajax({
+      type: "POST",
+      url: "{% url 'core:reject_enrollment_discount_request' %}",
+      data: {
+        request_id: requestId,
+        rejection_reason: rejectionReason,
+        csrfmiddlewaretoken: '{{ csrf_token }}'
+      },
+      success: function(response) {
+        jQuery('#confirmRejectBtn').prop('disabled', false).html('<i class="fas fa-times"></i> Reject Request');
+
+        // Close modal
+        var modal = bootstrap.Modal.getInstance(document.getElementById('rejectModal'));
+        modal.hide();
+
+        if (response.success) {
+          showMessage(response.message, "success");
+          // Refresh the table
+          loadEnrollmentDiscountRequests();
+        } else {
+          showMessage(response.error || "Rejection failed", "danger");
+        }
+      },
+      error: function(xhr, textStatus, errorThrown) {
+        jQuery('#confirmRejectBtn').prop('disabled', false).html('<i class="fas fa-times"></i> Reject Request');
+
+        var errorMsg = "Error processing rejection";
+        if (xhr.responseJSON && xhr.responseJSON.error) {
+          errorMsg = xhr.responseJSON.error;
+        }
+        showMessage(errorMsg, "danger");
+      }
+    });
+  }
+
+  function showLoading(show) {
+    if (show) {
+      jQuery('#loadingIndicator').show();
+    } else {
+      jQuery('#loadingIndicator').hide();
+    }
+  }
+
+  function showMessage(message, type) {
+    var alertClass = 'alert-' + type;
+    var alertHtml = '<div class="alert ' + alertClass + ' alert-dismissible border-2 bg-body-secondary fade show" role="alert">' +
+                    '<strong><center>' + message + '</center></strong>' +
+                    '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                    '</div>';
+
+    jQuery('#messagesDiv').html(alertHtml);
+
+    // Auto-hide success messages
+    if (type === 'success' || type === 'info') {
+      setTimeout(function() {
+        jQuery('#messagesDiv .alert').fadeOut();
+      }, 3000);
+    }
+  }
+
+  function setupMessageAutoHide() {
+    window.setTimeout(function() {
+      var alertDiv = jQuery(".alert");
+      var successMessageFound = alertDiv.find(".alert-success").length > 0;
+
+      if (successMessageFound) {
+        alertDiv.fadeTo(1000, 0).slideUp(1000, function() {
+          jQuery(this).remove();
+        });
+      }
+    }, 2000);
+  }
+
+  function escapeHtml(text) {
+    if (!text) return '';
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+</script>
+
+<!-- App js -->
+<script src="{% static 'assets/js/app.js' %}"></script>
+
+{% endblock %}
