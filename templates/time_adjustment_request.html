@@ -1,0 +1,715 @@
+{% extends "base.html" %}
+{% load static %}
+{% block UserName %}{{ UserName }}{% endblock %}
+{% block PageTitle %}Time Adjustment Request{% endblock %}
+{% block Title %}TRANSACTIONS{% endblock %}
+{% block functionTitle %}TIME ADJUSTMENT REQUEST{% endblock %}
+
+{% block content %}
+
+<!-- Info Banner -->
+<div class="alert alert-info alert-dismissible fade show d-flex align-items-start mb-4" role="alert">
+    <i class="ri-information-line fs-4 me-2 mt-1" aria-hidden="true"></i>
+    <div>
+        <strong>Time Adjustment Request</strong>
+        <p class="mb-0 mt-1">
+            Use this form to request adjustments to your child's attendance IN or OUT times.
+            All requests require approval from an administrator. You can track the status of your
+            requests in the table below.
+        </p>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close info banner"></button>
+</div>
+
+<!-- Messages Container -->
+<div id="messagesContainer" class="alert-container" role="alert" aria-live="polite">
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show" role="alert">
+        <strong><center>{{ message }}</center></strong>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+
+<!-- Request Form Card -->
+<div class="card mb-4">
+    <div class="card-header border-0">
+        <div class="d-flex align-items-center">
+            <h5 class="card-title mb-0 flex-grow-1">
+                <i class="ri-time-line me-2" aria-hidden="true"></i>
+                Submit Time Adjustment Request
+            </h5>
+        </div>
+    </div>
+    <div class="card-body">
+        <form id="timeAdjustmentForm" class="needs-validation" novalidate autocomplete="off">
+            {% csrf_token %}
+            <div class="row g-3">
+                <!-- Child Selection -->
+                <div class="col-md-6">
+                    <label for="child" class="form-label">
+                        Child <span class="text-danger" aria-hidden="true">*</span>
+                    </label>
+                    <select id="child" name="child" class="form-select" required
+                            aria-describedby="childHelp childError" aria-required="true">
+                        <option value="">-- Select Child --</option>
+                        {% for child in children %}
+                        <option value="{{ child.id }}">
+                            {{ child.admission_number }} - {{ child.child_first_name }} {{ child.child_last_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div id="childHelp" class="form-text">Select the child for whom you want to request a time adjustment.</div>
+                    <div id="childError" class="invalid-feedback">Please select a child.</div>
+                </div>
+
+                <!-- Request Date -->
+                <div class="col-md-6">
+                    <label for="request_date" class="form-label">
+                        Request Date <span class="text-danger" aria-hidden="true">*</span>
+                    </label>
+                    <input type="text" id="request_date" name="request_date" class="form-control"
+                           required placeholder="Select date"
+                           aria-describedby="requestDateHelp requestDateError" aria-required="true">
+                    <div id="requestDateHelp" class="form-text">The date for which you want to adjust the time.</div>
+                    <div id="requestDateError" class="invalid-feedback">Please select a date.</div>
+                </div>
+
+                <!-- IN Time -->
+                <div class="col-md-6">
+                    <label for="in_time" class="form-label">
+                        IN Time
+                        <span class="badge bg-secondary ms-1">Optional</span>
+                    </label>
+                    <input type="text" id="in_time" name="in_time" class="form-control"
+                           placeholder="Select IN time"
+                           aria-describedby="inTimeHelp">
+                    <div id="inTimeHelp" class="form-text">The corrected check-in time (leave blank if no change needed).</div>
+                </div>
+
+                <!-- OUT Time -->
+                <div class="col-md-6">
+                    <label for="out_time" class="form-label">
+                        OUT Time
+                        <span class="badge bg-secondary ms-1">Optional</span>
+                    </label>
+                    <input type="text" id="out_time" name="out_time" class="form-control"
+                           placeholder="Select OUT time"
+                           aria-describedby="outTimeHelp">
+                    <div id="outTimeHelp" class="form-text">The corrected check-out time (leave blank if no change needed).</div>
+                </div>
+
+                <!-- Time Validation Alert (hidden by default) -->
+                <div class="col-12">
+                    <div id="timeValidationAlert" class="alert alert-warning d-none" role="alert">
+                        <i class="ri-alert-line me-2" aria-hidden="true"></i>
+                        <span id="timeValidationMessage">Please provide at least one time (IN or OUT).</span>
+                    </div>
+                </div>
+
+                <!-- Reason -->
+                <div class="col-12">
+                    <label for="reason" class="form-label">
+                        Reason <span class="text-danger" aria-hidden="true">*</span>
+                    </label>
+                    <textarea id="reason" name="reason" class="form-control" rows="3" required
+                              placeholder="Please explain the reason for this time adjustment request..."
+                              aria-describedby="reasonHelp reasonError" aria-required="true"></textarea>
+                    <div id="reasonHelp" class="form-text">Provide a clear explanation for why this adjustment is needed.</div>
+                    <div id="reasonError" class="invalid-feedback">Please provide a reason for the adjustment.</div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="col-12">
+                    <div class="hstack gap-2 justify-content-end align-items-center">
+                        <button type="button" id="clearFormBtn" class="btn btn-light">
+                            <i class="ri-refresh-line me-1" aria-hidden="true"></i> Clear
+                        </button>
+                        <button type="submit" id="submitBtn" class="btn btn-primary d-inline-flex align-items-center">
+                            <span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
+                            <i class="ri-send-plane-line me-1" aria-hidden="true"></i>
+                            Submit Request
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Previous Requests Table Card -->
+<div class="card">
+    <div class="card-header border-0">
+        <div class="d-flex align-items-center">
+            <h5 class="card-title mb-0 flex-grow-1">
+                <i class="ri-history-line me-2" aria-hidden="true"></i>
+                My Previous Requests
+            </h5>
+            <div class="flex-shrink-0">
+                <button type="button" id="refreshTableBtn" class="btn btn-sm btn-soft-primary">
+                    <i class="ri-refresh-line me-1" aria-hidden="true"></i> Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="requestsTable" class="table table-striped table-hover" style="width: 100%;">
+                <thead class="table-light">
+                    <tr>
+                        <th>Child Name</th>
+                        <th>Admission No</th>
+                        <th>Request Date</th>
+                        <th>IN Time</th>
+                        <th>OUT Time</th>
+                        <th>Status</th>
+                        <th>Requested On</th>
+                        <th>Approved By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data will be loaded via AJAX -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- jQuery -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<!--datatable js-->
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+
+<script src="{% static 'assets/js/pages/datatables.init.js' %}"></script>
+<script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
+<script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
+<!-- flatpickr -->
+<script src="{% static 'assets/libs/flatpickr/flatpickr.min.js' %}"></script>
+<script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+var $ = jQuery;
+var requestsDataTable;
+
+jQuery(document).ready(function() {
+    // Initialize components
+    initializeSelect2();
+    initializeDatePickers();
+    initializeTimePickers();
+    loadUserRequests();
+    setupEventHandlers();
+    setupMessageAutoHide();
+});
+
+/**
+ * Initialize Select2 for child dropdown
+ */
+function initializeSelect2() {
+    jQuery('#child').select2({
+        theme: 'bootstrap-5',
+        placeholder: '-- Select Child --',
+        allowClear: true,
+        width: '100%'
+    });
+}
+
+/**
+ * Initialize Flatpickr date picker for request date
+ */
+function initializeDatePickers() {
+    jQuery('#request_date').flatpickr({
+        dateFormat: 'Y-m-d',
+        maxDate: 'today',
+        minDate: new Date().fp_incr(-30), // Allow up to 30 days in the past
+        allowInput: true,
+        altInput: true,
+        altFormat: 'F j, Y'
+    });
+}
+
+/**
+ * Initialize Flatpickr time pickers for IN and OUT times
+ */
+function initializeTimePickers() {
+    var timeConfig = {
+        enableTime: true,
+        noCalendar: true,
+        enableSeconds: false,
+        dateFormat: 'H:i',
+        time_24hr: true,
+        allowInput: true
+    };
+
+    jQuery('#in_time').flatpickr(timeConfig);
+    jQuery('#out_time').flatpickr(timeConfig);
+}
+
+/**
+ * Setup event handlers
+ */
+function setupEventHandlers() {
+    // Form submission
+    jQuery('#timeAdjustmentForm').on('submit', function(e) {
+        e.preventDefault();
+        submitTimeAdjustmentRequest();
+    });
+
+    // Clear form button
+    jQuery('#clearFormBtn').on('click', function() {
+        clearForm();
+    });
+
+    // Refresh table button
+    jQuery('#refreshTableBtn').on('click', function() {
+        loadUserRequests();
+    });
+
+    // Time field validation on change
+    jQuery('#in_time, #out_time').on('change', function() {
+        validateTimeFields();
+    });
+}
+
+/**
+ * Validate that at least one time field is provided
+ * @returns {boolean} True if validation passes
+ */
+function validateTimeFields() {
+    var inTime = jQuery('#in_time').val().trim();
+    var outTime = jQuery('#out_time').val().trim();
+
+    if (!inTime && !outTime) {
+        jQuery('#timeValidationAlert').removeClass('d-none');
+        jQuery('#timeValidationMessage').text('Please provide at least one time (IN or OUT).');
+        return false;
+    }
+
+    jQuery('#timeValidationAlert').addClass('d-none');
+    return true;
+}
+
+/**
+ * Submit time adjustment request via AJAX
+ */
+function submitTimeAdjustmentRequest() {
+    // Reset validation states
+    jQuery('#timeAdjustmentForm').addClass('was-validated');
+
+    // Validate form fields
+    var child = jQuery('#child').val();
+    var requestDate = jQuery('#request_date').val();
+    var inTime = jQuery('#in_time').val().trim();
+    var outTime = jQuery('#out_time').val().trim();
+    var reason = jQuery('#reason').val().trim();
+
+    // Required field validation
+    if (!child || !requestDate || !reason) {
+        showMessage('Please fill in all required fields.', 'warning');
+        return;
+    }
+
+    // Time validation - at least one time must be provided
+    if (!validateTimeFields()) {
+        showMessage('Please provide at least one time (IN or OUT).', 'warning');
+        return;
+    }
+
+    // Prepare form data
+    var formData = {
+        child_id: child,
+        request_date: requestDate,
+        in_time: inTime || '',
+        out_time: outTime || '',
+        reason: reason,
+        csrfmiddlewaretoken: jQuery('[name=csrfmiddlewaretoken]').val()
+    };
+
+    // Show loading state
+    setLoadingState(true);
+
+    jQuery.ajax({
+        type: 'POST',
+        url: '/time_adjustment_request/save/',
+        data: formData,
+        dataType: 'json',
+        success: function(response) {
+            setLoadingState(false);
+
+            if (response.success) {
+                showMessage(response.message || 'Time adjustment request submitted successfully!', 'success');
+                clearForm();
+                loadUserRequests(); // Refresh the table
+            } else {
+                showMessage(response.error || 'Failed to submit request. Please try again.', 'danger');
+            }
+        },
+        error: function(xhr, textStatus, errorThrown) {
+            setLoadingState(false);
+
+            var errorMsg = 'Error submitting request. Please try again.';
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            } else if (xhr.status === 400) {
+                errorMsg = 'Invalid request data. Please check your inputs.';
+            } else if (xhr.status === 403) {
+                errorMsg = 'You do not have permission to perform this action.';
+            } else if (xhr.status === 500) {
+                errorMsg = 'Server error. Please try again later.';
+            }
+
+            showMessage(errorMsg, 'danger');
+            console.error('AJAX Error:', textStatus, errorThrown);
+        }
+    });
+}
+
+/**
+ * Load user's previous requests via AJAX
+ */
+function loadUserRequests() {
+    // Destroy existing DataTable if exists
+    if (requestsDataTable) {
+        requestsDataTable.destroy();
+    }
+
+    requestsDataTable = jQuery('#requestsTable').DataTable({
+        responsive: true,
+        ajax: {
+            url: '/time_adjustment_request/list_js/',
+            dataSrc: '',
+            error: function(xhr, textStatus, errorThrown) {
+                console.error('Error loading requests:', textStatus);
+                showMessage('Error loading previous requests.', 'warning');
+            }
+        },
+        columns: [
+            {
+                data: 'child_name',
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        return '<span class="fw-medium">' + escapeHtml(data) + '</span>';
+                    }
+                    return data;
+                }
+            },
+            {
+                data: 'admission_number',
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        return '<code>' + escapeHtml(data) + '</code>';
+                    }
+                    return data;
+                }
+            },
+            {
+                data: 'request_date',
+                render: function(data, type, row) {
+                    if (type === 'display' && data) {
+                        return formatDate(data);
+                    }
+                    return data || '-';
+                }
+            },
+            {
+                data: 'in_time',
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        return data ? '<span class="text-success">' + escapeHtml(data) + '</span>' : '<span class="text-muted">-</span>';
+                    }
+                    return data || '-';
+                }
+            },
+            {
+                data: 'out_time',
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        return data ? '<span class="text-info">' + escapeHtml(data) + '</span>' : '<span class="text-muted">-</span>';
+                    }
+                    return data || '-';
+                }
+            },
+            {
+                data: 'status',
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        return getStatusBadge(data);
+                    }
+                    return data;
+                }
+            },
+            {
+                data: 'requested_date',
+                render: function(data, type, row) {
+                    if (type === 'display' && data) {
+                        return formatDateTime(data);
+                    }
+                    return data || '-';
+                }
+            },
+            {
+                data: 'approved_by',
+                render: function(data, type, row) {
+                    if (type === 'display') {
+                        return data ? escapeHtml(data) : '<span class="text-muted">-</span>';
+                    }
+                    return data || '-';
+                }
+            }
+        ],
+        order: [[6, 'desc']], // Order by requested date descending
+        pageLength: 10,
+        lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
+        language: {
+            emptyTable: 'You have not submitted any time adjustment requests yet.',
+            info: 'Showing _START_ to _END_ of _TOTAL_ requests',
+            infoEmpty: 'No requests available',
+            infoFiltered: '(filtered from _MAX_ total requests)',
+            search: 'Search:',
+            paginate: {
+                first: 'First',
+                last: 'Last',
+                next: 'Next',
+                previous: 'Previous'
+            },
+            processing: 'Loading...',
+            loadingRecords: 'Loading requests...',
+            zeroRecords: 'No matching requests found'
+        },
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+             '<"row"<"col-sm-12"tr>>' +
+             '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+        initComplete: function() {
+            console.log('Requests table initialized');
+        }
+    });
+}
+
+/**
+ * Get status badge HTML based on status value
+ * @param {string} status - The status value
+ * @returns {string} HTML string for the badge
+ */
+function getStatusBadge(status) {
+    var badgeClass = 'bg-secondary';
+    var statusText = status || 'Unknown';
+
+    switch (status ? status.toLowerCase() : '') {
+        case 'pending':
+        case 'pending_approval':
+            badgeClass = 'bg-warning text-dark';
+            statusText = 'Pending';
+            break;
+        case 'approved':
+            badgeClass = 'bg-success';
+            statusText = 'Approved';
+            break;
+        case 'rejected':
+            badgeClass = 'bg-danger';
+            statusText = 'Rejected';
+            break;
+    }
+
+    return '<span class="badge ' + badgeClass + '">' + statusText + '</span>';
+}
+
+/**
+ * Clear the form and reset validation states
+ */
+function clearForm() {
+    // Reset form
+    jQuery('#timeAdjustmentForm')[0].reset();
+    jQuery('#timeAdjustmentForm').removeClass('was-validated');
+
+    // Clear Select2
+    jQuery('#child').val('').trigger('change');
+
+    // Clear Flatpickr instances
+    var requestDatePicker = jQuery('#request_date')[0]._flatpickr;
+    if (requestDatePicker) {
+        requestDatePicker.clear();
+    }
+
+    var inTimePicker = jQuery('#in_time')[0]._flatpickr;
+    if (inTimePicker) {
+        inTimePicker.clear();
+    }
+
+    var outTimePicker = jQuery('#out_time')[0]._flatpickr;
+    if (outTimePicker) {
+        outTimePicker.clear();
+    }
+
+    // Hide time validation alert
+    jQuery('#timeValidationAlert').addClass('d-none');
+
+    // Clear validation classes
+    jQuery('#timeAdjustmentForm .is-invalid').removeClass('is-invalid');
+    jQuery('#timeAdjustmentForm .is-valid').removeClass('is-valid');
+}
+
+/**
+ * Set loading state for submit button
+ * @param {boolean} isLoading - Whether to show loading state
+ */
+function setLoadingState(isLoading) {
+    var $btn = jQuery('#submitBtn');
+    var $spinner = $btn.find('.spinner-border');
+    var $icon = $btn.find('.btn-icon');
+    var $text = $btn.find('.btn-text');
+
+    if (isLoading) {
+        $btn.prop('disabled', true);
+        $spinner.removeClass('d-none');
+        $icon.addClass('d-none');
+        $text.text('Submitting...');
+    } else {
+        $btn.prop('disabled', false);
+        $spinner.addClass('d-none');
+        $icon.removeClass('d-none');
+        $text.text('Submit Request');
+    }
+}
+
+/**
+ * Show message in the messages container
+ * @param {string} message - The message text
+ * @param {string} type - The alert type (success, danger, warning, info)
+ */
+function showMessage(message, type) {
+    var alertClass = 'alert-' + type;
+    var iconClass = getAlertIcon(type);
+
+    var alertHtml = '<div class="alert ' + alertClass + ' alert-dismissible border-2 bg-body-secondary fade show" role="alert">' +
+                    '<div class="d-flex align-items-center">' +
+                    '<i class="' + iconClass + ' fs-5 me-2" aria-hidden="true"></i>' +
+                    '<strong>' + escapeHtml(message) + '</strong>' +
+                    '</div>' +
+                    '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                    '</div>';
+
+    jQuery('#messagesContainer').html(alertHtml);
+
+    // Auto-hide success and info messages
+    if (type === 'success' || type === 'info') {
+        setTimeout(function() {
+            jQuery('#messagesContainer .alert').fadeOut(500, function() {
+                jQuery(this).remove();
+            });
+        }, 4000);
+    }
+
+    // Scroll to message
+    jQuery('html, body').animate({
+        scrollTop: jQuery('#messagesContainer').offset().top - 100
+    }, 300);
+}
+
+/**
+ * Get icon class for alert type
+ * @param {string} type - The alert type
+ * @returns {string} Icon class
+ */
+function getAlertIcon(type) {
+    switch (type) {
+        case 'success':
+            return 'ri-check-line';
+        case 'danger':
+            return 'ri-error-warning-line';
+        case 'warning':
+            return 'ri-alert-line';
+        case 'info':
+        default:
+            return 'ri-information-line';
+    }
+}
+
+/**
+ * Setup auto-hide for Django messages
+ */
+function setupMessageAutoHide() {
+    window.setTimeout(function() {
+        var alertDiv = jQuery('#messagesContainer .alert');
+        var successMessageFound = alertDiv.hasClass('alert-success');
+
+        if (successMessageFound) {
+            alertDiv.fadeTo(1000, 0).slideUp(1000, function() {
+                jQuery(this).remove();
+            });
+        }
+    }, 3000);
+}
+
+/**
+ * Format date string to readable format
+ * @param {string} dateStr - Date string
+ * @returns {string} Formatted date
+ */
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    try {
+        var date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    } catch (e) {
+        return dateStr;
+    }
+}
+
+/**
+ * Format datetime string to readable format
+ * @param {string} dateTimeStr - DateTime string
+ * @returns {string} Formatted datetime
+ */
+function formatDateTime(dateTimeStr) {
+    if (!dateTimeStr) return '-';
+    try {
+        var date = new Date(dateTimeStr);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        }) + ' ' + date.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (e) {
+        return dateTimeStr;
+    }
+}
+
+/**
+ * Escape HTML to prevent XSS
+ * @param {string} text - Text to escape
+ * @returns {string} Escaped text
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+
+<!-- App js -->
+<script src="{% static 'assets/js/app.js' %}"></script>
+
+{% endblock %}

@@ -102,6 +102,7 @@ from .models import (
     PackageExtraHoursMapping,
     PackageType,
     PaymentTransaction,
+    TimeAdjustmentRequest,
 )
 
 # Authentication and Basic Utility Functions
@@ -10238,6 +10239,23 @@ def saveMemoDataEntry(request):
         year_int = int(year)
         child = Child.objects.get(id=child_id, is_active=True)
 
+        # CHECK FOR PENDING TIME ADJUSTMENT REQUESTS
+        # This check cannot be bypassed with force_save as pending approvals must be resolved
+        pending_adjustments = TimeAdjustmentRequest.objects.filter(
+            child=child,
+            status="PENDING_APPROVAL",
+            is_active=True
+        ).count()
+
+        if pending_adjustments > 0:
+            messages.error(
+                request,
+                f"Cannot generate invoice. There {'is' if pending_adjustments == 1 else 'are'} "
+                f"{pending_adjustments} pending time adjustment request(s) for this child. "
+                f"Please approve or reject them first."
+            )
+            return redirect("core:memo_data_entry")
+
         # CHECK FOR MISSING ATTENDANCE (unless forced)
         if not force_save:
             # Calculate previous month (what gets calculated in memo)
@@ -12157,6 +12175,27 @@ def generateEnhancedMemoFromCalculation(request):
         child = Child.objects.get(id=child_id)
         month_int = int(month)
         year_int = int(year)
+
+        # CHECK FOR PENDING TIME ADJUSTMENT REQUESTS
+        # This check cannot be bypassed with force_generate as pending approvals must be resolved
+        pending_adjustments = TimeAdjustmentRequest.objects.filter(
+            child=child,
+            status="PENDING_APPROVAL",
+            is_active=True
+        ).count()
+
+        if pending_adjustments > 0:
+            return JsonResponse(
+                {
+                    "error": f"Cannot generate invoice. There {'is' if pending_adjustments == 1 else 'are'} "
+                    f"{pending_adjustments} pending time adjustment request(s) for this child. "
+                    f"Please approve or reject them first.",
+                    "pending_adjustments_count": pending_adjustments,
+                    "child_name": f"{child.child_first_name} {child.child_last_name}",
+                    "child_admission": child.admission_number,
+                },
+                status=400,
+            )
 
         # CHECK FOR MISSING ATTENDANCE FIRST (unless forced)
         if not force_generate:
@@ -15228,6 +15267,24 @@ def process_payment(request):
 
             # Retrieve the memo and its details
             memo = get_object_or_404(InvoiceMemo, id=memo_id)
+
+            # CHECK FOR PENDING TIME ADJUSTMENT REQUESTS
+            pending_adjustments = TimeAdjustmentRequest.objects.filter(
+                child=memo.child,
+                status="PENDING_APPROVAL",
+                is_active=True
+            ).count()
+
+            if pending_adjustments > 0:
+                return JsonResponse(
+                    {
+                        "error": f"Cannot process payment. There {'is' if pending_adjustments == 1 else 'are'} "
+                        f"{pending_adjustments} pending time adjustment request(s) for this child. "
+                        f"Please approve or reject them first."
+                    },
+                    status=400,
+                )
+
             remaining_payment = payment_amount
 
             # Get month details in the correct sequence
@@ -15503,6 +15560,23 @@ def process_payment_enhanced(request):
 
             # Get memo
             memo = get_object_or_404(InvoiceMemo, id=memo_id)
+
+            # CHECK FOR PENDING TIME ADJUSTMENT REQUESTS
+            pending_adjustments = TimeAdjustmentRequest.objects.filter(
+                child=memo.child,
+                status="PENDING_APPROVAL",
+                is_active=True
+            ).count()
+
+            if pending_adjustments > 0:
+                return JsonResponse(
+                    {
+                        "error": f"Cannot process payment. There {'is' if pending_adjustments == 1 else 'are'} "
+                        f"{pending_adjustments} pending time adjustment request(s) for this child. "
+                        f"Please approve or reject them first."
+                    },
+                    status=400,
+                )
 
             with transaction.atomic():
                 # Apply payment hierarchically
@@ -17679,6 +17753,542 @@ def getAttendanceAuditTrailJS(request):
             })
 
         return JsonResponse(result, safe=False)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# Time Adjustment Request Functions
+
+
+@login_required
+def getTimeAdjustmentRequest(request):
+    """
+    Render the time adjustment request form page.
+
+    This view displays the form for users to submit time adjustment requests
+    when attendance check-in or check-out times were missed or incorrect.
+
+    Args:
+        request (HttpRequest): The HTTP request object containing user session data
+
+    Returns:
+        HttpResponse: Renders the time_adjustment_request.html template with:
+            - UserName: Current authenticated user's username
+            - children: QuerySet of active enrolled children for the dropdown
+
+    Security:
+        - Requires user authentication via @login_required decorator
+    """
+    UserName = request.user.username
+
+    # Get active enrolled children for the dropdown
+    children = Child.objects.filter(
+        is_active=True,
+        is_enrolled=True,
+        enrollement_approved=True
+    ).order_by("child_first_name", "child_last_name")
+
+    return render(
+        request,
+        "time_adjustment_request.html",
+        {
+            "UserName": UserName,
+            "children": children,
+        },
+    )
+
+
+@login_required
+def saveTimeAdjustmentRequest(request):
+    """
+    Save a new time adjustment request via AJAX POST.
+
+    This view processes and saves new time adjustment requests submitted
+    by users. It validates the input and creates a new TimeAdjustmentRequest
+    record with PENDING_APPROVAL status.
+
+    Args:
+        request (HttpRequest): POST request with form data:
+            - child_id: Integer ID of the child
+            - request_date: String date in YYYY-MM-DD format
+            - in_time: Optional string time in HH:MM format
+            - out_time: Optional string time in HH:MM format
+            - reason: String reason for the adjustment request
+
+    Returns:
+        JsonResponse: JSON response with:
+            - success: Boolean indicating success
+            - message: String success message
+            OR
+            - error: String error message (on failure)
+
+    Business Logic:
+        - Validates required fields (child_id, request_date, reason)
+        - Validates at least one of in_time or out_time is provided
+        - Determines entry_type based on which times are provided
+        - Creates TimeAdjustmentRequest with status PENDING_APPROVAL
+        - Records the requesting user
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Only accepts POST requests
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST method is allowed"}, status=405)
+
+    try:
+        # Get form data
+        child_id = request.POST.get("child_id")
+        request_date = request.POST.get("request_date")
+        in_time_str = request.POST.get("in_time")
+        out_time_str = request.POST.get("out_time")
+        reason = request.POST.get("reason")
+
+        # Validate required fields
+        if not child_id:
+            return JsonResponse({"error": "Child is required"}, status=400)
+        if not request_date:
+            return JsonResponse({"error": "Request date is required"}, status=400)
+        if not reason or not reason.strip():
+            return JsonResponse({"error": "Reason is required"}, status=400)
+        if not in_time_str and not out_time_str:
+            return JsonResponse(
+                {"error": "At least one of check-in time or check-out time is required"},
+                status=400
+            )
+
+        # Parse times
+        in_time = None
+        out_time = None
+        if in_time_str:
+            in_time = datetime.strptime(in_time_str, "%H:%M").time()
+        if out_time_str:
+            out_time = datetime.strptime(out_time_str, "%H:%M").time()
+
+        # Determine entry type
+        if in_time and out_time:
+            entry_type = "BOTH"
+        elif in_time:
+            entry_type = "IN"
+        else:
+            entry_type = "OUT"
+
+        # Parse request date
+        parsed_request_date = datetime.strptime(request_date, "%Y-%m-%d").date()
+
+        # Get the child object
+        try:
+            child = Child.objects.get(pk=child_id)
+        except Child.DoesNotExist:
+            return JsonResponse({"error": "Child not found"}, status=404)
+
+        # Create the time adjustment request
+        time_adjustment = TimeAdjustmentRequest(
+            child=child,
+            request_date=parsed_request_date,
+            in_time=in_time,
+            out_time=out_time,
+            entry_type=entry_type,
+            reason=reason.strip(),
+            status="PENDING_APPROVAL",
+            requested_by=request.user.username,
+            user_created=request.user.username,
+            user_updated=request.user.username,
+        )
+        time_adjustment.save()
+
+        return JsonResponse({
+            "success": True,
+            "message": "Time adjustment request submitted successfully. Pending approval."
+        })
+
+    except ValueError as e:
+        return JsonResponse({"error": f"Invalid date or time format: {str(e)}"}, status=400)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getTimeAdjustmentRequestsJS(request):
+    """
+    Get list of time adjustment requests as JSON for AJAX display.
+
+    This view returns time adjustment requests filtered based on user role.
+    Superusers can see all requests, while regular users only see their own.
+
+    Args:
+        request (HttpRequest): GET request with optional filter parameters
+
+    Returns:
+        JsonResponse: JSON array of time adjustment request records with:
+            - id: Integer request ID
+            - child_name: String child's full name
+            - admission_number: String child's admission number
+            - request_date: String date in YYYY-MM-DD format
+            - in_time: String time in HH:MM format or null
+            - out_time: String time in HH:MM format or null
+            - entry_type: String (IN/OUT/BOTH)
+            - reason: String reason for request
+            - status: String status (PENDING_APPROVAL/APPROVED/REJECTED)
+            - requested_by: String username of requester
+            - requested_date: String datetime in ISO format
+            - rejection_reason: String or null
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Superusers see all requests; regular users see only their own
+    """
+    try:
+        # Build query based on user role
+        if request.user.is_superuser:
+            requests_qs = TimeAdjustmentRequest.objects.filter(
+                is_active=True
+            ).select_related("child").order_by("-requested_date")
+        else:
+            requests_qs = TimeAdjustmentRequest.objects.filter(
+                is_active=True,
+                requested_by=request.user.username
+            ).select_related("child").order_by("-requested_date")
+
+        # Build result list
+        result = []
+        for req in requests_qs:
+            result.append({
+                "id": req.id,
+                "child_name": f"{req.child.child_first_name} {req.child.child_last_name}",
+                "admission_number": req.child.admission_number,
+                "request_date": req.request_date.strftime("%Y-%m-%d"),
+                "in_time": req.in_time.strftime("%H:%M") if req.in_time else None,
+                "out_time": req.out_time.strftime("%H:%M") if req.out_time else None,
+                "entry_type": req.entry_type,
+                "entry_type_display": dict(TimeAdjustmentRequest.ENTRY_TYPE_CHOICES).get(req.entry_type, req.entry_type),
+                "reason": req.reason,
+                "status": req.status,
+                "status_display": dict(TimeAdjustmentRequest.STATUS_CHOICES).get(req.status, req.status),
+                "requested_by": req.requested_by,
+                "requested_date": req.requested_date.strftime("%Y-%m-%d %H:%M:%S"),
+                "approved_by": req.approved_by or "",
+                "approved_date": req.approved_date.strftime("%Y-%m-%d %H:%M:%S") if req.approved_date else "",
+                "rejection_reason": req.rejection_reason or "",
+            })
+
+        return JsonResponse(result, safe=False)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def getTimeAdjustmentApprovals(request):
+    """
+    Render the time adjustment approvals page for superusers.
+
+    This view displays the approval interface where superusers can review,
+    approve, or reject pending time adjustment requests.
+
+    Args:
+        request (HttpRequest): The HTTP request object containing user session data
+
+    Returns:
+        HttpResponse: Renders the time_adjustment_approvals.html template with:
+            - UserName: Current authenticated user's username
+            - pending_count: Integer count of pending requests
+        OR
+        HttpResponseRedirect: Redirects to home if user is not a superuser
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Requires superuser status; redirects non-superusers to home
+    """
+    if not request.user.is_superuser:
+        messages.error(request, "You are not authorized to access this page.")
+        return redirect("/")
+
+    UserName = request.user.username
+
+    # Get count of pending requests
+    pending_count = TimeAdjustmentRequest.objects.filter(
+        is_active=True,
+        status="PENDING_APPROVAL"
+    ).count()
+
+    return render(
+        request,
+        "time_adjustment_approvals.html",
+        {
+            "UserName": UserName,
+            "pending_count": pending_count,
+        },
+    )
+
+
+@login_required
+def getPendingTimeAdjustmentRequestsJS(request):
+    """
+    Get pending time adjustment requests as JSON for superuser approval page.
+
+    This view returns all pending time adjustment requests with child info
+    and any existing attendance for the requested date for context.
+
+    Args:
+        request (HttpRequest): GET request
+
+    Returns:
+        JsonResponse: JSON array of pending request records with:
+            - id: Integer request ID
+            - child_id: Integer child ID
+            - child_name: String child's full name
+            - admission_number: String child's admission number
+            - request_date: String date in YYYY-MM-DD format
+            - in_time: String time in HH:MM format or null
+            - out_time: String time in HH:MM format or null
+            - entry_type: String (IN/OUT/BOTH)
+            - reason: String reason for request
+            - requested_by: String username of requester
+            - requested_date: String datetime in ISO format
+            - existing_attendance: Array of existing attendance logs for that date
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Requires superuser status (returns 403 if not)
+    """
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {"error": "Permission denied. Superuser access required."},
+            status=403
+        )
+
+    try:
+        # Get pending requests
+        pending_requests = TimeAdjustmentRequest.objects.filter(
+            is_active=True,
+            status="PENDING_APPROVAL"
+        ).select_related("child").order_by("-requested_date")
+
+        # Build result list
+        result = []
+        for req in pending_requests:
+            # Get existing attendance logs for the requested date
+            existing_attendance = AttendanceLog.objects.filter(
+                child=req.child,
+                date_logged=req.request_date,
+                is_active=True
+            ).order_by("time_logged")
+
+            existing_logs = []
+            for log in existing_attendance:
+                existing_logs.append({
+                    "id": log.id,
+                    "time_logged": log.time_logged.strftime("%H:%M"),
+                })
+
+            result.append({
+                "id": req.id,
+                "child_id": req.child.id,
+                "child_name": f"{req.child.admission_number} - {req.child.child_first_name} {req.child.child_last_name}",
+                "admission_number": req.child.admission_number,
+                "request_date": req.request_date.strftime("%Y-%m-%d"),
+                "in_time": req.in_time.strftime("%H:%M") if req.in_time else None,
+                "out_time": req.out_time.strftime("%H:%M") if req.out_time else None,
+                "entry_type": req.entry_type,
+                "entry_type_display": dict(TimeAdjustmentRequest.ENTRY_TYPE_CHOICES).get(req.entry_type, req.entry_type),
+                "reason": req.reason,
+                "requested_by": req.requested_by,
+                "requested_date": req.requested_date.strftime("%Y-%m-%d %H:%M:%S"),
+                "existing_attendance": existing_logs,
+            })
+
+        return JsonResponse(result, safe=False)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+@transaction.atomic
+def approveTimeAdjustmentRequest(request):
+    """
+    Approve a time adjustment request and create attendance log entries.
+
+    This view processes approval of a time adjustment request, creating
+    the corresponding AttendanceLog entries for the requested times and
+    linking them back to the request.
+
+    Args:
+        request (HttpRequest): POST request with:
+            - request_id: Integer ID of the TimeAdjustmentRequest to approve
+
+    Returns:
+        JsonResponse: JSON response with:
+            - success: Boolean indicating success
+            - message: String success message
+            OR
+            - error: String error message (on failure)
+
+    Business Logic:
+        - Creates AttendanceLog entry for in_time if provided
+        - Creates AttendanceLog entry for out_time if provided
+        - Updates request status to APPROVED
+        - Records approving user and timestamp
+        - Links created attendance logs to the request
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Requires superuser status (returns 403 if not)
+        - Uses transaction.atomic for database integrity
+    """
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {"error": "Permission denied. Superuser access required."},
+            status=403
+        )
+
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST method is allowed"}, status=405)
+
+    try:
+        request_id = request.POST.get("request_id")
+
+        if not request_id:
+            return JsonResponse({"error": "Request ID is required"}, status=400)
+
+        # Get the time adjustment request
+        try:
+            time_request = TimeAdjustmentRequest.objects.get(
+                pk=request_id,
+                status="PENDING_APPROVAL",
+                is_active=True
+            )
+        except TimeAdjustmentRequest.DoesNotExist:
+            return JsonResponse(
+                {"error": "Pending time adjustment request not found"},
+                status=404
+            )
+
+        in_attendance_log = None
+        out_attendance_log = None
+
+        # Create attendance log for in_time if provided
+        if time_request.in_time:
+            in_attendance_log = AttendanceLog(
+                child=time_request.child,
+                date_logged=time_request.request_date,
+                time_logged=time_request.in_time,
+                user_created=request.user.username,
+                user_updated=request.user.username,
+            )
+            in_attendance_log.save()
+
+        # Create attendance log for out_time if provided
+        if time_request.out_time:
+            out_attendance_log = AttendanceLog(
+                child=time_request.child,
+                date_logged=time_request.request_date,
+                time_logged=time_request.out_time,
+                user_created=request.user.username,
+                user_updated=request.user.username,
+            )
+            out_attendance_log.save()
+
+        # Update the time adjustment request
+        time_request.status = "APPROVED"
+        time_request.approved_by = request.user.username
+        time_request.approved_date = datetime.now()
+        time_request.in_attendance_log = in_attendance_log
+        time_request.out_attendance_log = out_attendance_log
+        time_request.user_updated = request.user.username
+        time_request.save()
+
+        return JsonResponse({
+            "success": True,
+            "message": "Time adjustment request approved. Attendance entries created."
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def rejectTimeAdjustmentRequest(request):
+    """
+    Reject a time adjustment request.
+
+    This view processes rejection of a time adjustment request,
+    updating the status to REJECTED and recording the rejection reason.
+
+    Args:
+        request (HttpRequest): POST request with:
+            - request_id: Integer ID of the TimeAdjustmentRequest to reject
+            - rejection_reason: Optional string reason for rejection
+
+    Returns:
+        JsonResponse: JSON response with:
+            - success: Boolean indicating success
+            - message: String success message
+            OR
+            - error: String error message (on failure)
+
+    Business Logic:
+        - Updates request status to REJECTED
+        - Records rejection reason if provided
+        - Records rejecting user and timestamp
+
+    Security:
+        - Requires user authentication via @login_required decorator
+        - Requires superuser status (returns 403 if not)
+    """
+    if not request.user.is_superuser:
+        return JsonResponse(
+            {"error": "Permission denied. Superuser access required."},
+            status=403
+        )
+
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST method is allowed"}, status=405)
+
+    try:
+        request_id = request.POST.get("request_id")
+        rejection_reason = request.POST.get("rejection_reason", "")
+
+        if not request_id:
+            return JsonResponse({"error": "Request ID is required"}, status=400)
+
+        # Get the time adjustment request
+        try:
+            time_request = TimeAdjustmentRequest.objects.get(
+                pk=request_id,
+                status="PENDING_APPROVAL",
+                is_active=True
+            )
+        except TimeAdjustmentRequest.DoesNotExist:
+            return JsonResponse(
+                {"error": "Pending time adjustment request not found"},
+                status=404
+            )
+
+        # Update the time adjustment request
+        time_request.status = "REJECTED"
+        time_request.approved_by = request.user.username
+        time_request.approved_date = datetime.now()
+        time_request.rejection_reason = rejection_reason.strip() if rejection_reason else None
+        time_request.user_updated = request.user.username
+        time_request.save()
+
+        return JsonResponse({
+            "success": True,
+            "message": "Time adjustment request has been rejected."
+        })
 
     except Exception as e:
         import traceback

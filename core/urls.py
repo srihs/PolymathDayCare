@@ -598,4 +598,40 @@ urlpatterns = [
         views.getAttendanceAuditTrailJS,
         name="attendance_audit_trail_data",
     ),
+    # Time Adjustment Request URLs
+    path(
+        "time_adjustment_request/",
+        views.getTimeAdjustmentRequest,
+        name="time_adjustment_request",
+    ),
+    path(
+        "time_adjustment_request/save/",
+        views.saveTimeAdjustmentRequest,
+        name="save_time_adjustment_request",
+    ),
+    path(
+        "time_adjustment_request/list_js/",
+        views.getTimeAdjustmentRequestsJS,
+        name="get_time_adjustment_requests_js",
+    ),
+    path(
+        "time_adjustment_approvals/",
+        views.getTimeAdjustmentApprovals,
+        name="time_adjustment_approvals",
+    ),
+    path(
+        "time_adjustment_approvals/pending_js/",
+        views.getPendingTimeAdjustmentRequestsJS,
+        name="get_pending_time_adjustment_requests_js",
+    ),
+    path(
+        "time_adjustment_approvals/approve/",
+        views.approveTimeAdjustmentRequest,
+        name="approve_time_adjustment_request",
+    ),
+    path(
+        "time_adjustment_approvals/reject/",
+        views.rejectTimeAdjustmentRequest,
+        name="reject_time_adjustment_request",
+    ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

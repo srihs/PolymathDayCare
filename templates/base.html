@@ -390,6 +390,14 @@
                                                     <a href="/enhanced_check_ins" class="nav-link" data-key="t-line"><i class="ri-login-box-line"></i> Time Adjustments</a>
                                                 </li>
                                                 <li class="nav-item">
+                                                    <a href="/time_adjustment_request/" class="nav-link" data-key="t-line"><i class="ri-add-circle-line text-success"></i> Add Time Entry</a>
+                                                </li>
+                                                {% if request.user.is_superuser %}
+                                                <li class="nav-item">
+                                                    <a href="/time_adjustment_approvals/" class="nav-link" data-key="t-area"><i class="ri-checkbox-circle-line text-warning"></i> Time Entry Approvals</a>
+                                                </li>
+                                                {% endif %}
+                                                <li class="nav-item">
                                                     <a href="/removal_approvals/" class="nav-link" data-key="t-area"><i class="ri-delete-bin-line text-danger"></i> Removal Approval</a>
                                                 </li>
                                             </ul>

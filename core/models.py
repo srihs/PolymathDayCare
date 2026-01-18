@@ -576,6 +576,119 @@ class AttendanceLogAudit(BaseClass):
         )
 
 
+class TimeAdjustmentRequest(BaseClass):
+    """
+    Model to track time adjustment requests for attendance records.
+    Allows users to request adding IN/OUT times when they were missed,
+    with an approval workflow for administrators.
+    """
+
+    ENTRY_TYPE_CHOICES = (
+        ("IN", "Check In"),
+        ("OUT", "Check Out"),
+        ("BOTH", "Both In and Out"),
+    )
+
+    STATUS_CHOICES = (
+        ("PENDING_APPROVAL", "Pending Approval"),
+        ("APPROVED", "Approved"),
+        ("REJECTED", "Rejected"),
+    )
+
+    # Core request fields
+    child = models.ForeignKey(
+        "Child",
+        on_delete=models.CASCADE,
+        related_name="time_adjustment_requests",
+        help_text="Child for whom the time adjustment is requested",
+    )
+    request_date = models.DateField(
+        help_text="Date for which attendance is being requested"
+    )
+    in_time = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="Requested check-in time",
+    )
+    out_time = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="Requested check-out time",
+    )
+    entry_type = models.CharField(
+        max_length=10,
+        choices=ENTRY_TYPE_CHOICES,
+        help_text="Type of time entry being requested",
+    )
+    reason = models.TextField(
+        help_text="Reason for the time adjustment request"
+    )
+
+    # Request metadata
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="PENDING_APPROVAL",
+    )
+    requested_by = models.CharField(
+        max_length=50,
+        help_text="Username of the person who submitted the request",
+    )
+    requested_date = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Timestamp when the request was submitted",
+    )
+
+    # Approval metadata
+    approved_by = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        help_text="Username of the person who approved/rejected the request",
+    )
+    approved_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when the request was approved/rejected",
+    )
+    rejection_reason = models.TextField(
+        null=True,
+        blank=True,
+        help_text="Reason for rejection if the request was rejected",
+    )
+
+    # Links to created attendance logs (populated upon approval)
+    in_attendance_log = models.ForeignKey(
+        "AttendanceLog",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="time_adjustment_in_requests",
+        help_text="Attendance log created for check-in upon approval",
+    )
+    out_attendance_log = models.ForeignKey(
+        "AttendanceLog",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="time_adjustment_out_requests",
+        help_text="Attendance log created for check-out upon approval",
+    )
+
+    class Meta:
+        verbose_name = "Time Adjustment Request"
+        verbose_name_plural = "Time Adjustment Requests"
+        db_table = "dc_time_adjustment_request"
+        ordering = ["-requested_date"]
+        indexes = [
+            models.Index(fields=["child", "request_date"]),
+            models.Index(fields=["status", "requested_date"]),
+        ]
+
+    def __str__(self):
+        return f"{self.child.admission_number} - {self.request_date} ({self.status})"
+
+
 class ExtraChargesHistory(BaseClass):
     extra_charges_after530 = models.ForeignKey(
         ExtraHoursAfter530, on_delete=models.CASCADE, null=True, blank=True
