@@ -278,10 +278,11 @@ function initializeSelect2() {
 }
 
 function initializeDatePickers() {
-  // Filter date pickers
+  // Filter date pickers - restrict to today and past dates only
   jQuery('.flatpickr-date').flatpickr({
     dateFormat: 'Y-m-d',
-    allowInput: true
+    allowInput: true,
+    maxDate: 'today'
   });
 
   // Edit modal date picker
@@ -565,6 +566,17 @@ function saveEdit() {
   // Validation
   if (!dateLogged) {
     showMessage('Please select a date', 'warning');
+    jQuery('#editDate').focus();
+    return;
+  }
+
+  // Validate that the date is not in the future
+  var selectedDate = new Date(dateLogged);
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+  selectedDate.setHours(0, 0, 0, 0);
+  if (selectedDate > today) {
+    showMessage('Cannot set attendance date to a future date', 'danger');
     jQuery('#editDate').focus();
     return;
   }

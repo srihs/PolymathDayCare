@@ -17486,6 +17486,12 @@ def updateAttendanceLogEntry(request):
                 {"error": "Invalid date format. Use YYYY-MM-DD."}, status=400
             )
 
+        # Validate that the date is not in the future
+        if parsed_date > date.today():
+            return JsonResponse(
+                {"error": "Cannot set attendance date to a future date."}, status=400
+            )
+
         try:
             # Handle both HH:MM and HH:MM:SS formats
             if len(new_time) == 5:
@@ -17878,6 +17884,12 @@ def saveTimeAdjustmentRequest(request):
 
         # Parse request date
         parsed_request_date = datetime.strptime(request_date, "%Y-%m-%d").date()
+
+        # Validate that the date is not in the future
+        if parsed_request_date > date.today():
+            return JsonResponse(
+                {"error": "Cannot submit a time adjustment request for a future date."}, status=400
+            )
 
         # Get the child object
         try:

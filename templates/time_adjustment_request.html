@@ -324,6 +324,17 @@ function submitTimeAdjustmentRequest() {
         return;
     }
 
+    // Validate that the date is not in the future
+    var selectedDate = new Date(requestDate);
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
+    if (selectedDate > today) {
+        showMessage('Cannot submit a time adjustment request for a future date.', 'danger');
+        jQuery('#request_date').focus();
+        return;
+    }
+
     // Time validation - at least one time must be provided
     if (!validateTimeFields()) {
         showMessage('Please provide at least one time (IN or OUT).', 'warning');
