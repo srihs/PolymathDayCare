@@ -541,7 +541,7 @@
                                 Holiday Charges
                                 <i class="fas fa-info-circle text-primary ms-1"
                                    id="previousHolidayChargesInfoIcon"
-                                   style="cursor: pointer; display: none;"
+                                   style="cursor: pointer; display: none; font-size: 1rem;"
                                    title="View holiday breakdown"
                                    data-bs-toggle="tooltip"></i>
                             </label>
@@ -680,7 +680,7 @@
                                 Holiday Charges
                                 <i class="fas fa-info-circle text-primary ms-1"
                                    id="holidayChargesInfoIcon"
-                                   style="cursor: pointer; display: none;"
+                                   style="cursor: pointer; display: none; font-size: 1rem;"
                                    title="View holiday breakdown"
                                    data-bs-toggle="tooltip"></i>
                             </label>
@@ -1221,15 +1221,15 @@ function loadChargesBreakdown(childId, prevMonth, prevYear) {
                 if (response.holiday_charges && response.holiday_charges.breakdown && response.holiday_charges.breakdown.length > 0) {
                     window.currentHolidayBreakdown = response.holiday_charges.breakdown;
                     console.log('Holiday breakdown found, showing icons. Breakdown count:', response.holiday_charges.breakdown.length);
-                    $('#previousHolidayChargesInfoIcon').show();
-                    $('#holidayChargesInfoIcon').show(); // Also show for current month if user copied/used same data
+                    $('#previousHolidayChargesInfoIcon').css('display', 'inline-block');
+                    $('#holidayChargesInfoIcon').css('display', 'inline-block'); // Also show for current month if user copied/used same data
                     console.log('Previous icon display:', $('#previousHolidayChargesInfoIcon').css('display'));
                     console.log('Current icon display:', $('#holidayChargesInfoIcon').css('display'));
                 } else {
                     console.log('No holiday breakdown found, hiding icons');
                     window.currentHolidayBreakdown = null;
-                    $('#previousHolidayChargesInfoIcon').hide();
-                    $('#holidayChargesInfoIcon').hide();
+                    $('#previousHolidayChargesInfoIcon').css('display', 'none');
+                    $('#holidayChargesInfoIcon').css('display', 'none');
                 }
 
                 // Display breakdown table
@@ -1250,8 +1250,8 @@ function loadChargesBreakdown(childId, prevMonth, prevYear) {
                 setFormattedValue('previous_extra_hours', 0);
                 setFormattedValue('previous_holiday_charges', 0);
                 window.currentHolidayBreakdown = null;
-                $('#previousHolidayChargesInfoIcon').hide();
-                $('#holidayChargesInfoIcon').hide();
+                $('#previousHolidayChargesInfoIcon').css('display', 'none');
+                $('#holidayChargesInfoIcon').css('display', 'none');
                 $('#breakdown-content').html('<p class="text-muted">No breakdown data available for this month.</p>').show();
                 setTimeout(calculateTotals, 100);
             }
