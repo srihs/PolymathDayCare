@@ -11063,10 +11063,16 @@ def getDetailedChargesBreakdown(request):
                     / Decimal(expected_days)
                 )
 
+                # Get the holiday name for this date
+                holiday_obj = Holiday.objects.filter(
+                    start_date__lte=log_date, end_date__gte=log_date, is_active=True
+                ).first()
+
                 holiday_charges_breakdown.append(
                     {
                         "date": log_date.strftime("%Y-%m-%d"),
                         "day_name": log_date.strftime("%A"),
+                        "holiday_name": holiday_obj.title if holiday_obj else "Holiday",
                         "holiday_package": package_mapping.holiday_package.package_name,
                         "daily_rate": float(daily_holiday_rate),
                         "charges": float(daily_holiday_rate),
