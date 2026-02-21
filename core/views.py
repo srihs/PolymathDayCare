@@ -9862,15 +9862,33 @@ def getChildPackageDetails(request):
             package_term = pkg.package_term.package_type_name if pkg.package_term else "Fixed"
 
         # Get discount information
+        # Check both package_mapping.discount AND enrollment.discount
+        # Enrollment discount takes precedence (set via enrollment discount approval)
         discount_rate = 0
         discount_name = ""
-        if (
+
+        # First check the child's enrollment discount
+        enrollment = ChildEnrollment.objects.filter(
+            child=child,
+            is_active=True,
+            status="APPROVED"
+        ).first()
+
+        enrollment_discount = None
+        if enrollment and enrollment.discount and enrollment.discount.is_active and enrollment.discount.status == "Approved":
+            enrollment_discount = enrollment.discount
+            discount_rate = float(enrollment_discount.discount_rate)
+            discount_name = enrollment_discount.discount_name
+            print(f"DEBUG: Using enrollment discount: {discount_name} ({discount_rate}%)")
+        # Fallback to package mapping discount if no enrollment discount
+        elif (
             package_mapping.discount
             and package_mapping.discount.is_active
             and package_mapping.discount.status == "Approved"
         ):
             discount_rate = float(package_mapping.discount.discount_rate)
             discount_name = package_mapping.discount.discount_name
+            print(f"DEBUG: Using package mapping discount: {discount_name} ({discount_rate}%)")
 
         # Get effective dates
         effective_from = (
@@ -18687,22 +18705,39 @@ def getPendingEnrollmentDiscountRequestsJS(request):
         # Build result list
         result = []
         for req in pending_requests:
+            # Get requested discount info with debug logging
+            if req.discount:
+                requested_discount_name = req.discount.discount_name or ""
+                requested_discount_rate = float(req.discount.discount_rate)
+                # Debug log if discount_name is empty
+                if not requested_discount_name:
+                    print(f"WARNING: Discount ID {req.discount.id} has empty discount_name. Code: {req.discount.discount_code}")
+            else:
+                requested_discount_name = ""
+                requested_discount_rate = 0
+                print(f"WARNING: EnrollmentDiscountRequest ID {req.id} has no discount!")
+
+            # Get current/previous discount info
+            current_discount_name = req.previous_discount.discount_name if req.previous_discount else None
+            current_discount_rate = float(req.previous_discount.discount_rate) if req.previous_discount else 0
+
             result.append({
                 "id": req.id,
                 "child_id": req.child.id,
-                "child_name": f"{req.child.admission_number} - {req.child.child_first_name} {req.child.child_last_name}",
+                "child_name": f"{req.child.child_first_name} {req.child.child_last_name}",
                 "admission_number": req.child.admission_number,
                 "enrollment_id": req.enrollment.id,
                 "enrollment_code": req.enrollment.enrollment_code if req.enrollment else "",
-                "discount_id": req.discount.id,
-                "discount_code": req.discount.discount_code,
-                "discount_name": req.discount.discount_name,
-                "discount_rate": float(req.discount.discount_rate),
+                "discount_id": req.discount.id if req.discount else None,
+                "discount_code": req.discount.discount_code if req.discount else "",
+                "requested_discount_name": requested_discount_name,
+                "requested_discount_rate": requested_discount_rate,
                 "effective_from": req.effective_from.strftime("%Y-%m-%d"),
                 "reason": req.reason,
                 "requested_by": req.requested_by,
                 "requested_date": req.requested_date.strftime("%Y-%m-%d %H:%M:%S"),
-                "previous_discount_code": req.previous_discount.discount_code if req.previous_discount else None,
+                "current_discount_name": current_discount_name,
+                "current_discount_rate": current_discount_rate,
             })
 
         return JsonResponse(result, safe=False)
