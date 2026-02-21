@@ -669,7 +669,14 @@
                     </div>
                     <div class="col-md-4">
                         <div class="form-row">
-                            <label class="form-label">Holiday Charges</label>
+                            <label class="form-label">
+                                Holiday Charges
+                                <i class="fas fa-info-circle text-primary ms-1"
+                                   id="holidayChargesInfoIcon"
+                                   style="cursor: pointer; display: none;"
+                                   title="View holiday breakdown"
+                                   data-bs-toggle="tooltip"></i>
+                            </label>
                             <div class="input-group amount-input-wrapper">
                                 <span class="input-group-text">Rs.</span>
                                 <input type="text" class="form-control formatted-amount"
@@ -790,6 +797,33 @@
     </button>
 </div>
     </form>
+</div>
+
+<!-- Holiday Charges Breakdown Modal -->
+<div class="modal fade" id="holidayChargesModal" tabindex="-1" aria-labelledby="holidayChargesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title" id="holidayChargesModalLabel">
+                    <i class="fas fa-calendar-day me-2"></i>Holiday Charges Breakdown
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="holidayChargesContent">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-warning" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading holiday breakdown...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Floating Total -->
@@ -1175,6 +1209,15 @@ function loadChargesBreakdown(childId, prevMonth, prevYear) {
                 setFormattedValue('previous_extra_hours', response.extra_hours.total);
                 setFormattedValue('previous_holiday_charges', response.holiday_charges.total);
 
+                // Store holiday breakdown data globally and show/hide info icon
+                if (response.holiday_charges && response.holiday_charges.breakdown && response.holiday_charges.breakdown.length > 0) {
+                    window.currentHolidayBreakdown = response.holiday_charges.breakdown;
+                    $('#holidayChargesInfoIcon').show();
+                } else {
+                    window.currentHolidayBreakdown = null;
+                    $('#holidayChargesInfoIcon').hide();
+                }
+
                 // Display breakdown table
                 displayBreakdownTable(response);
                 $('#breakdown-content').show();
@@ -1192,6 +1235,8 @@ function loadChargesBreakdown(childId, prevMonth, prevYear) {
             } else {
                 setFormattedValue('previous_extra_hours', 0);
                 setFormattedValue('previous_holiday_charges', 0);
+                window.currentHolidayBreakdown = null;
+                $('#holidayChargesInfoIcon').hide();
                 $('#breakdown-content').html('<p class="text-muted">No breakdown data available for this month.</p>').show();
                 setTimeout(calculateTotals, 100);
             }
@@ -3004,6 +3049,81 @@ function fetchOutstandingBalance() {
         }
     });
 }
+
+// Holiday Charges Info Icon Click Handler
+$('#holidayChargesInfoIcon').on('click', function() {
+    if (!window.currentHolidayBreakdown || window.currentHolidayBreakdown.length === 0) {
+        alert('No holiday charges data available');
+        return;
+    }
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('holidayChargesModal'));
+
+    // Build holiday breakdown table
+    let totalCharges = 0;
+    let tableHTML = `
+        <div class="alert alert-info mb-3">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Holiday Charges Breakdown</strong> - Charges for days when the child attended during holidays
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered">
+                <thead class="table-warning">
+                    <tr>
+                        <th>Date</th>
+                        <th>Day</th>
+                        <th>Holiday Name</th>
+                        <th>Holiday Package</th>
+                        <th class="text-end">Daily Rate</th>
+                        <th class="text-end">Charges</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    window.currentHolidayBreakdown.forEach(function(item) {
+        const date = new Date(item.date);
+        const formattedDate = date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+
+        tableHTML += `
+            <tr>
+                <td>${formattedDate}</td>
+                <td>${item.day_name || '-'}</td>
+                <td><span class="badge bg-danger">${item.holiday_name || 'Holiday'}</span></td>
+                <td>${item.holiday_package || '-'}</td>
+                <td class="text-end">Rs. ${parseFloat(item.daily_rate || 0).toFixed(2)}</td>
+                <td class="text-end fw-bold">Rs. ${parseFloat(item.charges || 0).toFixed(2)}</td>
+            </tr>
+        `;
+        totalCharges += parseFloat(item.charges || 0);
+    });
+
+    tableHTML += `
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="5" class="text-end">Total Holiday Charges:</th>
+                        <th class="text-end text-warning">Rs. ${totalCharges.toFixed(2)}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <div class="alert alert-secondary mb-0">
+            <small>
+                <i class="fas fa-calendar-check me-1"></i>
+                <strong>${window.currentHolidayBreakdown.length}</strong> holiday day(s) with attendance
+            </small>
+        </div>
+    `;
+
+    $('#holidayChargesContent').html(tableHTML);
+    modal.show();
+});
 
 </script>
 
