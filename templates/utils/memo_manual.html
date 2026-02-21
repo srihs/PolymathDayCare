@@ -537,7 +537,14 @@
                     </div>
                     <div class="col-md-4">
                         <div class="form-row">
-                            <label class="form-label">Holiday Charges</label>
+                            <label class="form-label">
+                                Holiday Charges
+                                <i class="fas fa-info-circle text-primary ms-1"
+                                   id="previousHolidayChargesInfoIcon"
+                                   style="cursor: pointer; display: none;"
+                                   title="View holiday breakdown"
+                                   data-bs-toggle="tooltip"></i>
+                            </label>
                             <div class="input-group amount-input-wrapper">
                                 <span class="input-group-text">Rs.</span>
                                 <input type="text" class="form-control formatted-amount"
@@ -1212,9 +1219,11 @@ function loadChargesBreakdown(childId, prevMonth, prevYear) {
                 // Store holiday breakdown data globally and show/hide info icon
                 if (response.holiday_charges && response.holiday_charges.breakdown && response.holiday_charges.breakdown.length > 0) {
                     window.currentHolidayBreakdown = response.holiday_charges.breakdown;
-                    $('#holidayChargesInfoIcon').show();
+                    $('#previousHolidayChargesInfoIcon').show();
+                    $('#holidayChargesInfoIcon').show(); // Also show for current month if user copied/used same data
                 } else {
                     window.currentHolidayBreakdown = null;
+                    $('#previousHolidayChargesInfoIcon').hide();
                     $('#holidayChargesInfoIcon').hide();
                 }
 
@@ -1236,6 +1245,7 @@ function loadChargesBreakdown(childId, prevMonth, prevYear) {
                 setFormattedValue('previous_extra_hours', 0);
                 setFormattedValue('previous_holiday_charges', 0);
                 window.currentHolidayBreakdown = null;
+                $('#previousHolidayChargesInfoIcon').hide();
                 $('#holidayChargesInfoIcon').hide();
                 $('#breakdown-content').html('<p class="text-muted">No breakdown data available for this month.</p>').show();
                 setTimeout(calculateTotals, 100);
@@ -3050,8 +3060,8 @@ function fetchOutstandingBalance() {
     });
 }
 
-// Holiday Charges Info Icon Click Handler
-$('#holidayChargesInfoIcon').on('click', function() {
+// Holiday Charges Info Icon Click Handler (for both previous and current month)
+$('#holidayChargesInfoIcon, #previousHolidayChargesInfoIcon').on('click', function() {
     if (!window.currentHolidayBreakdown || window.currentHolidayBreakdown.length === 0) {
         alert('No holiday charges data available');
         return;
