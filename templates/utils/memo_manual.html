@@ -1217,11 +1217,16 @@ function loadChargesBreakdown(childId, prevMonth, prevYear) {
                 setFormattedValue('previous_holiday_charges', response.holiday_charges.total);
 
                 // Store holiday breakdown data globally and show/hide info icon
+                console.log('Holiday charges response:', response.holiday_charges);
                 if (response.holiday_charges && response.holiday_charges.breakdown && response.holiday_charges.breakdown.length > 0) {
                     window.currentHolidayBreakdown = response.holiday_charges.breakdown;
+                    console.log('Holiday breakdown found, showing icons. Breakdown count:', response.holiday_charges.breakdown.length);
                     $('#previousHolidayChargesInfoIcon').show();
                     $('#holidayChargesInfoIcon').show(); // Also show for current month if user copied/used same data
+                    console.log('Previous icon display:', $('#previousHolidayChargesInfoIcon').css('display'));
+                    console.log('Current icon display:', $('#holidayChargesInfoIcon').css('display'));
                 } else {
+                    console.log('No holiday breakdown found, hiding icons');
                     window.currentHolidayBreakdown = null;
                     $('#previousHolidayChargesInfoIcon').hide();
                     $('#holidayChargesInfoIcon').hide();
