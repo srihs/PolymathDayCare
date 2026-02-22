@@ -5352,7 +5352,15 @@ def getVacationByID(request, pk):
     """
     try:
         vacation = get_object_or_404(Holiday, pk=pk, is_vacation=True)
-        form = UpdateVacationForm(instance=vacation)
+        # Prepare initial data with the vacation ID
+        initial_data = {
+            'id': vacation.id,
+            'title': vacation.title,
+            'start_date': vacation.start_date,
+            'end_date': vacation.end_date,
+            'vacation_type': vacation.vacation_type,
+        }
+        form = UpdateVacationForm(initial=initial_data)
     except Exception as e:
         messages.error(request, str(e))
         form = None

@@ -3420,6 +3420,11 @@ class CreateVacationForm(forms.ModelForm):
 class UpdateVacationForm(forms.ModelForm):
     """Form for updating existing vacation periods"""
 
+    id = forms.IntegerField(
+        widget=forms.HiddenInput(),
+        required=False
+    )
+
     title = forms.CharField(
         max_length=250,
         required=True,
@@ -3472,7 +3477,7 @@ class UpdateVacationForm(forms.ModelForm):
 
     class Meta:
         model = Holiday
-        fields = ["title", "start_date", "end_date", "vacation_type"]
+        fields = ["id", "title", "start_date", "end_date", "vacation_type"]
 
     def save(self, commit=True):
         instance = super().save(commit=False)
