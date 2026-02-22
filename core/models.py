@@ -287,18 +287,47 @@ class Holiday(BaseClass):
     end_date = models.DateField()
     start_year = models.CharField(max_length=4)
     end_year = models.CharField(max_length=4)
+
+    # Holiday Type (mutually exclusive - either public holiday OR vacation)
+    is_public_holiday = models.BooleanField(
+        default=False,
+        help_text="Government/National holidays (e.g., Christmas, New Year)"
+    )
+    is_vacation = models.BooleanField(
+        default=False,
+        help_text="School vacation periods"
+    )
+
+    # Vacation Student Type (only applicable if is_vacation=True)
+    VACATION_TYPE_CHOICES = [
+        ('ALL', 'All Students'),
+        ('POLYMATH', 'Polymath Students Only'),
+        ('NON_POLYMATH', 'Non-Polymath Students Only'),
+    ]
+    vacation_type = models.CharField(
+        max_length=20,
+        choices=VACATION_TYPE_CHOICES,
+        null=True,
+        blank=True,
+        help_text="Applies only when is_vacation=True"
+    )
+
+    # DEPRECATED - Kept for backward compatibility during migration
+    # These will be removed in a future version
     is_polymath_holiday = models.BooleanField(
         null=True,
         blank=True,
-    )
-    is_public_holiday = models.BooleanField(
-        null=True,
-        blank=True,
+        default=False,
+        help_text="DEPRECATED: Use is_vacation=True with vacation_type='POLYMATH' instead"
     )
     is_other_school_holiday = models.BooleanField(
         null=True,
         blank=True,
+        default=False,
+        help_text="DEPRECATED: Use is_vacation=True with vacation_type='NON_POLYMATH' instead"
     )
+
+    # Auto-calculated fields
     no_of_days = models.IntegerField(default=0)
     weekdays_count = models.IntegerField(default=0)
     weekends_count = models.IntegerField(default=0)

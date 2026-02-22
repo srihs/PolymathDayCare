@@ -67,6 +67,27 @@ urlpatterns = [
         views.getOtherHolidayID,
         name="get_holiday_other_byID",
     ),
+    # NEW: Unified Vacation Management
+    path(
+        "vacations/",
+        views.getVacations,
+        name="vacations",
+    ),
+    path(
+        "get_vacations_js/",
+        views.getVacationsJS,
+        name="get_vacations_js",
+    ),
+    path(
+        "save_vacation/",
+        views.saveVacation,
+        name="save_vacation",
+    ),
+    path(
+        "get_vacation_byID/<int:pk>/",
+        views.getVacationByID,
+        name="get_vacation_byID",
+    ),
     path("child/", views.getChild, name="view_child"),
     path("get_all_child_JS/", views.getChild, name="get_all_child_JS"),
     path("childview/", views.getChildJson, name="view_child_j"),

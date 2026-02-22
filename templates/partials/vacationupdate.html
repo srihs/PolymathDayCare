@@ -1,0 +1,49 @@
+{% load static %}
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card border-0">
+            <div class="card-header align-items-center d-flex bg-light">
+                <h5 class="card-title mb-0 flex-grow-1">
+                    <i class="ri-edit-line me-2"></i>Edit Vacation Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row gy-3">
+                    <div class="col-md-12">
+                        <label class="form-label">Vacation Name</label>
+                        {{form.title}}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Start Date</label>
+                        {{form.start_date}}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">End Date</label>
+                        {{form.end_date}}
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">Applies To</label>
+                        {{form.vacation_type}}
+                        <div class="form-text">
+                            <small>
+                                <i class="ri-information-line me-1"></i>
+                                Select which students this vacation applies to
+                            </small>
+                        </div>
+                    </div>
+                    {{ form.id.as_hidden }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+jQuery('#start_date').flatpickr({
+    dateFormat: "Y-m-d",
+});
+
+jQuery('#end_date').flatpickr({
+    dateFormat: "Y-m-d",
+});
+</script>

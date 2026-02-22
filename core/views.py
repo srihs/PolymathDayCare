@@ -64,6 +64,7 @@ from .forms import (
     CreatePackageTypeForm,
     CreatePolymathHolidayForm,
     CreatePublicHolidayForm,
+    CreateVacationForm,
     ExtraHoursReportForm,
     GenerateInvoiceForm,
     # CreateHolidayTypesForm,
@@ -79,6 +80,7 @@ from .forms import (
     UpdatePackageTypeForm,
     UpdatePolymathHolidayForm,
     UpdatePublicHolidayForm,
+    UpdateVacationForm,
 )
 from .models import (
     AttendanceLog,
@@ -5210,6 +5212,158 @@ def getOtherHolidayID(request, pk):
     )
 
 
+# ==================== VACATION MANAGEMENT VIEWS ====================
+# New unified vacation system replacing Polymath and Other holidays
+
+@login_required
+def getVacations(request):
+    """
+    Renders the unified vacation management page.
+
+    This view provides a single interface for managing all vacation periods,
+    replacing the separate Polymath and Other holiday pages.
+
+    Returns:
+        HttpResponse: Renders vacations.html with CreateVacationForm
+    """
+    vacation_form = CreateVacationForm()
+    return render(
+        request,
+        "../templates/vacations.html",
+        {"form": vacation_form, "UserName": request.user.username},
+    )
+
+
+@login_required
+def getVacationsJS(request):
+    """
+    Returns JSON data for all vacation periods to populate DataTables.
+
+    Returns:
+        JsonResponse: Array of vacation objects with:
+            - id, title, start_date, end_date
+            - vacation_type (ALL/POLYMATH/NON_POLYMATH)
+            - vacation_type_display (human-readable)
+            - no_of_days, weekdays_count, weekends_count
+    """
+    vacations = Holiday.objects.filter(
+        is_active=True,
+        is_vacation=True
+    ).order_by('-start_date')
+
+    vacation_list = []
+    for vacation in vacations:
+        vacation_list.append({
+            'id': vacation.id,
+            'title': vacation.title,
+            'start_date': vacation.start_date.strftime('%Y-%m-%d'),
+            'end_date': vacation.end_date.strftime('%Y-%m-%d'),
+            'vacation_type': vacation.vacation_type,
+            'vacation_type_display': vacation.get_vacation_type_display(),
+            'no_of_days': vacation.no_of_days,
+            'weekdays_count': vacation.weekdays_count,
+            'weekends_count': vacation.weekends_count,
+        })
+
+    return JsonResponse(vacation_list, safe=False)
+
+
+@login_required
+def saveVacation(request):
+    """
+    Handles creation and updating of vacation periods.
+
+    POST parameters:
+        - id (optional): If provided, updates existing vacation
+        - title: Vacation name
+        - start_date: Start date (YYYY-MM-DD)
+        - end_date: End date (YYYY-MM-DD)
+        - vacation_type: ALL/POLYMATH/NON_POLYMATH
+
+    Returns:
+        Redirects to vacations page with success/error message
+    """
+    try:
+        if request.method == "POST":
+            vacation_id = request.POST.get("id")
+            title = request.POST.get("title")
+            start_date = datetime.strptime(request.POST.get("start_date"), "%Y-%m-%d").date()
+            end_date = datetime.strptime(request.POST.get("end_date"), "%Y-%m-%d").date()
+            vacation_type = request.POST.get("vacation_type")
+
+            # Validation
+            if start_date > end_date:
+                raise Exception(
+                    f"End date ({end_date}) cannot be earlier than start date ({start_date})."
+                )
+
+            if not vacation_type or vacation_type not in ['ALL', 'POLYMATH', 'NON_POLYMATH']:
+                raise Exception("Please select a valid student type for this vacation.")
+
+            # Check user permissions
+            user = User.objects.get(username=request.user.username)
+            if user.groups.filter(name="Data Entry").exists():
+                messages.error(request, "You are not authorized to perform this operation.")
+                return redirect("core:vacations")
+
+            # Update or Create
+            if vacation_id:
+                # Update existing vacation
+                vacation = Holiday.objects.get(pk=vacation_id)
+                vacation.title = title
+                vacation.start_date = start_date
+                vacation.end_date = end_date
+                vacation.vacation_type = vacation_type
+                vacation.is_vacation = True
+                vacation.is_public_holiday = False
+                vacation.user_updated = request.user.username
+                vacation.date_updated = datetime.now()
+                vacation.save()
+                messages.success(request, f"Vacation '{title}' updated successfully.")
+            else:
+                # Create new vacation
+                form = CreateVacationForm(request.POST)
+                if form.is_valid():
+                    vacation = form.save(commit=False)
+                    vacation.user_created = request.user.username
+                    vacation.date_created = datetime.now()
+                    vacation.save()
+                    messages.success(request, f"Vacation '{title}' created successfully.")
+                else:
+                    for error in form.errors.values():
+                        messages.error(request, error)
+
+    except Exception as e:
+        messages.error(request, str(e))
+
+    return redirect("core:vacations")
+
+
+@login_required
+def getVacationByID(request, pk):
+    """
+    Returns a form pre-populated with vacation data for editing.
+
+    Args:
+        pk (int): Primary key of the vacation to edit
+
+    Returns:
+        HttpResponse: Renders vacationupdate.html partial with UpdateVacationForm
+    """
+    try:
+        vacation = get_object_or_404(Holiday, pk=pk, is_vacation=True)
+        form = UpdateVacationForm(instance=vacation)
+    except Exception as e:
+        messages.error(request, str(e))
+        form = None
+
+    return render(
+        request,
+        "../templates/partials/vacationupdate.html",
+        {"form": form}
+    )
+
+
 def nullify_empty(value, is_numeric=False, is_date=False):
     """
     Utility function to clean and convert empty or invalid values to None.
@@ -6951,15 +7105,34 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
 
         # ===== VACATION MONTH DETECTION =====
         # Check if the entire month falls within a vacation period (polymath/other holidays)
-        # A vacation month is when polymath/other holidays cover the majority of working days
+        # A vacation month is when vacations cover the majority of working days
+        # NEW: Use vacation system - check child's student type to get applicable vacations
 
-        # Get all vacation holidays (polymath + other school holidays) that overlap this month
+        # Determine which vacation types apply to this child
+        if child.is_polymath_student:
+            applicable_vacation_types = ['ALL', 'POLYMATH']
+        else:
+            applicable_vacation_types = ['ALL', 'NON_POLYMATH']
+
+        # Get all vacations applicable to this child that overlap this month
         vacation_holidays_qs = Holiday.objects.filter(
+            is_vacation=True,
+            vacation_type__in=applicable_vacation_types,
+            start_date__lte=last_day,
+            end_date__gte=first_day,
+            is_active=True
+        )
+
+        # BACKWARD COMPATIBILITY: Also include old polymath/other holidays
+        # TODO: Remove this after data migration is complete
+        old_vacation_holidays_qs = Holiday.objects.filter(
             Q(is_polymath_holiday=True) | Q(is_other_school_holiday=True),
             start_date__lte=last_day,
             end_date__gte=first_day,
             is_active=True
         )
+        # Combine both querysets
+        vacation_holidays_qs = vacation_holidays_qs | old_vacation_holidays_qs
 
         # Get all public holidays that overlap this month
         public_holidays_qs = Holiday.objects.filter(
@@ -8049,12 +8222,28 @@ def getExtraHoursReportJS(request):
             month_last_day = datetime(log_date.year, log_date.month, calendar.monthrange(log_date.year, log_date.month)[1]).date()
 
             # Get vacation holidays for this month
+            # NEW: Use vacation system based on child's student type
+            if child.is_polymath_student:
+                applicable_vacation_types = ['ALL', 'POLYMATH']
+            else:
+                applicable_vacation_types = ['ALL', 'NON_POLYMATH']
+
             vacation_holidays_qs = Holiday.objects.filter(
+                is_vacation=True,
+                vacation_type__in=applicable_vacation_types,
+                start_date__lte=month_last_day,
+                end_date__gte=month_first_day,
+                is_active=True
+            )
+
+            # BACKWARD COMPATIBILITY: Include old system
+            old_vacation_holidays_qs = Holiday.objects.filter(
                 Q(is_polymath_holiday=True) | Q(is_other_school_holiday=True),
                 start_date__lte=month_last_day,
                 end_date__gte=month_first_day,
                 is_active=True
             )
+            vacation_holidays_qs = vacation_holidays_qs | old_vacation_holidays_qs
             vacation_dates = set()
             for holiday in vacation_holidays_qs:
                 current = max(holiday.start_date, month_first_day)
@@ -8695,6 +8884,11 @@ def getChildPackageMapping(request):
             is_active=True, package_type__is_holiday_package=True
         ).order_by("package_code")
 
+        # Get vacation packages (packages with vacation package type)
+        vacation_packages = FixedPackage.objects.filter(
+            is_active=True, package_type__is_vacation_package=True
+        ).order_by("package_code")
+
         flex_packages = FlexPackages.objects.filter(is_active=True).order_by(
             "package_code"
         )
@@ -8708,6 +8902,7 @@ def getChildPackageMapping(request):
             "children": children,
             "normal_packages": normal_packages,
             "holiday_packages": holiday_packages,
+            "vacation_packages": vacation_packages,
             "flex_packages": flex_packages,
             "approved_discounts": approved_discounts,  # ADD THIS
             "UserName": request.user.username,
@@ -8729,6 +8924,7 @@ def getChildPackageMapping(request):
                     "children": [],
                     "normal_packages": [],
                     "holiday_packages": [],
+                    "vacation_packages": [],
                     "flex_packages": [],
                     "UserName": request.user.username,
                 }
@@ -8841,7 +9037,7 @@ def getPackageMappingsJS(request):
 
         # Start with base query
         mappings = ChildPackageMapping.objects.select_related(
-            "child", "normal_package", "holiday_package", "flex_package", "discount"
+            "child", "normal_package", "holiday_package", "vacation_package", "flex_package", "discount"
         ).filter(child__is_active=True)
 
         # Apply search filters
@@ -8878,6 +9074,10 @@ def getPackageMappingsJS(request):
             holiday_package_code = None
             holiday_package_amount = None
 
+            vacation_package_name = None
+            vacation_package_code = None
+            vacation_package_amount = None
+
             flex_package_name = None
             flex_package_code = None
             flex_package_amount = None
@@ -8891,6 +9091,11 @@ def getPackageMappingsJS(request):
                 holiday_package_name = mapping.holiday_package.package_name
                 holiday_package_code = mapping.holiday_package.package_code
                 holiday_package_amount = float(mapping.holiday_package.package_total)
+
+            if mapping.vacation_package:
+                vacation_package_name = mapping.vacation_package.package_name
+                vacation_package_code = mapping.vacation_package.package_code
+                vacation_package_amount = float(mapping.vacation_package.package_total)
 
             if mapping.flex_package:
                 flex_package_name = mapping.flex_package.package_name
@@ -8940,6 +9145,10 @@ def getPackageMappingsJS(request):
                     "holiday_package_name": holiday_package_name,
                     "holiday_package_code": holiday_package_code,
                     "holiday_package_amount": holiday_package_amount,
+                    # Vacation package details
+                    "vacation_package_name": vacation_package_name,
+                    "vacation_package_code": vacation_package_code,
+                    "vacation_package_amount": vacation_package_amount,
                     # Flex package details
                     "flex_package_name": flex_package_name,
                     "flex_package_code": flex_package_code,
@@ -9068,6 +9277,7 @@ def savePackageMapping(request):
         normal_package_id = request.POST.get("normal_package")
         flex_package_id = request.POST.get("flex_package")
         holiday_package_id = request.POST.get("holiday_package")
+        vacation_package_id = request.POST.get("vacation_package")
         discount_id = request.POST.get("discount")
         effective_from = request.POST.get("effective_from")
         effective_to = request.POST.get("effective_to")
@@ -9156,6 +9366,10 @@ def savePackageMapping(request):
 
             # Always set holiday package (required)
             mapping.holiday_package = FixedPackage.objects.get(id=holiday_package_id)
+
+            # Set vacation package if provided (optional)
+            if vacation_package_id:
+                mapping.vacation_package = FixedPackage.objects.get(id=vacation_package_id)
 
             if discount_id:
                 mapping.discount = Discount.objects.get(id=discount_id)
@@ -9372,6 +9586,7 @@ def updatePackageMapping(request):
         package_type = request.POST.get("package_type")
         normal_package_id = request.POST.get("normal_package")
         holiday_package_id = request.POST.get("holiday_package")
+        vacation_package_id = request.POST.get("vacation_package")
         flex_package_id = request.POST.get("flex_package")
         additional_holiday_package_id = request.POST.get("additional_holiday_package")
         effective_from = request.POST.get("effective_from")
@@ -9400,6 +9615,7 @@ def updatePackageMapping(request):
             # Clear existing packages
             mapping.normal_package = None
             mapping.holiday_package = None
+            mapping.vacation_package = None
             mapping.flex_package = None
             mapping.is_holiday_package = False
 
@@ -9416,6 +9632,10 @@ def updatePackageMapping(request):
                     mapping.holiday_package = FixedPackage.objects.get(
                         id=additional_holiday_package_id
                     )
+                if vacation_package_id:
+                    mapping.vacation_package = FixedPackage.objects.get(
+                        id=vacation_package_id
+                    )
 
             elif package_type == "holiday" and holiday_package_id:
                 mapping.holiday_package = FixedPackage.objects.get(
@@ -9428,6 +9648,10 @@ def updatePackageMapping(request):
                 if additional_holiday_package_id:
                     mapping.holiday_package = FixedPackage.objects.get(
                         id=additional_holiday_package_id
+                    )
+                if vacation_package_id:
+                    mapping.vacation_package = FixedPackage.objects.get(
+                        id=vacation_package_id
                     )
             else:
                 messages.error(request, "Invalid package selection")
@@ -10829,13 +11053,28 @@ def getDetailedChargesBreakdown(request):
                 current += timedelta(days=1)
 
         # ===== VACATION MONTH DETECTION =====
-        # Get vacation holidays (polymath or other school holidays)
+        # Get vacation holidays based on child's student type
+        if child.is_polymath_student:
+            applicable_vacation_types = ['ALL', 'POLYMATH']
+        else:
+            applicable_vacation_types = ['ALL', 'NON_POLYMATH']
+
         vacation_holidays_qs = Holiday.objects.filter(
+            is_vacation=True,
+            vacation_type__in=applicable_vacation_types,
+            start_date__lte=last_day,
+            end_date__gte=first_day,
+            is_active=True
+        )
+
+        # BACKWARD COMPATIBILITY
+        old_vacation_holidays_qs = Holiday.objects.filter(
             Q(is_polymath_holiday=True) | Q(is_other_school_holiday=True),
             start_date__lte=last_day,
             end_date__gte=first_day,
             is_active=True
         )
+        vacation_holidays_qs = vacation_holidays_qs | old_vacation_holidays_qs
         vacation_dates = set()
         for holiday in vacation_holidays_qs:
             current = max(holiday.start_date, first_day)
@@ -11905,13 +12144,28 @@ def get_automatic_breakdown_data(child, month, year):
                 current += timedelta(days=1)
 
         # ===== VACATION MONTH DETECTION =====
-        # Get vacation holidays (polymath or other school holidays)
+        # Get vacation holidays based on child's student type
+        if child.is_polymath_student:
+            applicable_vacation_types = ['ALL', 'POLYMATH']
+        else:
+            applicable_vacation_types = ['ALL', 'NON_POLYMATH']
+
         vacation_holidays_qs = Holiday.objects.filter(
+            is_vacation=True,
+            vacation_type__in=applicable_vacation_types,
+            start_date__lte=last_day,
+            end_date__gte=first_day,
+            is_active=True
+        )
+
+        # BACKWARD COMPATIBILITY
+        old_vacation_holidays_qs = Holiday.objects.filter(
             Q(is_polymath_holiday=True) | Q(is_other_school_holiday=True),
             start_date__lte=last_day,
             end_date__gte=first_day,
             is_active=True
         )
+        vacation_holidays_qs = vacation_holidays_qs | old_vacation_holidays_qs
         vacation_dates = set()
         for holiday in vacation_holidays_qs:
             current = max(holiday.start_date, first_day)

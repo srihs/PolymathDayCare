@@ -129,7 +129,8 @@
                 <p class="mb-0">Each child must have:</p>
                 <ul class="mb-0">
                   <li><strong>Main Package:</strong> Either Normal Package OR Flex Package (required)</li>
-                  <li><strong>Holiday Package:</strong> For holiday attendance (required)</li>
+                  <li><strong>Holiday Package:</strong> For public holiday attendance (required)</li>
+                  <li><strong>Vacation Package:</strong> For school vacation periods (optional - applies based on vacation type)</li>
                 </ul>
               </div>
             </div>
@@ -194,12 +195,27 @@
                 <option value="">Select Holiday Package</option>
                 {% for package in holiday_packages %}
                   <option value="{{ package.id }}">
-                    {{ package.package_code }} - {{ package.package_name }} 
+                    {{ package.package_code }} - {{ package.package_name }}
                     (Rs. {{ package.package_total }})
                   </option>
                 {% endfor %}
               </select>
               <small class="form-text text-muted">This package will be used for holiday attendance charges</small>
+            </div>
+
+            <!-- Vacation Package Selection (Optional) -->
+            <div class="col-12">
+              <label for="vacationPackage" class="form-label">Vacation Package <span class="badge bg-success ms-1">NEW</span></label>
+              <select class="form-select" id="vacationPackage" name="vacation_package">
+                <option value="">No Vacation Package</option>
+                {% for package in vacation_packages %}
+                  <option value="{{ package.id }}">
+                    {{ package.package_code }} - {{ package.package_name }}
+                    (Rs. {{ package.package_total }})
+                  </option>
+                {% endfor %}
+              </select>
+              <small class="form-text text-muted">Optional: Package to use during school vacation periods (applies based on child's student type and vacation type)</small>
             </div>
 
             <div class="col-12">

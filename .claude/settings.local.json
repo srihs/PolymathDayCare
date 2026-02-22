@@ -25,7 +25,8 @@
       "Bash(node test_select2_detailed.js:*)",
       "Bash(node test_select2_structure.js:*)",
       "Bash(node:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(python3:*)"
     ],
     "deny": []
   },

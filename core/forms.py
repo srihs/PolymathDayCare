@@ -3344,3 +3344,140 @@ class ExtraHoursRevenueReportForm(forms.Form):
             }
         ),
     )
+
+
+# ==================== VACATION FORMS ====================
+# New unified vacation system replacing Polymath and Other holidays
+
+class CreateVacationForm(forms.ModelForm):
+    """Form for creating new vacation periods"""
+
+    title = forms.CharField(
+        max_length=250,
+        required=True,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Vacation Name (e.g., December Holidays 2025)",
+            }
+        ),
+        label="Vacation Name"
+    )
+
+    start_date = forms.DateField(
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "start_date",
+                "placeholder": "From",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+            }
+        ),
+        label="Start Date"
+    )
+
+    end_date = forms.DateField(
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "end_date",
+                "placeholder": "To",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+            }
+        ),
+        label="End Date"
+    )
+
+    vacation_type = forms.ChoiceField(
+        choices=[('', 'Select Student Type')] + list(Holiday.VACATION_TYPE_CHOICES),
+        required=True,
+        widget=forms.Select(
+            attrs={
+                "class": "form-select",
+                "id": "vacation_type",
+            }
+        ),
+        label="Applies To"
+    )
+
+    class Meta:
+        model = Holiday
+        fields = ["title", "start_date", "end_date", "vacation_type"]
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.is_vacation = True  # Auto-set as vacation
+        instance.is_public_holiday = False
+        instance.is_polymath_holiday = False
+        instance.is_other_school_holiday = False
+        if commit:
+            instance.save()
+        return instance
+
+
+class UpdateVacationForm(forms.ModelForm):
+    """Form for updating existing vacation periods"""
+
+    title = forms.CharField(
+        max_length=250,
+        required=True,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Vacation Name",
+            }
+        ),
+        label="Vacation Name"
+    )
+
+    start_date = forms.DateField(
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "start_date",
+                "placeholder": "From",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+            }
+        ),
+        label="Start Date"
+    )
+
+    end_date = forms.DateField(
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "end_date",
+                "placeholder": "To",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+            }
+        ),
+        label="End Date"
+    )
+
+    vacation_type = forms.ChoiceField(
+        choices=Holiday.VACATION_TYPE_CHOICES,
+        required=True,
+        widget=forms.Select(
+            attrs={
+                "class": "form-select",
+                "id": "vacation_type",
+            }
+        ),
+        label="Applies To"
+    )
+
+    class Meta:
+        model = Holiday
+        fields = ["title", "start_date", "end_date", "vacation_type"]
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.is_vacation = True  # Ensure it stays as vacation
+        instance.is_public_holiday = False
+        if commit:
+            instance.save()
+        return instance
