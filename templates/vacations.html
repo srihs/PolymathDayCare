@@ -224,19 +224,14 @@ $(document).ready(function() {
         ],
         order: [[1, 'desc']], // Sort by start date descending
         pageLength: 10,
-        responsive: true,
-        drawCallback: function() {
-            // Initialize Bootstrap dropdowns after table is drawn
-            var dropdownElementList = [].slice.call(document.querySelectorAll('#VacationList .dropdown-toggle'));
-            dropdownElementList.map(function (dropdownToggleEl) {
-                return new bootstrap.Dropdown(dropdownToggleEl);
-            });
-        }
+        responsive: true
     });
 
-    // Handle Edit button click
+    // Handle Edit button click using event delegation
     $('#VacationList').on('click', '.edit-item-btn', function(e) {
         e.preventDefault();
+        e.stopPropagation(); // Prevent event bubbling
+
         var vacationId = $(this).data('id');
 
         // Load vacation data into modal
@@ -251,6 +246,31 @@ $(document).ready(function() {
                 alert('Error loading vacation data');
             }
         });
+    });
+
+    // Handle dropdown toggle click using event delegation
+    $(document).on('click', '#VacationList .dropdown-toggle', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Close all other dropdowns
+        $('#VacationList .dropdown-menu').removeClass('show');
+
+        // Toggle this dropdown
+        var menu = $(this).next('.dropdown-menu');
+        menu.toggleClass('show');
+
+        // Update aria-expanded
+        var isExpanded = menu.hasClass('show');
+        $(this).attr('aria-expanded', isExpanded);
+    });
+
+    // Close dropdown when clicking outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('.dropdown').length) {
+            $('#VacationList .dropdown-menu').removeClass('show');
+            $('#VacationList .dropdown-toggle').attr('aria-expanded', 'false');
+        }
     });
 });
 </script>
