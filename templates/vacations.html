@@ -224,7 +224,14 @@ $(document).ready(function() {
         ],
         order: [[1, 'desc']], // Sort by start date descending
         pageLength: 10,
-        responsive: true
+        responsive: true,
+        drawCallback: function() {
+            // Initialize Bootstrap dropdowns after table is drawn
+            var dropdownElementList = [].slice.call(document.querySelectorAll('#VacationList .dropdown-toggle'));
+            dropdownElementList.map(function (dropdownToggleEl) {
+                return new bootstrap.Dropdown(dropdownToggleEl);
+            });
+        }
     });
 
     // Handle Edit button click
