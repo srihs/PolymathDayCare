@@ -150,8 +150,11 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Flatpickr for date picking -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
 <script>
-console.log('Vacation page script loaded - Version 2.0 (Manual Dropdown)');
+console.log('Vacation page script loaded - Version 2.1 (Fixed Modal & Flatpickr)');
 $(document).ready(function() {
     // Initialize DataTable
     var table = $('#VacationList').DataTable({
@@ -241,7 +244,24 @@ $(document).ready(function() {
             method: 'GET',
             success: function(data) {
                 $('#modal-body-update-holiday').html(data);
-                $('#showModal').modal('show');
+
+                // Show modal using data-bs attributes and trigger click
+                var modalElement = document.getElementById('showModal');
+
+                // Check if bootstrap is available globally
+                if (typeof bootstrap !== 'undefined') {
+                    var modal = new bootstrap.Modal(modalElement);
+                    modal.show();
+                } else {
+                    // Fallback: manually add show class and display
+                    $('#showModal').addClass('show').css('display', 'block');
+                    $('body').addClass('modal-open');
+
+                    // Add backdrop
+                    if ($('.modal-backdrop').length === 0) {
+                        $('body').append('<div class="modal-backdrop fade show"></div>');
+                    }
+                }
             },
             error: function() {
                 alert('Error loading vacation data');
@@ -272,6 +292,20 @@ $(document).ready(function() {
             $('#VacationList .dropdown-menu').removeClass('show');
             $('#VacationList .dropdown-toggle').attr('aria-expanded', 'false');
         }
+    });
+
+    // Handle modal close
+    $(document).on('click', '#showModal .btn-close, #showModal [data-bs-dismiss="modal"]', function() {
+        $('#showModal').removeClass('show').css('display', 'none');
+        $('body').removeClass('modal-open');
+        $('.modal-backdrop').remove();
+    });
+
+    // Close modal when clicking backdrop
+    $(document).on('click', '.modal-backdrop', function() {
+        $('#showModal').removeClass('show').css('display', 'none');
+        $('body').removeClass('modal-open');
+        $('.modal-backdrop').remove();
     });
 });
 </script>
