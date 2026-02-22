@@ -14749,8 +14749,8 @@ def getEnhancedMissingAttendanceJS(request):
             filters &= Q(child_id__in=active_children)
 
         # Get attendance records - include id for removal functionality
-        # Exclude records with pending removal status
-        filters &= Q(is_active=True) & ~Q(removal_status="PENDING")
+        # NOTE: Don't filter by is_active or removal_status here - we want to see ALL incomplete records
+        # The missingAttendenceReport doesn't filter these, so we shouldn't either
         attendance_records = AttendanceLog.objects.filter(filters).values_list(
             "id", "child_id", "date_logged", "time_logged"
         )
