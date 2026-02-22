@@ -4663,14 +4663,18 @@ def getPublicHolidaysJS(request):
     """
     # Get current year to filter holidays
     current_year = datetime.now().year
+    year_start = date(current_year, 1, 1)
+    year_end = date(current_year, 12, 31)
 
-    # Filter for current year holidays only
-    # A holiday is in current year if it starts or ends in current year
+    # Filter for holidays that overlap with current year
+    # A holiday overlaps if: (start_date <= year_end) AND (end_date >= year_start)
+    # This includes holidays that start in previous year but end in current year
     holidayList = list(
         Holiday.objects.filter(
             is_active=True,
             is_public_holiday=True,
-            start_date__year=current_year  # Only holidays starting in current year
+            start_date__lte=year_end,  # Starts on or before Dec 31 of current year
+            end_date__gte=year_start   # Ends on or after Jan 1 of current year
         ).values(
             "id",
             "title",
