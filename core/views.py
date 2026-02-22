@@ -4661,8 +4661,17 @@ def getPublicHolidaysJS(request):
     URL Pattern:
         - /holidays/public/js/ (GET)
     """
+    # Get current year to filter holidays
+    current_year = datetime.now().year
+
+    # Filter for current year holidays only
+    # A holiday is in current year if it starts or ends in current year
     holidayList = list(
-        Holiday.objects.filter(is_active=True, is_public_holiday=True).values(
+        Holiday.objects.filter(
+            is_active=True,
+            is_public_holiday=True,
+            start_date__year=current_year  # Only holidays starting in current year
+        ).values(
             "id",
             "title",
             "start_date",
@@ -4670,7 +4679,7 @@ def getPublicHolidaysJS(request):
             "no_of_days",
             "weekdays_count",
             "weekends_count",
-        )
+        ).order_by('start_date')  # Order by date for better UX
     )
     return JsonResponse(holidayList, safe=False)
 
