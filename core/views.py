@@ -7368,7 +7368,7 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
                     )
                     holiday_charge += daily_holiday_rate
                 elif is_vacation_day and package_mapping.vacation_package:
-                    # Vacation day (polymath/other) - use vacation_package
+                    # Vacation day - use vacation_package daily rate ONLY if vacation package is assigned
                     vacation_attendance_days += 1
                     expected_days_vacation = (
                         package_mapping.vacation_package.no_days_months or 22
@@ -7378,17 +7378,8 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
                         / Decimal(expected_days_vacation)
                     )
                     vacation_charge += daily_vacation_rate
-                elif is_vacation_day and package_mapping.holiday_package:
-                    # Fallback: if vacation_package not assigned, use holiday_package
-                    public_holiday_attendance_days += 1
-                    expected_days_holiday = (
-                        package_mapping.holiday_package.no_days_months or 22
-                    )
-                    daily_holiday_rate = (
-                        package_mapping.holiday_package.package_total
-                        / Decimal(expected_days_holiday)
-                    )
-                    holiday_charge += daily_holiday_rate
+                # NOTE: Vacation days without vacation package assigned are treated as normal days
+                # No extra charges applied - relies on vacation month logic (>=50% rule) instead
 
         # Calculate attendance percentage
         attendance_percentage = (
@@ -9679,6 +9670,50 @@ def updatePackageMapping(request):
 
 
 @login_required
+def updateVacationPackageMapping(request):
+    """Update only the vacation package for an existing package mapping"""
+    try:
+        if request.method != "POST":
+            messages.error(request, "Invalid request method")
+            return redirect("core:view_child_package_mapping")
+
+        mapping_id = request.POST.get("mapping_id")
+        vacation_package_id = request.POST.get("vacation_package")
+
+        if not mapping_id:
+            messages.error(request, "Missing mapping ID")
+            return redirect("core:view_child_package_mapping")
+
+        # Get the mapping
+        mapping = ChildPackageMapping.objects.get(id=mapping_id)
+
+        # Update only the vacation package
+        if vacation_package_id:
+            mapping.vacation_package = FixedPackage.objects.get(id=vacation_package_id)
+        else:
+            mapping.vacation_package = None
+
+        mapping.user_updated = request.user.username
+        mapping.date_updated = datetime.now()
+        mapping.save()
+
+        messages.success(
+            request,
+            f"Vacation package updated successfully for {mapping.child.admission_number}"
+        )
+        return redirect("core:view_child_package_mapping")
+
+    except ChildPackageMapping.DoesNotExist:
+        messages.error(request, "Package mapping not found")
+    except FixedPackage.DoesNotExist:
+        messages.error(request, "Selected vacation package not found")
+    except Exception as e:
+        messages.error(request, f"Error updating vacation package: {str(e)}")
+
+    return redirect("core:view_child_package_mapping")
+
+
+@login_required
 @transaction.atomic
 def deactivatePackageMapping(request, pk):
     """Deactivate package mapping"""
@@ -11048,9 +11083,13 @@ def getDetailedChargesBreakdown(request):
             child=child, date_logged__range=(first_day, last_day)
         ).order_by("date_logged", "time_logged")
 
-        # Get holidays in this month (expand date ranges to include all dates)
+        # Get PUBLIC holidays in this month (expand date ranges to include all dates)
+        # NOTE: Only get is_public_holiday=True, NOT vacations (is_vacation=True)
         holidays = Holiday.objects.filter(
-            start_date__lte=last_day, end_date__gte=first_day, is_active=True
+            is_public_holiday=True,  # Only public holidays, not vacations
+            start_date__lte=last_day,
+            end_date__gte=first_day,
+            is_active=True
         )
         holiday_dates = set()
         for holiday in holidays:
@@ -11149,7 +11188,8 @@ def getDetailedChargesBreakdown(request):
             if not time_out or not package_end_time:
                 continue
 
-            is_holiday = log_date in holiday_dates
+            is_public_holiday = log_date in holiday_dates
+            is_vacation_day = log_date in vacation_dates
 
             # ===== CORRECTED CUMULATIVE EXTRA HOURS CALCULATION =====
             # Extra hours: checkout AFTER package_end_time counts as extra
@@ -11297,13 +11337,13 @@ def getDetailedChargesBreakdown(request):
                             "extra_hours_display": extra_hours_display,  # Human-readable format
                             "charges": float(day_extra_charges),
                             "applied_rates": applied_rates,
-                            "is_holiday": is_holiday,
+                            "is_holiday": is_public_holiday,
                         }
                     )
                     total_extra_charges += day_extra_charges
 
-            # Calculate holiday charges (unchanged)
-            if is_holiday and package_mapping.holiday_package:
+            # Calculate holiday charges ONLY for public holidays (NOT vacation days)
+            if is_public_holiday and package_mapping.holiday_package:
                 expected_days = package_mapping.holiday_package.no_days_months or 22
                 daily_holiday_rate = (
                     package_mapping.holiday_package.package_total
@@ -12139,9 +12179,13 @@ def get_automatic_breakdown_data(child, month, year):
             child=child, date_logged__range=(first_day, last_day)
         ).order_by("date_logged", "time_logged")
 
-        # Get holidays in this month (expand date ranges to include all dates)
+        # Get PUBLIC holidays in this month (expand date ranges to include all dates)
+        # NOTE: Only get is_public_holiday=True, NOT vacations (is_vacation=True)
         holidays = Holiday.objects.filter(
-            start_date__lte=last_day, end_date__gte=first_day, is_active=True
+            is_public_holiday=True,  # Only public holidays, not vacations
+            start_date__lte=last_day,
+            end_date__gte=first_day,
+            is_active=True
         )
         holiday_dates = set()
         for holiday in holidays:

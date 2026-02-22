@@ -81,13 +81,15 @@
       <thead>
         <tr>
           <th>Child</th>
-          <th>Package Codes</th>    <!-- ADD THIS -->
+          <th>Package Codes</th>
           <th>Main Package</th>
           <th>Package Amounts</th>
           <th>Holiday Package</th>
-           <th>Discount</th>
+          <th>Vacation Package</th>
+          <th>Discount</th>
           <th>Effective From</th>
           <th>Effective To</th>
+          <th>Actions</th>
         </tr>
       </thead>
     </table>
@@ -264,6 +266,53 @@
   </div>
 </div>
 
+<!-- Edit Vacation Package Modal -->
+<div class="modal fade" id="editVacationModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="ri-calendar-event-line me-2"></i>Update Vacation Package
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="editVacationForm" action="{% url 'core:update_vacation_package_mapping' %}" method="post">
+        {% csrf_token %}
+        <input type="hidden" id="edit_mapping_id" name="mapping_id">
+        <div class="modal-body">
+          <div class="alert alert-info">
+            <i class="ri-information-line me-1"></i>
+            <strong>Child:</strong> <span id="edit_child_name"></span>
+          </div>
+
+          <div class="mb-3">
+            <label for="edit_vacation_package" class="form-label">
+              Vacation Package <span class="badge bg-purple ms-1">Optional</span>
+            </label>
+            <select class="form-select" id="edit_vacation_package" name="vacation_package">
+              <option value="">No Vacation Package</option>
+              {% for package in vacation_packages %}
+                <option value="{{ package.id }}">
+                  {{ package.package_code }} - {{ package.package_name }} (Rs. {{ package.package_total }})
+                </option>
+              {% endfor %}
+            </select>
+            <small class="form-text text-muted">
+              This package will be used when ≥50% of working days in a month are vacation days
+            </small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="ri-save-line me-1"></i>Update Vacation Package
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
 $(document).ready(function() {
   console.log('Initializing package mapping page...');
@@ -389,7 +438,7 @@ var table = $('#mappingTable').DataTable({
         },
         
         // 5. Holiday Package
-        { 
+        {
             data: "holiday_package_name",
             render: function(data, type, row) {
                 if (data) {
@@ -399,9 +448,21 @@ var table = $('#mappingTable').DataTable({
                 }
             }
         },
-        
-        // 6. Discount
-        { 
+
+        // 6. Vacation Package
+        {
+            data: "vacation_package_name",
+            render: function(data, type, row) {
+                if (data) {
+                    return '<span class="badge bg-purple">Vacation</span><br>' + data;
+                } else {
+                    return '<span class="text-muted">No vacation package</span>';
+                }
+            }
+        },
+
+        // 7. Discount
+        {
             data: "discount_info",
             render: function(data, type, row) {
                 if (data) {
@@ -411,12 +472,23 @@ var table = $('#mappingTable').DataTable({
                 }
             }
         },
-        
-        // 7. Effective From
+
+        // 8. Effective From
         { data: "effective_from" },
-        
-        // 8. Effective To
-        { data: "effective_to" }
+
+        // 9. Effective To
+        { data: "effective_to" },
+
+        // 10. Actions
+        {
+            data: null,
+            orderable: false,
+            render: function(data, type, row) {
+                return '<button class="btn btn-sm btn-primary edit-vacation-btn" data-id="' + row.id + '" data-child="' + row.child_name + '" data-vacation-id="' + (row.vacation_package_name ? 'set' : '') + '">' +
+                       '<i class="ri-edit-line"></i> Edit Vacation' +
+                       '</button>';
+            }
+        }
         
           
     ],
@@ -447,6 +519,42 @@ var table = $('#mappingTable').DataTable({
     if (!$(this).val()) {
       table.ajax.reload();
     }
+  });
+
+  // Handle Edit Vacation button click
+  $(document).on('click', '.edit-vacation-btn', function() {
+    var mappingId = $(this).data('id');
+    var childName = $(this).data('child');
+
+    // Set the mapping ID and child name
+    $('#edit_mapping_id').val(mappingId);
+    $('#edit_child_name').text(childName);
+
+    // Load current vacation package for this mapping via AJAX
+    $.ajax({
+      url: "{% url 'core:get_package_mappings_js' %}",
+      method: 'GET',
+      success: function(data) {
+        var mapping = data.find(m => m.id === mappingId);
+        if (mapping && mapping.vacation_package_name) {
+          // Find the vacation package option that matches
+          $('#edit_vacation_package option').each(function() {
+            if ($(this).text().includes(mapping.vacation_package_name)) {
+              $('#edit_vacation_package').val($(this).val());
+            }
+          });
+        } else {
+          $('#edit_vacation_package').val('');
+        }
+      },
+      error: function() {
+        $('#edit_vacation_package').val('');
+      },
+      complete: function() {
+        // Show the modal
+        $('#editVacationModal').modal('show');
+      }
+    });
   });
 
   // Add mapping button

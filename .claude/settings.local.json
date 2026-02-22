@@ -26,7 +26,10 @@
       "Bash(node test_select2_structure.js:*)",
       "Bash(node:*)",
       "Bash(git push:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Read(//Users/sas/Repos/**)",
+      "Read(///**)",
+      "Bash(git checkout core/views.py)"
     ],
     "deny": []
   },

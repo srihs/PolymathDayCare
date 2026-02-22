@@ -361,6 +361,11 @@ urlpatterns = [
         name="save_package_mapping",
     ),
     path(
+        "child-package-mapping/update-vacation/",
+        views.updateVacationPackageMapping,
+        name="update_vacation_package_mapping",
+    ),
+    path(
         "child-package-mapping/details/<int:pk>/",
         views.getPackageMappingDetails,
         name="get_package_mapping_details",
