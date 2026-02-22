@@ -6764,6 +6764,11 @@ def calculate_current_month_charges(child, package_mapping, enrollment, month, y
                 last_log = logs_sorted[-1]
                 time_out = last_log.time_logged
 
+                # Normalize time_out to minute precision (strip seconds) to avoid charging for clock precision
+                # E.g., 17:40:01 becomes 17:40:00 for fair comparison with package end time
+                if time_out:
+                    time_out = time(time_out.hour, time_out.minute, 0)
+
                 is_holiday_day = log_date in holidays
 
                 # ===== CORRECTED CUMULATIVE EXTRA HOURS CALCULATION =====
@@ -7246,6 +7251,11 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
                 present_days += 1
                 last_log = logs_sorted[-1]
                 time_out = last_log.time_logged
+
+                # Normalize time_out to minute precision (strip seconds) to avoid charging for clock precision
+                # E.g., 17:40:01 becomes 17:40:00 for fair comparison with package end time
+                if time_out:
+                    time_out = time(time_out.hour, time_out.minute, 0)
 
                 # Determine holiday type for this day
                 is_public_holiday_day = log_date in public_holiday_dates
@@ -7749,6 +7759,12 @@ def calculate_enhanced_month_with_attendance(
 
             time_in = first_log.time_logged
             time_out = last_log.time_logged
+
+            # Normalize time_out to minute precision (strip seconds) to avoid charging for clock precision
+            # E.g., 17:40:01 becomes 17:40:00 for fair comparison with package end time
+            if time_out:
+                time_out = time(time_out.hour, time_out.minute, 0)
+
             is_holiday_day = log_date in holidays
 
             # ===== CORRECTED CUMULATIVE EXTRA HOURS CALCULATION =====
@@ -8201,6 +8217,11 @@ def getExtraHoursReportJS(request):
             time_in = first_log.time_logged
             time_out = last_log.time_logged
 
+            # Normalize time_out to minute precision (strip seconds) to avoid charging for clock precision
+            # E.g., 17:40:01 becomes 17:40:00 for fair comparison with package end time
+            if time_out:
+                time_out = time(time_out.hour, time_out.minute, 0)
+
             # Get package mapping for this date
             package_mapping = (
                 ChildPackageMapping.objects.filter(
@@ -8490,6 +8511,11 @@ def getExtraHoursSummaryJS(request):
             child = first_log.child
             time_in = first_log.time_logged
             time_out = last_log.time_logged
+
+            # Normalize time_out to minute precision (strip seconds) to avoid charging for clock precision
+            # E.g., 17:40:01 becomes 17:40:00 for fair comparison with package end time
+            if time_out:
+                time_out = time(time_out.hour, time_out.minute, 0)
 
             # Get package mapping
             package_mapping = (
@@ -11185,6 +11211,11 @@ def getDetailedChargesBreakdown(request):
             time_in = logs_sorted[0].time_logged
             time_out = logs_sorted[-1].time_logged
 
+            # Normalize time_out to minute precision (strip seconds) to avoid charging for clock precision
+            # E.g., 17:40:01 becomes 17:40:00 for fair comparison with package end time
+            if time_out:
+                time_out = time(time_out.hour, time_out.minute, 0)
+
             if not time_out or not package_end_time:
                 continue
 
@@ -12280,6 +12311,11 @@ def get_automatic_breakdown_data(child, month, year):
             logs_sorted = sorted(logs, key=lambda x: x.time_logged or time(0, 0))
             time_in = logs_sorted[0].time_logged
             time_out = logs_sorted[-1].time_logged
+
+            # Normalize time_out to minute precision (strip seconds) to avoid charging for clock precision
+            # E.g., 17:40:01 becomes 17:40:00 for fair comparison with package end time
+            if time_out:
+                time_out = time(time_out.hour, time_out.minute, 0)
 
             if not time_out or not package_end_time:
                 continue
