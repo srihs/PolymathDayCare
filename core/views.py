@@ -10608,19 +10608,36 @@ def saveMemoDataEntry(request):
         year_int = int(year)
         child = Child.objects.get(id=child_id, is_active=True)
 
-        # CHECK FOR PENDING TIME ADJUSTMENT REQUESTS
+        # CHECK FOR PENDING TIME ADJUSTMENT REQUESTS IN PREVIOUS MONTH ONLY
         # This check cannot be bypassed with force_save as pending approvals must be resolved
+        # Calculate PREVIOUS month (the month that gets calculated in the memo)
+        if month_int > 1:
+            check_month = month_int - 1
+            check_year = year_int
+        else:
+            check_month = 12
+            check_year = year_int - 1
+
+        # Create date range for the PREVIOUS month
+        from_date = datetime(check_year, check_month, 1).date()
+        last_day = datetime(
+            check_year, check_month, calendar.monthrange(check_year, check_month)[1]
+        ).date()
+
+        # Only check pending requests in the PREVIOUS month
         pending_adjustments = TimeAdjustmentRequest.objects.filter(
             child=child,
+            request_date__range=(from_date, last_day),
             status="PENDING_APPROVAL",
             is_active=True
         ).count()
 
         if pending_adjustments > 0:
+            check_month_name = calendar.month_name[check_month]
             messages.error(
                 request,
                 f"Cannot generate invoice. There {'is' if pending_adjustments == 1 else 'are'} "
-                f"{pending_adjustments} pending time adjustment request(s) for this child. "
+                f"{pending_adjustments} pending time adjustment request(s) for {check_month_name} {check_year}. "
                 f"Please approve or reject them first."
             )
             return redirect("core:memo_data_entry")
@@ -12601,19 +12618,36 @@ def generateEnhancedMemoFromCalculation(request):
         month_int = int(month)
         year_int = int(year)
 
-        # CHECK FOR PENDING TIME ADJUSTMENT REQUESTS
+        # CHECK FOR PENDING TIME ADJUSTMENT REQUESTS IN PREVIOUS MONTH ONLY
         # This check cannot be bypassed with force_generate as pending approvals must be resolved
+        # Calculate PREVIOUS month (the month that gets calculated in the memo)
+        if month_int > 1:
+            check_month = month_int - 1
+            check_year = year_int
+        else:
+            check_month = 12
+            check_year = year_int - 1
+
+        # Create date range for the PREVIOUS month
+        from_date = datetime(check_year, check_month, 1).date()
+        last_day = datetime(
+            check_year, check_month, calendar.monthrange(check_year, check_month)[1]
+        ).date()
+
+        # Only check pending requests in the PREVIOUS month
         pending_adjustments = TimeAdjustmentRequest.objects.filter(
             child=child,
+            request_date__range=(from_date, last_day),
             status="PENDING_APPROVAL",
             is_active=True
         ).count()
 
         if pending_adjustments > 0:
+            check_month_name = calendar.month_name[check_month]
             return JsonResponse(
                 {
                     "error": f"Cannot generate invoice. There {'is' if pending_adjustments == 1 else 'are'} "
-                    f"{pending_adjustments} pending time adjustment request(s) for this child. "
+                    f"{pending_adjustments} pending time adjustment request(s) for {check_month_name} {check_year}. "
                     f"Please approve or reject them first.",
                     "pending_adjustments_count": pending_adjustments,
                     "child_name": f"{child.child_first_name} {child.child_last_name}",
@@ -15855,18 +15889,35 @@ def process_payment(request):
             # Retrieve the memo and its details
             memo = get_object_or_404(InvoiceMemo, id=memo_id)
 
-            # CHECK FOR PENDING TIME ADJUSTMENT REQUESTS
+            # CHECK FOR PENDING TIME ADJUSTMENT REQUESTS IN PREVIOUS MONTH ONLY
+            # Calculate PREVIOUS month relative to the memo's month
+            if memo.memo_month > 1:
+                check_month = memo.memo_month - 1
+                check_year = memo.memo_year
+            else:
+                check_month = 12
+                check_year = memo.memo_year - 1
+
+            # Create date range for the PREVIOUS month
+            from_date = datetime(check_year, check_month, 1).date()
+            last_day = datetime(
+                check_year, check_month, calendar.monthrange(check_year, check_month)[1]
+            ).date()
+
+            # Only check pending requests in the PREVIOUS month
             pending_adjustments = TimeAdjustmentRequest.objects.filter(
                 child=memo.child,
+                request_date__range=(from_date, last_day),
                 status="PENDING_APPROVAL",
                 is_active=True
             ).count()
 
             if pending_adjustments > 0:
+                check_month_name = calendar.month_name[check_month]
                 return JsonResponse(
                     {
                         "error": f"Cannot process payment. There {'is' if pending_adjustments == 1 else 'are'} "
-                        f"{pending_adjustments} pending time adjustment request(s) for this child. "
+                        f"{pending_adjustments} pending time adjustment request(s) for {check_month_name} {check_year}. "
                         f"Please approve or reject them first."
                     },
                     status=400,
@@ -16148,18 +16199,35 @@ def process_payment_enhanced(request):
             # Get memo
             memo = get_object_or_404(InvoiceMemo, id=memo_id)
 
-            # CHECK FOR PENDING TIME ADJUSTMENT REQUESTS
+            # CHECK FOR PENDING TIME ADJUSTMENT REQUESTS IN PREVIOUS MONTH ONLY
+            # Calculate PREVIOUS month relative to the memo's month
+            if memo.memo_month > 1:
+                check_month = memo.memo_month - 1
+                check_year = memo.memo_year
+            else:
+                check_month = 12
+                check_year = memo.memo_year - 1
+
+            # Create date range for the PREVIOUS month
+            from_date = datetime(check_year, check_month, 1).date()
+            last_day = datetime(
+                check_year, check_month, calendar.monthrange(check_year, check_month)[1]
+            ).date()
+
+            # Only check pending requests in the PREVIOUS month
             pending_adjustments = TimeAdjustmentRequest.objects.filter(
                 child=memo.child,
+                request_date__range=(from_date, last_day),
                 status="PENDING_APPROVAL",
                 is_active=True
             ).count()
 
             if pending_adjustments > 0:
+                check_month_name = calendar.month_name[check_month]
                 return JsonResponse(
                     {
                         "error": f"Cannot process payment. There {'is' if pending_adjustments == 1 else 'are'} "
-                        f"{pending_adjustments} pending time adjustment request(s) for this child. "
+                        f"{pending_adjustments} pending time adjustment request(s) for {check_month_name} {check_year}. "
                         f"Please approve or reject them first."
                     },
                     status=400,
