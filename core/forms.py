@@ -2313,7 +2313,7 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
         fields = (
             "child",
             "new_fixed_package",
-            "new_flex_package",
+            "new_flexed_package",  # Fixed: was new_flex_package, should match model field name
             "new_holiday_package",
             "new_vacation_package",
             "reason_for_request",
