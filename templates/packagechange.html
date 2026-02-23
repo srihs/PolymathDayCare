@@ -332,28 +332,68 @@
         });
 
         function checkDropdowns() {
+            console.log("=== checkDropdowns() called ===");
+
             // Get the values of the new_fixed_package and new_flex_package dropdowns
             var newFixedPackage = document.getElementById('new_fixed_package').value; // Use the ID of new_fixed_package
             var newFlexPackage = document.getElementById('new_flex_package').value; // Use the ID of new_flex_package
             // Get the old package IDs stored in hidden input fields
             var oldFixedPackage = document.getElementById('old_fixed_package').value;
             var oldFlexPackage = document.getElementById('old_flex_package').value;
-            // Check if at least one of the dropdowns has a selected value
+
+            console.log("Old Fixed Package:", oldFixedPackage);
+            console.log("New Fixed Package:", newFixedPackage);
+            console.log("Old Flex Package:", oldFlexPackage);
+            console.log("New Flex Package:", newFlexPackage);
+
+            // Validation 1: Must select at least one package
+            console.log("Checking if at least one new package is selected...");
             if (!newFixedPackage && !newFlexPackage) {
+                console.log("ERROR: No package selected");
                 alert("Please select either a new fixed package or a new flex package.");
                 return false; // Prevent form submission
             }
-            // Check if both packages are selected
+            console.log("PASS: At least one package selected");
+
+            // Validation 2: Cannot select both
+            console.log("Checking if both package types are selected...");
             if (newFixedPackage && newFlexPackage) {
+                console.log("ERROR: Both packages selected");
                 alert("You can only select one package: either a new fixed package or a new flex package.");
                 return false; // Prevent form submission
             }
+            console.log("PASS: Only one package type selected");
+
+            // Validation 3: New package must differ from old
+            console.log("Checking if new package differs from old...");
+            console.log("Fixed match check:", newFixedPackage && newFixedPackage === oldFixedPackage);
+            console.log("Flex match check:", newFlexPackage && newFlexPackage === oldFlexPackage);
+
             // Check if the selected new package matches the old package
-            if (newFixedPackage === oldFixedPackage && newFlexPackage === oldFlexPackage) {
+            // Only validate if a package is actually selected
+            if ((newFixedPackage && newFixedPackage === oldFixedPackage) ||
+                (newFlexPackage && newFlexPackage === oldFlexPackage)) {
+                console.log("ERROR: New package same as old package");
                 alert("The selected new package cannot be the same as the old package.");
-                return false; // Prevent form submission if both are the same
+                return false; // Prevent form submission
             }
+            console.log("PASS: New package differs from old");
+
+            console.log("=== All validations passed ===");
+            return true;
         }
+
+        // Add form submission logging
+        jQuery(document).ready(function() {
+            jQuery('.tablelist-form').on('submit', function(e) {
+                console.log("=== Form submit event triggered ===");
+                var formData = jQuery(this).serializeArray();
+                console.log("Form data being submitted:");
+                formData.forEach(function(field) {
+                    console.log("  " + field.name + ": " + field.value);
+                });
+            });
+        });
     </script>
     <!-- App js -->
     <script src="{% static 'assets/js/app.js' %}"></script>

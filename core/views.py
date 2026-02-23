@@ -2,6 +2,7 @@ import calendar
 import csv
 import datetime
 import json
+import logging
 import os
 import shutil
 import tempfile
@@ -5862,10 +5863,16 @@ def getPackagesByChildIdJS(request):
 
 @login_required
 def savePackageRequest(request):
+    logger = logging.getLogger(__name__)
+    logger.info("=== savePackageRequest() called ===")
+    logger.info(f"User: {request.user.username}")
+    logger.info(f"POST data: {dict(request.POST)}")
+
     try:
         if request.method == "POST":
             user = User.objects.get(username=request.user.username)
             if user.groups.filter(name="Data Entry").exists():
+                logger.warning(f"Unauthorized access attempt by user: {user.username}")
                 messages.error(
                     request,
                     "You are not authorized to performe this operation.",
@@ -5873,7 +5880,13 @@ def savePackageRequest(request):
                 return
             form = CreatePackageChangeRequestForm(request.POST)
             if form.is_valid():
+                logger.info("Form is valid")
                 objPackageChangeRequest = form.save(commit=False)
+
+                logger.info(f"Old Fixed Package ID from POST: {request.POST.get('old_fixed_package')}")
+                logger.info(f"Old Flex Package ID from POST: {request.POST.get('old_flexed_package')}")
+                logger.info(f"New Fixed Package from form: {objPackageChangeRequest.new_fixed_package}")
+                logger.info(f"New Flex Package from form: {objPackageChangeRequest.new_flexed_package}")
 
                 if (
                     request.POST.get("old_fixed_package") is not None
@@ -5882,53 +5895,83 @@ def savePackageRequest(request):
                     objOldFixedPcakage = FixedPackage.objects.filter(
                         pk=request.POST.get("old_fixed_package")
                     ).first()
+                    logger.info(f"Retrieved old fixed package object: {objOldFixedPcakage}")
 
                     if objOldFixedPcakage is not None:
+                        logger.info("Checking if new fixed package equals old fixed package...")
+                        logger.info(f"  objPackageChangeRequest.new_fixed_package = {objPackageChangeRequest.new_fixed_package}")
+                        logger.info(f"  objPackageChangeRequest.old_fixed_package = {objPackageChangeRequest.old_fixed_package}")
+                        logger.info(f"  Are they equal? {objPackageChangeRequest.new_fixed_package == objPackageChangeRequest.old_fixed_package}")
                         if (
                             objPackageChangeRequest.new_fixed_package
                             == objPackageChangeRequest.old_fixed_package
                         ):
+                            logger.error("VALIDATION FAILED: New fixed package same as old fixed package")
                             messages.error(
                                 request,
                                 "The selected new package cannot be the same as the old package.",
                             )
                             return
                     objPackageChangeRequest.old_fixed_package = objOldFixedPcakage
+                    logger.info(f"Set old_fixed_package to: {objPackageChangeRequest.old_fixed_package}")
+
                 if (
                     request.POST.get("old_flexed_package") is not None
                     and request.POST.get("old_flexed_package") != ""
                 ):
                     objOldFlexPackage = FlexPackages.objects.filter(
                         pk=request.POST.get("old_flexed_package")
-                    ).filter()
+                    ).first()
+                    logger.info(f"Retrieved old flex package object: {objOldFlexPackage}")
+
                     if objOldFlexPackage is not None:
+                        logger.info("Checking if new flex package equals old flex package...")
+                        logger.info(f"  objPackageChangeRequest.new_flexed_package = {objPackageChangeRequest.new_flexed_package}")
+                        logger.info(f"  objPackageChangeRequest.old_flexed_package = {objPackageChangeRequest.old_flexed_package}")
+                        logger.info(f"  Are they equal? {objPackageChangeRequest.new_flexed_package == objPackageChangeRequest.old_flexed_package}")
                         if (
                             objPackageChangeRequest.new_flexed_package
                             == objPackageChangeRequest.old_flexed_package
                         ):
+                            logger.error("VALIDATION FAILED: New flex package same as old flex package")
                             return messages.error(
                                 request,
                                 "The selected new package cannot be the same as the old package.",
                             )
                         objPackageChangeRequest.old_flexed_package = objOldFlexPackage
+                        logger.info(f"Set old_flexed_package to: {objPackageChangeRequest.old_flexed_package}")
+
                 objPackageChangeRequest.user_created = request.user.username
-                # checking if the new package is selected
+
+                # Validation 1: checking if the new package is selected
+                logger.info("Checking if at least one new package is selected...")
+                logger.info(f"  new_fixed_package is None? {objPackageChangeRequest.new_fixed_package is None}")
+                logger.info(f"  new_flexed_package is None? {objPackageChangeRequest.new_flexed_package is None}")
                 if (
                     objPackageChangeRequest.new_fixed_package is None
                     and objPackageChangeRequest.new_flexed_package is None
                 ):
+                    logger.error("VALIDATION FAILED: No new package selected")
                     return messages.error(
                         request,
                         "Please select either a new fixed package or a new flex package.",
                     )
-                elif (
+                logger.info("PASS: At least one new package selected")
+
+                # Validation 2: checking if both packages are selected
+                logger.info("Checking if both package types are selected...")
+                logger.info(f"  new_fixed_package is not None? {objPackageChangeRequest.new_fixed_package is not None}")
+                logger.info(f"  new_flexed_package is not None? {objPackageChangeRequest.new_flexed_package is not None}")
+                if (
                     objPackageChangeRequest.new_fixed_package is not None
                     and objPackageChangeRequest.new_flexed_package is not None
                 ):
+                    logger.error("VALIDATION FAILED: Both package types selected")
                     return messages.error(
                         request,
                         "You can only select one package: either a new fixed package or a new flex package.",
                     )
+                logger.info("PASS: Only one package type selected")
                 if (
                     request.POST.get("old_holiday_package") is not None
                     and request.POST.get("old_holiday_package") != ""
@@ -5955,11 +5998,22 @@ def savePackageRequest(request):
                     objPackageChangeRequest.new_vacation_package = (
                         objPackageChangeRequest.old_vacation_package
                     )
+
+                logger.info("All validations passed, saving package change request...")
+                logger.info(f"Final state before save:")
+                logger.info(f"  Child: {objPackageChangeRequest.child}")
+                logger.info(f"  Old Fixed Package: {objPackageChangeRequest.old_fixed_package}")
+                logger.info(f"  New Fixed Package: {objPackageChangeRequest.new_fixed_package}")
+                logger.info(f"  Old Flex Package: {objPackageChangeRequest.old_flexed_package}")
+                logger.info(f"  New Flex Package: {objPackageChangeRequest.new_flexed_package}")
                 objPackageChangeRequest.save()
+                logger.info("Package change request saved successfully")
                 messages.success(request, "Package change request saved.")
             else:
+                logger.error(f"Form validation failed: {form.errors}")
                 messages.error(request, form.errors)
     except Exception as e:
+        logger.exception(f"Exception occurred in savePackageRequest: {e}")
         messages.error(request, e)
     finally:
         return redirect("core:getPackageChange")
