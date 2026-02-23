@@ -2591,7 +2591,9 @@ function checkMissingAttendanceOnSelection(childId, month, year) {
         url: "{% url 'core:check_pending_time_adjustments_for_memo' %}",
         method: 'GET',
         data: {
-            child_id: childId
+            child_id: childId,
+            month: month,
+            year: year
         },
         success: function(timeAdjustResponse) {
             if (timeAdjustResponse.has_pending) {
@@ -2799,11 +2801,12 @@ function showPendingTimeAdjustmentModal(adjustmentData) {
                             Child <strong>${adjustmentData.child_admission}</strong>
                             (${adjustmentData.child_name}) has
                             <strong>${adjustmentData.pending_count}</strong> pending time adjustment
-                            request${adjustmentData.pending_count > 1 ? 's' : ''}.
+                            request${adjustmentData.pending_count > 1 ? 's' : ''} for
+                            <strong>${adjustmentData.check_month_name} ${adjustmentData.check_year}</strong>.
                         </div>
 
                         <p class="mb-3">
-                            <strong>You must approve or reject all pending time adjustment requests before generating a memo for this child.</strong>
+                            <strong>You must approve or reject all pending time adjustment requests for ${adjustmentData.check_month_name} ${adjustmentData.check_year} before generating a memo for this child.</strong>
                         </p>
 
                         <div class="alert alert-info">

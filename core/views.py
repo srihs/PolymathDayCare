@@ -14720,12 +14720,14 @@ def checkPendingTimeAdjustmentsForMemo(request):
     Check for pending time adjustment requests before generating memo.
 
     This endpoint validates that a child has no pending time adjustment requests
-    before allowing memo generation. Pending requests must be approved or rejected
-    first to ensure accurate billing calculations.
+    for the PREVIOUS month (the month being billed) before allowing memo generation.
+    Pending requests must be approved or rejected first to ensure accurate billing calculations.
 
     Args:
         request (HttpRequest): GET request with parameters:
             - child_id: Integer ID of the child
+            - month: Integer month number (1-12) - the memo month
+            - year: Integer year - the memo year
 
     Returns:
         JsonResponse: JSON object with:
@@ -14733,6 +14735,8 @@ def checkPendingTimeAdjustmentsForMemo(request):
             - pending_count: Integer count of pending requests
             - child_name: String child's full name
             - child_admission: String child's admission number
+            - check_month_name: String name of the month being validated
+            - check_year: Integer year being validated
             - message: String user-friendly message
             - redirect_url: String URL to time adjustment approvals page (if has_pending)
 
@@ -14742,7 +14746,9 @@ def checkPendingTimeAdjustmentsForMemo(request):
             "pending_count": 2,
             "child_name": "John Doe",
             "child_admission": "ADM001",
-            "message": "Cannot Generate Memo! Child has 2 pending time adjustment request(s)...",
+            "check_month_name": "January",
+            "check_year": 2026,
+            "message": "Cannot Generate Memo! Child has 2 pending time adjustment request(s) for January 2026...",
             "redirect_url": "/time_adjustment_approvals/"
         }
 
@@ -14752,7 +14758,9 @@ def checkPendingTimeAdjustmentsForMemo(request):
             "pending_count": 0,
             "child_name": "John Doe",
             "child_admission": "ADM001",
-            "message": "No pending time adjustment requests. Ready to generate memo."
+            "check_month_name": "January",
+            "check_year": 2026,
+            "message": "No pending time adjustment requests for January 2026. Ready to generate memo."
         }
 
     Security:
@@ -14760,20 +14768,41 @@ def checkPendingTimeAdjustmentsForMemo(request):
     """
     try:
         child_id = request.GET.get("child_id")
+        month = request.GET.get("month")
+        year = request.GET.get("year")
 
-        if not child_id:
-            return JsonResponse({"error": "Missing child_id parameter"}, status=400)
+        if not all([child_id, month, year]):
+            return JsonResponse({"error": "Missing required parameters"}, status=400)
 
         child = Child.objects.get(id=child_id, is_active=True)
+        month_int = int(month)
+        year_int = int(year)
 
-        # Count pending time adjustment requests for this child
+        # Calculate the date range for PREVIOUS month (since that's what memo calculates)
+        # Same logic as checkMissingAttendanceForMemo
+        if month_int > 1:
+            check_month = month_int - 1
+            check_year = year_int
+        else:
+            check_month = 12
+            check_year = year_int - 1
+
+        # Create date range for the month we're checking
+        from_date = datetime(check_year, check_month, 1).date()
+        last_day = datetime(
+            check_year, check_month, calendar.monthrange(check_year, check_month)[1]
+        ).date()
+
+        # Count pending time adjustment requests for this child IN THE PREVIOUS MONTH ONLY
         pending_count = TimeAdjustmentRequest.objects.filter(
             child=child,
+            request_date__range=(from_date, last_day),
             status="PENDING_APPROVAL",
             is_active=True
         ).count()
 
         child_full_name = f"{child.child_first_name} {child.child_last_name}"
+        check_month_name = calendar.month_name[check_month]
 
         if pending_count > 0:
             return JsonResponse({
@@ -14781,9 +14810,12 @@ def checkPendingTimeAdjustmentsForMemo(request):
                 "pending_count": pending_count,
                 "child_name": child_full_name,
                 "child_admission": child.admission_number,
+                "check_month_name": check_month_name,
+                "check_year": check_year,
                 "message": (
                     f"Cannot Generate Memo! Child has {pending_count} pending time adjustment "
-                    f"request{'s' if pending_count > 1 else ''}. Please approve or reject them first."
+                    f"request{'s' if pending_count > 1 else ''} for {check_month_name} {check_year}. "
+                    f"Please approve or reject them first."
                 ),
                 "redirect_url": "/time_adjustment_approvals/"
             })
@@ -14793,7 +14825,9 @@ def checkPendingTimeAdjustmentsForMemo(request):
                 "pending_count": 0,
                 "child_name": child_full_name,
                 "child_admission": child.admission_number,
-                "message": "No pending time adjustment requests. Ready to generate memo."
+                "check_month_name": check_month_name,
+                "check_year": check_year,
+                "message": f"No pending time adjustment requests for {check_month_name} {check_year}. Ready to generate memo."
             })
 
     except Child.DoesNotExist:
