@@ -5898,6 +5898,11 @@ def savePackageRequest(request):
                     logger.info(f"Retrieved old fixed package object: {objOldFixedPcakage}")
 
                     if objOldFixedPcakage is not None:
+                        # Set the old package FIRST before comparing
+                        objPackageChangeRequest.old_fixed_package = objOldFixedPcakage
+                        logger.info(f"Set old_fixed_package to: {objPackageChangeRequest.old_fixed_package}")
+
+                        # Now check if new fixed package equals old fixed package
                         logger.info("Checking if new fixed package equals old fixed package...")
                         logger.info(f"  objPackageChangeRequest.new_fixed_package = {objPackageChangeRequest.new_fixed_package}")
                         logger.info(f"  objPackageChangeRequest.old_fixed_package = {objPackageChangeRequest.old_fixed_package}")
@@ -5912,8 +5917,6 @@ def savePackageRequest(request):
                                 "The selected new package cannot be the same as the old package.",
                             )
                             return
-                    objPackageChangeRequest.old_fixed_package = objOldFixedPcakage
-                    logger.info(f"Set old_fixed_package to: {objPackageChangeRequest.old_fixed_package}")
 
                 if (
                     request.POST.get("old_flexed_package") is not None
