@@ -2236,7 +2236,7 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
             }
         ),
     )
-    new_flex_package = forms.ModelChoiceField(
+    new_flexed_package = forms.ModelChoiceField(
         queryset=FlexPackages.objects.filter(
             is_active=True, package_type__is_holiday_package=False
         ).order_by("package_code"),
@@ -2246,7 +2246,7 @@ class CreatePackageChangeRequestForm(forms.ModelForm):
             attrs={
                 "class": "form-control",
                 "placeholder": "New flex package",
-                "id": "new_flex_package",
+                "id": "new_flex_package",  # Keep ID as new_flex_package for JavaScript compatibility
             }
         ),
     )
