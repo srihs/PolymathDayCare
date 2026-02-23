@@ -11342,12 +11342,12 @@ def getDetailedChargesBreakdown(request):
                             }
                         )
 
-                    # Also check if child's out_time falls within any slot that starts before out_time
+                    # Also check if child's out_time falls within any slot that starts at or before out_time
                     # but ends after out_time (partial slot charging)
                     partial_slot = (
                         ExtraHoursAfter530.objects.filter(
                             package_type=package_type,
-                            from_time__lt=time_out,  # Slot starts before child leaves
+                            from_time__lte=time_out,  # Slot starts at or before child leaves (includes exact match)
                             to_time__gt=time_out,  # Slot ends after child leaves
                             from_time__gte=start_time_after_530,  # Slot is relevant to our time range
                             effective_from__lte=log_date,
