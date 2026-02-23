@@ -15269,10 +15269,14 @@ def requestAttendanceRemoval(request):
 def getRemovalRequestsJS(request):
     """Get all pending attendance removal requests for approval"""
     try:
-        # Get all pending removal requests
+        # Get all pending removal requests from last 45 days
+        # NOTE: Don't filter by is_active - show all pending removal requests
+        from_date = datetime.now().date() - timedelta(days=45)
+
         pending_requests = AttendanceLog.objects.filter(
-            removal_status="PENDING", is_active=True
-        ).select_related("child")
+            removal_status="PENDING",
+            date_logged__gte=from_date  # Last 45 days only
+        ).select_related("child").order_by('-removal_requested_date')
 
         requests_data = []
         for record in pending_requests:
@@ -15318,9 +15322,10 @@ def approveAttendanceRemoval(request):
                 return JsonResponse({"error": "Attendance ID is required"}, status=400)
 
             # Get the attendance record
+            # NOTE: Don't filter by is_active - allow approval/rejection of all pending requests
             try:
                 attendance = AttendanceLog.objects.get(
-                    id=attendance_id, removal_status="PENDING", is_active=True
+                    id=attendance_id, removal_status="PENDING"
                 )
             except AttendanceLog.DoesNotExist:
                 return JsonResponse(
@@ -15363,9 +15368,10 @@ def rejectAttendanceRemoval(request):
                 return JsonResponse({"error": "Attendance ID is required"}, status=400)
 
             # Get the attendance record
+            # NOTE: Don't filter by is_active - allow approval/rejection of all pending requests
             try:
                 attendance = AttendanceLog.objects.get(
-                    id=attendance_id, removal_status="PENDING", is_active=True
+                    id=attendance_id, removal_status="PENDING"
                 )
             except AttendanceLog.DoesNotExist:
                 return JsonResponse(
@@ -15401,9 +15407,12 @@ def rejectAttendanceRemoval(request):
 def getRemovalApprovalsPage(request):
     """Render the removal approvals page"""
     try:
-        # Get count of pending requests for display
+        # Get count of pending requests from last 45 days for display
+        # NOTE: Don't filter by is_active - count all pending removal requests
+        from_date = datetime.now().date() - timedelta(days=45)
         pending_count = AttendanceLog.objects.filter(
-            removal_status="PENDING", is_active=True
+            removal_status="PENDING",
+            date_logged__gte=from_date
         ).count()
 
         context = {
