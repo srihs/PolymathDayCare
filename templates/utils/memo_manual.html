@@ -1034,12 +1034,6 @@ function hideFormLoading() {
     $('#child').removeClass('loading');
 }
 
-// Debug logging
-function debugLog(message) {
-    const timestamp = new Date().toLocaleTimeString();
-    console.log(`[${timestamp}] ${message}`);
-}
-
 // Clear all flags
 function clearAllFlags() {
     pendingAttendanceCheck = false;
@@ -1049,20 +1043,18 @@ function clearAllFlags() {
 
 function loadPreviousMonthBreakdown() {
     if (pendingBreakdownLoad) {
-        debugLog('Skipped breakdown load - already pending');
         return;
     }
-    
+
     const childId = $('#child').val();
     const month = $('#month').val();
     const year = $('#year').val();
-    
+
     if (!childId || !month || !year) {
         return;
     }
-    
+
     pendingBreakdownLoad = true;
-    debugLog(`Loading breakdown for child ${childId}, month ${month}, year ${year}`);
     
     // Calculate previous month
     let prevMonth = parseInt(month) - 1;
@@ -1142,7 +1134,6 @@ function loadPreviousMonthBreakdown() {
             // Reset the flag after completion
             setTimeout(function() {
                 pendingBreakdownLoad = false;
-                debugLog('Breakdown load completed');
             }, 500);
         }
     });
@@ -1226,16 +1217,11 @@ function loadChargesBreakdown(childId, prevMonth, prevYear) {
                 setFormattedValue('previous_holiday_charges', response.holiday_charges.total);
 
                 // Store holiday breakdown data globally and show/hide info icon
-                console.log('Holiday charges response:', response.holiday_charges);
                 if (response.holiday_charges && response.holiday_charges.breakdown && response.holiday_charges.breakdown.length > 0) {
                     window.currentHolidayBreakdown = response.holiday_charges.breakdown;
-                    console.log('Holiday breakdown found, showing icons. Breakdown count:', response.holiday_charges.breakdown.length);
                     $('#previousHolidayChargesInfoIcon').css('display', 'inline-block');
                     $('#holidayChargesInfoIcon').css('display', 'inline-block'); // Also show for current month if user copied/used same data
-                    console.log('Previous icon display:', $('#previousHolidayChargesInfoIcon').css('display'));
-                    console.log('Current icon display:', $('#holidayChargesInfoIcon').css('display'));
                 } else {
-                    console.log('No holiday breakdown found, hiding icons');
                     window.currentHolidayBreakdown = null;
                     $('#previousHolidayChargesInfoIcon').css('display', 'none');
                     $('#holidayChargesInfoIcon').css('display', 'none');
@@ -1969,7 +1955,6 @@ function loadChildDetails() {
 
     pendingAttendanceCheck = true;
     showFormLoading();
-    debugLog(`Loading child details for ${childId}`);
 
     // Load child package details first
     $.ajax({
@@ -1980,7 +1965,6 @@ function loadChildDetails() {
             if (response.package_fee !== undefined && response.package_fee !== null) {
                 // Set current month package fee (advance payment) using setFormattedValue
                 setFormattedValue('package_fee', response.package_fee);
-                debugLog(`Package fee set to: ${response.package_fee}`);
 
                 // Store discount info
                 window.childDiscountRate = response.discount_rate || 0;
@@ -2001,8 +1985,6 @@ function loadChildDetails() {
                 }, 200);
             } else if (response.error) {
                 // Handle error response from server
-                console.error('Package details error:', response.error);
-                debugLog(`Package details error: ${response.error}`);
                 setFormattedValue('package_fee', 0);
 
                 // Still load previous month breakdown
@@ -2014,8 +1996,6 @@ function loadChildDetails() {
         error: function(xhr) {
             // Handle AJAX error - show user-friendly message
             const errorMsg = xhr.responseJSON?.error || 'Failed to load package details';
-            console.error('AJAX error loading package details:', errorMsg);
-            debugLog(`AJAX error: ${errorMsg}`);
 
             // Set package fee to 0 and show alert
             setFormattedValue('package_fee', 0);
@@ -2034,7 +2014,6 @@ function loadChildDetails() {
             // Reset the flag after a delay to prevent rapid requests
             setTimeout(function() {
                 pendingAttendanceCheck = false;
-                debugLog('Child details load completed');
             }, 1000);
         }
     });
@@ -2390,7 +2369,6 @@ $(document).ready(function() {
     $('#child').off('change.memo').on('change.memo', function() {
         clearTimeout(monthYearChangeTimeout);
         const childId = $(this).val();
-        debugLog(`Child changed to: ${childId}`);
 
         if (childId) {
             clearAllManualFields();
@@ -2402,7 +2380,6 @@ $(document).ready(function() {
             const year = $('#year').val();
 
             if (month && year) {
-                debugLog(`Loading details for child ${childId}, month ${month}, year ${year}`);
                 // Check for missing attendance FIRST before loading any data
                 checkMissingAttendanceOnSelection(childId, month, year);
             }
@@ -2579,14 +2556,9 @@ $('#memoDataForm').on('submit', function(e) {
 // Function to check missing attendance on child/month/year selection
 // Shows modal immediately if missing records found, but allows continuing
 function checkMissingAttendanceOnSelection(childId, month, year) {
-    debugLog(`checkMissingAttendanceOnSelection called: childId=${childId}, month=${month}, year=${year}`);
-
     if (!childId || !month || !year) {
-        debugLog('Missing parameters, returning early');
         return;
     }
-
-    debugLog('Starting validation sequence...');
 
     // First, check for pending time adjustment requests (blocking check)
     $.ajax({
@@ -2598,14 +2570,11 @@ function checkMissingAttendanceOnSelection(childId, month, year) {
             year: year
         },
         success: function(timeAdjustResponse) {
-            debugLog('Time adjustment check response:', timeAdjustResponse);
             if (timeAdjustResponse.has_pending) {
-                debugLog(`Found ${timeAdjustResponse.pending_count} pending time adjustments - blocking`);
                 // Show blocking modal for pending time adjustments
                 showPendingTimeAdjustmentModal(timeAdjustResponse);
                 // Don't proceed with missing attendance check or data loading
             } else {
-                debugLog('No pending time adjustments, checking attendance...');
                 // No pending time adjustments, proceed to check missing attendance
                 $.ajax({
                     url: "{% url 'core:check_missing_attendance_for_memo' %}",
@@ -2616,22 +2585,17 @@ function checkMissingAttendanceOnSelection(childId, month, year) {
                         year: year
                     },
                     success: function(response) {
-                        debugLog('Attendance check response:', response);
                         if (response.has_missing) {
-                            debugLog(`Found ${response.missing_count} missing attendance records`);
                             // Show the missing attendance modal immediately
                             showMissingAttendanceModalOnSelection(response);
                             // Don't load the details yet - wait for user to fix attendance
                         } else {
-                            debugLog('No missing attendance, loading memo data...');
                             // No missing attendance, proceed normally
                             fetchOutstandingBalance();
                             loadChildDetails();
                         }
                     },
                     error: function(xhr, status, error) {
-                        console.error('Failed to check attendance:', error);
-                        debugLog('Attendance check failed, loading data anyway (graceful degradation)');
                         // On error, still allow continuing (fail gracefully)
                         fetchOutstandingBalance();
                         loadChildDetails();
@@ -2640,8 +2604,6 @@ function checkMissingAttendanceOnSelection(childId, month, year) {
             }
         },
         error: function(xhr, status, error) {
-            console.error('Failed to check time adjustments:', error);
-            debugLog('Time adjustment check failed, continuing to attendance check (graceful degradation)');
             // On error, still continue to check attendance (fail gracefully)
             $.ajax({
                 url: "{% url 'core:check_missing_attendance_for_memo' %}",
@@ -2652,18 +2614,14 @@ function checkMissingAttendanceOnSelection(childId, month, year) {
                     year: year
                 },
                 success: function(response) {
-                    debugLog('Attendance check response (after time adj error):', response);
                     if (response.has_missing) {
                         showMissingAttendanceModalOnSelection(response);
                     } else {
-                        debugLog('Loading memo data after time adjustment error...');
                         fetchOutstandingBalance();
                         loadChildDetails();
                     }
                 },
                 error: function(xhr, status, error) {
-                    console.error('Failed to check attendance:', error);
-                    debugLog('Both checks failed, loading data anyway (graceful degradation)');
                     fetchOutstandingBalance();
                     loadChildDetails();
                 }
@@ -3314,8 +3272,6 @@ function fetchOutstandingBalance() {
         return;
     }
 
-    debugLog(`Fetching TRUE outstanding balance for Child: ${childId}, up to period: ${month}/${year}`);
-
     const outstandingDisplayField = $('#outstanding_amount_display');
     outstandingDisplayField.addClass('loading-state');
 
@@ -3335,10 +3291,8 @@ function fetchOutstandingBalance() {
                 // We only care about positive (due) balances for the outstanding field
                 if (balance > 0) {
                     setFormattedValue('outstanding_amount', balance);
-                    debugLog(`Set outstanding amount to: ${balance.toFixed(2)}`);
                 } else {
                     setFormattedValue('outstanding_amount', 0);
-                    debugLog('Calculated outstanding is zero or credit. Setting field to 0.');
                 }
 
                 // Recalculate totals
@@ -3347,11 +3301,9 @@ function fetchOutstandingBalance() {
             } else {
                 setFormattedValue('outstanding_amount', 0);
                 calculateTotals();
-                console.error("Error fetching balance:", response.error);
             }
         },
         error: function(xhr) {
-            console.error("Failed to fetch outstanding balance:", xhr.responseJSON || xhr.responseText);
             setFormattedValue('outstanding_amount', 0);
             calculateTotals();
         },
