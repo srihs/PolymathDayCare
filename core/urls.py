@@ -438,6 +438,11 @@ urlpatterns = [
         views.checkMissingAttendanceForMemo,
         name="check_missing_attendance_for_memo",
     ),
+    path(
+        "check_pending_time_adjustments_for_memo/",
+        views.checkPendingTimeAdjustmentsForMemo,
+        name="check_pending_time_adjustments_for_memo",
+    ),
     path("enhanced_check_ins/", views.getEnhancedCheckIns, name="enhanced_check_ins"),
     path(
         "enhanced_missing_attendance_js/",

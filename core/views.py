@@ -14714,6 +14714,94 @@ def checkMissingAttendanceForMemo(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+@login_required
+def checkPendingTimeAdjustmentsForMemo(request):
+    """
+    Check for pending time adjustment requests before generating memo.
+
+    This endpoint validates that a child has no pending time adjustment requests
+    before allowing memo generation. Pending requests must be approved or rejected
+    first to ensure accurate billing calculations.
+
+    Args:
+        request (HttpRequest): GET request with parameters:
+            - child_id: Integer ID of the child
+
+    Returns:
+        JsonResponse: JSON object with:
+            - has_pending: Boolean indicating if there are pending requests
+            - pending_count: Integer count of pending requests
+            - child_name: String child's full name
+            - child_admission: String child's admission number
+            - message: String user-friendly message
+            - redirect_url: String URL to time adjustment approvals page (if has_pending)
+
+    Example Response (with pending requests):
+        {
+            "has_pending": true,
+            "pending_count": 2,
+            "child_name": "John Doe",
+            "child_admission": "ADM001",
+            "message": "Cannot Generate Memo! Child has 2 pending time adjustment request(s)...",
+            "redirect_url": "/time_adjustment_approvals/"
+        }
+
+    Example Response (no pending requests):
+        {
+            "has_pending": false,
+            "pending_count": 0,
+            "child_name": "John Doe",
+            "child_admission": "ADM001",
+            "message": "No pending time adjustment requests. Ready to generate memo."
+        }
+
+    Security:
+        - Requires user authentication via @login_required decorator
+    """
+    try:
+        child_id = request.GET.get("child_id")
+
+        if not child_id:
+            return JsonResponse({"error": "Missing child_id parameter"}, status=400)
+
+        child = Child.objects.get(id=child_id, is_active=True)
+
+        # Count pending time adjustment requests for this child
+        pending_count = TimeAdjustmentRequest.objects.filter(
+            child=child,
+            status="PENDING_APPROVAL",
+            is_active=True
+        ).count()
+
+        child_full_name = f"{child.child_first_name} {child.child_last_name}"
+
+        if pending_count > 0:
+            return JsonResponse({
+                "has_pending": True,
+                "pending_count": pending_count,
+                "child_name": child_full_name,
+                "child_admission": child.admission_number,
+                "message": (
+                    f"Cannot Generate Memo! Child has {pending_count} pending time adjustment "
+                    f"request{'s' if pending_count > 1 else ''}. Please approve or reject them first."
+                ),
+                "redirect_url": "/time_adjustment_approvals/"
+            })
+        else:
+            return JsonResponse({
+                "has_pending": False,
+                "pending_count": 0,
+                "child_name": child_full_name,
+                "child_admission": child.admission_number,
+                "message": "No pending time adjustment requests. Ready to generate memo."
+            })
+
+    except Child.DoesNotExist:
+        return JsonResponse({"error": "Child not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
 # Add this enhanced view to your views.py file
 
 
