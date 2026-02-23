@@ -29,7 +29,9 @@
       "Bash(python3:*)",
       "Read(//Users/sas/Repos/**)",
       "Read(///**)",
-      "Bash(git checkout core/views.py)"
+      "Bash(git checkout core/views.py)",
+      "Bash(cd:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   },

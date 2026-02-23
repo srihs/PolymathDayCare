@@ -15224,8 +15224,9 @@ def requestAttendanceRemoval(request):
                 )
 
             # Get the attendance record
+            # NOTE: Don't filter by is_active - allow removal requests for all records
             try:
-                attendance = AttendanceLog.objects.get(id=attendance_id, is_active=True)
+                attendance = AttendanceLog.objects.get(id=attendance_id)
             except AttendanceLog.DoesNotExist:
                 return JsonResponse(
                     {"error": "Attendance record not found"}, status=404
