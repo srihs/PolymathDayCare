@@ -2849,10 +2849,7 @@ function openTimeAdjustmentApprovals() {
     // Close the modal
     $('#pendingTimeAdjustmentModal').modal('hide');
 
-    // Show a friendly message
-    setTimeout(function() {
-        alert('Please approve or reject the pending time adjustment requests in the new tab.\n\nAfter processing them, come back to this page and refresh to create the memo.');
-    }, 500);
+    // Alert removed - modal already provides all necessary information to the user
 }
 
 function checkMissingAttendanceBeforeGeneration(childId, month, year) {
