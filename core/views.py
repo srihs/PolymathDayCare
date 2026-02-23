@@ -5864,45 +5864,72 @@ def getPackagesByChildIdJS(request):
 @login_required
 def savePackageRequest(request):
     logger = logging.getLogger(__name__)
+
+    print("\n" + "="*80)
+    print("=== savePackageRequest() called ===")
+    print(f"User: {request.user.username}")
+    print(f"POST data: {dict(request.POST)}")
+    print("="*80 + "\n")
+
     logger.info("=== savePackageRequest() called ===")
     logger.info(f"User: {request.user.username}")
     logger.info(f"POST data: {dict(request.POST)}")
 
     try:
         if request.method == "POST":
+            print("Method is POST")
             user = User.objects.get(username=request.user.username)
             if user.groups.filter(name="Data Entry").exists():
+                print("ERROR: User is in Data Entry group - unauthorized")
                 logger.warning(f"Unauthorized access attempt by user: {user.username}")
                 messages.error(
                     request,
                     "You are not authorized to performe this operation.",
                 )
                 return
+            print("User authorized, creating form...")
             form = CreatePackageChangeRequestForm(request.POST)
+            print(f"Form created, is_valid: {form.is_valid()}")
+            if not form.is_valid():
+                print(f"Form errors: {form.errors}")
             if form.is_valid():
+                print("Form is valid, saving...")
                 logger.info("Form is valid")
                 objPackageChangeRequest = form.save(commit=False)
+
+                print(f"Old Fixed Package ID from POST: {request.POST.get('old_fixed_package')}")
+                print(f"Old Flex Package ID from POST: {request.POST.get('old_flexed_package')}")
+                print(f"New Fixed Package from form: {objPackageChangeRequest.new_fixed_package}")
+                print(f"New Flex Package from form: {objPackageChangeRequest.new_flexed_package}")
 
                 logger.info(f"Old Fixed Package ID from POST: {request.POST.get('old_fixed_package')}")
                 logger.info(f"Old Flex Package ID from POST: {request.POST.get('old_flexed_package')}")
                 logger.info(f"New Fixed Package from form: {objPackageChangeRequest.new_fixed_package}")
                 logger.info(f"New Flex Package from form: {objPackageChangeRequest.new_flexed_package}")
 
+                print("\nProcessing old fixed package...")
                 if (
                     request.POST.get("old_fixed_package") is not None
                     and request.POST.get("old_fixed_package") != ""
                 ):
+                    print(f"Old fixed package exists in POST: {request.POST.get('old_fixed_package')}")
                     objOldFixedPcakage = FixedPackage.objects.filter(
                         pk=request.POST.get("old_fixed_package")
                     ).first()
+                    print(f"Retrieved old fixed package object: {objOldFixedPcakage}")
                     logger.info(f"Retrieved old fixed package object: {objOldFixedPcakage}")
 
                     if objOldFixedPcakage is not None:
                         # Set the old package FIRST before comparing
                         objPackageChangeRequest.old_fixed_package = objOldFixedPcakage
+                        print(f"Set old_fixed_package to: {objPackageChangeRequest.old_fixed_package}")
                         logger.info(f"Set old_fixed_package to: {objPackageChangeRequest.old_fixed_package}")
 
                         # Now check if new fixed package equals old fixed package
+                        print("Checking if new fixed package equals old fixed package...")
+                        print(f"  new_fixed_package = {objPackageChangeRequest.new_fixed_package}")
+                        print(f"  old_fixed_package = {objPackageChangeRequest.old_fixed_package}")
+                        print(f"  Are they equal? {objPackageChangeRequest.new_fixed_package == objPackageChangeRequest.old_fixed_package}")
                         logger.info("Checking if new fixed package equals old fixed package...")
                         logger.info(f"  objPackageChangeRequest.new_fixed_package = {objPackageChangeRequest.new_fixed_package}")
                         logger.info(f"  objPackageChangeRequest.old_fixed_package = {objPackageChangeRequest.old_fixed_package}")
@@ -5911,12 +5938,16 @@ def savePackageRequest(request):
                             objPackageChangeRequest.new_fixed_package
                             == objPackageChangeRequest.old_fixed_package
                         ):
+                            print("ERROR: New fixed package same as old fixed package - BLOCKING")
                             logger.error("VALIDATION FAILED: New fixed package same as old fixed package")
                             messages.error(
                                 request,
                                 "The selected new package cannot be the same as the old package.",
                             )
                             return
+                        print("PASS: New fixed package differs from old")
+                else:
+                    print("No old fixed package in POST (user didn't have fixed package before)")
 
                 if (
                     request.POST.get("old_flexed_package") is not None
