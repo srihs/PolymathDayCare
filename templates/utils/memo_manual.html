@@ -1940,7 +1940,6 @@ function validateCurrentPayments() {
 function loadChildDetails() {
     const childId = $('#child').val();
     if (!childId || pendingAttendanceCheck) {
-        debugLog('Skipped loadChildDetails - no child or already pending');
         return;
     }
 
