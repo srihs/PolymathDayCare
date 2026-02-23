@@ -2579,12 +2579,14 @@ $('#memoDataForm').on('submit', function(e) {
 // Function to check missing attendance on child/month/year selection
 // Shows modal immediately if missing records found, but allows continuing
 function checkMissingAttendanceOnSelection(childId, month, year) {
+    debugLog(`checkMissingAttendanceOnSelection called: childId=${childId}, month=${month}, year=${year}`);
+
     if (!childId || !month || !year) {
+        debugLog('Missing parameters, returning early');
         return;
     }
 
-    // Set pending flag to prevent other operations
-    pendingAttendanceCheck = true;
+    debugLog('Starting validation sequence...');
 
     // First, check for pending time adjustment requests (blocking check)
     $.ajax({
@@ -2596,12 +2598,14 @@ function checkMissingAttendanceOnSelection(childId, month, year) {
             year: year
         },
         success: function(timeAdjustResponse) {
+            debugLog('Time adjustment check response:', timeAdjustResponse);
             if (timeAdjustResponse.has_pending) {
+                debugLog(`Found ${timeAdjustResponse.pending_count} pending time adjustments - blocking`);
                 // Show blocking modal for pending time adjustments
                 showPendingTimeAdjustmentModal(timeAdjustResponse);
-                pendingAttendanceCheck = false;
                 // Don't proceed with missing attendance check or data loading
             } else {
+                debugLog('No pending time adjustments, checking attendance...');
                 // No pending time adjustments, proceed to check missing attendance
                 $.ajax({
                     url: "{% url 'core:check_missing_attendance_for_memo' %}",
@@ -2612,11 +2616,14 @@ function checkMissingAttendanceOnSelection(childId, month, year) {
                         year: year
                     },
                     success: function(response) {
+                        debugLog('Attendance check response:', response);
                         if (response.has_missing) {
+                            debugLog(`Found ${response.missing_count} missing attendance records`);
                             // Show the missing attendance modal immediately
                             showMissingAttendanceModalOnSelection(response);
                             // Don't load the details yet - wait for user to fix attendance
                         } else {
+                            debugLog('No missing attendance, loading memo data...');
                             // No missing attendance, proceed normally
                             fetchOutstandingBalance();
                             loadChildDetails();
@@ -2624,18 +2631,17 @@ function checkMissingAttendanceOnSelection(childId, month, year) {
                     },
                     error: function(xhr, status, error) {
                         console.error('Failed to check attendance:', error);
+                        debugLog('Attendance check failed, loading data anyway (graceful degradation)');
                         // On error, still allow continuing (fail gracefully)
                         fetchOutstandingBalance();
                         loadChildDetails();
-                    },
-                    complete: function() {
-                        pendingAttendanceCheck = false;
                     }
                 });
             }
         },
         error: function(xhr, status, error) {
             console.error('Failed to check time adjustments:', error);
+            debugLog('Time adjustment check failed, continuing to attendance check (graceful degradation)');
             // On error, still continue to check attendance (fail gracefully)
             $.ajax({
                 url: "{% url 'core:check_missing_attendance_for_memo' %}",
@@ -2646,20 +2652,20 @@ function checkMissingAttendanceOnSelection(childId, month, year) {
                     year: year
                 },
                 success: function(response) {
+                    debugLog('Attendance check response (after time adj error):', response);
                     if (response.has_missing) {
                         showMissingAttendanceModalOnSelection(response);
                     } else {
+                        debugLog('Loading memo data after time adjustment error...');
                         fetchOutstandingBalance();
                         loadChildDetails();
                     }
                 },
                 error: function(xhr, status, error) {
                     console.error('Failed to check attendance:', error);
+                    debugLog('Both checks failed, loading data anyway (graceful degradation)');
                     fetchOutstandingBalance();
                     loadChildDetails();
-                },
-                complete: function() {
-                    pendingAttendanceCheck = false;
                 }
             });
         }

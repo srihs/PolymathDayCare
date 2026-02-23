@@ -14771,12 +14771,39 @@ def checkPendingTimeAdjustmentsForMemo(request):
         month = request.GET.get("month")
         year = request.GET.get("year")
 
-        if not all([child_id, month, year]):
-            return JsonResponse({"error": "Missing required parameters"}, status=400)
+        if not child_id:
+            return JsonResponse({"error": "Missing child_id parameter"}, status=400)
 
         child = Child.objects.get(id=child_id, is_active=True)
-        month_int = int(month)
-        year_int = int(year)
+
+        # If month/year not provided, return success with no pending (graceful degradation)
+        if not month or not year:
+            child_full_name = f"{child.child_first_name} {child.child_last_name}"
+            return JsonResponse({
+                "has_pending": False,
+                "pending_count": 0,
+                "child_name": child_full_name,
+                "child_admission": child.admission_number,
+                "check_month_name": "",
+                "check_year": "",
+                "message": "Month/year not provided. Skipping time adjustment validation."
+            })
+
+        # Convert to integers with error handling
+        try:
+            month_int = int(month)
+            year_int = int(year)
+        except (ValueError, TypeError):
+            child_full_name = f"{child.child_first_name} {child.child_last_name}"
+            return JsonResponse({
+                "has_pending": False,
+                "pending_count": 0,
+                "child_name": child_full_name,
+                "child_admission": child.admission_number,
+                "check_month_name": "",
+                "check_year": "",
+                "message": "Invalid month/year format. Skipping time adjustment validation."
+            })
 
         # Calculate the date range for PREVIOUS month (since that's what memo calculates)
         # Same logic as checkMissingAttendanceForMemo
