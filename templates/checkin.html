@@ -370,11 +370,11 @@
         return;
       }
       params.child = childValue;
-      // Set a wide date range for child search
-      var thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      params.from_date = thirtyDaysAgo.toISOString().split('T')[0];
-      params.to_date = getYesterday();
+      // Set a wide date range for child search (last 45 days)
+      var fortyFiveDaysAgo = new Date();
+      fortyFiveDaysAgo.setDate(fortyFiveDaysAgo.getDate() - 45);
+      params.from_date = fortyFiveDaysAgo.toISOString().split('T')[0];
+      params.to_date = new Date().toISOString().split('T')[0];  // Include today
     } else {
       var fromDate = jQuery('#fromDate').val();
       var toDate = jQuery('#toDate').val();

@@ -14775,8 +14775,8 @@ def getEnhancedMissingAttendanceJS(request):
                 )
                 filters &= Q(child=child)
 
-                # Expand date range for single child search (last 30 days including today)
-                from_date_obj = datetime.now().date() - timedelta(days=30)
+                # Expand date range for single child search (last 45 days including today)
+                from_date_obj = datetime.now().date() - timedelta(days=45)
                 to_date_obj = datetime.now().date()  # Include today, not just yesterday
                 filters = Q(date_logged__range=(from_date_obj, to_date_obj)) & Q(
                     child=child
