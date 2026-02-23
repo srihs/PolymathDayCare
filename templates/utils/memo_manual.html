@@ -2388,15 +2388,8 @@ $(document).ready(function() {
 
             if (month && year) {
                 debugLog(`Loading details for child ${childId}, month ${month}, year ${year}`);
-                // Debounce to prevent rapid-fire requests
-                monthYearChangeTimeout = setTimeout(function() {
-                    if (!pendingAttendanceCheck) {
-                        fetchOutstandingBalance();
-                        loadChildDetails();
-                    } else {
-                        debugLog('Skipped loadChildDetails - already pending');
-                    }
-                }, 300);
+                // Check for missing attendance FIRST before loading any data
+                checkMissingAttendanceOnSelection(childId, month, year);
             }
         } else {
             clearAllManualFields();
@@ -2413,9 +2406,12 @@ $(document).ready(function() {
             const childId = $('#child').val();
             if (childId) {
                 clearAllManualFields();
-                if (!pendingAttendanceCheck) {
-                    fetchOutstandingBalance();
-                    loadChildDetails();
+                const month = $('#month').val();
+                const year = $('#year').val();
+
+                if (month && year) {
+                    // Check for missing attendance FIRST before loading any data
+                    checkMissingAttendanceOnSelection(childId, month, year);
                 }
             }
         }, 500); // Wait 500ms after user stops changing month/year
@@ -2564,6 +2560,155 @@ $('#memoDataForm').on('submit', function(e) {
     // Show loading
     $(this).find('button[type="submit"]').html('<i class="ri-loader-4-line ri-spin me-1"></i>Saving...').prop('disabled', true);
 });
+
+// Function to check missing attendance on child/month/year selection
+// Shows modal immediately if missing records found, but allows continuing
+function checkMissingAttendanceOnSelection(childId, month, year) {
+    if (!childId || !month || !year) {
+        return;
+    }
+
+    // Set pending flag to prevent other operations
+    pendingAttendanceCheck = true;
+
+    $.ajax({
+        url: "{% url 'core:check_missing_attendance_for_memo' %}",
+        method: 'GET',
+        data: {
+            child_id: childId,
+            month: month,
+            year: year
+        },
+        success: function(response) {
+            if (response.has_missing) {
+                // Show the missing attendance modal immediately
+                showMissingAttendanceModalOnSelection(response);
+                // Don't load the details yet - wait for user to fix attendance
+            } else {
+                // No missing attendance, proceed normally
+                fetchOutstandingBalance();
+                loadChildDetails();
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to check attendance:', error);
+            // On error, still allow continuing (fail gracefully)
+            fetchOutstandingBalance();
+            loadChildDetails();
+        },
+        complete: function() {
+            pendingAttendanceCheck = false;
+        }
+    });
+}
+
+// Function to show missing attendance modal on selection (warning only, not blocking)
+function showMissingAttendanceModalOnSelection(missingData) {
+    let modalContent = `
+        <div class="modal fade" id="missingAttendanceSelectionModal" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning">
+                        <h5 class="modal-title">
+                            <i class="ri-error-warning-line me-2"></i>
+                            Missing Attendance Records Found!
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning">
+                            <strong>Attention Required!</strong><br>
+                            Child <strong>${missingData.child_admission}</strong> has
+                            <strong>${missingData.missing_count}</strong> missing attendance records
+                            for <strong>${missingData.check_month_name} ${missingData.check_year}</strong>.
+                        </div>
+
+                        <p class="mb-3">
+                            <strong>Please fix the missing attendance records before creating a memo for this child.</strong>
+                        </p>
+
+                        <h6>Missing Records Details:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Day</th>
+                                        <th>In Time</th>
+                                        <th>Out Time</th>
+                                        <th>Missing</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+
+    missingData.missing_records.forEach(record => {
+        let missingBadge = '';
+        switch(record.missing_record) {
+            case 'IN':
+                missingBadge = '<span class="badge bg-danger">IN Missing</span>';
+                break;
+            case 'OUT':
+                missingBadge = '<span class="badge bg-warning">OUT Missing</span>';
+                break;
+            default:
+                missingBadge = '<span class="badge bg-secondary">Unknown</span>';
+                break;
+        }
+
+        modalContent += `
+            <tr>
+                <td>${record.date}</td>
+                <td>${record.day_name}</td>
+                <td>${record.in_time}</td>
+                <td>${record.out_time}</td>
+                <td>${missingBadge}</td>
+            </tr>`;
+    });
+
+    modalContent += `
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="alert alert-info mt-3">
+                            <strong>Recommended Action:</strong><br>
+                            Click "Fix Attendance" below to open the Enhanced Check-ins page and complete the missing records.
+                            After fixing, you can return here to create the memo.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="ri-close-line me-1"></i>I'll Fix It Later
+                        </button>
+                        <button type="button" class="btn btn-warning" onclick="openAttendanceReportsAndReload()">
+                            <i class="ri-file-list-line me-1"></i>Fix Attendance Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+
+    // Remove existing modal if any
+    $('#missingAttendanceSelectionModal').remove();
+
+    // Add to body and show
+    $('body').append(modalContent);
+    $('#missingAttendanceSelectionModal').modal('show');
+}
+
+// Function to open attendance reports and prompt for reload
+function openAttendanceReportsAndReload() {
+    // Open Enhanced Check-ins in new tab
+    window.open("{% url 'core:view_check_ins' %}", '_blank');
+
+    // Close the modal
+    $('#missingAttendanceSelectionModal').modal('hide');
+
+    // Show a friendly message
+    setTimeout(function() {
+        alert('Please fix the missing attendance records in the new tab.\n\nAfter fixing, come back to this page and refresh to create the memo.');
+    }, 500);
+}
 
 function checkMissingAttendanceBeforeGeneration(childId, month, year) {
     return new Promise((resolve, reject) => {
