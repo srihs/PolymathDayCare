@@ -7227,9 +7227,9 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
         expected_days = package.no_days_months or 22
         package_total = package.package_total or Decimal("0.00")
 
-        # Get attendance logs for the month
+        # Get attendance logs for the month (only active records)
         attendance_logs = AttendanceLog.objects.filter(
-            child=child, date_logged__range=(first_day, last_day)
+            child=child, date_logged__range=(first_day, last_day), is_active=True
         ).order_by("date_logged", "time_logged")
 
         # Group logs by date
@@ -7713,9 +7713,9 @@ def calculate_enhanced_month_with_attendance(
     expected_days = package.no_days_months or 22
     package_total = package.package_total or Decimal("0.00")
 
-    # Get attendance logs for the month
+    # Get attendance logs for the month (only active records)
     attendance_logs = AttendanceLog.objects.filter(
-        child=child, date_logged__range=(first_day, last_day)
+        child=child, date_logged__range=(first_day, last_day), is_active=True
     ).order_by("date_logged", "time_logged")
 
     # Get holidays in this month (expand date ranges to include all dates)
@@ -10642,7 +10642,7 @@ def saveMemoDataEntry(request):
             ).date()
 
             attendance_records = AttendanceLog.objects.filter(
-                child=child, date_logged__range=(from_date, last_day)
+                child=child, date_logged__range=(from_date, last_day), is_active=True
             ).values_list("date_logged", "time_logged")
 
             attendance_dict = {}
@@ -11038,9 +11038,9 @@ def calculate_month_attendance_summary(child, month, year):
         first_day = datetime(year, month, 1).date()
         last_day = datetime(year, month, calendar.monthrange(year, month)[1]).date()
 
-        # Get attendance logs for the month
+        # Get attendance logs for the month (only active records)
         attendance_logs = AttendanceLog.objects.filter(
-            child=child, date_logged__range=(first_day, last_day)
+            child=child, date_logged__range=(first_day, last_day), is_active=True
         )
 
         # Group by date and count complete attendances (in and out)
@@ -11117,9 +11117,9 @@ def getDetailedChargesBreakdown(request):
                 {"error": "No package mapping found for this period"}, status=404
             )
 
-        # Get attendance logs for the month
+        # Get attendance logs for the month (only active records)
         attendance_logs = AttendanceLog.objects.filter(
-            child=child, date_logged__range=(first_day, last_day)
+            child=child, date_logged__range=(first_day, last_day), is_active=True
         ).order_by("date_logged", "time_logged")
 
         # Get PUBLIC holidays in this month (expand date ranges to include all dates)
@@ -11528,11 +11528,12 @@ def getChildComprehensiveDataJS(request):
         current_year = current_date.year
         first_day_of_month = date(current_year, current_month, 1)
 
-        # Get all attendance logs for current month
+        # Get all attendance logs for current month (only active records)
         current_month_attendance_logs = AttendanceLog.objects.filter(
             child=child,
             date_logged__gte=first_day_of_month,
             date_logged__lte=current_date,
+            is_active=True,
         ).order_by("date_logged", "time_logged")
 
         # Group attendance by date
@@ -12218,9 +12219,9 @@ def get_automatic_breakdown_data(child, month, year):
                 "summary": {"total_extra_instances": 0, "total_holiday_days": 0},
             }
 
-        # Get attendance logs for the month
+        # Get attendance logs for the month (only active records)
         attendance_logs = AttendanceLog.objects.filter(
-            child=child, date_logged__range=(first_day, last_day)
+            child=child, date_logged__range=(first_day, last_day), is_active=True
         ).order_by("date_logged", "time_logged")
 
         # Get PUBLIC holidays in this month (expand date ranges to include all dates)
@@ -12638,7 +12639,7 @@ def generateEnhancedMemoFromCalculation(request):
             ).date()
 
             attendance_records = AttendanceLog.objects.filter(
-                child=child, date_logged__range=(from_date, last_day)
+                child=child, date_logged__range=(from_date, last_day), is_active=True
             ).values_list("date_logged", "time_logged")
 
             attendance_dict = {}
@@ -14637,9 +14638,9 @@ def checkMissingAttendanceForMemo(request):
             check_year, check_month, calendar.monthrange(check_year, check_month)[1]
         ).date()
 
-        # Get attendance records for the child in the target month
+        # Get attendance records for the child in the target month (only active records)
         attendance_records = AttendanceLog.objects.filter(
-            child=child, date_logged__range=(from_date, last_day)
+            child=child, date_logged__range=(from_date, last_day), is_active=True
         ).values_list("date_logged", "time_logged")
 
         # Group attendance by date (same logic as processMissingAttendanceRecordsJS)
