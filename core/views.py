@@ -3242,14 +3242,16 @@ def approveEnrollment(request):
         - Updates enrollment status from "Pending Approval" to "Approved"
         - Sets child.enrollement_approved = True
         - Sets child.is_enrolled = True
-        - Activates most recent inactive ChildPackageMapping for the child
+        - Deletes all old package mappings for the child
+        - Activates the most recent package mapping (created with this enrollment)
         - Triggers automatic enrollment form generation
         - Updates audit fields (user_updated, date_updated)
 
     Database Operations:
         - Updates ChildEnrollment record status
         - Updates Child enrollment flags
-        - Activates ChildPackageMapping record (most recent inactive)
+        - Deletes old ChildPackageMapping records (keeps only most recent)
+        - Activates the most recent ChildPackageMapping record
         - Uses atomic transaction for consistency
 
     Workflow Integration:
@@ -3265,9 +3267,10 @@ def approveEnrollment(request):
         - Child status changes to fully enrolled
 
     Error Handling:
-        - Handles cases where child has multiple package mappings
-        - Uses .first() to avoid MultipleObjectsReturned errors
-        - Transaction rollback on any failure
+        - Handles cases where child has multiple package mappings by deleting old ones
+        - Keeps only the most recent mapping to maintain data integrity
+        - Uses .first() and .exclude() to safely handle multiple records
+        - Transaction rollback on any failure ensures data consistency
 
     URL Pattern:
         - /enrollments/approve/?id={enrollment_id} (GET)
@@ -3284,26 +3287,23 @@ def approveEnrollment(request):
         objChild.is_enrolled = True
         objChild.save()
 
-        # Deactivate any existing active package mappings
-        # A child should only have one active package mapping at a time
-        ChildPackageMapping.objects.filter(
-            child=objChild,
-            is_active=True
-        ).update(
-            is_active=False,
-            effective_to=datetime.now()
-        )
+        # Get all package mappings for this child, ordered by most recent first
+        all_mappings = ChildPackageMapping.objects.filter(
+            child=objChild
+        ).order_by('-date_created')
 
-        # Get the most recent inactive package mapping for this child
-        # This handles cases where the child has multiple package mappings
-        objChildMapping = ChildPackageMapping.objects.filter(
-            child=objChild,
-            is_active=False
-        ).order_by('-date_created').first()
+        if all_mappings.exists():
+            # Get the most recent mapping (the one created with this enrollment)
+            most_recent_mapping = all_mappings.first()
 
-        if objChildMapping:
-            objChildMapping.is_active = True
-            objChildMapping.save()
+            # Delete all old mappings, keep only the most recent one
+            old_mappings = all_mappings.exclude(pk=most_recent_mapping.pk)
+            if old_mappings.exists():
+                old_mappings.delete()
+
+            # Activate the most recent mapping
+            most_recent_mapping.is_active = True
+            most_recent_mapping.save()
 
         # Generate enrollment forms
         generate_enrollment_forms(objChild.id)
