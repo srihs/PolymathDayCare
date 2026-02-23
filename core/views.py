@@ -3234,22 +3234,22 @@ def approveEnrollment(request):
         JsonResponse: Success message confirming enrollment approval
 
     Security:
+        - Requires user authentication via @login_required decorator
         - Uses @transaction.atomic for database integrity
         - Validates enrollment exists before processing
-        - Only accepts GET requests with valid ID parameter
 
     Business Logic:
         - Updates enrollment status from "Pending Approval" to "Approved"
         - Sets child.enrollement_approved = True
-        - Sets child.is_enrolled = True (redundant safety check)
-        - Activates corresponding ChildPackageMapping record by ID
+        - Sets child.is_enrolled = True
+        - Activates most recent inactive ChildPackageMapping for the child
         - Triggers automatic enrollment form generation
         - Updates audit fields (user_updated, date_updated)
 
     Database Operations:
         - Updates ChildEnrollment record status
         - Updates Child enrollment flags
-        - Activates ChildPackageMapping record by primary key
+        - Activates ChildPackageMapping record (most recent inactive)
         - Uses atomic transaction for consistency
 
     Workflow Integration:
@@ -3265,8 +3265,8 @@ def approveEnrollment(request):
         - Child status changes to fully enrolled
 
     Error Handling:
-        - Assumes enrollment exists (no explicit error handling)
-        - Database constraints enforce referential integrity
+        - Handles cases where child has multiple package mappings
+        - Uses .first() to avoid MultipleObjectsReturned errors
         - Transaction rollback on any failure
 
     URL Pattern:
@@ -3278,94 +3278,32 @@ def approveEnrollment(request):
         objEnrollment.user_updated = request.user.username
         objEnrollment.date_updated = datetime.now()
         objEnrollment.save()
-        objChild = objEnrollment.child
-        objChild.enrollement_approved = True
-        objChild.is_enrolled = True
-        objChild.save()
-        objChildMapping = ChildPackageMapping.objects.get(pk=request.GET.get("id"))
-        objChildMapping.is_active = True
-        objChildMapping.save()
-
-        # Generate enrollment forms automatically
-        generate_enrollment_forms(objChild.id)
-
-    return JsonResponse("Enrollment approved", safe=False)
-
-
-@login_required
-@transaction.atomic
-def approveEnrollment(request):
-    """
-    Alternative enrollment approval implementation with child-based package mapping lookup.
-
-    This is a duplicate function that performs the same approval workflow as the previous
-    approveEnrollment function but uses a different approach for finding the package mapping.
-    Instead of using the enrollment ID, it looks up the package mapping by child.
-
-    Parameters:
-        request (HttpRequest): The HTTP request object containing:
-            - id (GET parameter): Primary key of the enrollment to approve
-
-    Returns:
-        JsonResponse: Success message confirming enrollment approval
-
-    Security:
-        - Requires user authentication via @login_required decorator
-        - Uses @transaction.atomic for database integrity
-        - Validates enrollment exists before processing
-
-    Business Logic:
-        - Updates enrollment status from "Pending Approval" to "Approved"
-        - Sets child.enrollement_approved = True
-        - Sets child.is_enrolled = True
-        - Activates ChildPackageMapping record by child lookup (not by ID)
-        - Triggers automatic enrollment form generation
-        - Updates audit fields (user_updated, date_updated)
-
-    Database Operations:
-        - Updates ChildEnrollment record status
-        - Updates Child enrollment flags
-        - Activates ChildPackageMapping record by child reference
-        - Uses atomic transaction for consistency
-
-    Key Difference from Previous Function:
-        - Uses ChildPackageMapping.objects.get(child=objChild) instead of get(pk=id)
-        - More reliable approach as it directly links to the child
-        - Avoids potential ID mismatch issues
-
-    Workflow Integration:
-        - Automatically generates enrollment forms via generate_enrollment_forms()
-        - Completes the enrollment approval workflow
-        - Enables child for attendance tracking
-        - Activates package pricing for billing
-
-    Side Effects:
-        - Generates PDF enrollment forms in media/enrollment_forms/
-        - Child becomes eligible for attendance logging
-        - Package mappings become active for billing calculations
-        - Child status changes to fully enrolled
-
-    Note: This appears to be a duplicate function and should be consolidated
-    with the previous approveEnrollment function for code maintenance.
-
-    URL Pattern:
-        - /enrollments/approve/?id={enrollment_id} (GET)
-    """
-    if request.GET.get("id") is not None:
-        objEnrollment = ChildEnrollment.objects.get(pk=request.GET.get("id"))
-        objEnrollment.status = "Approved"
-        objEnrollment.user_updated = request.user.username
-        objEnrollment.date_updated = datetime.now()
-        objEnrollment.save()
 
         objChild = objEnrollment.child
         objChild.enrollement_approved = True
         objChild.is_enrolled = True
         objChild.save()
 
-        objChildMapping = ChildPackageMapping.objects.get(child=objChild)
-        objChildMapping.is_active = True
-        objChildMapping.save()
+        # Deactivate any existing active package mappings
+        # A child should only have one active package mapping at a time
+        ChildPackageMapping.objects.filter(
+            child=objChild,
+            is_active=True
+        ).update(
+            is_active=False,
+            effective_to=datetime.now()
+        )
+
+        # Get the most recent inactive package mapping for this child
+        # This handles cases where the child has multiple package mappings
+        objChildMapping = ChildPackageMapping.objects.filter(
+            child=objChild,
+            is_active=False
+        ).order_by('-date_created').first()
+
+        if objChildMapping:
+            objChildMapping.is_active = True
+            objChildMapping.save()
 
         # Generate enrollment forms
         generate_enrollment_forms(objChild.id)
