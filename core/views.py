@@ -5925,6 +5925,11 @@ def savePackageRequest(request):
                     logger.info(f"Retrieved old flex package object: {objOldFlexPackage}")
 
                     if objOldFlexPackage is not None:
+                        # Set the old package FIRST before comparing
+                        objPackageChangeRequest.old_flexed_package = objOldFlexPackage
+                        logger.info(f"Set old_flexed_package to: {objPackageChangeRequest.old_flexed_package}")
+
+                        # Now check if new flex package equals old flex package
                         logger.info("Checking if new flex package equals old flex package...")
                         logger.info(f"  objPackageChangeRequest.new_flexed_package = {objPackageChangeRequest.new_flexed_package}")
                         logger.info(f"  objPackageChangeRequest.old_flexed_package = {objPackageChangeRequest.old_flexed_package}")
@@ -5938,8 +5943,6 @@ def savePackageRequest(request):
                                 request,
                                 "The selected new package cannot be the same as the old package.",
                             )
-                        objPackageChangeRequest.old_flexed_package = objOldFlexPackage
-                        logger.info(f"Set old_flexed_package to: {objPackageChangeRequest.old_flexed_package}")
 
                 objPackageChangeRequest.user_created = request.user.username
 
