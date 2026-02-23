@@ -347,7 +347,13 @@
         
         <div class="row form-row">
             <div class="col-md-6">
-                <label class="form-label">Month *</label>
+                <label class="form-label">
+                    Month *
+                    <i class="ri-information-line text-muted"
+                       data-bs-toggle="tooltip"
+                       data-bs-placement="right"
+                       title="Select the CURRENT month for the memo. The system will validate attendance for the PREVIOUS month to ensure complete billing data."></i>
+                </label>
                 <select class="form-control" name="month" id="month" required onchange="updateMonthNames()">
                     <option value="">Select Month</option>
                     <option value="1">January</option>
@@ -363,6 +369,9 @@
                     <option value="11">November</option>
                     <option value="12">December</option>
                 </select>
+                <small class="form-text text-muted">
+                    This is the CURRENT memo month. Attendance will be validated for the previous month.
+                </small>
             </div>
             <div class="col-md-6">
                 <label class="form-label">Year *</label>
@@ -2356,6 +2365,12 @@ $(document).ready(function() {
         width: '100%'
     });
 
+    // Initialize Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
     // Set current year and month as default
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
@@ -2668,6 +2683,14 @@ function showMissingAttendanceModalOnSelection(missingData) {
                             Child <strong>${missingData.child_admission}</strong> has
                             <strong>${missingData.missing_count}</strong> missing attendance records
                             for <strong>${missingData.check_month_name} ${missingData.check_year}</strong>.
+                        </div>
+
+                        <div class="alert alert-info mb-3">
+                            <i class="ri-information-line me-1"></i>
+                            <strong>Why are we checking ${missingData.check_month_name}?</strong><br>
+                            The 3-month invoice system requires complete attendance data for the <strong>PREVIOUS month</strong>
+                            to calculate charges accurately. When generating a memo, we validate the previous month's
+                            attendance before processing.
                         </div>
 
                         <p class="mb-3">
