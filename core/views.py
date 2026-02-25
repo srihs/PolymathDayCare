@@ -7544,10 +7544,43 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
         else:
             package_fee = package_total  # 50% or more = full charge
 
+        # ===== EXCESS DAY CHARGING =====
+        # If child attended more days than package allows, charge excess at Adhoc rate
+        excess_day_charges = Decimal("0.00")
+        excess_days = 0
+        adhoc_daily_rate = Decimal("0.00")
+        excess_days_breakdown = []
+
+        # Only apply excess day charging for packages with day limits
+        # Check if package has no_days_months defined and it's less than 22 (has a day limit)
+        if hasattr(package, 'no_days_months') and package.no_days_months and package.no_days_months < 22:
+            if present_days > expected_days:
+                excess_days = present_days - expected_days
+
+                # Get Adhoc Package (FLP003) for excess day rate
+                adhoc_package = FlexPackages.objects.filter(
+                    package_code='FLP003',
+                    is_active=True
+                ).first()
+
+                if adhoc_package:
+                    adhoc_daily_rate = adhoc_package.package_total  # Already a daily rate
+                    excess_day_charges = excess_days * adhoc_daily_rate
+
+                    # Build breakdown of excess days with dates
+                    # We need to identify which specific days are "excess"
+                    # Since we don't track order, we'll just list the excess count
+                    excess_days_breakdown = [{
+                        "excess_days_count": excess_days,
+                        "adhoc_daily_rate": float(adhoc_daily_rate),
+                        "total_excess_charges": float(excess_day_charges),
+                        "note": f"Child attended {present_days} days but package allows only {expected_days} days"
+                    }]
+
         # Calculate subtotal (include both holiday and vacation charges)
         # Combine holiday_charge and vacation_charge for backward compatibility
         total_holiday_vacation_charge = holiday_charge + vacation_charge
-        subtotal = package_fee + extra_hours_charge + total_holiday_vacation_charge
+        subtotal = package_fee + extra_hours_charge + total_holiday_vacation_charge + excess_day_charges
 
         # Apply discount using effective date logic
         discount_amount = Decimal("0.00")
@@ -7581,6 +7614,11 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
             "vacation_days": vacation_attendance_days,
             "public_holiday_charge": holiday_charge,
             "vacation_charge": vacation_charge,
+            # Excess day charging fields
+            "excess_days": excess_days,
+            "adhoc_daily_rate": adhoc_daily_rate,
+            "excess_day_charges": excess_day_charges,
+            "excess_days_breakdown": excess_days_breakdown,
         }
 
     except Exception as e:
@@ -8238,8 +8276,39 @@ def calculate_enhanced_month_with_attendance(
     else:
         package_fee = package_total
 
+    # ===== EXCESS DAY CHARGING =====
+    # If child attended more days than package allows, charge excess at Adhoc rate
+    excess_day_charges = Decimal("0.00")
+    excess_days = 0
+    adhoc_daily_rate = Decimal("0.00")
+    excess_days_breakdown = []
+
+    # Only apply excess day charging for packages with day limits
+    # Check if package has no_days_months defined and it's less than 22 (has a day limit)
+    if hasattr(package, 'no_days_months') and package.no_days_months and package.no_days_months < 22:
+        if present_days > expected_days:
+            excess_days = present_days - expected_days
+
+            # Get Adhoc Package (FLP003) for excess day rate
+            adhoc_package = FlexPackages.objects.filter(
+                package_code='FLP003',
+                is_active=True
+            ).first()
+
+            if adhoc_package:
+                adhoc_daily_rate = adhoc_package.package_total  # Already a daily rate
+                excess_day_charges = excess_days * adhoc_daily_rate
+
+                # Build breakdown of excess days with dates
+                excess_days_breakdown = [{
+                    "excess_days_count": excess_days,
+                    "adhoc_daily_rate": float(adhoc_daily_rate),
+                    "total_excess_charges": float(excess_day_charges),
+                    "note": f"Child attended {present_days} days but package allows only {expected_days} days"
+                }]
+
     # Calculate subtotal
-    subtotal = package_fee + extra_hours_charge + holiday_charge
+    subtotal = package_fee + extra_hours_charge + holiday_charge + excess_day_charges
 
     # Apply discount using effective date logic
     discount_amount = Decimal("0.00")
@@ -8297,6 +8366,11 @@ def calculate_enhanced_month_with_attendance(
                 2,
             ),
         },
+        # Excess day charging fields
+        "excess_days": excess_days,
+        "adhoc_daily_rate": adhoc_daily_rate,
+        "excess_day_charges": excess_day_charges,
+        "excess_days_breakdown": excess_days_breakdown,
     }
 
 
@@ -11891,6 +11965,38 @@ def getDetailedChargesBreakdown(request):
                 f"{total_minutes_part} min{'s' if total_minutes_part != 1 else ''}"
             )
 
+        # ===== EXCESS DAY CHARGING =====
+        # Count present days (days with complete attendance)
+        present_days = sum(1 for logs in logs_by_date.values() if len(logs) >= 2)
+        expected_days = package.no_days_months or 22
+
+        excess_day_charges = Decimal("0.00")
+        excess_days = 0
+        adhoc_daily_rate = Decimal("0.00")
+        excess_days_breakdown = []
+
+        # Only apply excess day charging for packages with day limits
+        if hasattr(package, 'no_days_months') and package.no_days_months and package.no_days_months < 22:
+            if present_days > expected_days:
+                excess_days = present_days - expected_days
+
+                # Get Adhoc Package (FLP003) for excess day rate
+                adhoc_package = FlexPackages.objects.filter(
+                    package_code='FLP003',
+                    is_active=True
+                ).first()
+
+                if adhoc_package:
+                    adhoc_daily_rate = adhoc_package.package_total
+                    excess_day_charges = excess_days * adhoc_daily_rate
+
+                    excess_days_breakdown = [{
+                        "excess_days_count": excess_days,
+                        "adhoc_daily_rate": float(adhoc_daily_rate),
+                        "total_excess_charges": float(excess_day_charges),
+                        "note": f"Child attended {present_days} days but package allows only {expected_days} days"
+                    }]
+
         return JsonResponse(
             {
                 "success": True,
@@ -11900,6 +12006,8 @@ def getDetailedChargesBreakdown(request):
                     "name": package.package_name,
                     "end_time": package_end_time.strftime("%H:%M"),
                     "type": package_type.package_type_name,
+                    "expected_days": expected_days,
+                    "days_attended": present_days,
                 },
                 "extra_hours": {
                     "breakdown": extra_hours_breakdown,
@@ -11913,11 +12021,18 @@ def getDetailedChargesBreakdown(request):
                     "total": float(total_holiday_charges),
                     "days_count": len(holiday_charges_breakdown),
                 },
+                "excess_day_charges": {
+                    "breakdown": excess_days_breakdown,
+                    "total": float(excess_day_charges),
+                    "excess_days": excess_days,
+                    "adhoc_daily_rate": float(adhoc_daily_rate),
+                },
                 "summary": {
                     "total_extra_charges": float(total_extra_charges),
                     "total_holiday_charges": float(total_holiday_charges),
+                    "total_excess_day_charges": float(excess_day_charges),
                     "combined_total": float(
-                        total_extra_charges + total_holiday_charges
+                        total_extra_charges + total_holiday_charges + excess_day_charges
                     ),
                     "total_extra_hours_display": total_extra_hours_display,
                 },
