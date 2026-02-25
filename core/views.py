@@ -10358,45 +10358,48 @@ def getChildPackageDetails(request):
     """
     try:
         child_id = request.GET.get("child_id")
+        month = request.GET.get("month")
+        year = request.GET.get("year")
+
         if not child_id:
             return JsonResponse({"error": "Child ID required"}, status=400)
 
         child = Child.objects.get(id=child_id)
 
-        # DEBUG: Check all package mappings for this child
-        all_mappings = ChildPackageMapping.objects.filter(child=child)
-        print(
-            f"DEBUG: Child {child.admission_number} has {all_mappings.count()} total package mappings"
-        )
-
-        for mapping in all_mappings:
+        # If month and year are provided, get package for that specific period
+        # This is the CURRENT month (advance payment month)
+        if month and year:
+            month_int = int(month)
+            year_int = int(year)
+            package_mapping = get_package_mapping_for_period(child, month_int, year_int)
             print(
-                f"DEBUG: Mapping ID {mapping.id} - is_active: {mapping.is_active}, effective_from: {mapping.effective_from}, effective_to: {mapping.effective_to}"
+                f"DEBUG: Getting package for {child.admission_number} for period: {month}/{year}"
             )
+        else:
+            # Fallback to currently active package (legacy behavior)
+            package_mapping = ChildPackageMapping.objects.filter(
+                child=child, is_active=True
+            ).first()
             print(
-                f"       Normal: {mapping.normal_package}, Holiday: {mapping.holiday_package}, Flex: {mapping.flex_package}"
+                f"DEBUG: Getting currently active package for {child.admission_number} (no month/year provided)"
             )
 
-        # Get active package mapping
-        package_mapping = ChildPackageMapping.objects.filter(
-            child=child, is_active=True
-        ).first()
-
-        print(f"DEBUG: Active package mapping found: {package_mapping}")
+        print(f"DEBUG: Package mapping found: {package_mapping}")
 
         if not package_mapping:
-            # Try without is_active filter
-            any_mapping = ChildPackageMapping.objects.filter(child=child).first()
-            print(f"DEBUG: Any package mapping found: {any_mapping}")
+            import calendar
+            error_msg = "No package mapping found"
+            if month and year:
+                error_msg = f"No package mapping found for {calendar.month_name[int(month)]} {year}"
 
             return JsonResponse(
                 {
-                    "error": "No active package mapping found",
+                    "error": error_msg,
                     "debug_info": {
-                        "total_mappings": all_mappings.count(),
-                        "has_any_mapping": any_mapping is not None,
                         "child_id": child_id,
                         "child_admission": child.admission_number,
+                        "requested_month": month,
+                        "requested_year": year,
                     },
                 },
                 status=404,
@@ -11415,55 +11418,15 @@ def getDetailedChargesBreakdown(request):
             int(year), int(month), calendar.monthrange(int(year), int(month))[1]
         ).date()
 
-        # Get package mapping for this period
-        # First try to find a mapping that overlaps with the requested month
-        package_mapping = (
-            ChildPackageMapping.objects.filter(
-                child=child,
-                is_active=True,
-                effective_from__lte=last_day,
-            )
-            .filter(Q(effective_to__gte=first_day) | Q(effective_to__isnull=True))
-            .first()
-        )
+        # Get package mapping for this period using the date-based helper function
+        package_mapping = get_package_mapping_for_period(child, int(month), int(year))
 
-        # If no mapping found for the exact period, try to find the latest active mapping
-        # This handles cases where effective_from is after the requested month
+        # If no mapping found, return error
         if not package_mapping:
-            package_mapping = (
-                ChildPackageMapping.objects.filter(
-                    child=child,
-                    is_active=True,
-                )
-                .order_by('-effective_from')
-                .first()
+            return JsonResponse(
+                {"error": f"No package mapping found for {calendar.month_name[int(month)]} {year}"},
+                status=404
             )
-
-            # If still no mapping, return error
-            if not package_mapping:
-                return JsonResponse(
-                    {"error": "No package mapping found for this child"}, status=404
-                )
-
-            # Check if this mapping is relevant for billing
-            # If effective_from is after the requested month, we should still allow it
-            # as the child may have been enrolled but package assigned later
-            if package_mapping.effective_from > last_day:
-                # Package starts after the requested month
-                # Return a warning but allow processing with zero charges
-                return JsonResponse({
-                    "warning": f"Package starts on {package_mapping.effective_from}, after the requested month {month}/{year}",
-                    "extra_hours_details": [],
-                    "holiday_details": [],
-                    "total_extra_hours": 0,
-                    "total_holiday_hours": 0,
-                    "total_extra_charges": 0,
-                    "total_holiday_charges": 0,
-                    "package_info": {
-                        "effective_from": str(package_mapping.effective_from),
-                        "effective_to": str(package_mapping.effective_to) if package_mapping.effective_to else "Active"
-                    }
-                })
 
         # Get attendance logs for the month (only active records)
         attendance_logs = AttendanceLog.objects.filter(

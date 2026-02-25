@@ -1067,14 +1067,18 @@ function loadPreviousMonthBreakdown() {
     // Show loading indicator
     $('#breakdown-loading').show();
     $('#breakdown-content').hide();
-    
-    // First, get the child's base package fee
+
+    // First, get the child's base package fee for PREVIOUS month (the calculated month)
     $.ajax({
         url: "{% url 'core:get_child_package_details' %}",
-        data: { child_id: childId },
+        data: {
+            child_id: childId,
+            month: prevMonth,
+            year: prevYear
+        },
         success: function(packageResponse) {
             const basePackageFee = parseFloat(packageResponse.package_fee) || 0;
-            
+
             // Then get attendance data for previous month
             $.ajax({
                 url: "{% url 'core:get_attendance_summary' %}",
@@ -1955,10 +1959,14 @@ function loadChildDetails() {
     pendingAttendanceCheck = true;
     showFormLoading();
 
-    // Load child package details first
+    // Load child package details first (for CURRENT month - the advance payment)
     $.ajax({
         url: "{% url 'core:get_child_package_details' %}",
-        data: { child_id: childId },
+        data: {
+            child_id: childId,
+            month: month,
+            year: year
+        },
         success: function(response) {
             // Check if package_fee exists (including zero values)
             if (response.package_fee !== undefined && response.package_fee !== null) {
@@ -2034,8 +2042,17 @@ function showDiscountInfo(discountName, discountRate) {
 }
 
 // Function to load and display package details for selected child
+// Shows the package for the CURRENT month (advance payment)
 function loadPackageDetails(childId) {
     if (!childId) {
+        clearPackageInfo();
+        return;
+    }
+
+    const month = $('#month').val();
+    const year = $('#year').val();
+
+    if (!month || !year) {
         clearPackageInfo();
         return;
     }
@@ -2046,7 +2063,11 @@ function loadPackageDetails(childId) {
 
     $.ajax({
         url: "{% url 'core:get_child_package_details' %}",
-        data: { child_id: childId },
+        data: {
+            child_id: childId,
+            month: month,
+            year: year
+        },
         success: function(response) {
             // Update package info display
             $('#pkg-name').text(response.package_name || '-');
