@@ -1220,6 +1220,23 @@ function loadChargesBreakdown(childId, prevMonth, prevYear) {
                 setFormattedValue('previous_extra_hours', response.extra_hours.total);
                 setFormattedValue('previous_holiday_charges', response.holiday_charges.total);
 
+                // Add excess day charges to the package fee if present
+                if (response.excess_day_charges && response.excess_day_charges.total > 0) {
+                    const currentPackageFee = getFormattedValue('previous_package_fee');
+                    const excessDayCharges = parseFloat(response.excess_day_charges.total) || 0;
+                    const adjustedPackageFee = currentPackageFee + excessDayCharges;
+                    setFormattedValue('previous_package_fee', adjustedPackageFee);
+
+                    // Store excess day info for breakdown display
+                    window.currentExcessDayInfo = {
+                        excess_days: response.excess_day_charges.excess_days,
+                        adhoc_daily_rate: response.excess_day_charges.adhoc_daily_rate,
+                        total: excessDayCharges
+                    };
+                } else {
+                    window.currentExcessDayInfo = null;
+                }
+
                 // Store holiday breakdown data globally and show/hide info icon
                 if (response.holiday_charges && response.holiday_charges.breakdown && response.holiday_charges.breakdown.length > 0) {
                     window.currentHolidayBreakdown = response.holiday_charges.breakdown;
@@ -1235,7 +1252,7 @@ function loadChargesBreakdown(childId, prevMonth, prevYear) {
                 displayBreakdownTable(response);
                 $('#breakdown-content').show();
 
-                // Apply discount if applicable (based on the adjusted package fee)
+                // Apply discount if applicable (based on the adjusted package fee INCLUDING excess days)
                 if (window.childDiscountRate && window.childDiscountRate > 0) {
                     const currentPackageFee = getFormattedValue('previous_package_fee');
                     const adjustedDiscount = (currentPackageFee * window.childDiscountRate) / 100;
@@ -1348,22 +1365,37 @@ function displayBreakdownTable(data) {
     
     tableHtml += `
             </div>
-            
+
             <div class="row mt-3">
                 <div class="col-12">
                     <div class="summary-card bg-light p-3 rounded">
                         <div class="row text-center">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <h6 class="text-primary mb-1">${formatCurrency(data.extra_hours.total)}</h6>
                                 <small class="text-muted">Extra Hours Total<br>
                                     <strong>${grandTotalHours}</strong> (${data.extra_hours.days_count} days)
                                 </small>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <h6 class="text-warning mb-1">${formatCurrency(data.holiday_charges.total)}</h6>
                                 <small class="text-muted">Holiday Charges<br>(${data.holiday_charges.days_count} days)</small>
                             </div>
-                            <div class="col-md-4">
+    `;
+
+    // Add excess day charges section if present
+    if (data.excess_day_charges && data.excess_day_charges.total > 0) {
+        tableHtml += `
+                            <div class="col-md-3">
+                                <h6 class="text-danger mb-1">${formatCurrency(data.excess_day_charges.total)}</h6>
+                                <small class="text-muted">Excess Day Charges<br>
+                                    <strong>${data.excess_day_charges.excess_days} days</strong> @ Rs. ${formatCurrency(data.excess_day_charges.adhoc_daily_rate)}/day
+                                </small>
+                            </div>
+        `;
+    }
+
+    tableHtml += `
+                            <div class="col-md-3">
                                 <h6 class="text-success mb-1">${formatCurrency(data.summary.combined_total)}</h6>
                                 <small class="text-muted">Combined Total</small>
                             </div>
