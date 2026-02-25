@@ -6881,6 +6881,55 @@ def calculate_current_month_charges(child, package_mapping, enrollment, month, y
         raise Exception(f"Error calculating current month charges: {str(e)}")
 
 
+def get_package_mapping_for_period(child, month, year):
+    """
+    Get the package mapping that was active during a specific billing period.
+
+    This function uses date-based filtering to find the correct package mapping
+    for a given month/year, ensuring historical billing accuracy when packages change.
+
+    Parameters:
+        child: Child object
+        month: Integer month (1-12)
+        year: Integer year (e.g., 2026)
+
+    Returns:
+        ChildPackageMapping object that was active during the specified period,
+        or None if no mapping exists for that period
+
+    Business Logic:
+        - Gets first and last day of the billing month
+        - Finds package mapping where:
+          * effective_from <= last_day (started before or during month)
+          * effective_to >= first_day OR effective_to is NULL (active during month)
+        - Returns most recent mapping if multiple exist (order by effective_from DESC)
+
+    Example:
+        Child has packages:
+        - Package A: effective_from=2025-01-01, effective_to=2026-01-31
+        - Package B: effective_from=2026-02-01, effective_to=None
+
+        get_package_mapping_for_period(child, 1, 2026) -> Returns Package A
+        get_package_mapping_for_period(child, 2, 2026) -> Returns Package B
+    """
+    import calendar
+    from django.db.models import Q
+
+    # Get first and last day of the month
+    first_day = datetime(year, month, 1).date()
+    last_day = datetime(year, month, calendar.monthrange(year, month)[1]).date()
+
+    # Query for package mapping active during this period
+    package_mapping = ChildPackageMapping.objects.filter(
+        child=child,
+        effective_from__lte=last_day,  # Started before or during the month
+    ).filter(
+        Q(effective_to__gte=first_day) | Q(effective_to__isnull=True)  # Still active during month
+    ).order_by('-effective_from').first()  # Get most recent if multiple
+
+    return package_mapping
+
+
 def calculate_three_month_invoice_data(child, target_month, target_year):
     """
     Calculate 3-month invoice data:
@@ -6926,41 +6975,33 @@ def calculate_three_month_invoice_data(child, target_month, target_year):
         month2_name = calendar.month_name[month2]
         month3_name = calendar.month_name[month3]
 
-        # Get child details
-        package_mapping = ChildPackageMapping.objects.filter(
-            child=child, is_active=True
-        ).first()
-
+        # Get child enrollment (same for all months)
         enrollment = ChildEnrollment.objects.filter(
             child=child, status="Approved", is_active=True
         ).first()
 
-        if not package_mapping or not enrollment:
-            raise Exception("No package mapping or enrollment found")
-
-        # Get package details
-        # Priority: normal_package > flex_package
-        if package_mapping.normal_package:
-            package = package_mapping.normal_package
-        elif package_mapping.flex_package:
-            package = package_mapping.flex_package
-        else:
-            package = None
-
-        if not package:
-            raise Exception("No valid package assigned")
+        if not enrollment:
+            raise Exception("No approved enrollment found for child")
 
         # Month 1: Check for existing memo or calculate outstanding/credits
         month1_data = get_month_outstanding_credits(child, month1, year1)
 
-        # Month 2: Full calculation with attendance rules
+        # Month 2: Get package mapping for month2 period and calculate with attendance
+        package_mapping_month2 = get_package_mapping_for_period(child, month2, year2)
+        if not package_mapping_month2:
+            raise Exception(f"No package mapping found for {calendar.month_name[month2]} {year2}")
+
         month2_data = calculate_month_with_attendance(
-            child, package_mapping, enrollment, month2, year2
+            child, package_mapping_month2, enrollment, month2, year2
         )
 
-        # Month 3: Full package amount without attendance logic
+        # Month 3: Get package mapping for month3 period and calculate full package
+        package_mapping_month3 = get_package_mapping_for_period(child, month3, year3)
+        if not package_mapping_month3:
+            raise Exception(f"No package mapping found for {calendar.month_name[month3]} {year3}")
+
         month3_data = calculate_month_full_package(
-            child, package_mapping, enrollment, month3, year3
+            child, package_mapping_month3, enrollment, month3, year3
         )
 
         # Calculate summary
@@ -7636,29 +7677,33 @@ def calculate_enhanced_three_month_data(child, target_month, target_year):
     month2_name = calendar.month_name[month2]
     month3_name = calendar.month_name[month3]
 
-    # Get child details
-    package_mapping = ChildPackageMapping.objects.filter(
-        child=child, is_active=True
-    ).first()
-
+    # Get child enrollment (same for all months)
     enrollment = ChildEnrollment.objects.filter(
         child=child, status="Approved", is_active=True
     ).first()
 
-    if not package_mapping or not enrollment:
-        raise Exception("No package mapping or enrollment found")
+    if not enrollment:
+        raise Exception("No approved enrollment found for child")
 
     # Month 1: Enhanced outstanding with payment tracking
     month1_data = get_enhanced_outstanding_data(child, month1, year1)
 
-    # Month 2: Enhanced calculation with detailed breakdown
+    # Month 2: Get package mapping for month2 period and calculate with enhanced breakdown
+    package_mapping_month2 = get_package_mapping_for_period(child, month2, year2)
+    if not package_mapping_month2:
+        raise Exception(f"No package mapping found for {calendar.month_name[month2]} {year2}")
+
     month2_data = calculate_enhanced_month_with_attendance(
-        child, package_mapping, enrollment, month2, year2
+        child, package_mapping_month2, enrollment, month2, year2
     )
 
-    # Month 3: Enhanced advance calculation
+    # Month 3: Get package mapping for month3 period and calculate enhanced advance
+    package_mapping_month3 = get_package_mapping_for_period(child, month3, year3)
+    if not package_mapping_month3:
+        raise Exception(f"No package mapping found for {calendar.month_name[month3]} {year3}")
+
     month3_data = calculate_enhanced_advance_month(
-        child, package_mapping, enrollment, month3, year3
+        child, package_mapping_month3, enrollment, month3, year3
     )
 
     # Calculate enhanced summary with payment adjustments
@@ -10994,17 +11039,30 @@ def saveMemoDataEntry(request):
             next_memo_id += 1
             memo_code = f"MO{next_memo_id:04d}"
 
-        # Get child info
-        package_mapping = ChildPackageMapping.objects.filter(
-            child=child, is_active=True
-        ).first()
+        # Calculate previous month (the month being billed)
+        if month_int > 1:
+            prev_month = month_int - 1
+            prev_year = year_int
+        else:
+            prev_month = 12
+            prev_year = year_int - 1
+
+        # Get package mapping for the PREVIOUS month (the billed period)
+        # This ensures we use the package that was active during the billing period
+        package_mapping = get_package_mapping_for_period(child, prev_month, prev_year)
+
+        if not package_mapping:
+            messages.error(
+                request,
+                f"No package mapping found for {calendar.month_name[prev_month]} {prev_year}. "
+                f"The child must have an active package during the billing period."
+            )
+            return redirect("core:memo_data_entry")
+
+        # Get enrollment
         enrollment = ChildEnrollment.objects.filter(
             child=child, status="Approved", is_active=True
         ).first()
-
-        if not package_mapping:
-            messages.error(request, "No active package mapping found")
-            return redirect("core:memo_data_entry")
 
         if not enrollment:
             enrollment = create_auto_enrollment(child, package_mapping)
@@ -11014,7 +11072,7 @@ def saveMemoDataEntry(request):
                 child.enrollement_approved = True
                 child.save()
 
-        # Determine package name
+        # Determine package name from the previous month's package
         package_name = "Manual Entry Package"
         if package_mapping.normal_package:
             package_name = package_mapping.normal_package.package_name
