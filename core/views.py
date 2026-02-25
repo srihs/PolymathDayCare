@@ -11441,19 +11441,23 @@ def calculate_month_attendance_summary(child, month, year):
 
         days_attended = sum(1 for logs in logs_by_date.values() if len(logs) >= 2)
 
-        # Get expected days from package
-        package_mapping = ChildPackageMapping.objects.filter(
-            child=child, is_active=True
-        ).first()
+        # Get package mapping for the specific period using date-based helper
+        package_mapping = get_package_mapping_for_period(child, month, year)
 
         expected_days = 22  # default
         if package_mapping:
+            # Determine which package is actually active for this period
+            # Priority: normal > flex > holiday (for expected days calculation)
+            package = None
             if package_mapping.normal_package:
-                expected_days = package_mapping.normal_package.no_days_months or 22
-            elif package_mapping.holiday_package:
-                expected_days = package_mapping.holiday_package.no_days_months or 22
+                package = package_mapping.normal_package
             elif package_mapping.flex_package:
-                expected_days = package_mapping.flex_package.no_days_months or 22
+                package = package_mapping.flex_package
+            elif package_mapping.holiday_package:
+                package = package_mapping.holiday_package
+
+            if package and hasattr(package, 'no_days_months'):
+                expected_days = package.no_days_months or 22
 
         attendance_percentage = (
             round((days_attended / expected_days * 100), 1) if expected_days > 0 else 0
