@@ -8407,23 +8407,14 @@ def calculate_enhanced_month_with_attendance(
 
     total_charge = subtotal - discount_amount
 
-    # Check for existing payments for this month
-    existing_memo = InvoiceMemo.objects.filter(
-        child=child, memo_month=month, memo_year=year, is_active=True
-    ).first()
-
+    # For batch/new memo generation, we should NOT pull payments from existing memos.
+    # Payments from existing memos are already reflected in the Outstanding balance (Month 1).
+    # Including them here would double-count payments.
+    #
+    # This function calculates FRESH charges based on attendance.
+    # Payments should be 0 for new memos - they get applied after the memo is created.
     payments_received = Decimal("0.00")
     payment_details = []
-
-    if existing_memo:
-        payments_received = existing_memo.total_payments
-        try:
-            import json
-            month_detail = existing_memo.month_details.first()
-            if month_detail and month_detail.payment_receipts:
-                payment_details = json.loads(month_detail.payment_receipts)
-        except:
-            payment_details = []
 
     return {
         "package_name": package.package_name,
@@ -8494,22 +8485,14 @@ def calculate_enhanced_advance_month(child, package_mapping, enrollment, month, 
 
     total_charge = package_fee - discount_amount
 
-    # Check for existing payments
-    existing_memo = InvoiceMemo.objects.filter(
-        child=child, memo_month=month, memo_year=year, is_active=True
-    ).first()
-
+    # For batch/new memo generation, we should NOT pull payments from existing memos.
+    # Payments from existing memos are already reflected in the Outstanding balance (Month 1).
+    # Including them here would double-count payments.
+    #
+    # This function calculates FRESH charges for the advance month.
+    # Payments should be 0 for new memos - they get applied after the memo is created.
     payments_received = Decimal("0.00")
     payment_details = []
-
-    if existing_memo:
-        payments_received = existing_memo.total_payments
-        try:
-            month_detail = existing_memo.month_details.first()
-            if month_detail and month_detail.payment_receipts:
-                payment_details = json.loads(month_detail.payment_receipts)
-        except:
-            payment_details = []
 
     return {
         "package_name": package.package_name,
