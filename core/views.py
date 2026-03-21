@@ -6984,7 +6984,10 @@ def calculate_three_month_invoice_data(child, target_month, target_year):
             raise Exception("No approved enrollment found for child")
 
         # Month 1: Check for existing memo or calculate outstanding/credits
-        month1_data = get_month_outstanding_credits(child, month1, year1)
+        # IMPORTANT: Pass TARGET month, not outstanding month. The function looks for memos
+        # BEFORE the passed month/year. We want memos before the target month (e.g., January 2026),
+        # not before the outstanding month (e.g., November 2025).
+        month1_data = get_month_outstanding_credits(child, target_month_int, target_year_int)
 
         # Month 2: Get package mapping for month2 period and calculate with attendance
         package_mapping_month2 = get_package_mapping_for_period(child, month2, year2)
@@ -7064,27 +7067,68 @@ def calculate_three_month_invoice_data(child, target_month, target_year):
 
 
 def get_month_outstanding_credits(child, month, year):
-    """Get outstanding balance or credits for a specific month"""
+    """Get outstanding balance or credits for a specific month.
+
+    This function finds the balance brought forward from the most recent previous memo,
+    NOT from a specific month/year. This ensures we capture the correct outstanding balance
+    even when memos don't exist for every month.
+
+    Args:
+        child: Child object
+        month: Target month for the NEW memo being created
+        year: Target year for the NEW memo being created
+
+    Returns:
+        Dict with charge, payments, balance, credit, status
+    """
     try:
         from decimal import Decimal
 
-        # Check if there's an existing memo for this month
-        existing_memo = InvoiceMemo.objects.filter(
-            child=child, memo_month=month, memo_year=year, is_active=True
-        ).first()
+        # Find the most recent memo that comes BEFORE the target month/year
+        # This is the correct "balance brought forward" logic
 
-        if existing_memo:
+        # First check for memos in previous years
+        latest_previous_memo = (
+            InvoiceMemo.objects.filter(
+                child=child, is_active=True, memo_year__lt=year
+            )
+            .order_by("-memo_year", "-memo_month")
+            .first()
+        )
+
+        # If no memo in previous years, check current year for previous months
+        if not latest_previous_memo:
+            latest_previous_memo = (
+                InvoiceMemo.objects.filter(
+                    child=child,
+                    is_active=True,
+                    memo_year=year,
+                    memo_month__lt=month,
+                )
+                .order_by("-memo_month")
+                .first()
+            )
+
+        if latest_previous_memo:
+            # The outstanding balance is the net_amount_due from the last memo
+            outstanding_balance = latest_previous_memo.net_amount_due
+
+            # Handle credits (negative balance)
+            credit = Decimal("0.00")
+            if outstanding_balance < 0:
+                credit = -outstanding_balance
+                outstanding_balance = Decimal("0.00")  # Don't carry forward negative as outstanding
+
             return {
-                "charge": existing_memo.gross_total,
-                "payments": existing_memo.total_payments,
-                "balance": existing_memo.net_amount_due,
-                "credit": max(
-                    Decimal("0.00"), -existing_memo.net_amount_due
-                ),  # Credits are negative balances
-                "status": existing_memo.status,
+                "charge": outstanding_balance,  # This IS the outstanding balance
+                "payments": Decimal("0.00"),  # Payments already applied to previous memo
+                "balance": outstanding_balance,
+                "credit": credit,
+                "status": latest_previous_memo.status,
+                "source_memo": latest_previous_memo.memo_code,  # For debugging
             }
         else:
-            # No record exists for this month
+            # No previous memos exist for this child
             return {
                 "charge": Decimal("0.00"),
                 "payments": Decimal("0.00"),
@@ -7724,7 +7768,10 @@ def calculate_enhanced_three_month_data(child, target_month, target_year):
         raise Exception("No approved enrollment found for child")
 
     # Month 1: Enhanced outstanding with payment tracking
-    month1_data = get_enhanced_outstanding_data(child, month1, year1)
+    # IMPORTANT: Pass TARGET month, not outstanding month. The function looks for memos
+    # BEFORE the passed month/year. We want memos before the target month (e.g., January 2026),
+    # not before the outstanding month (e.g., November 2025).
+    month1_data = get_enhanced_outstanding_data(child, target_month_int, target_year_int)
 
     # Month 2: Get package mapping for month2 period and calculate with enhanced breakdown
     package_mapping_month2 = get_package_mapping_for_period(child, month2, year2)
@@ -7744,18 +7791,19 @@ def calculate_enhanced_three_month_data(child, target_month, target_year):
         child, package_mapping_month3, enrollment, month3, year3
     )
 
-    # Calculate enhanced summary with payment adjustments
+    # Calculate enhanced summary
+    # For a NEW memo, the grand total is simply:
+    # Outstanding (balance from previous memo) + Previous month charges + Current month charges
+    # We do NOT subtract payments here because:
+    # 1. Outstanding already reflects balance after payments from previous memo
+    # 2. Month 2 and Month 3 are NEW charges that haven't had payments applied yet
     total_outstanding = month1_data["balance_after_payments"]
     current_month_charge = month2_data["total_charge"]
     next_month_charge = month3_data["total_charge"]
 
-    # Adjust for payments
-    current_month_balance = (
-        month2_data["total_charge"] - month2_data["payments_received"]
-    )
-    next_month_balance = month3_data["total_charge"] - month3_data["payments_received"]
-
-    grand_total = total_outstanding + current_month_balance + next_month_balance
+    # Grand total = Outstanding + Previous Month Charges + Current Month Advance
+    # No payment deductions - this is the TOTAL AMOUNT DUE before any new payments
+    grand_total = total_outstanding + current_month_charge + next_month_charge
 
     return {
         "child_name": f"{child.child_first_name} {child.child_last_name}",
@@ -7821,31 +7869,71 @@ def calculate_enhanced_three_month_data(child, target_month, target_year):
 
 
 def get_enhanced_outstanding_data(child, month, year):
-    """Get outstanding data with payment tracking"""
+    """Get outstanding data with payment tracking.
+
+    This function finds the balance brought forward from the most recent previous memo,
+    NOT from a specific month/year. This ensures we capture the correct outstanding balance
+    even when memos don't exist for every month.
+
+    Args:
+        child: Child object
+        month: Target month for the NEW memo being created
+        year: Target year for the NEW memo being created
+
+    Returns:
+        Dict with original_charge, payments_received, balance_after_payments, status, payment_details
+    """
     import json
     from decimal import Decimal
 
-    # Check for existing memo
-    existing_memo = InvoiceMemo.objects.filter(
-        child=child, memo_month=month, memo_year=year, is_active=True
-    ).first()
+    # Find the most recent memo that comes BEFORE the target month/year
+    # This is the correct "balance brought forward" logic
 
-    if existing_memo:
-        # Get payment details from existing memo via month_details
+    # First check for memos in previous years
+    latest_previous_memo = (
+        InvoiceMemo.objects.filter(
+            child=child, is_active=True, memo_year__lt=year
+        )
+        .order_by("-memo_year", "-memo_month")
+        .first()
+    )
+
+    # If no memo in previous years, check current year for previous months
+    if not latest_previous_memo:
+        latest_previous_memo = (
+            InvoiceMemo.objects.filter(
+                child=child,
+                is_active=True,
+                memo_year=year,
+                memo_month__lt=month,
+            )
+            .order_by("-memo_month")
+            .first()
+        )
+
+    if latest_previous_memo:
+        # Get payment details from the most recent previous memo
         payment_details = []
         try:
-            month_detail = existing_memo.month_details.first()
+            month_detail = latest_previous_memo.month_details.first()
             if month_detail and month_detail.payment_receipts:
                 payment_details = json.loads(month_detail.payment_receipts)
         except:
             payment_details = []
 
+        # The outstanding balance is the net_amount_due from the last memo
+        # Only carry forward DEBIT balance (positive). Credits are handled separately.
+        outstanding_balance = latest_previous_memo.net_amount_due
+        if outstanding_balance < 0:
+            outstanding_balance = Decimal("0.00")
+
         return {
-            "original_charge": existing_memo.gross_total,
-            "payments_received": existing_memo.total_payments,
-            "balance_after_payments": existing_memo.net_amount_due,
-            "status": existing_memo.status,
+            "original_charge": outstanding_balance,  # This IS the outstanding balance
+            "payments_received": Decimal("0.00"),  # Payments already applied to previous memo
+            "balance_after_payments": outstanding_balance,
+            "status": latest_previous_memo.status,
             "payment_details": payment_details,
+            "source_memo": latest_previous_memo.memo_code,  # For debugging
         }
     else:
         return {
@@ -20122,3 +20210,244 @@ def getChildEnrollmentInfoJS(request):
         import traceback
         traceback.print_exc()
         return JsonResponse({"error": str(e)}, status=500)
+
+
+# ==================== BATCH MEMO GENERATION ====================
+
+
+@login_required
+def batchMemoGeneration(request):
+    """
+    Display the batch memo generation page.
+
+    This view provides the interface for generating invoice memos for multiple
+    children at once. It shows a preview of eligible children and allows
+    batch generation with progress tracking.
+    """
+    try:
+        # Generate year range
+        current_year = datetime.now().year
+        year_range = [
+            current_year - 1,
+            current_year,
+            current_year + 1,
+        ]
+
+        # Get current month
+        current_month = datetime.now().month
+
+        context = {
+            "year_range": year_range,
+            "current_month": current_month,
+            "current_year": current_year,
+            "UserName": request.user.username,
+        }
+
+        return render(request, "utils/batch_memo_generation.html", context)
+
+    except Exception as e:
+        messages.error(request, f"Error loading page: {str(e)}")
+        return redirect("core:load_invoice_memo")
+
+
+@login_required
+def previewBatchMemoGeneration(request):
+    """
+    AJAX endpoint to preview batch memo generation.
+
+    Returns a preview of which children are ready for memo generation,
+    which need attention (missing attendance), and which cannot be processed.
+    """
+    try:
+        month = request.GET.get("month")
+        year = request.GET.get("year")
+
+        if not all([month, year]):
+            return JsonResponse({"error": "Month and year are required"}, status=400)
+
+        month_int = int(month)
+        year_int = int(year)
+
+        from core.services.memo_generation import MemoGenerationService
+
+        service = MemoGenerationService(user=request.user.username)
+        preview = service.preview_batch_generation(month_int, year_int)
+
+        return JsonResponse({
+            "success": True,
+            "preview": preview
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def executeBatchMemoGeneration(request):
+    """
+    AJAX endpoint to execute batch memo generation.
+
+    Generates memos for the specified children or all eligible children.
+    Returns progress updates and final results.
+    """
+    try:
+        if request.method != "POST":
+            return JsonResponse({"error": "POST method required"}, status=400)
+
+        data = json.loads(request.body)
+        month = data.get("month")
+        year = data.get("year")
+        force = data.get("force", False)
+        child_ids = data.get("child_ids")  # Optional: specific children to process
+
+        if not all([month, year]):
+            return JsonResponse({"error": "Month and year are required"}, status=400)
+
+        month_int = int(month)
+        year_int = int(year)
+
+        from core.services.memo_generation import MemoGenerationService
+
+        service = MemoGenerationService(user=request.user.username)
+        results = service.generate_batch_memos(
+            month_int,
+            year_int,
+            force=force,
+            child_ids=child_ids
+        )
+
+        return JsonResponse({
+            "success": True,
+            "results": results
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def generateSingleMemoFromBatch(request):
+    """
+    AJAX endpoint to generate memo for a single child from batch interface.
+
+    Used when retrying failed children or generating for specific children.
+    """
+    try:
+        if request.method != "POST":
+            return JsonResponse({"error": "POST method required"}, status=400)
+
+        data = json.loads(request.body)
+        child_id = data.get("child_id")
+        month = data.get("month")
+        year = data.get("year")
+        force = data.get("force", False)
+
+        if not all([child_id, month, year]):
+            return JsonResponse({"error": "Child ID, month, and year are required"}, status=400)
+
+        child = Child.objects.get(id=child_id)
+        month_int = int(month)
+        year_int = int(year)
+
+        from core.services.memo_generation import MemoGenerationService
+
+        service = MemoGenerationService(user=request.user.username)
+        result = service.generate_memo_for_child(child, month_int, year_int, force=force)
+
+        if result["success"]:
+            return JsonResponse({
+                "success": True,
+                "memo_code": result["memo_code"],
+                "amount_due": result["amount_due"],
+                "child_name": f"{child.child_first_name} {child.child_last_name}",
+                "admission_number": child.admission_number,
+            })
+        else:
+            return JsonResponse({
+                "success": False,
+                "error": result["error"],
+                "requires_force": result.get("requires_force", False),
+            }, status=400)
+
+    except Child.DoesNotExist:
+        return JsonResponse({"error": "Child not found"}, status=404)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required(login_url="login")
+def previewSingleChildMemo(request):
+    """
+    AJAX endpoint to preview memo calculation for a single child without saving.
+
+    Returns the calculated 3-month breakdown including:
+    - Month 1 (Outstanding): Balance from previous memo with source information
+    - Month 2 (Previous): Calculated charges with attendance-based breakdown
+    - Month 3 (Current): Advance package fee
+
+    This allows users to verify calculations before generating the actual memo.
+    """
+    try:
+        child_id = request.GET.get("child_id")
+        month = request.GET.get("month")
+        year = request.GET.get("year")
+
+        if not all([child_id, month, year]):
+            return JsonResponse(
+                {"success": False, "error": "Child ID, month, and year are required"},
+                status=400,
+            )
+
+        child = Child.objects.get(id=child_id)
+        month_int = int(month)
+        year_int = int(year)
+
+        # Calculate the 3-month data without saving
+        three_month_data = calculate_enhanced_three_month_data(
+            child, month_int, year_int
+        )
+
+        # Format decimal values for JSON response
+        def decimal_to_float(obj):
+            """Recursively convert Decimal values to float for JSON serialization."""
+            from decimal import Decimal
+
+            if isinstance(obj, Decimal):
+                return float(obj)
+            elif isinstance(obj, dict):
+                return {k: decimal_to_float(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [decimal_to_float(item) for item in obj]
+            return obj
+
+        # Convert the data to JSON-serializable format
+        preview_data = decimal_to_float(three_month_data)
+
+        # Add source memo info for debugging (from month1 outstanding data)
+        if "source_memo" in three_month_data.get("month1", {}):
+            preview_data["month1"]["source_memo"] = three_month_data["month1"][
+                "source_memo"
+            ]
+
+        return JsonResponse(
+            {
+                "success": True,
+                "preview": preview_data,
+            }
+        )
+
+    except Child.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "error": "Child not found"}, status=404
+        )
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return JsonResponse({"success": False, "error": str(e)}, status=500)

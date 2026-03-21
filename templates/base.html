@@ -456,7 +456,10 @@
                                             <ul class="nav nav-sm flex-column">
                                                 
                                                 <li class="nav-item">
-                                                    <a href="/load_invoice_memo/" class="nav-link" data-key="t-area"><i class='bx bx-message-square-check'></i> Generate Memo</a>
+                                                    <a href="{% url 'core:batch_memo_generation' %}" class="nav-link" data-key="t-generate-memo"><i class='bx bx-file-plus'></i> Generate Memos</a>
+                                                </li>
+                                                <li class="nav-item">
+                                                    <a href="{% url 'core:load_invoice_memo' %}" class="nav-link" data-key="t-view-memo"><i class='bx bx-message-square-check'></i> View Memos</a>
                                                 </li>
                                                 <li class="nav-item">
                                                     <a href="/apply_payment/" class="nav-link" data-key="t-line"><i class='ri-swap-box-line' ></i>Memo Payments</a>

@@ -1,0 +1,1202 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block PageTitle %}Batch Memo Generation{% endblock %}
+{% block Title %}BILLING{% endblock %}
+{% block functionTitle %}BATCH MEMO GENERATION{% endblock %}
+
+{% block content %}
+<style>
+    .stats-card {
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .stats-card .stats-number {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .stats-card .stats-label {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+
+    .stats-ready { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 1px solid #10b981; }
+    .stats-ready .stats-number { color: #065f46; }
+
+    .stats-attention { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #f59e0b; }
+    .stats-attention .stats-number { color: #92400e; }
+
+    .stats-blocked { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border: 1px solid #ef4444; }
+    .stats-blocked .stats-number { color: #991b1b; }
+
+    .stats-existing { background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); border: 1px solid #6366f1; }
+    .stats-existing .stats-number { color: #4338ca; }
+
+    .child-table {
+        font-size: 0.875rem;
+    }
+
+    .child-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        padding: 0.75rem;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .child-table td {
+        padding: 0.625rem 0.75rem;
+        vertical-align: middle;
+    }
+
+    .section-card {
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .section-header {
+        padding: 0.75rem 1rem;
+        font-weight: 600;
+        border-bottom: 1px solid rgba(0,0,0,0.1);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .section-header-ready { background: #d1fae5; color: #065f46; }
+    .section-header-attention { background: #fef3c7; color: #92400e; }
+    .section-header-blocked { background: #fee2e2; color: #991b1b; }
+
+    .section-body {
+        padding: 0;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .progress-container {
+        display: none;
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .progress-container .progress {
+        height: 1.5rem;
+        border-radius: 0.75rem;
+    }
+
+    .progress-container .progress-bar {
+        transition: width 0.3s ease;
+    }
+
+    .results-container {
+        display: none;
+    }
+
+    .result-item {
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .result-item:last-child {
+        border-bottom: none;
+    }
+
+    .result-item.success { background: #f0fdf4; }
+    .result-item.failed { background: #fef2f2; }
+    .result-item.skipped { background: #fffbeb; }
+
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #6c757d;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .btn-generate-all {
+        padding: 0.75rem 2rem;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .warning-details {
+        font-size: 0.75rem;
+        color: #92400e;
+        margin-top: 0.25rem;
+    }
+
+    .retry-btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+
+    .preview-btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+
+    .preview-section {
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background: #f8f9fa;
+    }
+
+    .preview-section-header {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .preview-section-outstanding { border-left: 4px solid #6366f1; }
+    .preview-section-previous { border-left: 4px solid #f59e0b; }
+    .preview-section-current { border-left: 4px solid #10b981; }
+
+    .preview-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.25rem 0;
+    }
+
+    .preview-row-label {
+        color: #6c757d;
+    }
+
+    .preview-row-value {
+        font-weight: 500;
+    }
+
+    .preview-row-total {
+        border-top: 2px solid #dee2e6;
+        margin-top: 0.5rem;
+        padding-top: 0.5rem;
+        font-weight: 600;
+    }
+
+    .source-memo-info {
+        font-size: 0.8rem;
+        color: #6c757d;
+        background: #e9ecef;
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+        margin-top: 0.5rem;
+    }
+
+    .grand-total-section {
+        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+        color: white;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .grand-total-amount {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.6; }
+        100% { opacity: 1; }
+    }
+
+    .generating {
+        animation: pulse 1.5s infinite;
+    }
+</style>
+
+<!-- Main Card -->
+<div class="card">
+    <div class="card-header border-0">
+        <div class="d-flex align-items-center">
+            <h5 class="card-title mb-0 flex-grow-1">Batch Invoice Memo Generation</h5>
+            <div class="flex-shrink-0">
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'core:memo_data_entry' %}" class="btn btn-outline-secondary">
+                        <i class="ri-edit-line me-1"></i>Manual Entry
+                    </a>
+                    <a href="{% url 'core:load_invoice_memo' %}" class="btn btn-outline-secondary">
+                        <i class="ri-search-line me-1"></i>Load Memo
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-body">
+        <!-- Alert Messages -->
+        <div class="alert alert-dismissible" role="alert">
+            {% if messages %}
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show" role="alert">
+                    <strong><center>{{ message }}</center></strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <!-- Selection Form -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <label class="form-label fw-medium">Select Month</label>
+                <select id="selectMonth" class="form-select">
+                    <option value="1" {% if current_month == 1 %}selected{% endif %}>January</option>
+                    <option value="2" {% if current_month == 2 %}selected{% endif %}>February</option>
+                    <option value="3" {% if current_month == 3 %}selected{% endif %}>March</option>
+                    <option value="4" {% if current_month == 4 %}selected{% endif %}>April</option>
+                    <option value="5" {% if current_month == 5 %}selected{% endif %}>May</option>
+                    <option value="6" {% if current_month == 6 %}selected{% endif %}>June</option>
+                    <option value="7" {% if current_month == 7 %}selected{% endif %}>July</option>
+                    <option value="8" {% if current_month == 8 %}selected{% endif %}>August</option>
+                    <option value="9" {% if current_month == 9 %}selected{% endif %}>September</option>
+                    <option value="10" {% if current_month == 10 %}selected{% endif %}>October</option>
+                    <option value="11" {% if current_month == 11 %}selected{% endif %}>November</option>
+                    <option value="12" {% if current_month == 12 %}selected{% endif %}>December</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-medium">Select Year</label>
+                <select id="selectYear" class="form-select">
+                    {% for year in year_range %}
+                    <option value="{{ year }}" {% if year == current_year %}selected{% endif %}>{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="button" class="btn btn-primary w-100" id="btnPreview" onclick="loadPreview()">
+                    <i class="ri-eye-line me-1"></i>Preview Eligible Children
+                </button>
+            </div>
+        </div>
+
+        <!-- Info Alert -->
+        <div class="alert alert-info d-flex align-items-start mb-4" role="alert">
+            <i class="ri-information-line me-2 fs-5 mt-1"></i>
+            <div>
+                <strong>How Batch Generation Works:</strong>
+                <ul class="mb-0 mt-1">
+                    <li><strong>Ready to Generate:</strong> Children with complete data - will be processed automatically</li>
+                    <li><strong>Need Attention:</strong> Children with missing IN/OUT attendance - can be processed after fixing data or by using "Force Generate"</li>
+                    <li><strong>Cannot Generate:</strong> Children with blocking issues (pending time adjustments, no package mapping) - must be fixed first</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loadingSpinner" class="text-center py-5" style="display: none;">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">Loading preview data...</p>
+        </div>
+
+        <!-- Preview Results -->
+        <div id="previewResults" style="display: none;">
+            <!-- Stats Cards -->
+            <div class="row g-3 mb-4" id="statsCards">
+                <div class="col-md-3">
+                    <div class="stats-card stats-ready">
+                        <div class="stats-number" id="statReady">0</div>
+                        <div class="stats-label">Ready to Generate</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card stats-attention">
+                        <div class="stats-number" id="statAttention">0</div>
+                        <div class="stats-label">Need Attention</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card stats-blocked">
+                        <div class="stats-number" id="statBlocked">0</div>
+                        <div class="stats-label">Cannot Generate</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card stats-existing">
+                        <div class="stats-number" id="statExisting">0</div>
+                        <div class="stats-label">Already Generated</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-flex justify-content-center gap-3 mb-4" id="actionButtons">
+                <button type="button" class="btn btn-success btn-generate-all" id="btnGenerateReady" onclick="generateMemos(false)">
+                    <i class="ri-play-circle-line me-1"></i>Generate Ready (<span id="readyCount">0</span>)
+                </button>
+                <button type="button" class="btn btn-warning btn-generate-all" id="btnGenerateAll" onclick="generateMemos(true)" style="display: none;">
+                    <i class="ri-flashlight-line me-1"></i>Force Generate All (<span id="allCount">0</span>)
+                </button>
+            </div>
+
+            <!-- Progress Container -->
+            <div class="progress-container" id="progressContainer">
+                <h5 class="mb-3"><i class="ri-loader-4-line ri-spin me-2"></i>Generating Memos...</h5>
+                <div class="progress mb-3">
+                    <div class="progress-bar bg-success" id="progressBar" role="progressbar" style="width: 0%">0%</div>
+                </div>
+                <p class="text-muted" id="progressText">Processing...</p>
+            </div>
+
+            <!-- Results Container -->
+            <div class="results-container" id="resultsContainer">
+                <div class="alert alert-success" id="resultsSuccess" style="display: none;">
+                    <i class="ri-checkbox-circle-line me-2"></i>
+                    <strong>Generation Complete!</strong>
+                    <span id="resultsSummary"></span>
+                </div>
+            </div>
+
+            <!-- Children Lists -->
+            <div class="row g-3" id="childrenLists">
+                <!-- Ready to Generate -->
+                <div class="col-12">
+                    <div class="section-card border">
+                        <div class="section-header section-header-ready">
+                            <span><i class="ri-checkbox-circle-line me-2"></i>Ready to Generate</span>
+                            <span class="badge bg-success" id="badgeReady">0</span>
+                        </div>
+                        <div class="section-body" id="listReady">
+                            <div class="empty-state">
+                                <i class="ri-user-search-line"></i>
+                                <p>Click "Preview" to load eligible children</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Need Attention -->
+                <div class="col-12">
+                    <div class="section-card border">
+                        <div class="section-header section-header-attention">
+                            <span><i class="ri-alert-line me-2"></i>Need Attention (Missing Attendance)</span>
+                            <span class="badge bg-warning text-dark" id="badgeAttention">0</span>
+                        </div>
+                        <div class="section-body" id="listAttention">
+                            <div class="empty-state">
+                                <i class="ri-file-warning-line"></i>
+                                <p>No children with attendance issues</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cannot Generate -->
+                <div class="col-12">
+                    <div class="section-card border">
+                        <div class="section-header section-header-blocked">
+                            <span><i class="ri-close-circle-line me-2"></i>Cannot Generate (Blocking Issues)</span>
+                            <span class="badge bg-danger" id="badgeBlocked">0</span>
+                        </div>
+                        <div class="section-body" id="listBlocked">
+                            <div class="empty-state">
+                                <i class="ri-shield-check-line"></i>
+                                <p>No blocking issues found</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewMemoModal" tabindex="-1" aria-labelledby="previewMemoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="previewMemoModalLabel">
+                    <i class="ri-file-list-3-line me-2"></i>Memo Preview
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="previewMemoBody">
+                <!-- Loading state -->
+                <div id="previewLoading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Calculating memo preview...</p>
+                </div>
+
+                <!-- Preview content (initially hidden) -->
+                <div id="previewContent" style="display: none;">
+                    <!-- Child Info -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h6 class="mb-0" id="previewChildName">-</h6>
+                            <small class="text-muted" id="previewAdmissionNo">-</small>
+                        </div>
+                        <span class="badge bg-primary" id="previewPeriod">-</span>
+                    </div>
+
+                    <!-- Month 1: Outstanding -->
+                    <div class="preview-section preview-section-outstanding">
+                        <div class="preview-section-header">
+                            <i class="ri-history-line me-1"></i>
+                            <span id="month1Title">Outstanding (Month 1)</span>
+                        </div>
+                        <div class="preview-row">
+                            <span class="preview-row-label">Balance Brought Forward:</span>
+                            <span class="preview-row-value" id="month1Balance">Rs. 0.00</span>
+                        </div>
+                        <div class="preview-row">
+                            <span class="preview-row-label">Status:</span>
+                            <span class="preview-row-value" id="month1Status">-</span>
+                        </div>
+                        <div class="source-memo-info" id="month1SourceInfo" style="display: none;">
+                            <i class="ri-information-line me-1"></i>
+                            <span id="month1SourceText">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Month 2: Previous (Calculated) -->
+                    <div class="preview-section preview-section-previous">
+                        <div class="preview-section-header">
+                            <i class="ri-calculator-line me-1"></i>
+                            <span id="month2Title">Previous Month Charges (Month 2)</span>
+                        </div>
+                        <div class="preview-row">
+                            <span class="preview-row-label">Package:</span>
+                            <span class="preview-row-value" id="month2Package">-</span>
+                        </div>
+                        <div class="preview-row">
+                            <span class="preview-row-label">Package Fee:</span>
+                            <span class="preview-row-value" id="month2PackageFee">Rs. 0.00</span>
+                        </div>
+                        <div class="preview-row">
+                            <span class="preview-row-label">Extra Hours Charges:</span>
+                            <span class="preview-row-value" id="month2ExtraHours">Rs. 0.00</span>
+                        </div>
+                        <div class="preview-row">
+                            <span class="preview-row-label">Holiday Charges:</span>
+                            <span class="preview-row-value" id="month2HolidayCharges">Rs. 0.00</span>
+                        </div>
+                        <div class="preview-row">
+                            <span class="preview-row-label">Discount:</span>
+                            <span class="preview-row-value text-success" id="month2Discount">- Rs. 0.00</span>
+                        </div>
+                        <div class="preview-row preview-row-total">
+                            <span class="preview-row-label">Total Charge:</span>
+                            <span class="preview-row-value" id="month2Total">Rs. 0.00</span>
+                        </div>
+                        <div class="mt-2 small text-muted">
+                            <span id="month2AttendanceInfo">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Month 3: Current (Advance) -->
+                    <div class="preview-section preview-section-current">
+                        <div class="preview-section-header">
+                            <i class="ri-calendar-check-line me-1"></i>
+                            <span id="month3Title">Current Month Advance (Month 3)</span>
+                        </div>
+                        <div class="preview-row">
+                            <span class="preview-row-label">Package:</span>
+                            <span class="preview-row-value" id="month3Package">-</span>
+                        </div>
+                        <div class="preview-row">
+                            <span class="preview-row-label">Package Fee (Advance):</span>
+                            <span class="preview-row-value" id="month3PackageFee">Rs. 0.00</span>
+                        </div>
+                        <div class="preview-row preview-row-total">
+                            <span class="preview-row-label">Total Charge:</span>
+                            <span class="preview-row-value" id="month3Total">Rs. 0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Grand Total -->
+                    <div class="grand-total-section">
+                        <div class="mb-1">Total Amount Due</div>
+                        <div class="grand-total-amount" id="grandTotal">Rs. 0.00</div>
+                    </div>
+                </div>
+
+                <!-- Error state -->
+                <div id="previewError" class="alert alert-danger" style="display: none;">
+                    <i class="ri-error-warning-line me-2"></i>
+                    <span id="previewErrorText">An error occurred</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" id="btnGenerateFromPreview" onclick="generateFromPreview()">
+                    <i class="ri-play-line me-1"></i>Generate Memo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script>
+    let previewData = null;
+    let currentMonth = null;
+    let currentYear = null;
+
+    function loadPreview() {
+        const month = $('#selectMonth').val();
+        const year = $('#selectYear').val();
+
+        currentMonth = month;
+        currentYear = year;
+
+        // Show loading
+        $('#loadingSpinner').show();
+        $('#previewResults').hide();
+        $('#btnPreview').prop('disabled', true).html('<i class="ri-loader-4-line ri-spin me-1"></i>Loading...');
+
+        $.ajax({
+            url: "{% url 'core:preview_batch_memo_generation' %}",
+            method: 'GET',
+            data: { month: month, year: year },
+            success: function(response) {
+                if (response.success) {
+                    previewData = response.preview;
+                    displayPreview(previewData);
+                } else {
+                    showError(response.error || 'Failed to load preview');
+                }
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON ? xhr.responseJSON.error : 'Failed to load preview';
+                showError(error);
+            },
+            complete: function() {
+                $('#loadingSpinner').hide();
+                $('#btnPreview').prop('disabled', false).html('<i class="ri-eye-line me-1"></i>Preview Eligible Children');
+            }
+        });
+    }
+
+    function displayPreview(data) {
+        // Update stats
+        $('#statReady').text(data.ready_to_generate.length);
+        $('#statAttention').text(data.need_attention.length);
+        $('#statBlocked').text(data.cannot_generate.length);
+        $('#statExisting').text(data.already_generated);
+
+        // Update badges
+        $('#badgeReady').text(data.ready_to_generate.length);
+        $('#badgeAttention').text(data.need_attention.length);
+        $('#badgeBlocked').text(data.cannot_generate.length);
+
+        // Update button counts
+        $('#readyCount').text(data.ready_to_generate.length);
+        const totalCanGenerate = data.ready_to_generate.length + data.need_attention.length;
+        $('#allCount').text(totalCanGenerate);
+
+        // Show/hide buttons
+        if (data.ready_to_generate.length > 0) {
+            $('#btnGenerateReady').show();
+        } else {
+            $('#btnGenerateReady').hide();
+        }
+
+        if (data.need_attention.length > 0) {
+            $('#btnGenerateAll').show();
+        } else {
+            $('#btnGenerateAll').hide();
+        }
+
+        // Populate lists
+        populateReadyList(data.ready_to_generate);
+        populateAttentionList(data.need_attention);
+        populateBlockedList(data.cannot_generate);
+
+        // Show results
+        $('#previewResults').show();
+
+        // Reset progress and results
+        $('#progressContainer').hide();
+        $('#resultsContainer').hide();
+    }
+
+    function populateReadyList(children) {
+        const container = $('#listReady');
+
+        if (children.length === 0) {
+            container.html(`
+                <div class="empty-state">
+                    <i class="ri-checkbox-circle-line"></i>
+                    <p>No children ready for generation</p>
+                </div>
+            `);
+            return;
+        }
+
+        let html = `
+            <table class="table child-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Admission #</th>
+                        <th>Child Name</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        children.forEach(child => {
+            html += `
+                <tr id="row-ready-${child.id}">
+                    <td><code>${child.admission_number}</code></td>
+                    <td>${child.name}</td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-info btn-sm preview-btn" onclick="previewChildMemo(${child.id}, '${child.name}', '${child.admission_number}')">
+                                <i class="ri-eye-line"></i> Preview
+                            </button>
+                            <button class="btn btn-success btn-sm retry-btn" onclick="generateSingle(${child.id}, false)">
+                                <i class="ri-play-line"></i> Generate
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table>';
+        container.html(html);
+    }
+
+    function populateAttentionList(children) {
+        const container = $('#listAttention');
+
+        if (children.length === 0) {
+            container.html(`
+                <div class="empty-state">
+                    <i class="ri-checkbox-circle-line"></i>
+                    <p>No attendance issues found</p>
+                </div>
+            `);
+            return;
+        }
+
+        let html = `
+            <table class="table child-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Admission #</th>
+                        <th>Child Name</th>
+                        <th>Issue</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        children.forEach(child => {
+            const warnings = child.warnings ? child.warnings.join(', ') : 'Missing attendance';
+            html += `
+                <tr id="row-attention-${child.id}">
+                    <td><code>${child.admission_number}</code></td>
+                    <td>${child.name}</td>
+                    <td><span class="text-warning"><i class="ri-alert-line me-1"></i>${warnings}</span></td>
+                    <td>
+                        <button class="btn btn-warning btn-sm retry-btn" onclick="generateSingle(${child.id}, true)">
+                            <i class="ri-flashlight-line"></i> Force
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table>';
+        container.html(html);
+    }
+
+    function populateBlockedList(children) {
+        const container = $('#listBlocked');
+
+        if (children.length === 0) {
+            container.html(`
+                <div class="empty-state">
+                    <i class="ri-shield-check-line"></i>
+                    <p>No blocking issues found</p>
+                </div>
+            `);
+            return;
+        }
+
+        let html = `
+            <table class="table child-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Admission #</th>
+                        <th>Child Name</th>
+                        <th>Blocking Issue</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        children.forEach(child => {
+            const errors = child.errors ? child.errors.join(', ') : 'Unknown issue';
+            html += `
+                <tr>
+                    <td><code>${child.admission_number}</code></td>
+                    <td>${child.name}</td>
+                    <td><span class="text-danger"><i class="ri-close-circle-line me-1"></i>${errors}</span></td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table>';
+        container.html(html);
+    }
+
+    function generateMemos(force) {
+        if (!previewData) {
+            showError('Please preview eligible children first');
+            return;
+        }
+
+        const children = force
+            ? [...previewData.ready_to_generate, ...previewData.need_attention]
+            : previewData.ready_to_generate;
+
+        if (children.length === 0) {
+            showError('No children to generate memos for');
+            return;
+        }
+
+        const confirmMsg = force
+            ? `Generate memos for ${children.length} children (including ${previewData.need_attention.length} with missing attendance)?`
+            : `Generate memos for ${children.length} ready children?`;
+
+        if (!confirm(confirmMsg)) {
+            return;
+        }
+
+        // Hide action buttons and lists
+        $('#actionButtons').hide();
+        $('#childrenLists').hide();
+
+        // Show progress
+        $('#progressContainer').show();
+        $('#progressBar').css('width', '0%').text('0%');
+        $('#progressText').text('Starting generation...');
+
+        // Get child IDs
+        const childIds = children.map(c => c.id);
+
+        // Execute batch generation
+        $.ajax({
+            url: "{% url 'core:execute_batch_memo_generation' %}",
+            method: 'POST',
+            contentType: 'application/json',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            data: JSON.stringify({
+                month: currentMonth,
+                year: currentYear,
+                force: force,
+                child_ids: childIds
+            }),
+            success: function(response) {
+                if (response.success) {
+                    displayResults(response.results);
+                } else {
+                    showError(response.error || 'Generation failed');
+                    resetAfterError();
+                }
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON ? xhr.responseJSON.error : 'Generation failed';
+                showError(error);
+                resetAfterError();
+            }
+        });
+    }
+
+    function displayResults(results) {
+        // Update progress to 100%
+        $('#progressBar').css('width', '100%').text('100%');
+        $('#progressText').text('Complete!');
+
+        setTimeout(function() {
+            $('#progressContainer').hide();
+
+            // Show results
+            $('#resultsContainer').show();
+            $('#resultsSuccess').show();
+            $('#resultsSummary').html(
+                `Generated: <strong>${results.generated}</strong> | ` +
+                `Skipped: <strong>${results.skipped}</strong> | ` +
+                `Failed: <strong>${results.failed}</strong>`
+            );
+
+            // Build detailed results
+            let detailsHtml = '';
+
+            if (results.details.generated.length > 0) {
+                detailsHtml += `
+                    <div class="section-card border mt-3">
+                        <div class="section-header section-header-ready">
+                            <span><i class="ri-checkbox-circle-line me-2"></i>Successfully Generated</span>
+                            <span class="badge bg-success">${results.details.generated.length}</span>
+                        </div>
+                        <div class="section-body">
+                            <table class="table child-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Admission #</th>
+                                        <th>Child Name</th>
+                                        <th>Memo Code</th>
+                                        <th>Amount Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+
+                results.details.generated.forEach(item => {
+                    detailsHtml += `
+                        <tr class="result-item success">
+                            <td><code>${item.admission_number}</code></td>
+                            <td>${item.name}</td>
+                            <td><span class="badge bg-primary">${item.memo_code}</span></td>
+                            <td>Rs. ${parseFloat(item.amount_due).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                        </tr>
+                    `;
+                });
+
+                detailsHtml += '</tbody></table></div></div>';
+            }
+
+            if (results.details.skipped.length > 0) {
+                detailsHtml += `
+                    <div class="section-card border mt-3">
+                        <div class="section-header section-header-attention">
+                            <span><i class="ri-skip-forward-line me-2"></i>Skipped</span>
+                            <span class="badge bg-warning text-dark">${results.details.skipped.length}</span>
+                        </div>
+                        <div class="section-body">
+                            <table class="table child-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Admission #</th>
+                                        <th>Child Name</th>
+                                        <th>Reason</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+
+                results.details.skipped.forEach(item => {
+                    const canRetry = item.can_force || item.type === 'warning';
+                    detailsHtml += `
+                        <tr class="result-item skipped" id="row-skipped-${item.id}">
+                            <td><code>${item.admission_number}</code></td>
+                            <td>${item.name}</td>
+                            <td><span class="text-warning">${item.reason}</span></td>
+                            <td>
+                                ${canRetry ? `
+                                    <button class="btn btn-warning btn-sm retry-btn" onclick="generateSingle(${item.id}, true)">
+                                        <i class="ri-refresh-line"></i> Retry
+                                    </button>
+                                ` : ''}
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                detailsHtml += '</tbody></table></div></div>';
+            }
+
+            if (results.details.failed.length > 0) {
+                detailsHtml += `
+                    <div class="section-card border mt-3">
+                        <div class="section-header section-header-blocked">
+                            <span><i class="ri-close-circle-line me-2"></i>Failed</span>
+                            <span class="badge bg-danger">${results.details.failed.length}</span>
+                        </div>
+                        <div class="section-body">
+                            <table class="table child-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Admission #</th>
+                                        <th>Child Name</th>
+                                        <th>Error</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+
+                results.details.failed.forEach(item => {
+                    detailsHtml += `
+                        <tr class="result-item failed" id="row-failed-${item.id}">
+                            <td><code>${item.admission_number}</code></td>
+                            <td>${item.name}</td>
+                            <td><span class="text-danger">${item.error}</span></td>
+                            <td>
+                                <button class="btn btn-danger btn-sm retry-btn" onclick="generateSingle(${item.id}, true)">
+                                    <i class="ri-refresh-line"></i> Retry
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                detailsHtml += '</tbody></table></div></div>';
+            }
+
+            $('#resultsContainer').append(detailsHtml);
+
+            // Add refresh button
+            $('#resultsContainer').append(`
+                <div class="text-center mt-4">
+                    <button class="btn btn-primary" onclick="loadPreview()">
+                        <i class="ri-refresh-line me-1"></i>Refresh Preview
+                    </button>
+                </div>
+            `);
+
+        }, 500);
+    }
+
+    function generateSingle(childId, force) {
+        const btn = event.target.closest('button');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i>';
+        btn.disabled = true;
+
+        $.ajax({
+            url: "{% url 'core:generate_single_memo_from_batch' %}",
+            method: 'POST',
+            contentType: 'application/json',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            data: JSON.stringify({
+                child_id: childId,
+                month: currentMonth,
+                year: currentYear,
+                force: force
+            }),
+            success: function(response) {
+                if (response.success) {
+                    // Update the row to show success
+                    const row = $(`#row-ready-${childId}, #row-attention-${childId}, #row-skipped-${childId}, #row-failed-${childId}`);
+                    row.removeClass('result-item skipped failed').addClass('result-item success');
+                    row.find('td:last').html(`
+                        <span class="badge bg-success">
+                            <i class="ri-check-line me-1"></i>${response.memo_code}
+                        </span>
+                    `);
+
+                    showSuccess(`Memo ${response.memo_code} generated for ${response.child_name}`);
+                } else {
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                    showError(response.error || 'Generation failed');
+                }
+            },
+            error: function(xhr) {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                const error = xhr.responseJSON ? xhr.responseJSON.error : 'Generation failed';
+                showError(error);
+            }
+        });
+    }
+
+    function resetAfterError() {
+        $('#progressContainer').hide();
+        $('#actionButtons').show();
+        $('#childrenLists').show();
+    }
+
+    function showError(message) {
+        const alertHtml = `
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="ri-error-warning-line me-2"></i>${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        $('.card-body .alert-dismissible').first().before(alertHtml);
+
+        // Auto-dismiss after 5 seconds
+        setTimeout(function() {
+            $('.alert-danger').fadeOut(300, function() { $(this).remove(); });
+        }, 5000);
+    }
+
+    function showSuccess(message) {
+        const alertHtml = `
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="ri-checkbox-circle-line me-2"></i>${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        $('.card-body .alert-dismissible').first().before(alertHtml);
+
+        // Auto-dismiss after 3 seconds
+        setTimeout(function() {
+            $('.alert-success').fadeOut(300, function() { $(this).remove(); });
+        }, 3000);
+    }
+
+    // Preview Modal Variables
+    let currentPreviewChildId = null;
+    let currentPreviewChildName = null;
+
+    function previewChildMemo(childId, childName, admissionNumber) {
+        currentPreviewChildId = childId;
+        currentPreviewChildName = childName;
+
+        // Reset modal state
+        $('#previewLoading').show();
+        $('#previewContent').hide();
+        $('#previewError').hide();
+        $('#btnGenerateFromPreview').prop('disabled', false);
+
+        // Update modal title with child info
+        $('#previewMemoModalLabel').html(`<i class="ri-file-list-3-line me-2"></i>Memo Preview - ${childName}`);
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('previewMemoModal'));
+        modal.show();
+
+        // Fetch preview data
+        $.ajax({
+            url: "{% url 'core:preview_single_child_memo' %}",
+            method: 'GET',
+            data: {
+                child_id: childId,
+                month: currentMonth,
+                year: currentYear
+            },
+            success: function(response) {
+                if (response.success) {
+                    displayMemoPreview(response.preview, childName, admissionNumber);
+                } else {
+                    showPreviewError(response.error || 'Failed to load preview');
+                }
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON ? xhr.responseJSON.error : 'Failed to load preview';
+                showPreviewError(error);
+            }
+        });
+    }
+
+    function displayMemoPreview(data, childName, admissionNumber) {
+        // Hide loading, show content
+        $('#previewLoading').hide();
+        $('#previewContent').show();
+
+        // Set child info
+        $('#previewChildName').text(data.child_name || childName);
+        $('#previewAdmissionNo').text(admissionNumber);
+        $('#previewPeriod').text(`${data.month3.name} ${data.month3.year}`);
+
+        // Month 1 - Outstanding
+        $('#month1Title').text(`Outstanding (${data.month1.name} ${data.month1.year})`);
+        $('#month1Balance').text(formatCurrency(data.month1.balance));
+        $('#month1Status').text(data.month1.status || 'N/A');
+
+        // Show source memo info if available (for debugging)
+        if (data.month1.source_memo) {
+            $('#month1SourceInfo').show();
+            $('#month1SourceText').text(`Balance from memo: ${data.month1.source_memo}`);
+        } else if (data.month1.balance > 0) {
+            $('#month1SourceInfo').show();
+            $('#month1SourceText').text('No source memo found - this is a fresh calculation');
+        } else {
+            $('#month1SourceInfo').hide();
+        }
+
+        // Month 2 - Previous Month Charges (Calculated)
+        $('#month2Title').text(`Previous Month Charges (${data.month2.name} ${data.month2.year})`);
+        $('#month2Package').text(data.month2.package_name || 'N/A');
+        $('#month2PackageFee').text(formatCurrency(data.month2.package_fee));
+        $('#month2ExtraHours').text(formatCurrency(data.month2.extra_charges));
+        $('#month2HolidayCharges').text(formatCurrency(data.month2.holiday_charges));
+        $('#month2Discount').text('- ' + formatCurrency(data.month2.discount));
+        $('#month2Total').text(formatCurrency(data.month2.charge));
+
+        // Attendance info
+        let attendanceInfo = `Days attended: ${data.month2.days_attended || 0} / ${data.month2.expected_days || 0}`;
+        if (data.month2.attendance_percentage !== undefined) {
+            attendanceInfo += ` (${data.month2.attendance_percentage.toFixed(1)}%)`;
+        }
+        if (data.month2.is_half_charge) {
+            attendanceInfo += ' - Half charge applied';
+        }
+        $('#month2AttendanceInfo').text(attendanceInfo);
+
+        // Month 3 - Current Month Advance
+        $('#month3Title').text(`Current Month Advance (${data.month3.name} ${data.month3.year})`);
+        $('#month3Package').text(data.month3.package_name || 'N/A');
+        $('#month3PackageFee').text(formatCurrency(data.month3.package_fee));
+        $('#month3Total').text(formatCurrency(data.month3.charge));
+
+        // Grand Total
+        $('#grandTotal').text(formatCurrency(data.summary.grand_total));
+    }
+
+    function showPreviewError(message) {
+        $('#previewLoading').hide();
+        $('#previewContent').hide();
+        $('#previewError').show();
+        $('#previewErrorText').text(message);
+        $('#btnGenerateFromPreview').prop('disabled', true);
+    }
+
+    function formatCurrency(amount) {
+        if (amount === null || amount === undefined) {
+            return 'Rs. 0.00';
+        }
+        const num = parseFloat(amount);
+        return 'Rs. ' + num.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function generateFromPreview() {
+        if (!currentPreviewChildId) {
+            showPreviewError('No child selected');
+            return;
+        }
+
+        // Close the modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('previewMemoModal'));
+        modal.hide();
+
+        // Call the generate function
+        generateSingle(currentPreviewChildId, false);
+    }
+</script>
+{% endblock %}

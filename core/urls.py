@@ -422,7 +422,32 @@ urlpatterns = [
         views.downloadInvoiceMemoPDF,
         name="download_invoice_memo_pdf",
     ),
-
+    # Batch Memo Generation URLs
+    path(
+        "batch_memo_generation/",
+        views.batchMemoGeneration,
+        name="batch_memo_generation",
+    ),
+    path(
+        "preview_batch_memo_generation/",
+        views.previewBatchMemoGeneration,
+        name="preview_batch_memo_generation",
+    ),
+    path(
+        "execute_batch_memo_generation/",
+        views.executeBatchMemoGeneration,
+        name="execute_batch_memo_generation",
+    ),
+    path(
+        "generate_single_memo_from_batch/",
+        views.generateSingleMemoFromBatch,
+        name="generate_single_memo_from_batch",
+    ),
+    path(
+        "preview_single_child_memo/",
+        views.previewSingleChildMemo,
+        name="preview_single_child_memo",
+    ),
     path(
         "enhance_memo_breakdown/",
         views.enhanceExistingMemoBreakdown,
