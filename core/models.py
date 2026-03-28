@@ -1449,3 +1449,113 @@ class PaymentTransaction(models.Model):
         self.save()
 
         return payment_record
+
+
+class MemoRegenerationRequest(BaseClass):
+    """
+    Tracks requests to regenerate invoice memos.
+
+    Workflow:
+    1. User requests regeneration (status=PENDING)
+    2. Admin reviews and approves/rejects
+    3. If approved, memo is updated with new values
+
+    All actions are logged for audit trail.
+    """
+
+    STATUS_CHOICES = [
+        ("PENDING", "Pending Approval"),
+        ("APPROVED", "Approved"),
+        ("REJECTED", "Rejected"),
+    ]
+
+    memo = models.ForeignKey(
+        InvoiceMemo,
+        on_delete=models.CASCADE,
+        related_name="regeneration_requests"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="PENDING"
+    )
+    reason = models.TextField(
+        help_text="Reason for requesting regeneration"
+    )
+
+    # Snapshot of original values (for audit)
+    original_values = models.JSONField(
+        default=dict,
+        help_text="Snapshot of memo values at request time"
+    )
+
+    # Calculated new values (preview)
+    new_calculated_values = models.JSONField(
+        default=dict,
+        help_text="Preview of new calculated values"
+    )
+
+    # Request info
+    requested_by = models.CharField(max_length=100)
+    requested_at = models.DateTimeField(auto_now_add=True)
+
+    # Approval info
+    reviewed_by = models.CharField(max_length=100, blank=True, null=True)
+    reviewed_at = models.DateTimeField(blank=True, null=True)
+    review_comments = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Memo Regeneration Request"
+        verbose_name_plural = "Memo Regeneration Requests"
+        db_table = "dc_memo_regeneration_request"
+        ordering = ["-requested_at"]
+
+    def __str__(self):
+        return f"Regeneration Request for {self.memo.memo_code} - {self.status}"
+
+    def get_child_name(self):
+        """Get the child's full name from the memo."""
+        child = self.memo.child
+        return f"{child.child_first_name} {child.child_last_name}"
+
+    def get_value_differences(self):
+        """Calculate differences between original and new values."""
+        differences = {}
+
+        original = self.original_values or {}
+        new = self.new_calculated_values or {}
+
+        # Compare key values
+        for key in ['outstanding', 'previous_charges', 'current_advance', 'total_due']:
+            orig_val = original.get(key, 0)
+            new_val = new.get(key, 0)
+            if orig_val != new_val:
+                differences[key] = {
+                    'original': orig_val,
+                    'new': new_val,
+                    'difference': new_val - orig_val
+                }
+
+        return differences
+
+    def approve(self, admin_user, comments=None):
+        """Approve the regeneration request and update the memo."""
+        from django.utils import timezone
+
+        self.status = "APPROVED"
+        self.reviewed_by = admin_user
+        self.reviewed_at = timezone.now()
+        self.review_comments = comments
+        self.user_updated = admin_user
+        self.save()
+
+    def reject(self, admin_user, comments=None):
+        """Reject the regeneration request."""
+        from django.utils import timezone
+
+        self.status = "REJECTED"
+        self.reviewed_by = admin_user
+        self.reviewed_at = timezone.now()
+        self.review_comments = comments
+        self.user_updated = admin_user
+        self.save()

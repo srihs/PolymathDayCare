@@ -20434,3 +20434,311 @@ def previewSingleChildMemo(request):
 
         traceback.print_exc()
         return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+# ============================================
+# MEMO REGENERATION VIEWS
+# ============================================
+
+
+@login_required(login_url="login")
+def previewMemoRegeneration(request):
+    """
+    AJAX endpoint to preview what values would change if memo is regenerated.
+
+    Returns comparison of current vs new calculated values.
+    """
+    try:
+        memo_id = request.GET.get("memo_id")
+
+        if not memo_id:
+            return JsonResponse(
+                {"success": False, "error": "Memo ID is required"},
+                status=400
+            )
+
+        from core.services.memo_generation import MemoGenerationService
+
+        service = MemoGenerationService(user=request.user.username)
+        memo = InvoiceMemo.objects.get(id=memo_id, is_active=True)
+
+        # Get current values
+        original_values = service.get_memo_snapshot(memo)
+
+        # Calculate new values
+        new_values = service.calculate_regeneration_preview(memo)
+
+        if "error" in new_values:
+            return JsonResponse(
+                {"success": False, "error": new_values["error"]},
+                status=500
+            )
+
+        return JsonResponse({
+            "success": True,
+            "memo_code": memo.memo_code,
+            "child_name": f"{memo.child.child_first_name} {memo.child.child_last_name}",
+            "admission_number": memo.child.admission_number,
+            "original": original_values,
+            "new": new_values,
+            "differences": {
+                "outstanding": new_values["outstanding"] - original_values["outstanding"],
+                "previous_charges": new_values["previous_charges"] - original_values["previous_charges"],
+                "current_advance": new_values["current_advance"] - original_values["current_advance"],
+                "total_due": new_values["total_due"] - original_values["total_due"],
+            }
+        })
+
+    except InvoiceMemo.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "error": "Memo not found"},
+            status=404
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+@login_required(login_url="login")
+def requestMemoRegeneration(request):
+    """
+    AJAX endpoint to create a regeneration request.
+
+    POST parameters:
+    - memo_id: ID of the memo to regenerate
+    - reason: Reason for regeneration
+    """
+    if request.method != "POST":
+        return JsonResponse(
+            {"success": False, "error": "POST method required"},
+            status=405
+        )
+
+    try:
+        import json
+        data = json.loads(request.body)
+
+        memo_id = data.get("memo_id")
+        reason = data.get("reason", "").strip()
+
+        if not memo_id:
+            return JsonResponse(
+                {"success": False, "error": "Memo ID is required"},
+                status=400
+            )
+
+        if not reason:
+            return JsonResponse(
+                {"success": False, "error": "Reason for regeneration is required"},
+                status=400
+            )
+
+        from core.services.memo_generation import MemoGenerationService
+
+        service = MemoGenerationService(user=request.user.username)
+        result = service.request_memo_regeneration(memo_id, reason, request.user.username)
+
+        if result["success"]:
+            return JsonResponse(result)
+        else:
+            return JsonResponse(result, status=400)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+@login_required(login_url="login")
+def getMemoRegenerationRequests(request):
+    """
+    Page to display pending regeneration requests for admin review.
+    """
+    from core.services.memo_generation import MemoGenerationService
+    from core.models import MemoRegenerationRequest
+
+    service = MemoGenerationService(user=request.user.username)
+    pending_requests = service.get_pending_regeneration_requests()
+
+    # Also get recent approved/rejected for history
+    recent_processed = MemoRegenerationRequest.objects.filter(
+        status__in=["APPROVED", "REJECTED"],
+        is_active=True
+    ).select_related('memo', 'memo__child').order_by('-reviewed_at')[:20]
+
+    processed_list = []
+    for req in recent_processed:
+        processed_list.append({
+            "id": req.id,
+            "memo_code": req.memo.memo_code,
+            "child_name": req.get_child_name(),
+            "admission_number": req.memo.child.admission_number,
+            "status": req.status,
+            "reason": req.reason,
+            "requested_by": req.requested_by,
+            "requested_at": req.requested_at,
+            "reviewed_by": req.reviewed_by,
+            "reviewed_at": req.reviewed_at,
+            "review_comments": req.review_comments,
+        })
+
+    context = {
+        "pending_requests": pending_requests,
+        "processed_requests": processed_list,
+        "is_admin": request.user.is_staff or request.user.is_superuser,
+    }
+
+    return render(request, "memo_regeneration_requests.html", context)
+
+
+@login_required(login_url="login")
+def getRegenerationRequestDetail(request):
+    """
+    AJAX endpoint to get full details of a regeneration request.
+    """
+    try:
+        request_id = request.GET.get("request_id")
+
+        if not request_id:
+            return JsonResponse(
+                {"success": False, "error": "Request ID is required"},
+                status=400
+            )
+
+        from core.models import MemoRegenerationRequest
+
+        regen_request = MemoRegenerationRequest.objects.select_related(
+            'memo', 'memo__child'
+        ).get(id=request_id, is_active=True)
+
+        return JsonResponse({
+            "success": True,
+            "request": {
+                "id": regen_request.id,
+                "memo_code": regen_request.memo.memo_code,
+                "child_name": regen_request.get_child_name(),
+                "admission_number": regen_request.memo.child.admission_number,
+                "memo_month": regen_request.memo.memo_month,
+                "memo_year": regen_request.memo.memo_year,
+                "status": regen_request.status,
+                "reason": regen_request.reason,
+                "requested_by": regen_request.requested_by,
+                "requested_at": regen_request.requested_at.isoformat(),
+                "original_values": regen_request.original_values,
+                "new_calculated_values": regen_request.new_calculated_values,
+                "differences": regen_request.get_value_differences(),
+            }
+        })
+
+    except MemoRegenerationRequest.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "error": "Request not found"},
+            status=404
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+@login_required(login_url="login")
+def approveMemoRegeneration(request):
+    """
+    AJAX endpoint for admin to approve a regeneration request.
+
+    POST parameters:
+    - request_id: ID of the regeneration request
+    - comments: Optional approval comments
+    """
+    if request.method != "POST":
+        return JsonResponse(
+            {"success": False, "error": "POST method required"},
+            status=405
+        )
+
+    # Check if user is admin
+    if not (request.user.is_staff or request.user.is_superuser):
+        return JsonResponse(
+            {"success": False, "error": "Admin privileges required"},
+            status=403
+        )
+
+    try:
+        import json
+        data = json.loads(request.body)
+
+        request_id = data.get("request_id")
+        comments = data.get("comments", "")
+
+        if not request_id:
+            return JsonResponse(
+                {"success": False, "error": "Request ID is required"},
+                status=400
+            )
+
+        from core.services.memo_generation import MemoGenerationService
+
+        service = MemoGenerationService(user=request.user.username)
+        result = service.approve_regeneration(request_id, request.user.username, comments)
+
+        if result["success"]:
+            return JsonResponse(result)
+        else:
+            return JsonResponse(result, status=400)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+@login_required(login_url="login")
+def rejectMemoRegeneration(request):
+    """
+    AJAX endpoint for admin to reject a regeneration request.
+
+    POST parameters:
+    - request_id: ID of the regeneration request
+    - reason: Reason for rejection
+    """
+    if request.method != "POST":
+        return JsonResponse(
+            {"success": False, "error": "POST method required"},
+            status=405
+        )
+
+    # Check if user is admin
+    if not (request.user.is_staff or request.user.is_superuser):
+        return JsonResponse(
+            {"success": False, "error": "Admin privileges required"},
+            status=403
+        )
+
+    try:
+        import json
+        data = json.loads(request.body)
+
+        request_id = data.get("request_id")
+        reason = data.get("reason", "")
+
+        if not request_id:
+            return JsonResponse(
+                {"success": False, "error": "Request ID is required"},
+                status=400
+            )
+
+        from core.services.memo_generation import MemoGenerationService
+
+        service = MemoGenerationService(user=request.user.username)
+        result = service.reject_regeneration(request_id, request.user.username, reason)
+
+        if result["success"]:
+            return JsonResponse(result)
+        else:
+            return JsonResponse(result, status=400)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"success": False, "error": str(e)}, status=500)

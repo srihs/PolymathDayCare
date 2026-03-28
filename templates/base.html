@@ -470,12 +470,19 @@
                                       aria-controls="sidebaremailTemplates"> <i
                                            class=" ri-folder-zip-fill"></i><span
                                            data-key="t-email-templates">Manual Memo</span>
-   
+
                                    </a>
-   
+
                                </li>
-                                                
-                                            </ul>   
+                                                {% if request.user.is_superuser %}
+                                                <li class="nav-item">
+                                                    <a href="{% url 'core:memo_regeneration_requests' %}" class="nav-link" data-key="t-regen-approvals">
+                                                        <i class="ri-refresh-line text-warning"></i> Regeneration Requests
+                                                    </a>
+                                                </li>
+                                                {% endif %}
+
+                                            </ul>
                                         </div>
                                 </li>
 

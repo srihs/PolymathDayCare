@@ -448,6 +448,37 @@ urlpatterns = [
         views.previewSingleChildMemo,
         name="preview_single_child_memo",
     ),
+    # Memo Regeneration URLs
+    path(
+        "preview_memo_regeneration/",
+        views.previewMemoRegeneration,
+        name="preview_memo_regeneration",
+    ),
+    path(
+        "request_memo_regeneration/",
+        views.requestMemoRegeneration,
+        name="request_memo_regeneration",
+    ),
+    path(
+        "memo_regeneration_requests/",
+        views.getMemoRegenerationRequests,
+        name="memo_regeneration_requests",
+    ),
+    path(
+        "regeneration_request_detail/",
+        views.getRegenerationRequestDetail,
+        name="regeneration_request_detail",
+    ),
+    path(
+        "approve_memo_regeneration/",
+        views.approveMemoRegeneration,
+        name="approve_memo_regeneration",
+    ),
+    path(
+        "reject_memo_regeneration/",
+        views.rejectMemoRegeneration,
+        name="reject_memo_regeneration",
+    ),
     path(
         "enhance_memo_breakdown/",
         views.enhanceExistingMemoBreakdown,

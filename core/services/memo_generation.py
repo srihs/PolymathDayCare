@@ -53,6 +53,8 @@ class MemoGenerationService:
         - Are active (is_active=True)
         - Are enrolled (is_enrolled=True)
         - Have approved enrollment (enrollement_approved=True)
+        - Have an active, approved ChildEnrollment record
+        - Have attendance records in the previous month
         - Don't already have a memo for the specified month/year
 
         Args:
@@ -69,10 +71,31 @@ class MemoGenerationService:
             is_active=True
         ).values_list('child_id', flat=True)
 
+        # Get children with active, approved enrollments (child must also be active)
+        children_with_approved_enrollment = ChildEnrollment.objects.filter(
+            child__is_active=True,
+            status="Approved",
+            is_active=True
+        ).values_list('child_id', flat=True)
+
+        # Calculate previous month for attendance check
+        prev_month, prev_year = self._get_previous_month(month, year)
+        first_day, last_day = self._get_month_range(prev_month, prev_year)
+
+        # Get children who attended in the previous month
+        children_with_attendance = AttendanceLog.objects.filter(
+            date_logged__range=(first_day, last_day),
+            is_active=True
+        ).values_list('child_id', flat=True).distinct()
+
+        # Combine both conditions - child must have approved enrollment AND attendance
+        eligible_child_ids = set(children_with_approved_enrollment) & set(children_with_attendance)
+
         return Child.objects.filter(
             is_active=True,
             is_enrolled=True,
-            enrollement_approved=True
+            enrollement_approved=True,
+            id__in=eligible_child_ids
         ).exclude(
             id__in=existing_memo_child_ids
         ).order_by('admission_number')
@@ -577,3 +600,435 @@ class MemoGenerationService:
                 results["details"]["failed"].append(child_info)
 
         return results
+
+    # ============================================
+    # MEMO REGENERATION METHODS
+    # ============================================
+
+    def get_memo_snapshot(self, memo: InvoiceMemo) -> Dict:
+        """
+        Create a snapshot of memo values for audit trail.
+
+        Args:
+            memo: InvoiceMemo object
+
+        Returns:
+            Dict containing all memo values
+        """
+        from core.models import InvoiceMemoDetail
+
+        details = InvoiceMemoDetail.objects.filter(memo=memo).order_by('month_sequence')
+
+        snapshot = {
+            "memo_code": memo.memo_code,
+            "memo_month": memo.memo_month,
+            "memo_year": memo.memo_year,
+            "gross_total": float(memo.gross_total or 0),
+            "total_payments": float(memo.total_payments or 0),
+            "net_amount_due": float(memo.net_amount_due or 0),
+            "status": memo.status,
+            "details": []
+        }
+
+        for detail in details:
+            snapshot["details"].append({
+                "month_sequence": detail.month_sequence,
+                "month_type": detail.month_type,
+                "month_name": detail.month_name,
+                "package_fee": float(detail.package_fee or 0),
+                "extra_hours_charge": float(detail.extra_hours_charge or 0),
+                "holiday_charges": float(detail.holiday_charges or 0),
+                "other_charges": float(detail.other_charges or 0),
+                "discount_applied": float(detail.discount_applied or 0),
+                "other_deductions": float(detail.other_deductions or 0),
+                "payments_received": float(detail.payments_received or 0),
+                "gross_charges": float(detail.gross_charges or 0),
+                "total_deductions": float(detail.total_deductions or 0),
+                "net_charges": float(detail.net_charges or 0),
+                "net_balance": float(detail.net_balance or 0),
+            })
+
+        # Summary values for comparison
+        snapshot["outstanding"] = snapshot["details"][0]["net_balance"] if snapshot["details"] else 0
+        snapshot["previous_charges"] = snapshot["details"][1]["net_charges"] if len(snapshot["details"]) > 1 else 0
+        snapshot["current_advance"] = snapshot["details"][2]["net_charges"] if len(snapshot["details"]) > 2 else 0
+        snapshot["total_due"] = float(memo.net_amount_due or 0)
+
+        return snapshot
+
+    def calculate_regeneration_preview(self, memo: InvoiceMemo) -> Dict:
+        """
+        Calculate what the new memo values would be if regenerated.
+
+        Args:
+            memo: InvoiceMemo object
+
+        Returns:
+            Dict containing calculated new values
+        """
+        from core.views import calculate_enhanced_three_month_data, get_automatic_breakdown_data
+
+        child = memo.child
+        month = memo.memo_month
+        year = memo.memo_year
+
+        try:
+            # Calculate fresh 3-month data
+            three_month_data = calculate_enhanced_three_month_data(child, month, year)
+
+            # Get detailed breakdown for previous month
+            prev_month, prev_year = self._get_previous_month(month, year)
+            previous_month_breakdown = get_automatic_breakdown_data(child, prev_month, prev_year)
+
+            # Extract values
+            month1_data = three_month_data["month1"]  # Outstanding
+            month2_data = three_month_data["month2"]  # Previous (Calculated)
+            month3_data = three_month_data["month3"]  # Current (Advance)
+
+            preview = {
+                "memo_code": memo.memo_code,
+                "memo_month": month,
+                "memo_year": year,
+                "details": [
+                    {
+                        "month_sequence": 1,
+                        "month_type": "OUTSTANDING",
+                        "month_name": month1_data["name"],
+                        "package_fee": float(month1_data.get("balance", 0)),
+                        "extra_hours_charge": 0,
+                        "holiday_charges": 0,
+                        "other_charges": 0,
+                        "discount_applied": 0,
+                        "other_deductions": 0,
+                        "payments_received": 0,
+                        "net_balance": float(month1_data.get("balance", 0)),
+                    },
+                    {
+                        "month_sequence": 2,
+                        "month_type": "PREVIOUS",
+                        "month_name": month2_data["name"],
+                        "package_fee": float(month2_data.get("package_fee", 0)),
+                        "extra_hours_charge": float(month2_data.get("extra_charges", 0)),
+                        "holiday_charges": float(month2_data.get("holiday_charges", 0)),
+                        "other_charges": 0,
+                        "discount_applied": float(month2_data.get("discount", 0)),
+                        "other_deductions": 0,
+                        "payments_received": 0,
+                        "days_attended": month2_data.get("days_attended", 0),
+                        "expected_days": month2_data.get("expected_days", 22),
+                        "attendance_percentage": float(month2_data.get("attendance_percentage", 0)),
+                        "is_half_charge": month2_data.get("is_half_charge", False),
+                    },
+                    {
+                        "month_sequence": 3,
+                        "month_type": "CURRENT",
+                        "month_name": month3_data["name"],
+                        "package_fee": float(month3_data.get("package_fee", 0)),
+                        "extra_hours_charge": 0,
+                        "holiday_charges": 0,
+                        "other_charges": 0,
+                        "discount_applied": 0,
+                        "other_deductions": 0,
+                        "payments_received": 0,
+                    }
+                ]
+            }
+
+            # Calculate totals
+            outstanding = float(month1_data.get("balance", 0))
+            previous_charges = (
+                float(month2_data.get("package_fee", 0)) +
+                float(month2_data.get("extra_charges", 0)) +
+                float(month2_data.get("holiday_charges", 0)) -
+                float(month2_data.get("discount", 0))
+            )
+            current_advance = float(month3_data.get("package_fee", 0))
+
+            preview["outstanding"] = outstanding
+            preview["previous_charges"] = previous_charges
+            preview["current_advance"] = current_advance
+            preview["gross_total"] = outstanding + previous_charges + current_advance
+            preview["total_payments"] = 0  # New calculation doesn't include payments
+            preview["total_due"] = preview["gross_total"]
+
+            # Store breakdown data for later use
+            preview["extra_hours_breakdown"] = previous_month_breakdown.get("extra_hours_breakdown", [])
+            preview["holiday_charges_breakdown"] = previous_month_breakdown.get("holiday_charges_breakdown", [])
+
+            return preview
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"error": str(e)}
+
+    def request_memo_regeneration(
+        self,
+        memo_id: int,
+        reason: str,
+        user: str
+    ) -> Dict:
+        """
+        Create a request to regenerate a memo.
+
+        Args:
+            memo_id: ID of the memo to regenerate
+            reason: Reason for regeneration
+            user: Username requesting regeneration
+
+        Returns:
+            Dict with request result
+        """
+        from core.models import MemoRegenerationRequest
+
+        try:
+            memo = InvoiceMemo.objects.get(id=memo_id, is_active=True)
+
+            # Check if there's already a pending request for this memo
+            existing_pending = MemoRegenerationRequest.objects.filter(
+                memo=memo,
+                status="PENDING",
+                is_active=True
+            ).exists()
+
+            if existing_pending:
+                return {
+                    "success": False,
+                    "error": "A pending regeneration request already exists for this memo"
+                }
+
+            # Get current memo snapshot
+            original_values = self.get_memo_snapshot(memo)
+
+            # Calculate new values
+            new_calculated_values = self.calculate_regeneration_preview(memo)
+
+            if "error" in new_calculated_values:
+                return {
+                    "success": False,
+                    "error": f"Failed to calculate new values: {new_calculated_values['error']}"
+                }
+
+            # Create regeneration request
+            regen_request = MemoRegenerationRequest.objects.create(
+                memo=memo,
+                status="PENDING",
+                reason=reason,
+                original_values=original_values,
+                new_calculated_values=new_calculated_values,
+                requested_by=user,
+                user_created=user
+            )
+
+            return {
+                "success": True,
+                "request_id": regen_request.id,
+                "message": f"Regeneration request created for memo {memo.memo_code}",
+                "original_values": original_values,
+                "new_calculated_values": new_calculated_values
+            }
+
+        except InvoiceMemo.DoesNotExist:
+            return {
+                "success": False,
+                "error": "Memo not found"
+            }
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    def get_pending_regeneration_requests(self) -> List[Dict]:
+        """
+        Get all pending regeneration requests for admin review.
+
+        Returns:
+            List of pending requests with details
+        """
+        from core.models import MemoRegenerationRequest
+
+        requests = MemoRegenerationRequest.objects.filter(
+            status="PENDING",
+            is_active=True
+        ).select_related('memo', 'memo__child').order_by('-requested_at')
+
+        result = []
+        for req in requests:
+            result.append({
+                "id": req.id,
+                "memo_code": req.memo.memo_code,
+                "memo_id": req.memo.id,
+                "child_name": req.get_child_name(),
+                "admission_number": req.memo.child.admission_number,
+                "memo_month": req.memo.memo_month,
+                "memo_year": req.memo.memo_year,
+                "reason": req.reason,
+                "requested_by": req.requested_by,
+                "requested_at": req.requested_at.isoformat(),
+                "original_total": req.original_values.get("total_due", 0),
+                "new_total": req.new_calculated_values.get("total_due", 0),
+                "difference": req.new_calculated_values.get("total_due", 0) - req.original_values.get("total_due", 0)
+            })
+
+        return result
+
+    def approve_regeneration(
+        self,
+        request_id: int,
+        admin_user: str,
+        comments: str = None
+    ) -> Dict:
+        """
+        Approve a regeneration request and update the memo.
+
+        Args:
+            request_id: ID of the regeneration request
+            admin_user: Admin username approving the request
+            comments: Optional approval comments
+
+        Returns:
+            Dict with approval result
+        """
+        from django.db import transaction
+        from django.utils import timezone
+        from core.models import MemoRegenerationRequest, InvoiceMemoDetail
+        from core.views import format_extra_hours_for_display, format_holiday_charges_for_display
+
+        try:
+            regen_request = MemoRegenerationRequest.objects.select_related('memo').get(
+                id=request_id,
+                status="PENDING",
+                is_active=True
+            )
+
+            memo = regen_request.memo
+            new_values = regen_request.new_calculated_values
+
+            with transaction.atomic():
+                # Get existing memo details
+                details = InvoiceMemoDetail.objects.filter(memo=memo).order_by('month_sequence')
+
+                # Get existing payments from memo (preserve these)
+                existing_payments = float(memo.total_payments or 0)
+
+                # Update each detail
+                for detail in details:
+                    new_detail_data = None
+                    for nd in new_values.get("details", []):
+                        if nd["month_sequence"] == detail.month_sequence:
+                            new_detail_data = nd
+                            break
+
+                    if new_detail_data:
+                        detail.package_fee = Decimal(str(new_detail_data.get("package_fee", 0)))
+                        detail.extra_hours_charge = Decimal(str(new_detail_data.get("extra_hours_charge", 0)))
+                        detail.holiday_charges = Decimal(str(new_detail_data.get("holiday_charges", 0)))
+                        detail.other_charges = Decimal(str(new_detail_data.get("other_charges", 0)))
+                        detail.discount_applied = Decimal(str(new_detail_data.get("discount_applied", 0)))
+                        detail.other_deductions = Decimal(str(new_detail_data.get("other_deductions", 0)))
+                        # Keep existing payments - don't reset
+                        # detail.payments_received stays the same
+
+                        if detail.month_type == "PREVIOUS":
+                            detail.days_attended = new_detail_data.get("days_attended", 0)
+                            detail.expected_days = new_detail_data.get("expected_days", 22)
+                            detail.attendance_percentage = Decimal(str(new_detail_data.get("attendance_percentage", 0)))
+                            detail.is_half_charge_applied = new_detail_data.get("is_half_charge", False)
+
+                            # Update calculation details with breakdown
+                            if not detail.calculation_details:
+                                detail.calculation_details = {}
+                            detail.calculation_details["regenerated"] = True
+                            detail.calculation_details["regenerated_at"] = timezone.now().isoformat()
+                            detail.calculation_details["regenerated_by"] = admin_user
+
+                            # Add breakdown details
+                            extra_hours_breakdown = new_values.get("extra_hours_breakdown", [])
+                            holiday_breakdown = new_values.get("holiday_charges_breakdown", [])
+                            if extra_hours_breakdown:
+                                detail.calculation_details["extra_hours_breakdown"] = extra_hours_breakdown
+                                detail.calculation_details["extra_hours_display_text"] = format_extra_hours_for_display(extra_hours_breakdown)
+                            if holiday_breakdown:
+                                detail.calculation_details["holiday_charges_breakdown"] = holiday_breakdown
+                                detail.calculation_details["holiday_charges_display_text"] = format_holiday_charges_for_display(holiday_breakdown)
+
+                        detail.calculate_totals()
+                        detail.user_updated = admin_user
+                        detail.save()
+
+                # Recalculate memo totals
+                memo.calculate_totals()
+                memo.notes = f"{memo.notes or ''}\n[REGENERATED on {timezone.now().strftime('%Y-%m-%d %H:%M')} by {admin_user}]"
+                memo.user_updated = admin_user
+                memo.save()
+
+                # Update request status
+                regen_request.approve(admin_user, comments)
+
+            return {
+                "success": True,
+                "message": f"Memo {memo.memo_code} regenerated successfully",
+                "memo_code": memo.memo_code,
+                "new_total": float(memo.net_amount_due)
+            }
+
+        except MemoRegenerationRequest.DoesNotExist:
+            return {
+                "success": False,
+                "error": "Regeneration request not found or already processed"
+            }
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    def reject_regeneration(
+        self,
+        request_id: int,
+        admin_user: str,
+        reason: str = None
+    ) -> Dict:
+        """
+        Reject a regeneration request.
+
+        Args:
+            request_id: ID of the regeneration request
+            admin_user: Admin username rejecting the request
+            reason: Reason for rejection
+
+        Returns:
+            Dict with rejection result
+        """
+        from core.models import MemoRegenerationRequest
+
+        try:
+            regen_request = MemoRegenerationRequest.objects.select_related('memo').get(
+                id=request_id,
+                status="PENDING",
+                is_active=True
+            )
+
+            regen_request.reject(admin_user, reason)
+
+            return {
+                "success": True,
+                "message": f"Regeneration request for memo {regen_request.memo.memo_code} rejected",
+                "memo_code": regen_request.memo.memo_code
+            }
+
+        except MemoRegenerationRequest.DoesNotExist:
+            return {
+                "success": False,
+                "error": "Regeneration request not found or already processed"
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
+            }
