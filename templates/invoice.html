@@ -631,6 +631,11 @@
             searchMemo();
         }
     });
+
+    // Bind confirm generate memo button
+    $('#confirmGenerateMemoBtn').on('click', function() {
+        executeGenerateEnhancedMemo();
+    });
 });
 
 
@@ -638,23 +643,23 @@ function searchMemo() {
     const childId = $('#load_child').val();
     const month = $('#load_month').val();
     const year = $('#load_year').val();
-    
+
     // Validation
     if (!childId || !month || !year) {
-        alert('Please select child, month, and year');
+        showNotificationModal('warning', 'Validation Error', 'Please select child, month, and year');
         return;
     }
-    
+
     // Show loading
     $('#loadingSpinner').show();
     $('#memoResults').hide();
-    
-    // Update search button
-    const searchBtn = event.target;
-    const originalContent = searchBtn.innerHTML;
-    searchBtn.innerHTML = '<i class="ri-loader-4-line ri-spin me-1"></i>Searching...';
-    searchBtn.disabled = true;
-    
+
+    // Update search button - find it by selector instead of event.target
+    const searchBtn = $('button[onclick="searchMemo()"]').first();
+    const originalContent = searchBtn.html();
+    searchBtn.html('<i class="ri-loader-4-line ri-spin me-1"></i>Searching...');
+    searchBtn.prop('disabled', true);
+
     // Search for memo
     $.ajax({
         url: "{% url 'core:search_invoice_memo' %}",
@@ -666,7 +671,7 @@ function searchMemo() {
         },
         success: function(response) {
             $('#loadingSpinner').hide();
-            
+
             if (response.success) {
                 if (response.memo) {
                     displayMemoResult(response.memo);
@@ -689,8 +694,8 @@ function searchMemo() {
         },
         complete: function() {
             // Restore search button
-            searchBtn.innerHTML = originalContent;
-            searchBtn.disabled = false;
+            searchBtn.html(originalContent);
+            searchBtn.prop('disabled', false);
         }
     });
 }
@@ -914,6 +919,9 @@ function displayMemoResult(memo) {
                     <button type="button" class="btn btn-primary btn-sm" onclick="downloadMemo('${memo.memo_code}', ${memo.child_id})">
                         <i class="ri-download-line me-1"></i>Download
                     </button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="openRegenerationModal(${memo.id}, '${memo.memo_code}')">
+                        <i class="ri-refresh-line me-1"></i>Regenerate
+                    </button>
                 </div>
             </div>
 
@@ -984,12 +992,30 @@ function displayNoMemoFoundWithGenerate(childName, monthName, year, childId, mon
     $('#memoContent').html(noMemoHtml);
 }
 
+// Variables for pending memo generation
+let pendingGenMemoData = null;
+
 function generateEnhancedMemo(childId, month, year, childName, monthName) {
-    // Show confirmation dialog
-    if (!confirm(`Generate enhanced memo for ${childName} - ${monthName} ${year}?\n\nThis will create a 3-month memo with:\n• Outstanding charges (2 months ago)\n• Calculated charges with attendance (previous month)\n• Advance charges (current month)`)) {
-        return;
-    }
-    
+    // Store data for confirmation
+    pendingGenMemoData = { childId, month, year, childName, monthName };
+
+    // Update modal content
+    $('#confirmGenChildName').text(childName);
+    $('#confirmGenPeriod').text(`${monthName} ${year}`);
+
+    // Show confirmation modal
+    const modal = new bootstrap.Modal(document.getElementById('confirmGenerateMemoModal'));
+    modal.show();
+}
+
+function executeGenerateEnhancedMemo() {
+    if (!pendingGenMemoData) return;
+
+    const { childId, month, year, childName, monthName } = pendingGenMemoData;
+
+    // Close confirmation modal
+    bootstrap.Modal.getInstance(document.getElementById('confirmGenerateMemoModal')).hide();
+
     // Show loading in the memo content area
     const loadingHtml = `
         <div class="generating-memo-loading text-center py-5">
@@ -1003,9 +1029,9 @@ function generateEnhancedMemo(childId, month, year, childName, monthName) {
             </p>
         </div>
     `;
-    
+
     $('#memoContent').html(loadingHtml);
-    
+
     // Generate memo
     fetch("{% url 'core:generate_enhanced_memo' %}", {
         method: 'POST',
@@ -1078,6 +1104,9 @@ function generateEnhancedMemo(childId, month, year, childName, monthName) {
                             <button type="button" class="btn btn-primary btn-sm" onclick="downloadMemoByCode('${data.memo_code}', ${childId})">
                                 <i class="ri-download-line me-1"></i>Download PDF
                             </button>
+                            <button type="button" class="btn btn-outline-warning btn-sm" onclick="openRegenerationModal(${data.memo_id}, '${data.memo_code}')">
+                                <i class="ri-refresh-line me-1"></i>Regenerate
+                            </button>
                             <button type="button" class="btn btn-success btn-sm" onclick="searchMemo()">
                                 <i class="ri-refresh-line me-1"></i>Refresh Search
                             </button>
@@ -1137,98 +1166,20 @@ function displayGenerationError(errorMessage, childName, monthName, year, childI
 
 
 function displayNoMemoFoundWithGenerate(childId, month, year, childName, monthName) {
-    // Show confirmation dialog
-    if (!confirm(`Generate enhanced memo for ${childName} - ${monthName} ${year}?\n\nThis will create a 3-month memo with:\n• Outstanding charges (2 months ago)\n• Calculated charges with attendance (previous month)\n• Advance charges (current month)`)) {
-        return;
+    // This function is now just an alias that uses the modal confirmation
+    generateEnhancedMemo(childId, month, year, childName, monthName);
+}
+
+function downloadMemoByCode(memoCode, childId, btn) {
+    // Show loading - use passed button or find by event
+    const downloadBtn = btn || (window.event ? window.event.target.closest('button') : null);
+    let originalContent = '';
+    if (downloadBtn) {
+        originalContent = downloadBtn.innerHTML;
+        downloadBtn.innerHTML = '<i class="ri-loader-4-line ri-spin me-1"></i>Generating PDF...';
+        downloadBtn.disabled = true;
     }
     
-    // Show loading
-    const generateBtn = event.target;
-    const originalContent = generateBtn.innerHTML;
-    generateBtn.innerHTML = '<i class="ri-loader-4-line ri-spin me-1"></i>Generating...';
-    generateBtn.disabled = true;
-    
-    // Generate memo
-    fetch("{% url 'core:generate_enhanced_memo' %}", {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}'
-        },
-        body: JSON.stringify({
-            child_id: childId,
-            month: month,
-            year: year
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            return response.json().then(err => Promise.reject(err));
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            // Show success message with memo details
-            const successHtml = `
-                <div class="memo-generated-success">
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <h5 class="alert-heading"><i class="ri-check-circle-line me-2"></i>Enhanced Memo Generated Successfully!</h5>
-                        <p class="mb-2"><strong>Memo Code:</strong> ${data.memo_code}</p>
-                        <p class="mb-2"><strong>Child:</strong> ${data.child_name}</p>
-                        <p class="mb-2"><strong>Period:</strong> ${data.month_name} ${data.year}</p>
-                        <p class="mb-3"><strong>Net Amount Due:</strong> Rs.${data.net_amount_due.toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
-                        
-                        <div class="breakdown-summary mb-3">
-                            <h6>3-Month Breakdown:</h6>
-                            <ul class="list-unstyled mb-0">
-                                <li>• Outstanding: Rs.${data.breakdown.outstanding.toLocaleString('en-US', {minimumFractionDigits: 2})}</li>
-                                <li>• Previous Month: Rs.${data.breakdown.previous_month.toLocaleString('en-US', {minimumFractionDigits: 2})}</li>
-                                <li>• Current Month: Rs.${data.breakdown.current_month.toLocaleString('en-US', {minimumFractionDigits: 2})}</li>
-                                <li><strong>• Total: Rs.${data.breakdown.total.toLocaleString('en-US', {minimumFractionDigits: 2})}</strong></li>
-                            </ul>
-                        </div>
-                        
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="previewMemo(${data.memo_id})">
-                                <i class="ri-eye-line me-1"></i>Preview
-                            </button>
-                            <button type="button" class="btn btn-primary btn-sm" onclick="downloadMemoByCode('${data.memo_code}', ${childId})">
-                                <i class="ri-download-line me-1"></i>Download PDF
-                            </button>
-                            <button type="button" class="btn btn-success btn-sm" onclick="searchMemo()">
-                                <i class="ri-refresh-line me-1"></i>Refresh Search
-                            </button>
-                        </div>
-                        
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                </div>
-            `;
-            
-            $('#memoContent').html(successHtml);
-        } else {
-            alert('Error generating memo: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error generating memo: ' + (error.error || error.message || 'Unknown error'));
-    })
-    .finally(() => {
-        // Restore button
-        generateBtn.innerHTML = originalContent;
-        generateBtn.disabled = false;
-    });
-}
-
-function downloadMemoByCode(memoCode, childId) {
-    // Show loading
-    const downloadBtn = event.target;
-    const originalContent = downloadBtn.innerHTML;
-    downloadBtn.innerHTML = '<i class="ri-loader-4-line ri-spin me-1"></i>Generating PDF...';
-    downloadBtn.disabled = true;
-    
     // Download memo
     fetch("{% url 'core:download_invoice_memo_pdf' %}", {
         method: 'POST',
@@ -1262,22 +1213,27 @@ function downloadMemoByCode(memoCode, childId) {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error generating PDF. Please try again.');
+        showNotificationModal('error', 'Error', 'Error generating PDF. Please try again.');
     })
     .finally(() => {
-        // Restore button
-        downloadBtn.innerHTML = originalContent;
-        downloadBtn.disabled = false;
+        // Restore button if we have a reference
+        if (downloadBtn) {
+            downloadBtn.innerHTML = originalContent;
+            downloadBtn.disabled = false;
+        }
     });
 }
 
-function downloadMemo(memoCode, childId) {
-    // Show loading
-    const downloadBtn = event.target;
-    const originalContent = downloadBtn.innerHTML;
-    downloadBtn.innerHTML = '<i class="ri-loader-4-line ri-spin me-1"></i>Generating...';
-    downloadBtn.disabled = true;
-    
+function downloadMemo(memoCode, childId, btn) {
+    // Show loading - use passed button or find by selector
+    const downloadBtn = btn || $(`button[onclick*="downloadMemo('${memoCode}'"]`).first()[0];
+    let originalContent = '';
+    if (downloadBtn) {
+        originalContent = downloadBtn.innerHTML;
+        downloadBtn.innerHTML = '<i class="ri-loader-4-line ri-spin me-1"></i>Generating...';
+        downloadBtn.disabled = true;
+    }
+
     // Download memo
     fetch("{% url 'core:download_invoice_memo_pdf' %}", {
         method: 'POST',
@@ -1311,12 +1267,14 @@ function downloadMemo(memoCode, childId) {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error generating PDF. Please try again.');
+        showNotificationModal('error', 'Error', 'Error generating PDF. Please try again.');
     })
     .finally(() => {
-        // Restore button
-        downloadBtn.innerHTML = originalContent;
-        downloadBtn.disabled = false;
+        // Restore button if we have a reference
+        if (downloadBtn) {
+            downloadBtn.innerHTML = originalContent;
+            downloadBtn.disabled = false;
+        }
     });
 }
 
@@ -1364,73 +1322,339 @@ function displayErrorMessage(errorMessage) {
     $('#memoContent').html(errorHtml);
 }
 
+function clearSearch() {
+    $('#loadMemoForm')[0].reset();
+    $('#load_child').val('').trigger('change');
 
-function downloadMemo(memoCode, childId) {
-    // Show loading
-    const downloadBtn = event.target;
-    const originalContent = downloadBtn.innerHTML;
-    downloadBtn.innerHTML = '<i class="ri-loader-4-line ri-spin me-1"></i>Generating...';
-    downloadBtn.disabled = true;
-    
-    // Download memo
-    fetch("{% url 'core:download_invoice_memo_pdf' %}", {
+    // Reset to current month/year
+    const now = new Date();
+    $('#load_month').val(now.getMonth() + 1);
+    $('#load_year').val(now.getFullYear());
+
+    $('#memoResults').hide();
+    $('#memoContent').empty();
+}
+
+// ============================================
+// MEMO REGENERATION FUNCTIONS
+// ============================================
+
+let currentRegenerationMemoId = null;
+let currentRegenerationMemoCode = null;
+
+function openRegenerationModal(memoId, memoCode) {
+    currentRegenerationMemoId = memoId;
+    currentRegenerationMemoCode = memoCode;
+
+    // Reset modal state
+    $('#regenerationReason').val('');
+    $('#regenerationPreviewContent').html(`
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading preview...</p>
+        </div>
+    `);
+    $('#submitRegenerationBtn').prop('disabled', true);
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('regenerationModal'));
+    modal.show();
+
+    // Fetch preview data
+    fetchRegenerationPreview(memoId);
+}
+
+function fetchRegenerationPreview(memoId) {
+    fetch(`/preview_memo_regeneration/?memo_id=${memoId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayRegenerationPreview(data);
+                $('#submitRegenerationBtn').prop('disabled', false);
+            } else {
+                $('#regenerationPreviewContent').html(`
+                    <div class="alert alert-danger">
+                        <i class="ri-error-warning-line me-2"></i>
+                        ${data.error || 'Failed to load preview'}
+                    </div>
+                `);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            $('#regenerationPreviewContent').html(`
+                <div class="alert alert-danger">
+                    <i class="ri-error-warning-line me-2"></i>
+                    Error loading preview. Please try again.
+                </div>
+            `);
+        });
+}
+
+function displayRegenerationPreview(data) {
+    const original = data.original;
+    const newValues = data.new;
+    const diff = data.differences;
+
+    function formatCurrency(amount) {
+        return 'Rs. ' + parseFloat(amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+
+    function getDiffClass(value) {
+        if (value > 0) return 'text-danger';
+        if (value < 0) return 'text-success';
+        return 'text-muted';
+    }
+
+    function formatDiff(value) {
+        if (value > 0) return '+' + formatCurrency(value);
+        if (value < 0) return formatCurrency(value);
+        return '-';
+    }
+
+    const html = `
+        <div class="mb-3">
+            <strong>Memo:</strong> ${data.memo_code} |
+            <strong>Child:</strong> ${data.child_name} (${data.admission_number})
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>Item</th>
+                        <th class="text-end">Current Value</th>
+                        <th class="text-end">New Value</th>
+                        <th class="text-end">Difference</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Outstanding Balance</td>
+                        <td class="text-end">${formatCurrency(original.outstanding)}</td>
+                        <td class="text-end">${formatCurrency(newValues.outstanding)}</td>
+                        <td class="text-end ${getDiffClass(diff.outstanding)}">${formatDiff(diff.outstanding)}</td>
+                    </tr>
+                    <tr>
+                        <td>Previous Month Charges</td>
+                        <td class="text-end">${formatCurrency(original.previous_charges)}</td>
+                        <td class="text-end">${formatCurrency(newValues.previous_charges)}</td>
+                        <td class="text-end ${getDiffClass(diff.previous_charges)}">${formatDiff(diff.previous_charges)}</td>
+                    </tr>
+                    <tr>
+                        <td>Current Month Advance</td>
+                        <td class="text-end">${formatCurrency(original.current_advance)}</td>
+                        <td class="text-end">${formatCurrency(newValues.current_advance)}</td>
+                        <td class="text-end ${getDiffClass(diff.current_advance)}">${formatDiff(diff.current_advance)}</td>
+                    </tr>
+                    <tr class="table-primary">
+                        <td><strong>Total Amount Due</strong></td>
+                        <td class="text-end"><strong>${formatCurrency(original.total_due)}</strong></td>
+                        <td class="text-end"><strong>${formatCurrency(newValues.total_due)}</strong></td>
+                        <td class="text-end ${getDiffClass(diff.total_due)}"><strong>${formatDiff(diff.total_due)}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        ${diff.total_due !== 0 ? `
+            <div class="alert alert-warning mt-3 mb-0">
+                <i class="ri-information-line me-2"></i>
+                The total amount will change by <strong>${formatDiff(diff.total_due)}</strong> if regenerated.
+            </div>
+        ` : `
+            <div class="alert alert-info mt-3 mb-0">
+                <i class="ri-checkbox-circle-line me-2"></i>
+                No changes detected. The memo values are already up to date.
+            </div>
+        `}
+    `;
+
+    $('#regenerationPreviewContent').html(html);
+}
+
+function showNotificationModal(type, title, message) {
+    const modal = document.getElementById('notificationModal');
+    const header = document.getElementById('notificationModalHeader');
+    const iconLarge = document.getElementById('notificationModalIconLarge');
+    const iconTitle = document.getElementById('notificationModalIcon');
+    const titleEl = document.getElementById('notificationModalTitle');
+    const messageEl = document.getElementById('notificationModalMessage');
+
+    // Reset classes
+    header.className = 'modal-header p-3';
+
+    if (type === 'success') {
+        header.classList.add('bg-success-subtle');
+        iconTitle.innerHTML = '<i class="ri-checkbox-circle-line me-2"></i>';
+        iconLarge.innerHTML = '<i class="ri-checkbox-circle-fill text-success"></i>';
+    } else if (type === 'error') {
+        header.classList.add('bg-danger-subtle');
+        iconTitle.innerHTML = '<i class="ri-error-warning-line me-2"></i>';
+        iconLarge.innerHTML = '<i class="ri-error-warning-fill text-danger"></i>';
+    } else if (type === 'warning') {
+        header.classList.add('bg-warning-subtle');
+        iconTitle.innerHTML = '<i class="ri-alert-line me-2"></i>';
+        iconLarge.innerHTML = '<i class="ri-alert-fill text-warning"></i>';
+    } else {
+        header.classList.add('bg-info-subtle');
+        iconTitle.innerHTML = '<i class="ri-information-line me-2"></i>';
+        iconLarge.innerHTML = '<i class="ri-information-fill text-info"></i>';
+    }
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+}
+
+function submitRegenerationRequest() {
+    const reason = $('#regenerationReason').val().trim();
+
+    if (!reason) {
+        showNotificationModal('warning', 'Validation Error', 'Please provide a reason for regeneration.');
+        $('#regenerationReason').focus();
+        return;
+    }
+
+    const btn = $('#submitRegenerationBtn');
+    const originalText = btn.html();
+    btn.html('<span class="spinner-border spinner-border-sm me-1"></span>Submitting...').prop('disabled', true);
+
+    fetch('/request_memo_regeneration/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': '{{ csrf_token }}'
         },
         body: JSON.stringify({
-            memo_code: memoCode,
-            child_id: childId
+            memo_id: currentRegenerationMemoId,
+            reason: reason
         })
     })
-    .then(response => {
-        if (response.ok) {
-            return response.blob();
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close regeneration modal
+            bootstrap.Modal.getInstance(document.getElementById('regenerationModal')).hide();
+
+            // Show success message
+            showNotificationModal('success', 'Request Submitted', 'Regeneration request submitted successfully. </br>An admin will review your request.');
+
+            // Refresh the memo display
+            searchMemo();
         } else {
-            throw new Error('PDF generation failed');
+            showNotificationModal('error', 'Error', data.error || 'Failed to submit request');
+            btn.html(originalText).prop('disabled', false);
         }
-    })
-    .then(blob => {
-        // Create download link
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = `Invoice_Memo_${memoCode}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error generating PDF. Please try again.');
-    })
-    .finally(() => {
-        // Restore button
-        downloadBtn.innerHTML = originalContent;
-        downloadBtn.disabled = false;
+        showNotificationModal('error', 'Error', 'Error submitting request. Please try again.');
+        btn.html(originalText).prop('disabled', false);
     });
 }
 
-function clearSearch() {
-    if (confirm('Clear search form?')) {
-        $('#loadMemoForm')[0].reset();
-        $('#load_child').val('').trigger('change');
-        
-        // Reset to current month/year
-        const now = new Date();
-        $('#load_month').val(now.getMonth() + 1);
-        $('#load_year').val(now.getFullYear());
-        
-        $('#memoResults').hide();
-        $('#memoContent').empty();
-    }
-}
-
-
 </script>
+
+<!-- Regeneration Request Modal -->
+<div class="modal fade zoomIn" id="regenerationModal" tabindex="-1" aria-labelledby="regenerationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header p-3 bg-warning-subtle">
+                <h5 class="modal-title" id="regenerationModalLabel">
+                    <i class="ri-refresh-line me-2"></i>Request Memo Regeneration
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <i class="ri-information-line me-2"></i>
+                    <strong>Note:</strong> Regeneration requests require admin approval before changes take effect.
+                </div>
+
+                <h6 class="mb-3">Preview Changes</h6>
+                <div id="regenerationPreviewContent">
+                    <!-- Preview content will be loaded here -->
+                </div>
+
+                <hr class="my-4">
+
+                <div class="mb-3">
+                    <label for="regenerationReason" class="form-label">
+                        <strong>Reason for Regeneration</strong> <span class="text-danger">*</span>
+                    </label>
+                    <textarea class="form-control" id="regenerationReason" rows="3"
+                        placeholder="Please explain why this memo needs to be regenerated (e.g., attendance data was corrected, package was updated, etc.)"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="submitRegenerationBtn" onclick="submitRegenerationRequest()">
+                    <i class="ri-send-plane-line me-1"></i>Submit Request
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success/Error Notification Modal -->
+<div class="modal fade zoomIn" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header p-3" id="notificationModalHeader">
+                <h5 class="modal-title" id="notificationModalLabel">
+                    <span id="notificationModalIcon"></span>
+                    <span id="notificationModalTitle">Notification</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <div id="notificationModalIconLarge" class="mb-3" style="font-size: 4rem;"></div>
+                <p class="mb-0" id="notificationModalMessage">Message here</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Generate Memo Modal -->
+<div class="modal fade zoomIn" id="confirmGenerateMemoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header p-3 bg-primary-subtle">
+                <h5 class="modal-title">
+                    <i class="ri-file-add-line me-2"></i>Generate Enhanced Memo
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Generate enhanced memo for <strong id="confirmGenChildName"></strong> - <span id="confirmGenPeriod"></span>?</p>
+                <div class="alert alert-info mb-0">
+                    <p class="mb-2"><strong>This will create a 3-month memo with:</strong></p>
+                    <ul class="mb-0 ps-3">
+                        <li>Outstanding charges (2 months ago)</li>
+                        <li>Calculated charges with attendance (previous month)</li>
+                        <li>Advance charges (current month)</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                    <i class="ri-close-line me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary" id="confirmGenerateMemoBtn">
+                    <i class="ri-file-add-line me-1"></i>Generate Memo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
 

@@ -102,21 +102,9 @@
         display: none;
     }
 
-    .result-item {
-        padding: 0.5rem 0.75rem;
-        border-bottom: 1px solid #eee;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    .result-item:last-child {
-        border-bottom: none;
-    }
-
-    .result-item.success { background: #f0fdf4; }
-    .result-item.failed { background: #fef2f2; }
-    .result-item.skipped { background: #fffbeb; }
+    tr.success { background: #f0fdf4; }
+    tr.failed { background: #fef2f2; }
+    tr.skipped { background: #fffbeb; }
 
     .empty-state {
         text-align: center;
@@ -223,6 +211,29 @@
 
     .generating {
         animation: pulse 1.5s infinite;
+    }
+
+    /* Ensure preloader displays correctly when manually triggered */
+    #preloader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(255, 255, 255, 0.8);
+        z-index: 9999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+
+    #preloader #status {
+        width: 80px;
+        height: 80px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
     }
 </style>
 
@@ -425,10 +436,10 @@
 </div>
 
 <!-- Preview Modal -->
-<div class="modal fade" id="previewMemoModal" tabindex="-1" aria-labelledby="previewMemoModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
+<div class="modal fade zoomIn" id="previewMemoModal" tabindex="-1" aria-labelledby="previewMemoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header p-3 bg-info-subtle">
                 <h5 class="modal-title" id="previewMemoModalLabel">
                     <i class="ri-file-list-3-line me-2"></i>Memo Preview
                 </h5>
@@ -552,6 +563,51 @@
     </div>
 </div>
 
+<!-- Confirmation Modal -->
+<div class="modal fade zoomIn" id="confirmGenerateModal" tabindex="-1" aria-labelledby="confirmGenerateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header p-3 bg-primary-subtle">
+                <h5 class="modal-title" id="confirmGenerateModalLabel">
+                    <i class="ri-file-list-3-line me-2"></i>Confirm Memo Generation
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <i class="ri-questionnaire-line text-primary" style="font-size: 3rem;"></i>
+                </div>
+                <p class="text-center mb-3" id="confirmGenerateMessage">
+                    Are you sure you want to generate memos?
+                </p>
+                <div id="confirmGenerateDetails" class="alert alert-info mb-0">
+                    <div class="d-flex justify-content-between">
+                        <span>Ready children:</span>
+                        <strong id="confirmReadyCount">0</strong>
+                    </div>
+                    <div class="d-flex justify-content-between" id="confirmAttentionRow" style="display: none;">
+                        <span>With missing attendance:</span>
+                        <strong id="confirmAttentionCount" class="text-warning">0</strong>
+                    </div>
+                    <hr class="my-2">
+                    <div class="d-flex justify-content-between">
+                        <span>Total to generate:</span>
+                        <strong id="confirmTotalCount">0</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                    <i class="ri-close-line me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-success" id="btnConfirmGenerate">
+                    <i class="ri-play-circle-line me-1"></i>Yes, Generate
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -560,6 +616,7 @@
     let previewData = null;
     let currentMonth = null;
     let currentYear = null;
+    let pendingForceGenerate = false;
 
     function loadPreview() {
         const month = $('#selectMonth').val();
@@ -674,7 +731,7 @@
                             <button class="btn btn-info btn-sm preview-btn" onclick="previewChildMemo(${child.id}, '${child.name}', '${child.admission_number}')">
                                 <i class="ri-eye-line"></i> Preview
                             </button>
-                            <button class="btn btn-success btn-sm retry-btn" onclick="generateSingle(${child.id}, false)">
+                            <button class="btn btn-success btn-sm retry-btn" onclick="generateSingle(${child.id}, false, this)">
                                 <i class="ri-play-line"></i> Generate
                             </button>
                         </div>
@@ -721,7 +778,7 @@
                     <td>${child.name}</td>
                     <td><span class="text-warning"><i class="ri-alert-line me-1"></i>${warnings}</span></td>
                     <td>
-                        <button class="btn btn-warning btn-sm retry-btn" onclick="generateSingle(${child.id}, true)">
+                        <button class="btn btn-warning btn-sm retry-btn" onclick="generateSingle(${child.id}, true, this)">
                             <i class="ri-flashlight-line"></i> Force
                         </button>
                     </td>
@@ -788,22 +845,60 @@
             return;
         }
 
-        const confirmMsg = force
-            ? `Generate memos for ${children.length} children (including ${previewData.need_attention.length} with missing attendance)?`
-            : `Generate memos for ${children.length} ready children?`;
+        // Store force flag for confirmation
+        pendingForceGenerate = force;
 
-        if (!confirm(confirmMsg)) {
-            return;
+        // Update confirmation modal content
+        const readyCount = previewData.ready_to_generate.length;
+        const attentionCount = previewData.need_attention.length;
+        const totalCount = children.length;
+
+        $('#confirmReadyCount').text(readyCount);
+        $('#confirmTotalCount').text(totalCount);
+
+        if (force && attentionCount > 0) {
+            $('#confirmAttentionRow').show();
+            $('#confirmAttentionCount').text(attentionCount);
+            $('#confirmGenerateMessage').html(
+                'Generate memos for <strong>' + totalCount + '</strong> children?<br>' +
+                '<small class="text-warning"><i class="ri-alert-line me-1"></i>Includes ' + attentionCount + ' with missing attendance</small>'
+            );
+        } else {
+            $('#confirmAttentionRow').hide();
+            $('#confirmGenerateMessage').html(
+                'Generate memos for <strong>' + totalCount + '</strong> ready children?'
+            );
         }
+
+        // Show confirmation modal
+        const confirmModal = new bootstrap.Modal(document.getElementById('confirmGenerateModal'));
+        confirmModal.show();
+    }
+
+    function executeGeneration() {
+        // Close the confirmation modal
+        const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirmGenerateModal'));
+        confirmModal.hide();
+
+        const force = pendingForceGenerate;
+        const children = force
+            ? [...previewData.ready_to_generate, ...previewData.need_attention]
+            : previewData.ready_to_generate;
 
         // Hide action buttons and lists
         $('#actionButtons').hide();
         $('#childrenLists').hide();
 
-        // Show progress
+        // Show global preloader for visual feedback
+        showPreloader();
+
+        // Show progress container
         $('#progressContainer').show();
         $('#progressBar').css('width', '0%').text('0%');
         $('#progressText').text('Starting generation...');
+
+        // Start progress animation (simulated progress while waiting for server)
+        startProgressAnimation(children.length);
 
         // Get child IDs
         const childIds = children.map(c => c.id);
@@ -823,6 +918,8 @@
                 child_ids: childIds
             }),
             success: function(response) {
+                stopProgressAnimation();
+                hidePreloader();
                 if (response.success) {
                     displayResults(response.results);
                 } else {
@@ -831,11 +928,72 @@
                 }
             },
             error: function(xhr) {
+                stopProgressAnimation();
+                hidePreloader();
                 const error = xhr.responseJSON ? xhr.responseJSON.error : 'Generation failed';
                 showError(error);
                 resetAfterError();
             }
         });
+    }
+
+    // Progress animation variables
+    let progressInterval = null;
+    let currentProgress = 0;
+
+    function startProgressAnimation(totalItems) {
+        currentProgress = 0;
+        const maxProgress = 90; // Stop at 90% until actual completion
+        const incrementDelay = Math.max(100, Math.min(500, 5000 / totalItems)); // Adjust speed based on item count
+
+        progressInterval = setInterval(function() {
+            if (currentProgress < maxProgress) {
+                // Slow down as we approach 90%
+                const increment = Math.max(0.5, (maxProgress - currentProgress) / 20);
+                currentProgress += increment;
+                updateProgressBar(Math.min(currentProgress, maxProgress));
+            }
+        }, incrementDelay);
+    }
+
+    function stopProgressAnimation() {
+        if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+        }
+    }
+
+    function updateProgressBar(percent) {
+        const rounded = Math.round(percent);
+        $('#progressBar').css('width', rounded + '%').text(rounded + '%');
+
+        // Update progress text based on progress
+        if (rounded < 30) {
+            $('#progressText').text('Initializing generation...');
+        } else if (rounded < 60) {
+            $('#progressText').text('Processing memos...');
+        } else if (rounded < 90) {
+            $('#progressText').text('Finalizing...');
+        } else {
+            $('#progressText').text('Almost done...');
+        }
+    }
+
+    // Global preloader functions
+    function showPreloader() {
+        const preloader = document.getElementById('preloader');
+        if (preloader) {
+            preloader.style.opacity = '1';
+            preloader.style.visibility = 'visible';
+        }
+    }
+
+    function hidePreloader() {
+        const preloader = document.getElementById('preloader');
+        if (preloader) {
+            preloader.style.opacity = '0';
+            preloader.style.visibility = 'hidden';
+        }
     }
 
     function displayResults(results) {
@@ -880,7 +1038,7 @@
 
                 results.details.generated.forEach(item => {
                     detailsHtml += `
-                        <tr class="result-item success">
+                        <tr class="success">
                             <td><code>${item.admission_number}</code></td>
                             <td>${item.name}</td>
                             <td><span class="badge bg-primary">${item.memo_code}</span></td>
@@ -915,13 +1073,13 @@
                 results.details.skipped.forEach(item => {
                     const canRetry = item.can_force || item.type === 'warning';
                     detailsHtml += `
-                        <tr class="result-item skipped" id="row-skipped-${item.id}">
+                        <tr class="skipped" id="row-skipped-${item.id}">
                             <td><code>${item.admission_number}</code></td>
                             <td>${item.name}</td>
                             <td><span class="text-warning">${item.reason}</span></td>
                             <td>
                                 ${canRetry ? `
-                                    <button class="btn btn-warning btn-sm retry-btn" onclick="generateSingle(${item.id}, true)">
+                                    <button class="btn btn-warning btn-sm retry-btn" onclick="generateSingle(${item.id}, true, this)">
                                         <i class="ri-refresh-line"></i> Retry
                                     </button>
                                 ` : ''}
@@ -955,12 +1113,12 @@
 
                 results.details.failed.forEach(item => {
                     detailsHtml += `
-                        <tr class="result-item failed" id="row-failed-${item.id}">
+                        <tr class="failed" id="row-failed-${item.id}">
                             <td><code>${item.admission_number}</code></td>
                             <td>${item.name}</td>
                             <td><span class="text-danger">${item.error}</span></td>
                             <td>
-                                <button class="btn btn-danger btn-sm retry-btn" onclick="generateSingle(${item.id}, true)">
+                                <button class="btn btn-danger btn-sm retry-btn" onclick="generateSingle(${item.id}, true, this)">
                                     <i class="ri-refresh-line"></i> Retry
                                 </button>
                             </td>
@@ -985,11 +1143,16 @@
         }, 500);
     }
 
-    function generateSingle(childId, force) {
-        const btn = event.target.closest('button');
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i>';
-        btn.disabled = true;
+    function generateSingle(childId, force, btnElement) {
+        // Use passed button element or find by selector
+        const btn = btnElement || $(`button[onclick*="generateSingle(${childId}"]`).first()[0];
+        let originalHtml = '';
+
+        if (btn) {
+            originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i>';
+            btn.disabled = true;
+        }
 
         $.ajax({
             url: "{% url 'core:generate_single_memo_from_batch' %}",
@@ -1008,7 +1171,7 @@
                 if (response.success) {
                     // Update the row to show success
                     const row = $(`#row-ready-${childId}, #row-attention-${childId}, #row-skipped-${childId}, #row-failed-${childId}`);
-                    row.removeClass('result-item skipped failed').addClass('result-item success');
+                    row.removeClass('skipped failed').addClass('success');
                     row.find('td:last').html(`
                         <span class="badge bg-success">
                             <i class="ri-check-line me-1"></i>${response.memo_code}
@@ -1017,14 +1180,18 @@
 
                     showSuccess(`Memo ${response.memo_code} generated for ${response.child_name}`);
                 } else {
-                    btn.innerHTML = originalHtml;
-                    btn.disabled = false;
+                    if (btn) {
+                        btn.innerHTML = originalHtml;
+                        btn.disabled = false;
+                    }
                     showError(response.error || 'Generation failed');
                 }
             },
             error: function(xhr) {
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
+                if (btn) {
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
                 const error = xhr.responseJSON ? xhr.responseJSON.error : 'Generation failed';
                 showError(error);
             }
@@ -1198,5 +1365,16 @@
         // Call the generate function
         generateSingle(currentPreviewChildId, false);
     }
+
+    // Initialize event listeners when document is ready
+    $(document).ready(function() {
+        // Ensure preloader is hidden on page load
+        hidePreloader();
+
+        // Bind confirm generate button
+        $('#btnConfirmGenerate').on('click', function() {
+            executeGeneration();
+        });
+    });
 </script>
 {% endblock %}
