@@ -6,236 +6,6 @@
 {% block functionTitle %}BATCH MEMO GENERATION{% endblock %}
 
 {% block content %}
-<style>
-    .stats-card {
-        border-radius: 0.5rem;
-        padding: 1.25rem;
-        text-align: center;
-        transition: all 0.3s ease;
-    }
-
-    .stats-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-
-    .stats-card .stats-number {
-        font-size: 2rem;
-        font-weight: 700;
-        line-height: 1.2;
-    }
-
-    .stats-card .stats-label {
-        font-size: 0.85rem;
-        color: #6c757d;
-        margin-top: 0.25rem;
-    }
-
-    .stats-ready { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: 1px solid #10b981; }
-    .stats-ready .stats-number { color: #065f46; }
-
-    .stats-attention { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #f59e0b; }
-    .stats-attention .stats-number { color: #92400e; }
-
-    .stats-blocked { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border: 1px solid #ef4444; }
-    .stats-blocked .stats-number { color: #991b1b; }
-
-    .stats-existing { background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); border: 1px solid #6366f1; }
-    .stats-existing .stats-number { color: #4338ca; }
-
-    .child-table {
-        font-size: 0.875rem;
-    }
-
-    .child-table th {
-        background: #f8f9fa;
-        font-weight: 600;
-        padding: 0.75rem;
-        border-bottom: 2px solid #dee2e6;
-    }
-
-    .child-table td {
-        padding: 0.625rem 0.75rem;
-        vertical-align: middle;
-    }
-
-    .section-card {
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-    }
-
-    .section-header {
-        padding: 0.75rem 1rem;
-        font-weight: 600;
-        border-bottom: 1px solid rgba(0,0,0,0.1);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    .section-header-ready { background: #d1fae5; color: #065f46; }
-    .section-header-attention { background: #fef3c7; color: #92400e; }
-    .section-header-blocked { background: #fee2e2; color: #991b1b; }
-
-    .section-body {
-        padding: 0;
-        max-height: 300px;
-        overflow-y: auto;
-    }
-
-    .progress-container {
-        display: none;
-        padding: 2rem;
-        text-align: center;
-    }
-
-    .progress-container .progress {
-        height: 1.5rem;
-        border-radius: 0.75rem;
-    }
-
-    .progress-container .progress-bar {
-        transition: width 0.3s ease;
-    }
-
-    .results-container {
-        display: none;
-    }
-
-    tr.success { background: #f0fdf4; }
-    tr.failed { background: #fef2f2; }
-    tr.skipped { background: #fffbeb; }
-
-    .empty-state {
-        text-align: center;
-        padding: 2rem;
-        color: #6c757d;
-    }
-
-    .empty-state i {
-        font-size: 3rem;
-        margin-bottom: 1rem;
-        opacity: 0.5;
-    }
-
-    .btn-generate-all {
-        padding: 0.75rem 2rem;
-        font-size: 1rem;
-        font-weight: 600;
-    }
-
-    .warning-details {
-        font-size: 0.75rem;
-        color: #92400e;
-        margin-top: 0.25rem;
-    }
-
-    .retry-btn {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.75rem;
-    }
-
-    .preview-btn {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.75rem;
-    }
-
-    .preview-section {
-        border: 1px solid #dee2e6;
-        border-radius: 0.5rem;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        background: #f8f9fa;
-    }
-
-    .preview-section-header {
-        font-weight: 600;
-        color: #495057;
-        margin-bottom: 0.75rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid #dee2e6;
-    }
-
-    .preview-section-outstanding { border-left: 4px solid #6366f1; }
-    .preview-section-previous { border-left: 4px solid #f59e0b; }
-    .preview-section-current { border-left: 4px solid #10b981; }
-
-    .preview-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.25rem 0;
-    }
-
-    .preview-row-label {
-        color: #6c757d;
-    }
-
-    .preview-row-value {
-        font-weight: 500;
-    }
-
-    .preview-row-total {
-        border-top: 2px solid #dee2e6;
-        margin-top: 0.5rem;
-        padding-top: 0.5rem;
-        font-weight: 600;
-    }
-
-    .source-memo-info {
-        font-size: 0.8rem;
-        color: #6c757d;
-        background: #e9ecef;
-        padding: 0.5rem;
-        border-radius: 0.25rem;
-        margin-top: 0.5rem;
-    }
-
-    .grand-total-section {
-        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-        color: white;
-        border-radius: 0.5rem;
-        padding: 1rem;
-        text-align: center;
-    }
-
-    .grand-total-amount {
-        font-size: 1.5rem;
-        font-weight: 700;
-    }
-
-    @keyframes pulse {
-        0% { opacity: 1; }
-        50% { opacity: 0.6; }
-        100% { opacity: 1; }
-    }
-
-    .generating {
-        animation: pulse 1.5s infinite;
-    }
-
-    /* Ensure preloader displays correctly when manually triggered */
-    #preloader {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(255, 255, 255, 0.8);
-        z-index: 9999;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        transition: opacity 0.3s ease, visibility 0.3s ease;
-    }
-
-    #preloader #status {
-        width: 80px;
-        height: 80px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-</style>
 
 <!-- Main Card -->
 <div class="card">
@@ -296,7 +66,7 @@
                 </select>
             </div>
             <div class="col-md-4 d-flex align-items-end">
-                <button type="button" class="btn btn-primary w-100" id="btnPreview" onclick="loadPreview()">
+                <button type="button" class="btn btn-secondary w-100" id="btnPreview" onclick="loadPreview()">
                     <i class="ri-eye-line me-1"></i>Preview Eligible Children
                 </button>
             </div>
@@ -328,37 +98,37 @@
             <!-- Stats Cards -->
             <div class="row g-3 mb-4" id="statsCards">
                 <div class="col-md-3">
-                    <div class="stats-card stats-ready">
-                        <div class="stats-number" id="statReady">0</div>
-                        <div class="stats-label">Ready to Generate</div>
+                    <div class="card bg-success-subtle border-success text-center p-3">
+                        <div class="fs-2 fw-bold text-success" id="statReady">0</div>
+                        <div class="text-muted small">Ready to Generate</div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stats-card stats-attention">
-                        <div class="stats-number" id="statAttention">0</div>
-                        <div class="stats-label">Need Attention</div>
+                    <div class="card bg-warning-subtle border-warning text-center p-3">
+                        <div class="fs-2 fw-bold text-warning" id="statAttention">0</div>
+                        <div class="text-muted small">Need Attention</div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stats-card stats-blocked">
-                        <div class="stats-number" id="statBlocked">0</div>
-                        <div class="stats-label">Cannot Generate</div>
+                    <div class="card bg-danger-subtle border-danger text-center p-3">
+                        <div class="fs-2 fw-bold text-danger" id="statBlocked">0</div>
+                        <div class="text-muted small">Cannot Generate</div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stats-card stats-existing">
-                        <div class="stats-number" id="statExisting">0</div>
-                        <div class="stats-label">Already Generated</div>
+                    <div class="card bg-info-subtle border-info text-center p-3">
+                        <div class="fs-2 fw-bold text-info" id="statExisting">0</div>
+                        <div class="text-muted small">Already Generated</div>
                     </div>
                 </div>
             </div>
 
             <!-- Action Buttons -->
             <div class="d-flex justify-content-center gap-3 mb-4" id="actionButtons">
-                <button type="button" class="btn btn-success btn-generate-all" id="btnGenerateReady" onclick="generateMemos(false)">
+                <button type="button" class="btn btn-success btn-lg fw-semibold px-4" id="btnGenerateReady" onclick="generateMemos(false)">
                     <i class="ri-play-circle-line me-1"></i>Generate Ready (<span id="readyCount">0</span>)
                 </button>
-                <button type="button" class="btn btn-warning btn-generate-all" id="btnGenerateAll" onclick="generateMemos(true)" style="display: none;">
+                <button type="button" class="btn btn-warning btn-lg fw-semibold px-4" id="btnGenerateAll" onclick="generateMemos(true)" style="display: none;">
                     <i class="ri-flashlight-line me-1"></i>Force Generate All (<span id="allCount">0</span>)
                 </button>
             </div>
@@ -385,15 +155,15 @@
             <div class="row g-3" id="childrenLists">
                 <!-- Ready to Generate -->
                 <div class="col-12">
-                    <div class="section-card border">
-                        <div class="section-header section-header-ready">
-                            <span><i class="ri-checkbox-circle-line me-2"></i>Ready to Generate</span>
+                    <div class="card border">
+                        <div class="card-header bg-success-subtle d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold text-success"><i class="ri-checkbox-circle-line me-2"></i>Ready to Generate</span>
                             <span class="badge bg-success" id="badgeReady">0</span>
                         </div>
-                        <div class="section-body" id="listReady">
-                            <div class="empty-state">
-                                <i class="ri-user-search-line"></i>
-                                <p>Click "Preview" to load eligible children</p>
+                        <div class="card-body p-0" id="listReady" style="max-height: 300px; overflow-y: auto;">
+                            <div class="text-center py-5 text-muted">
+                                <i class="ri-user-search-line display-4 opacity-50 mb-3 d-block"></i>
+                                <p class="mb-0">Click "Preview" to load eligible children</p>
                             </div>
                         </div>
                     </div>
@@ -401,15 +171,15 @@
 
                 <!-- Need Attention -->
                 <div class="col-12">
-                    <div class="section-card border">
-                        <div class="section-header section-header-attention">
-                            <span><i class="ri-alert-line me-2"></i>Need Attention (Missing Attendance)</span>
+                    <div class="card border">
+                        <div class="card-header bg-warning-subtle d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold text-warning"><i class="ri-alert-line me-2"></i>Need Attention (Missing Attendance)</span>
                             <span class="badge bg-warning text-dark" id="badgeAttention">0</span>
                         </div>
-                        <div class="section-body" id="listAttention">
-                            <div class="empty-state">
-                                <i class="ri-file-warning-line"></i>
-                                <p>No children with attendance issues</p>
+                        <div class="card-body p-0" id="listAttention" style="max-height: 300px; overflow-y: auto;">
+                            <div class="text-center py-5 text-muted">
+                                <i class="ri-file-warning-line display-4 opacity-50 mb-3 d-block"></i>
+                                <p class="mb-0">No children with attendance issues</p>
                             </div>
                         </div>
                     </div>
@@ -417,15 +187,15 @@
 
                 <!-- Cannot Generate -->
                 <div class="col-12">
-                    <div class="section-card border">
-                        <div class="section-header section-header-blocked">
-                            <span><i class="ri-close-circle-line me-2"></i>Cannot Generate (Blocking Issues)</span>
+                    <div class="card border">
+                        <div class="card-header bg-danger-subtle d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold text-danger"><i class="ri-close-circle-line me-2"></i>Cannot Generate (Blocking Issues)</span>
                             <span class="badge bg-danger" id="badgeBlocked">0</span>
                         </div>
-                        <div class="section-body" id="listBlocked">
-                            <div class="empty-state">
-                                <i class="ri-shield-check-line"></i>
-                                <p>No blocking issues found</p>
+                        <div class="card-body p-0" id="listBlocked" style="max-height: 300px; overflow-y: auto;">
+                            <div class="text-center py-5 text-muted">
+                                <i class="ri-shield-check-line display-4 opacity-50 mb-3 d-block"></i>
+                                <p class="mb-0">No blocking issues found</p>
                             </div>
                         </div>
                     </div>
@@ -466,84 +236,92 @@
                     </div>
 
                     <!-- Month 1: Outstanding -->
-                    <div class="preview-section preview-section-outstanding">
-                        <div class="preview-section-header">
-                            <i class="ri-history-line me-1"></i>
-                            <span id="month1Title">Outstanding (Month 1)</span>
-                        </div>
-                        <div class="preview-row">
-                            <span class="preview-row-label">Balance Brought Forward:</span>
-                            <span class="preview-row-value" id="month1Balance">Rs. 0.00</span>
-                        </div>
-                        <div class="preview-row">
-                            <span class="preview-row-label">Status:</span>
-                            <span class="preview-row-value" id="month1Status">-</span>
-                        </div>
-                        <div class="source-memo-info" id="month1SourceInfo" style="display: none;">
-                            <i class="ri-information-line me-1"></i>
-                            <span id="month1SourceText">-</span>
+                    <div class="card bg-light border-start border-primary border-4 mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title border-bottom pb-2 mb-3">
+                                <i class="ri-history-line me-1"></i>
+                                <span id="month1Title">Outstanding (Month 1)</span>
+                            </h6>
+                            <div class="d-flex justify-content-between py-1">
+                                <span class="text-muted">Balance Brought Forward:</span>
+                                <span class="fw-medium" id="month1Balance">Rs. 0.00</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-1">
+                                <span class="text-muted">Status:</span>
+                                <span class="fw-medium" id="month1Status">-</span>
+                            </div>
+                            <div class="alert alert-secondary py-2 mt-2 small" id="month1SourceInfo" style="display: none;">
+                                <i class="ri-information-line me-1"></i>
+                                <span id="month1SourceText">-</span>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Month 2: Previous (Calculated) -->
-                    <div class="preview-section preview-section-previous">
-                        <div class="preview-section-header">
-                            <i class="ri-calculator-line me-1"></i>
-                            <span id="month2Title">Previous Month Charges (Month 2)</span>
-                        </div>
-                        <div class="preview-row">
-                            <span class="preview-row-label">Package:</span>
-                            <span class="preview-row-value" id="month2Package">-</span>
-                        </div>
-                        <div class="preview-row">
-                            <span class="preview-row-label">Package Fee:</span>
-                            <span class="preview-row-value" id="month2PackageFee">Rs. 0.00</span>
-                        </div>
-                        <div class="preview-row">
-                            <span class="preview-row-label">Extra Hours Charges:</span>
-                            <span class="preview-row-value" id="month2ExtraHours">Rs. 0.00</span>
-                        </div>
-                        <div class="preview-row">
-                            <span class="preview-row-label">Holiday Charges:</span>
-                            <span class="preview-row-value" id="month2HolidayCharges">Rs. 0.00</span>
-                        </div>
-                        <div class="preview-row">
-                            <span class="preview-row-label">Discount:</span>
-                            <span class="preview-row-value text-success" id="month2Discount">- Rs. 0.00</span>
-                        </div>
-                        <div class="preview-row preview-row-total">
-                            <span class="preview-row-label">Total Charge:</span>
-                            <span class="preview-row-value" id="month2Total">Rs. 0.00</span>
-                        </div>
-                        <div class="mt-2 small text-muted">
-                            <span id="month2AttendanceInfo">-</span>
+                    <div class="card bg-light border-start border-warning border-4 mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title border-bottom pb-2 mb-3">
+                                <i class="ri-calculator-line me-1"></i>
+                                <span id="month2Title">Previous Month Charges (Month 2)</span>
+                            </h6>
+                            <div class="d-flex justify-content-between py-1">
+                                <span class="text-muted">Package:</span>
+                                <span class="fw-medium" id="month2Package">-</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-1">
+                                <span class="text-muted">Package Fee:</span>
+                                <span class="fw-medium" id="month2PackageFee">Rs. 0.00</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-1">
+                                <span class="text-muted">Extra Hours Charges:</span>
+                                <span class="fw-medium" id="month2ExtraHours">Rs. 0.00</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-1">
+                                <span class="text-muted">Holiday Charges:</span>
+                                <span class="fw-medium" id="month2HolidayCharges">Rs. 0.00</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-1">
+                                <span class="text-muted">Discount:</span>
+                                <span class="fw-medium text-success" id="month2Discount">- Rs. 0.00</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-1 border-top mt-2 pt-2 fw-semibold">
+                                <span>Total Charge:</span>
+                                <span id="month2Total">Rs. 0.00</span>
+                            </div>
+                            <div class="mt-2 small text-muted">
+                                <span id="month2AttendanceInfo">-</span>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Month 3: Current (Advance) -->
-                    <div class="preview-section preview-section-current">
-                        <div class="preview-section-header">
-                            <i class="ri-calendar-check-line me-1"></i>
-                            <span id="month3Title">Current Month Advance (Month 3)</span>
-                        </div>
-                        <div class="preview-row">
-                            <span class="preview-row-label">Package:</span>
-                            <span class="preview-row-value" id="month3Package">-</span>
-                        </div>
-                        <div class="preview-row">
-                            <span class="preview-row-label">Package Fee (Advance):</span>
-                            <span class="preview-row-value" id="month3PackageFee">Rs. 0.00</span>
-                        </div>
-                        <div class="preview-row preview-row-total">
-                            <span class="preview-row-label">Total Charge:</span>
-                            <span class="preview-row-value" id="month3Total">Rs. 0.00</span>
+                    <div class="card bg-light border-start border-success border-4 mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title border-bottom pb-2 mb-3">
+                                <i class="ri-calendar-check-line me-1"></i>
+                                <span id="month3Title">Current Month Advance (Month 3)</span>
+                            </h6>
+                            <div class="d-flex justify-content-between py-1">
+                                <span class="text-muted">Package:</span>
+                                <span class="fw-medium" id="month3Package">-</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-1">
+                                <span class="text-muted">Package Fee (Advance):</span>
+                                <span class="fw-medium" id="month3PackageFee">Rs. 0.00</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-1 border-top mt-2 pt-2 fw-semibold">
+                                <span>Total Charge:</span>
+                                <span id="month3Total">Rs. 0.00</span>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Grand Total -->
-                    <div class="grand-total-section">
-                        <div class="mb-1">Total Amount Due</div>
-                        <div class="grand-total-amount" id="grandTotal">Rs. 0.00</div>
+                    <div class="card bg-primary text-white text-center">
+                        <div class="card-body py-3">
+                            <div class="mb-1">Total Amount Due</div>
+                            <div class="fs-4 fw-bold" id="grandTotal">Rs. 0.00</div>
+                        </div>
                     </div>
                 </div>
 
@@ -554,7 +332,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-success" id="btnGenerateFromPreview" onclick="generateFromPreview()">
                     <i class="ri-play-line me-1"></i>Generate Memo
                 </button>
@@ -567,7 +345,7 @@
 <div class="modal fade zoomIn" id="confirmGenerateModal" tabindex="-1" aria-labelledby="confirmGenerateModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0">
-            <div class="modal-header p-3 bg-primary-subtle">
+            <div class="modal-header p-3 bg-secondary-subtle">
                 <h5 class="modal-title" id="confirmGenerateModalLabel">
                     <i class="ri-file-list-3-line me-2"></i>Confirm Memo Generation
                 </h5>
@@ -575,7 +353,7 @@
             </div>
             <div class="modal-body">
                 <div class="text-center mb-3">
-                    <i class="ri-questionnaire-line text-primary" style="font-size: 3rem;"></i>
+                    <i class="ri-questionnaire-line text-primary display-4"></i>
                 </div>
                 <p class="text-center mb-3" id="confirmGenerateMessage">
                     Are you sure you want to generate memos?
@@ -701,17 +479,17 @@
 
         if (children.length === 0) {
             container.html(`
-                <div class="empty-state">
-                    <i class="ri-checkbox-circle-line"></i>
-                    <p>No children ready for generation</p>
+                <div class="text-center py-5 text-muted">
+                    <i class="ri-checkbox-circle-line display-4 opacity-50 mb-3 d-block"></i>
+                    <p class="mb-0">No children ready for generation</p>
                 </div>
             `);
             return;
         }
 
         let html = `
-            <table class="table child-table mb-0">
-                <thead>
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
                     <tr>
                         <th>Admission #</th>
                         <th>Child Name</th>
@@ -728,10 +506,10 @@
                     <td>${child.name}</td>
                     <td>
                         <div class="btn-group" role="group">
-                            <button class="btn btn-info btn-sm preview-btn" onclick="previewChildMemo(${child.id}, '${child.name}', '${child.admission_number}')">
+                            <button class="btn btn-soft-info btn-sm" onclick="previewChildMemo(${child.id}, '${child.name}', '${child.admission_number}')">
                                 <i class="ri-eye-line"></i> Preview
                             </button>
-                            <button class="btn btn-success btn-sm retry-btn" onclick="generateSingle(${child.id}, false, this)">
+                            <button class="btn btn-soft-success btn-sm" onclick="generateSingle(${child.id}, false, this)">
                                 <i class="ri-play-line"></i> Generate
                             </button>
                         </div>
@@ -749,17 +527,17 @@
 
         if (children.length === 0) {
             container.html(`
-                <div class="empty-state">
-                    <i class="ri-checkbox-circle-line"></i>
-                    <p>No attendance issues found</p>
+                <div class="text-center py-5 text-muted">
+                    <i class="ri-checkbox-circle-line display-4 opacity-50 mb-3 d-block"></i>
+                    <p class="mb-0">No attendance issues found</p>
                 </div>
             `);
             return;
         }
 
         let html = `
-            <table class="table child-table mb-0">
-                <thead>
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
                     <tr>
                         <th>Admission #</th>
                         <th>Child Name</th>
@@ -778,7 +556,7 @@
                     <td>${child.name}</td>
                     <td><span class="text-warning"><i class="ri-alert-line me-1"></i>${warnings}</span></td>
                     <td>
-                        <button class="btn btn-warning btn-sm retry-btn" onclick="generateSingle(${child.id}, true, this)">
+                        <button class="btn btn-soft-warning btn-sm" onclick="generateSingle(${child.id}, true, this)">
                             <i class="ri-flashlight-line"></i> Force
                         </button>
                     </td>
@@ -795,17 +573,17 @@
 
         if (children.length === 0) {
             container.html(`
-                <div class="empty-state">
-                    <i class="ri-shield-check-line"></i>
-                    <p>No blocking issues found</p>
+                <div class="text-center py-5 text-muted">
+                    <i class="ri-shield-check-line display-4 opacity-50 mb-3 d-block"></i>
+                    <p class="mb-0">No blocking issues found</p>
                 </div>
             `);
             return;
         }
 
         let html = `
-            <table class="table child-table mb-0">
-                <thead>
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
                     <tr>
                         <th>Admission #</th>
                         <th>Child Name</th>
@@ -1018,14 +796,14 @@
 
             if (results.details.generated.length > 0) {
                 detailsHtml += `
-                    <div class="section-card border mt-3">
-                        <div class="section-header section-header-ready">
-                            <span><i class="ri-checkbox-circle-line me-2"></i>Successfully Generated</span>
+                    <div class="card border mt-3">
+                        <div class="card-header bg-success-subtle d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold text-success"><i class="ri-checkbox-circle-line me-2"></i>Successfully Generated</span>
                             <span class="badge bg-success">${results.details.generated.length}</span>
                         </div>
-                        <div class="section-body">
-                            <table class="table child-table mb-0">
-                                <thead>
+                        <div class="card-body p-0">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
                                     <tr>
                                         <th>Admission #</th>
                                         <th>Child Name</th>
@@ -1038,7 +816,7 @@
 
                 results.details.generated.forEach(item => {
                     detailsHtml += `
-                        <tr class="success">
+                        <tr class="table-success">
                             <td><code>${item.admission_number}</code></td>
                             <td>${item.name}</td>
                             <td><span class="badge bg-primary">${item.memo_code}</span></td>
@@ -1052,14 +830,14 @@
 
             if (results.details.skipped.length > 0) {
                 detailsHtml += `
-                    <div class="section-card border mt-3">
-                        <div class="section-header section-header-attention">
-                            <span><i class="ri-skip-forward-line me-2"></i>Skipped</span>
+                    <div class="card border mt-3">
+                        <div class="card-header bg-warning-subtle d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold text-warning"><i class="ri-skip-forward-line me-2"></i>Skipped</span>
                             <span class="badge bg-warning text-dark">${results.details.skipped.length}</span>
                         </div>
-                        <div class="section-body">
-                            <table class="table child-table mb-0">
-                                <thead>
+                        <div class="card-body p-0">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
                                     <tr>
                                         <th>Admission #</th>
                                         <th>Child Name</th>
@@ -1073,13 +851,13 @@
                 results.details.skipped.forEach(item => {
                     const canRetry = item.can_force || item.type === 'warning';
                     detailsHtml += `
-                        <tr class="skipped" id="row-skipped-${item.id}">
+                        <tr class="table-warning" id="row-skipped-${item.id}">
                             <td><code>${item.admission_number}</code></td>
                             <td>${item.name}</td>
                             <td><span class="text-warning">${item.reason}</span></td>
                             <td>
                                 ${canRetry ? `
-                                    <button class="btn btn-warning btn-sm retry-btn" onclick="generateSingle(${item.id}, true, this)">
+                                    <button class="btn btn-soft-warning btn-sm" onclick="generateSingle(${item.id}, true, this)">
                                         <i class="ri-refresh-line"></i> Retry
                                     </button>
                                 ` : ''}
@@ -1093,14 +871,14 @@
 
             if (results.details.failed.length > 0) {
                 detailsHtml += `
-                    <div class="section-card border mt-3">
-                        <div class="section-header section-header-blocked">
-                            <span><i class="ri-close-circle-line me-2"></i>Failed</span>
+                    <div class="card border mt-3">
+                        <div class="card-header bg-danger-subtle d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold text-danger"><i class="ri-close-circle-line me-2"></i>Failed</span>
                             <span class="badge bg-danger">${results.details.failed.length}</span>
                         </div>
-                        <div class="section-body">
-                            <table class="table child-table mb-0">
-                                <thead>
+                        <div class="card-body p-0">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
                                     <tr>
                                         <th>Admission #</th>
                                         <th>Child Name</th>
@@ -1113,12 +891,12 @@
 
                 results.details.failed.forEach(item => {
                     detailsHtml += `
-                        <tr class="failed" id="row-failed-${item.id}">
+                        <tr class="table-danger" id="row-failed-${item.id}">
                             <td><code>${item.admission_number}</code></td>
                             <td>${item.name}</td>
                             <td><span class="text-danger">${item.error}</span></td>
                             <td>
-                                <button class="btn btn-danger btn-sm retry-btn" onclick="generateSingle(${item.id}, true, this)">
+                                <button class="btn btn-soft-danger btn-sm" onclick="generateSingle(${item.id}, true, this)">
                                     <i class="ri-refresh-line"></i> Retry
                                 </button>
                             </td>
@@ -1134,7 +912,7 @@
             // Add refresh button
             $('#resultsContainer').append(`
                 <div class="text-center mt-4">
-                    <button class="btn btn-primary" onclick="loadPreview()">
+                    <button class="btn btn-secondary" onclick="loadPreview()">
                         <i class="ri-refresh-line me-1"></i>Refresh Preview
                     </button>
                 </div>
