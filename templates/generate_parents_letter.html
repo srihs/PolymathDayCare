@@ -1,0 +1,621 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block PageTitle %}Fee Revision Letters{% endblock %}
+{% block UserName %}{{ UserName }}{% endblock %}
+{% block Title %}TRANSACTION FILES{% endblock %}
+{% block functionTitle %}FEE REVISION LETTERS{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Messages Alert -->
+        <div class="alert-container">
+            {% if messages %}
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible border-2 bg-body-secondary fade show" role="alert">
+                    <strong><center>{{ message }}</center></strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <!-- Main Card -->
+        <div class="card">
+            <div class="card-header border-0">
+                <div class="d-flex align-items-center">
+                    <h5 class="card-title mb-0 flex-grow-1">
+                        <i class="ri-mail-send-line me-2"></i>Fee Revision Letter Generation
+                    </h5>
+                    <div class="flex-shrink-0">
+                        <button type="button" class="btn btn-success" id="generateBulkBtn" disabled>
+                            <i class="ri-download-2-line me-1"></i>Generate Selected Letters
+                        </button>
+                        <button type="button" class="btn btn-primary ms-2" id="generateAllBtn">
+                            <i class="ri-file-download-line me-1"></i>Generate All Letters
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Info Alert -->
+                <div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
+                    <div class="d-flex">
+                        <div class="flex-shrink-0">
+                            <i class="ri-information-line fs-20 me-2"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <strong>About Fee Revision Letters</strong>
+                            <p class="mb-0 mt-1">
+                                This tool generates PDF letters to notify parents about upcoming package price changes.
+                                Only children with active attendance in the last 2 months are displayed.
+                                Letters include the child's current package and the revised fee amount.
+                            </p>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                </div>
+
+                <!-- Statistics Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card card-animate bg-primary-subtle border-0">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="flex-grow-1">
+                                        <p class="text-uppercase fw-medium text-primary mb-0">Total Eligible</p>
+                                        <h4 class="fs-22 fw-semibold mb-0">
+                                            <span id="totalEligibleCount">0</span>
+                                        </h4>
+                                    </div>
+                                    <div class="flex-shrink-0">
+                                        <div class="avatar-sm">
+                                            <span class="avatar-title bg-primary rounded-circle fs-3">
+                                                <i class="ri-team-line"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card card-animate bg-success-subtle border-0">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="flex-grow-1">
+                                        <p class="text-uppercase fw-medium text-success mb-0">With Price Revision</p>
+                                        <h4 class="fs-22 fw-semibold mb-0">
+                                            <span id="withRevisionCount">0</span>
+                                        </h4>
+                                    </div>
+                                    <div class="flex-shrink-0">
+                                        <div class="avatar-sm">
+                                            <span class="avatar-title bg-success rounded-circle fs-3">
+                                                <i class="ri-exchange-dollar-line"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card card-animate bg-warning-subtle border-0">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="flex-grow-1">
+                                        <p class="text-uppercase fw-medium text-warning mb-0">Selected</p>
+                                        <h4 class="fs-22 fw-semibold mb-0">
+                                            <span id="selectedCount">0</span>
+                                        </h4>
+                                    </div>
+                                    <div class="flex-shrink-0">
+                                        <div class="avatar-sm">
+                                            <span class="avatar-title bg-warning rounded-circle fs-3">
+                                                <i class="ri-checkbox-multiple-line"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card card-animate bg-info-subtle border-0">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="flex-grow-1">
+                                        <p class="text-uppercase fw-medium text-info mb-0">Letter Date</p>
+                                        <h4 class="fs-22 fw-semibold mb-0">
+                                            <span id="currentDate"></span>
+                                        </h4>
+                                    </div>
+                                    <div class="flex-shrink-0">
+                                        <div class="avatar-sm">
+                                            <span class="avatar-title bg-info rounded-circle fs-3">
+                                                <i class="ri-calendar-2-line"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Children DataTable -->
+                <div class="table-responsive">
+                    <table id="eligibleChildrenTable" class="table table-striped table-hover" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" id="selectAllChildren"
+                                               aria-label="Select all children">
+                                    </div>
+                                </th>
+                                <th>Admission No.</th>
+                                <th>Child Name</th>
+                                <th>Parent Name</th>
+                                <th>Package</th>
+                                <th class="text-end">Current Price (Rs.)</th>
+                                <th class="text-end">Revised Price (Rs.)</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center" style="width: 120px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- DataTables will populate this -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty state -->
+                <div id="noChildrenFound" class="text-center py-5 d-none">
+                    <i class="ri-user-search-line display-3 text-muted opacity-50 mb-3 d-block"></i>
+                    <h5 class="text-muted">No Eligible Children Found</h5>
+                    <p class="text-muted mb-0">
+                        No children have active attendance records in the last 2 months.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- Preview Modal -->
+<div class="modal fade zoomIn" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header p-3 bg-secondary-subtle">
+                <h5 class="modal-title" id="previewModalLabel">
+                    <i class="ri-file-text-line me-2"></i>Letter Preview
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <iframe id="previewFrame" style="width: 100%; height: 70vh; border: none;"></iframe>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="downloadFromPreviewBtn">
+                    <i class="ri-download-line me-1"></i>Download
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Bulk Generation Modal -->
+<div class="modal fade zoomIn" id="confirmBulkModal" tabindex="-1" aria-labelledby="confirmBulkModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header p-3 bg-success-subtle">
+                <h5 class="modal-title" id="confirmBulkModalLabel">
+                    <i class="ri-file-download-line me-2"></i>Generate Letters
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <i class="ri-mail-send-line display-4 text-success"></i>
+                </div>
+                <p class="text-center">
+                    You are about to generate fee revision letters.
+                </p>
+                <p class="text-muted text-center mb-0">
+                    <strong id="bulkCountText">0</strong> letters will be generated in a single PDF document.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmBulkGenerateBtn">
+                    <i class="ri-download-line me-1"></i>Generate PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0">
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <h5 class="mb-0">Generating PDF...</h5>
+                <p class="text-muted mb-0">Please wait while the letters are being generated.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notification Modal -->
+<div class="modal fade zoomIn" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header p-3" id="notificationModalHeader">
+                <h5 class="modal-title" id="notificationModalLabel">
+                    <span id="notificationModalIcon"></span>
+                    <span id="notificationModalTitle">Notification</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <div id="notificationModalIconLarge" class="mb-3 display-3"></div>
+                <p class="mb-0" id="notificationModalMessage">Message here</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- jQuery -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<!-- DataTables JS -->
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+
+<script src="{% static 'assets/js/pages/datatables.init.js' %}"></script>
+<script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
+<script src="{% static 'assets/libs/feather-icons/feather.min.js' %}"></script>
+<script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
+
+<script>
+var $ = jQuery;
+var eligibleChildrenTable;
+var selectedChildren = [];
+var currentPreviewChildId = null;
+
+// Initialize on document ready
+jQuery(document).ready(function() {
+    setCurrentDate();
+    initializeDataTable();
+    setupEventHandlers();
+    fadeOutMessages();
+});
+
+// Set current date display
+function setCurrentDate() {
+    var today = new Date();
+    var options = { day: '2-digit', month: 'short', year: 'numeric' };
+    jQuery('#currentDate').text(today.toLocaleDateString('en-GB', options));
+}
+
+// Initialize DataTable
+function initializeDataTable() {
+    eligibleChildrenTable = jQuery('#eligibleChildrenTable').DataTable({
+        responsive: true,
+        ajax: {
+            url: "{% url 'transactions:eligible_children_js' %}",
+            dataSrc: function(json) {
+                updateStatistics(json);
+                if (json.length === 0) {
+                    jQuery('#noChildrenFound').removeClass('d-none');
+                    jQuery('#eligibleChildrenTable').addClass('d-none');
+                } else {
+                    jQuery('#noChildrenFound').addClass('d-none');
+                    jQuery('#eligibleChildrenTable').removeClass('d-none');
+                }
+                return json;
+            },
+            error: function(xhr, error, thrown) {
+                console.error('Error loading children:', error);
+                showNotificationModal('error', 'Error', 'Failed to load eligible children.');
+            }
+        },
+        columns: [
+            {
+                data: null,
+                orderable: false,
+                className: 'dt-center',
+                render: function(data, type, row) {
+                    return '<div class="form-check"><input type="checkbox" class="form-check-input child-checkbox" ' +
+                           'data-id="' + row.id + '" ' +
+                           'aria-label="Select ' + row.name + '"></div>';
+                }
+            },
+            { data: "admission_number" },
+            {
+                data: "name",
+                render: function(data, type, row) {
+                    return '<span class="fw-medium">' + data + '</span>';
+                }
+            },
+            { data: "parent_name" },
+            {
+                data: "package_name",
+                render: function(data) {
+                    if (data === "N/A") {
+                        return '<span class="text-muted">' + data + '</span>';
+                    }
+                    return data;
+                }
+            },
+            {
+                data: "current_price",
+                className: 'text-end',
+                render: function(data) {
+                    return parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2});
+                }
+            },
+            {
+                data: "revised_price",
+                className: 'text-end',
+                render: function(data, type, row) {
+                    var formatted = parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2});
+                    if (row.has_revision && data > row.current_price) {
+                        return '<span class="text-danger fw-medium">' + formatted + '</span>';
+                    } else if (row.has_revision && data < row.current_price) {
+                        return '<span class="text-success fw-medium">' + formatted + '</span>';
+                    }
+                    return formatted;
+                }
+            },
+            {
+                data: "has_revision",
+                className: 'text-center',
+                render: function(data) {
+                    if (data) {
+                        return '<span class="badge bg-success-subtle text-success">Price Revised</span>';
+                    }
+                    return '<span class="badge bg-secondary-subtle text-secondary">No Change</span>';
+                }
+            },
+            {
+                data: null,
+                orderable: false,
+                className: 'text-center',
+                render: function(data, type, row) {
+                    return '<div class="btn-group btn-group-sm">' +
+                           '<button type="button" class="btn btn-soft-info preview-btn" ' +
+                           'data-id="' + row.id + '" data-name="' + row.name + '" title="Preview">' +
+                           '<i class="ri-eye-line"></i></button>' +
+                           '<button type="button" class="btn btn-soft-primary download-btn" ' +
+                           'data-id="' + row.id + '" data-name="' + row.name + '" title="Download">' +
+                           '<i class="ri-download-line"></i></button>' +
+                           '</div>';
+                }
+            }
+        ],
+        dom: 'Bfrtip',
+        pageLength: 25,
+        buttons: ["excel", "print"],
+        order: [[2, "asc"]],
+        language: {
+            emptyTable: "No eligible children found"
+        }
+    });
+}
+
+// Update statistics
+function updateStatistics(data) {
+    var total = data.length;
+    var withRevision = data.filter(function(item) { return item.has_revision; }).length;
+
+    jQuery('#totalEligibleCount').text(total);
+    jQuery('#withRevisionCount').text(withRevision);
+
+    // Enable/disable generate all button
+    jQuery('#generateAllBtn').prop('disabled', total === 0);
+}
+
+// Update selected count
+function updateSelectedCount() {
+    selectedChildren = [];
+    jQuery('.child-checkbox:checked').each(function() {
+        selectedChildren.push(jQuery(this).data('id'));
+    });
+
+    jQuery('#selectedCount').text(selectedChildren.length);
+    jQuery('#generateBulkBtn').prop('disabled', selectedChildren.length === 0);
+}
+
+// Setup Event Handlers
+function setupEventHandlers() {
+    // Select All checkbox
+    jQuery('#selectAllChildren').on('change', function() {
+        var isChecked = this.checked;
+        jQuery('.child-checkbox').prop('checked', isChecked);
+        updateSelectedCount();
+    });
+
+    // Individual checkbox change
+    jQuery('#eligibleChildrenTable').on('change', '.child-checkbox', function() {
+        updateSelectedCount();
+        var allChecked = jQuery('.child-checkbox:checked').length === jQuery('.child-checkbox').length;
+        jQuery('#selectAllChildren').prop('checked', allChecked);
+    });
+
+    // Preview button click
+    jQuery('#eligibleChildrenTable').on('click', '.preview-btn', function() {
+        var childId = jQuery(this).data('id');
+        var childName = jQuery(this).data('name');
+        previewLetter(childId, childName);
+    });
+
+    // Download button click
+    jQuery('#eligibleChildrenTable').on('click', '.download-btn', function() {
+        var childId = jQuery(this).data('id');
+        downloadIndividualLetter(childId);
+    });
+
+    // Generate Selected Letters button
+    jQuery('#generateBulkBtn').on('click', function() {
+        if (selectedChildren.length === 0) {
+            showNotificationModal('warning', 'No Selection', 'Please select at least one child.');
+            return;
+        }
+        jQuery('#bulkCountText').text(selectedChildren.length);
+        var modal = new bootstrap.Modal(document.getElementById('confirmBulkModal'));
+        modal.show();
+    });
+
+    // Generate All Letters button
+    jQuery('#generateAllBtn').on('click', function() {
+        var totalCount = parseInt(jQuery('#totalEligibleCount').text());
+        if (totalCount === 0) {
+            showNotificationModal('warning', 'No Children', 'No eligible children found.');
+            return;
+        }
+        jQuery('#bulkCountText').text(totalCount + ' (All eligible children)');
+        selectedChildren = []; // Empty means all
+        var modal = new bootstrap.Modal(document.getElementById('confirmBulkModal'));
+        modal.show();
+    });
+
+    // Confirm Bulk Generate button
+    jQuery('#confirmBulkGenerateBtn').on('click', function() {
+        bootstrap.Modal.getInstance(document.getElementById('confirmBulkModal')).hide();
+        generateBulkLetters();
+    });
+
+    // Download from preview button
+    jQuery('#downloadFromPreviewBtn').on('click', function() {
+        if (currentPreviewChildId) {
+            downloadIndividualLetter(currentPreviewChildId);
+        }
+    });
+}
+
+// Preview letter
+function previewLetter(childId, childName) {
+    currentPreviewChildId = childId;
+    jQuery('#previewModalLabel').html('<i class="ri-file-text-line me-2"></i>Letter Preview - ' + childName);
+    jQuery('#previewFrame').attr('src', "{% url 'transactions:preview_letter' 0 %}".replace('0', childId));
+
+    var modal = new bootstrap.Modal(document.getElementById('previewModal'));
+    modal.show();
+}
+
+// Download individual letter
+function downloadIndividualLetter(childId) {
+    window.location.href = "{% url 'transactions:generate_individual_letter' 0 %}".replace('0', childId);
+}
+
+// Generate bulk letters
+function generateBulkLetters() {
+    // Create a temporary form and submit it directly (no iframe for file downloads)
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = "{% url 'transactions:generate_bulk_letters' %}";
+
+    // Add CSRF token
+    var csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrfmiddlewaretoken';
+    csrfInput.value = '{{ csrf_token }}';
+    form.appendChild(csrfInput);
+
+    // Add child IDs (empty array means all)
+    var childIdsInput = document.createElement('input');
+    childIdsInput.type = 'hidden';
+    childIdsInput.name = 'child_ids';
+    childIdsInput.value = JSON.stringify(selectedChildren);
+    form.appendChild(childIdsInput);
+
+    document.body.appendChild(form);
+    form.submit();
+
+    // Clean up form after submission
+    setTimeout(function() {
+        document.body.removeChild(form);
+    }, 1000);
+}
+
+// Show Notification Modal
+function showNotificationModal(type, title, message) {
+    var modal = document.getElementById('notificationModal');
+    var header = document.getElementById('notificationModalHeader');
+    var iconLarge = document.getElementById('notificationModalIconLarge');
+    var iconTitle = document.getElementById('notificationModalIcon');
+    var titleEl = document.getElementById('notificationModalTitle');
+    var messageEl = document.getElementById('notificationModalMessage');
+
+    // Reset classes
+    header.className = 'modal-header p-3';
+
+    if (type === 'success') {
+        header.classList.add('bg-success-subtle');
+        iconTitle.innerHTML = '<i class="ri-checkbox-circle-line me-2"></i>';
+        iconLarge.innerHTML = '<i class="ri-checkbox-circle-fill text-success"></i>';
+    } else if (type === 'error') {
+        header.classList.add('bg-danger-subtle');
+        iconTitle.innerHTML = '<i class="ri-error-warning-line me-2"></i>';
+        iconLarge.innerHTML = '<i class="ri-error-warning-fill text-danger"></i>';
+    } else if (type === 'warning') {
+        header.classList.add('bg-warning-subtle');
+        iconTitle.innerHTML = '<i class="ri-alert-line me-2"></i>';
+        iconLarge.innerHTML = '<i class="ri-alert-fill text-warning"></i>';
+    } else {
+        header.classList.add('bg-info-subtle');
+        iconTitle.innerHTML = '<i class="ri-information-line me-2"></i>';
+        iconLarge.innerHTML = '<i class="ri-information-fill text-info"></i>';
+    }
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+
+    var bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+}
+
+// Fade out success messages
+function fadeOutMessages() {
+    window.setTimeout(function() {
+        var alertDiv = jQuery(".alert");
+        var successMessageFound = alertDiv.find('.alert-success').length > 0 || alertDiv.hasClass('alert-success');
+
+        if (successMessageFound) {
+            alertDiv.fadeTo(1000, 0).slideUp(1000, function() {
+                jQuery(this).remove();
+            });
+        }
+    }, 3000);
+}
+</script>
+
+<!-- App js -->
+<script src="{% static 'assets/js/app.js' %}"></script>
+{% endblock %}

@@ -8,6 +8,39 @@
 {% block functionTitle %}DASHBOARD{% endblock %}
 
 {% block content %}
+<!-- Alert for Due Price Revisions -->
+{% if due_price_revisions_count > 0 %}
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-warning alert-dismissible alert-label-icon rounded-label fade show mb-4" role="alert">
+            <i class="ri-error-warning-line label-icon"></i>
+            <strong>Price Revision Alert!</strong>
+            {{ due_price_revisions_count }} package price revision{{ due_price_revisions_count|pluralize }}
+            {% if due_price_revisions_count == 1 %}is{% else %}are{% endif %} due to be applied.
+            <a href="{% url 'transactions:package_price_changes' %}" class="alert-link fw-semibold ms-2">
+                Apply Now <i class="ri-arrow-right-line"></i>
+            </a>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+{% elif pending_price_revisions_count > 0 %}
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-info alert-dismissible alert-label-icon rounded-label fade show mb-4" role="alert">
+            <i class="ri-information-line label-icon"></i>
+            <strong>Upcoming Price Changes:</strong>
+            {{ pending_price_revisions_count }} package price revision{{ pending_price_revisions_count|pluralize }}
+            {% if pending_price_revisions_count == 1 %}is{% else %}are{% endif %} scheduled.
+            <a href="{% url 'transactions:package_price_changes' %}" class="alert-link fw-semibold ms-2">
+                View Details <i class="ri-arrow-right-line"></i>
+            </a>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <style>
     /* Dashboard-specific styles */
     .dashboard-card {

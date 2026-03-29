@@ -109,6 +109,7 @@ from .models import (
     PaymentTransaction,
     TimeAdjustmentRequest,
 )
+from transactions.models import PackagePriceRevision
 
 # Authentication and Basic Utility Functions
 
@@ -228,6 +229,36 @@ def index(request):
         .count()
     )
 
+    # 9. Pending Approvals
+    pending_enrollments = ChildEnrollment.objects.filter(
+        status="PENDING_APPROVAL", is_active=True
+    ).count()
+    pending_discounts = Discount.objects.filter(
+        status="PENDING_APPROVAL", is_active=True
+    ).count()
+    pending_package_changes = PackageChangerequest.objects.filter(
+        status="PENDING_APPROVAL", is_active=True
+    ).count()
+    pending_center_changes = CenterChangerequest.objects.filter(
+        status="PENDING_APPROVAL", is_active=True
+    ).count()
+    total_pending_approvals = (
+        pending_enrollments
+        + pending_discounts
+        + pending_package_changes
+        + pending_center_changes
+    )
+
+    # 10. Pending Price Revisions - Alert for due price changes
+    pending_price_revisions = PackagePriceRevision.objects.filter(
+        is_active=True, is_applied=False
+    )
+    due_price_revisions = pending_price_revisions.filter(
+        effective_from__lte=today
+    )
+    due_price_revisions_count = due_price_revisions.count()
+    pending_price_revisions_count = pending_price_revisions.count()
+
     # Prepare context for template
     context = {
         "UserName": UserName,
@@ -246,6 +277,15 @@ def index(request):
         # Inactive children
         "inactive_children": inactive_children,
         "inactive_children_count": inactive_children_count,
+        # Pending approvals
+        "pending_enrollments": pending_enrollments,
+        "pending_discounts": pending_discounts,
+        "pending_package_changes": pending_package_changes,
+        "pending_center_changes": pending_center_changes,
+        "total_pending_approvals": total_pending_approvals,
+        # Pending price revisions
+        "due_price_revisions_count": due_price_revisions_count,
+        "pending_price_revisions_count": pending_price_revisions_count,
         # Date info
         "current_month_name": today.strftime("%B"),
         "current_year": current_year,
