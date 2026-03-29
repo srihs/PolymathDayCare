@@ -337,7 +337,7 @@ class FeeRevisionLetterService:
     def _get_logo_path(self) -> Optional[str]:
         """Get the path to the Polymath College logo."""
         logo_path = os.path.join(
-            settings.BASE_DIR, "static", "assets", "images", "logo.png"
+            settings.BASE_DIR, "static", "assets", "images", "college.png"
         )
         if os.path.exists(logo_path):
             return logo_path
@@ -351,14 +351,28 @@ class FeeRevisionLetterService:
             child: The Child instance
 
         Returns:
-            str: Formatted parent name for salutation
+            str: Formatted parent name for salutation (with title prefixes removed)
         """
         # Prefer father's name, fallback to mother's name
         if child.fathers_name and child.fathers_name.strip():
-            return child.fathers_name.strip()
+            name = child.fathers_name.strip()
         elif child.mothers_name and child.mothers_name.strip():
-            return child.mothers_name.strip()
-        return "Parent/Guardian"
+            name = child.mothers_name.strip()
+        else:
+            return "Parent/Guardian"
+
+        # Remove common title prefixes if present (case-insensitive)
+        title_prefixes = [
+            "Mr.", "Mr ", "Mrs.", "Mrs ", "Ms.", "Ms ",
+            "Dr.", "Dr ", "Prof.", "Prof ",
+            "Mr./Mrs.", "Mr./Mrs ", "Mr/Mrs.", "Mr/Mrs ",
+        ]
+        for prefix in title_prefixes:
+            if name.lower().startswith(prefix.lower()):
+                name = name[len(prefix):].strip()
+                break
+
+        return name
 
     def _build_letter_content(
         self, child: Child, package_info: dict, letter_date: date
@@ -380,12 +394,12 @@ class FeeRevisionLetterService:
         logo_path = self._get_logo_path()
         if logo_path:
             try:
-                # Logo is 300x66 pixels, aspect ratio ~4.55:1
-                # Set width to 55mm, height will be ~12mm to maintain ratio
-                logo_width = 55 * mm
-                logo_height = logo_width / 4.55  # Maintain aspect ratio
+                # Logo is 1000x225 pixels, aspect ratio ~4.44:1
+                # Set width to 45mm to fit within margins
+                logo_width = 45 * mm
+                logo_height = logo_width / 4.44  # Maintain aspect ratio
                 logo = Image(logo_path, width=logo_width, height=logo_height)
-                logo.hAlign = "CENTER"
+                logo.hAlign = "RIGHT"
                 story.append(logo)
             except Exception:
                 # If logo fails, just add the text header
@@ -395,16 +409,11 @@ class FeeRevisionLetterService:
         else:
             story.append(Paragraph("POLYMATH COLLEGE", self.styles["LetterHeading"]))
 
-        # Tagline
-        story.append(
-            Paragraph("<i>Vivere Disce - Learn to Live</i>", self.styles["Tagline"])
-        )
-
         story.append(Spacer(1, 6 * mm))
 
-        # Date (left-aligned as shown in image)
+        # Date (left-aligned)
         formatted_date = letter_date.strftime("%d %B %Y")
-        story.append(Paragraph(f"[{formatted_date}]", self.styles["Salutation"]))
+        story.append(Paragraph(formatted_date, self.styles["Salutation"]))
 
         story.append(Spacer(1, 4 * mm))
 
