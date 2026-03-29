@@ -76,7 +76,7 @@
       <div class="col-md-2">
         <label class="form-label">&nbsp;</label>
         <div class="d-grid">
-          <button type="button" class="btn btn-primary" id="searchBtn">
+          <button type="button" class="btn btn-secondary" id="searchBtn">
             <i class="ri-search-line me-1"></i> Search
           </button>
         </div>
@@ -146,14 +146,14 @@
 </div>
 
 <!-- Edit Modal -->
-<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+<div class="modal fade zoomIn" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-primary text-white">
+    <div class="modal-content border-0">
+      <div class="modal-header p-3 bg-warning-subtle">
         <h5 class="modal-title" id="editModalLabel">
           <i class="ri-edit-line me-2"></i>Edit Attendance Record
         </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <form id="editForm">
@@ -198,10 +198,10 @@
         </form>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">
           <i class="ri-close-line me-1"></i>Cancel
         </button>
-        <button type="button" class="btn btn-primary" id="saveEditBtn">
+        <button type="button" class="btn btn-secondary" id="saveEditBtn">
           <i class="ri-save-line me-1"></i>Save Changes
         </button>
       </div>
