@@ -343,6 +343,15 @@ class FeeRevisionLetterService:
             return logo_path
         return None
 
+    def _get_signature_path(self) -> Optional[str]:
+        """Get the path to the Principal's signature image."""
+        signature_path = os.path.join(
+            settings.BASE_DIR, "static", "assets", "images", "signature.png"
+        )
+        if os.path.exists(signature_path):
+            return signature_path
+        return None
+
     def _get_parent_name(self, child: Child) -> str:
         """
         Get the parent/guardian name for salutation.
@@ -427,31 +436,33 @@ class FeeRevisionLetterService:
 
         # Body paragraph 1
         body_para1 = (
-            "Over the past two years, there has been a steady increase in operational costs. "
-            "Throughout this period, the management has made every effort to absorb these expenses "
-            "without passing on the burden on to parents, and we sincerely appreciate your continued "
-            "trust and support."
+            "With the escalation of the costs over the past two years, the management has "
+            "made every effort to absorb the expenses without placing a burden on parents. "
+            "However, we have now reached a point where it is no longer possible to continue "
+            "providing a quality service without revising the monthly fee."
         )
         story.append(Paragraph(body_para1, self.styles["BodyParagraph"]))
 
         # Body paragraph 2
         body_para2 = (
-            f"However, we have now reached a point where it is no longer possible to maintain the "
-            f"quality of our services without revising the monthly fee. Therefore, with effect from "
-            f"<b>{self.EFFECTIVE_MONTH} {self.EFFECTIVE_YEAR}</b>, the daycare fee will be increased."
+            f"Therefore the management has decided to increase the daycare fee and extra "
+            f"charges with effect from <b>{self.EFFECTIVE_MONTH} {self.EFFECTIVE_YEAR}</b>, "
+            f"as was previously done in May 2024 and May 2022."
         )
         story.append(Paragraph(body_para2, self.styles["BodyParagraph"]))
 
-        # Body paragraph 3
+        # Body paragraph 3 - Extension notice
         body_para3 = (
-            "We truly value your understanding and continued partnership. Please be assured that "
-            "the management and staff of Polymath remain fully committed to providing your child "
-            "with a safe, secure, and nurturing environment each day, until he or she is collected."
+            "Please note that additional 10-minute extension facility will not apply after 6.30 p.m."
         )
         story.append(Paragraph(body_para3, self.styles["BodyParagraph"]))
 
-        # Body paragraph 4 - Thank you
-        body_para4 = "Thank you once again for your continued support."
+        # Body paragraph 4 - Assurance
+        body_para4 = (
+            "Please be assured that the management and staff of Polymath will continue to "
+            "care for your child in a safe, secure, and nurturing environment until you "
+            "collect him/her at the end of your daily responsibilities."
+        )
         story.append(Paragraph(body_para4, self.styles["BodyParagraph"]))
 
         story.append(Spacer(1, 10 * mm))
@@ -496,7 +507,22 @@ class FeeRevisionLetterService:
         story.append(details_table)
 
         # Signature section
-        story.append(Spacer(1, 20 * mm))
+        story.append(Spacer(1, 15 * mm))
+
+        # Add signature image
+        signature_path = self._get_signature_path()
+        if signature_path:
+            try:
+                # Signature is 67x20 pixels, aspect ratio ~3.35:1
+                # Set width to 25mm for appropriate size
+                sig_width = 25 * mm
+                sig_height = sig_width / 3.35
+                signature = Image(signature_path, width=sig_width, height=sig_height)
+                signature.hAlign = "LEFT"
+                story.append(signature)
+            except Exception:
+                pass  # Skip signature if image fails
+
         story.append(Paragraph("Principal", self.styles["Closing"]))
 
         # Footer with address - pushed to bottom edge
