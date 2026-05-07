@@ -1,0 +1,13 @@
+# Force LF for files that are executed inside Linux containers,
+# regardless of the developer's core.autocrlf setting on Windows.
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+*.dockerfile text eol=lf
+entrypoint.sh text eol=lf
+
+# Keep these tooling files LF as well — pip on Linux is tolerant,
+# but consistent line endings avoid surprise diffs.
+requirements.txt text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+.dockerignore text eol=lf

@@ -13,7 +13,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from pathlib import Path
 
-from decouple import Config, RepositoryEnv
+from decouple import Config, RepositoryEnv, config as env_config
 
 # import environ
 from django.contrib.messages import constants as message_constants
@@ -21,7 +21,13 @@ from django.contrib.messages import constants as message_constants
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-config = Config(RepositoryEnv(".env"))
+# Read settings from a .env file when present (local dev), otherwise fall
+# back to OS environment variables (Docker / production).
+_env_file = BASE_DIR / ".env"
+if _env_file.exists():
+    config = Config(RepositoryEnv(str(_env_file)))
+else:
+    config = env_config  # decouple.AutoConfig — reads from os.environ
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -64,10 +70,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
-    "django.middleware.common.CommonMiddleware",
     "django.middleware.security.SecurityMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -102,11 +108,11 @@ WSGI_APPLICATION = "daycareSystem.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": config.get("DB_NAME"),
-        "USER": config.get("DB_USER"),
-        "PASSWORD": config.get("DB_PASSWORD"),
-        "HOST": config.get("DB_HOST"),
-        "PORT": config.get("DB_PORT"),
+        "NAME": config("DB_NAME"),
+        "USER": config("DB_USER"),
+        "PASSWORD": config("DB_PASSWORD"),
+        "HOST": config("DB_HOST"),
+        "PORT": config("DB_PORT"),
     }
 }
 
@@ -154,6 +160,16 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media/")
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles/")
 MEDIA_URL = "media/"
 
+# WhiteNoise: serve compressed, hashed static files in production.
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
 # Create the media directory structure if it doesn't exist
 os.makedirs(os.path.join(MEDIA_ROOT, "enrollment_forms"), exist_ok=True)
 
@@ -191,10 +207,10 @@ CORS_ALLOW_METHODS = [
 
 LOGIN_URL = "core:login"
 
-PROD_URL = config.get(
+PROD_URL = config(
     "PROD_URL"
 )  # this is the URL that will stored in the QR URL for scanning
-QR_METHOD_NAME = config.get(
+QR_METHOD_NAME = config(
     "QR_METHOD_NAME"
 )  # this is the method that will stored in the QR URL for scanning
 USE_TZ = True
