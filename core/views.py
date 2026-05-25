@@ -6691,6 +6691,44 @@ def get_effective_discount(enrollment, billing_date):
     return enrollment.discount
 
 
+def get_expected_days(package, first_day, last_day):
+    """
+    Compute the denominator for attendance-percentage calculations.
+
+    For FixedPackage (monthly time-based packages like "Up to 6.30"), uses
+    the actual calendar: weekdays in [first_day, last_day] minus public
+    holidays that fall on weekdays. This matches the "monthly fee covers
+    the month" intuition — a child attending all 21 weekdays of a
+    21-weekday month is at 100%, not 105% just because the package's
+    no_days_months baseline is 20.
+
+    For FlexPackages (day-limited / drop-in), no_days_months remains the
+    real cap and is returned as-is.
+    """
+    if isinstance(package, FlexPackages):
+        return package.no_days_months or 22
+
+    weekday_count = sum(
+        1
+        for i in range((last_day - first_day).days + 1)
+        if (first_day + timedelta(days=i)).weekday() < 5
+    )
+    holiday_weekdays = 0
+    for h in Holiday.objects.filter(
+        is_public_holiday=True,
+        is_active=True,
+        start_date__lte=last_day,
+        end_date__gte=first_day,
+    ):
+        d = max(h.start_date, first_day)
+        end = min(h.end_date, last_day)
+        while d <= end:
+            if d.weekday() < 5:
+                holiday_weekdays += 1
+            d += timedelta(days=1)
+    return max(1, weekday_count - holiday_weekdays)
+
+
 def calculate_current_month_charges(child, package_mapping, enrollment, month, year):
     """Calculate current month charges (fresh calculation) - FIXED VERSION"""
     try:
@@ -6722,7 +6760,7 @@ def calculate_current_month_charges(child, package_mapping, enrollment, month, y
         if not package:
             raise Exception("No valid package assigned.")
 
-        expected_days = package.no_days_months or 22
+        expected_days = get_expected_days(package, first_day, last_day)
         package_total = package.package_total or Decimal("0.00")
 
         # Get attendance logs
@@ -7302,7 +7340,7 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
         if not package:
             raise Exception("No valid package assigned.")
 
-        expected_days = package.no_days_months or 22
+        expected_days = get_expected_days(package, first_day, last_day)
         package_total = package.package_total or Decimal("0.00")
 
         # Get attendance logs for the month (only active records)
@@ -7635,9 +7673,9 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
         adhoc_daily_rate = Decimal("0.00")
         excess_days_breakdown = []
 
-        # Only apply excess day charging for packages with day limits
-        # Check if package has no_days_months defined and it's less than 22 (has a day limit)
-        if hasattr(package, 'no_days_months') and package.no_days_months and package.no_days_months < 22:
+        # Only apply excess day charging for FlexPackages where no_days_months is a real day cap.
+        # FixedPackages are flat monthly fees; their no_days_months is a billing baseline, not a cap.
+        if isinstance(package, FlexPackages) and package.no_days_months:
             if present_days > expected_days:
                 excess_days = present_days - expected_days
 
@@ -7726,7 +7764,7 @@ def calculate_month_full_package(child, package_mapping, enrollment, month, year
         if not package:
             raise Exception("No valid package assigned.")
 
-        expected_days = package.no_days_months or 22
+        expected_days = get_expected_days(package, first_day, last_day)
         package_total = package.package_total or Decimal("0.00")
 
         # For future months, charge full package amount
@@ -8004,7 +8042,7 @@ def calculate_enhanced_month_with_attendance(
     if not package:
         raise Exception("No valid package assigned.")
 
-    expected_days = package.no_days_months or 22
+    expected_days = get_expected_days(package, first_day, last_day)
     package_total = package.package_total or Decimal("0.00")
 
     # Get attendance logs for the month (only active records)
@@ -8411,9 +8449,9 @@ def calculate_enhanced_month_with_attendance(
     adhoc_daily_rate = Decimal("0.00")
     excess_days_breakdown = []
 
-    # Only apply excess day charging for packages with day limits
-    # Check if package has no_days_months defined and it's less than 22 (has a day limit)
-    if hasattr(package, 'no_days_months') and package.no_days_months and package.no_days_months < 22:
+    # Only apply excess day charging for FlexPackages where no_days_months is a real day cap.
+    # FixedPackages are flat monthly fees; their no_days_months is a billing baseline, not a cap.
+    if isinstance(package, FlexPackages) and package.no_days_months:
         if present_days > expected_days:
             excess_days = present_days - expected_days
 
@@ -8510,7 +8548,7 @@ def calculate_enhanced_advance_month(child, package_mapping, enrollment, month, 
     if not package:
         raise Exception("No valid package assigned.")
 
-    expected_days = package.no_days_months or 22
+    expected_days = get_expected_days(package, first_day, last_day)
     package_total = package.package_total or Decimal("0.00")
 
     # For future months, charge full package amount
@@ -11568,7 +11606,7 @@ def calculate_month_attendance_summary(child, month, year):
                 package = package_mapping.holiday_package
 
             if package and hasattr(package, 'no_days_months'):
-                expected_days = package.no_days_months or 22
+                expected_days = get_expected_days(package, first_day, last_day)
 
         attendance_percentage = (
             round((days_attended / expected_days * 100), 1) if expected_days > 0 else 0
@@ -12083,15 +12121,16 @@ def getDetailedChargesBreakdown(request):
         # ===== EXCESS DAY CHARGING =====
         # Count present days (days with complete attendance)
         present_days = sum(1 for logs in logs_by_date.values() if len(logs) >= 2)
-        expected_days = package.no_days_months or 22
+        expected_days = get_expected_days(package, first_day, last_day)
 
         excess_day_charges = Decimal("0.00")
         excess_days = 0
         adhoc_daily_rate = Decimal("0.00")
         excess_days_breakdown = []
 
-        # Only apply excess day charging for packages with day limits
-        if hasattr(package, 'no_days_months') and package.no_days_months and package.no_days_months < 22:
+        # Only apply excess day charging for FlexPackages where no_days_months is a real day cap.
+        # FixedPackages are flat monthly fees; their no_days_months is a billing baseline, not a cap.
+        if isinstance(package, FlexPackages) and package.no_days_months:
             if present_days > expected_days:
                 excess_days = present_days - expected_days
 
