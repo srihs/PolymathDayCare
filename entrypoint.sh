@@ -10,8 +10,7 @@ if [ -n "$DB_HOST" ] && [ -n "$DB_PORT" ]; then
     echo "Database is up."
 fi
 
-# Apply migrations and collect static files. Both are idempotent.
+# Apply migrations. Static files are baked into the image at build time.
 python manage.py migrate --noinput
-python manage.py collectstatic --noinput
 
 exec "$@"

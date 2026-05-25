@@ -170,3 +170,4 @@ staticfiles/
 
 # Documentation build artifacts (auto-generated)
 docs/FINANCE_REPORTS_IMPLEMENTATION_PLAN.md
+*.sql

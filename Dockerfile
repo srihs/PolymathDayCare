@@ -67,6 +67,13 @@ RUN mkdir -p /app/staticfiles /app/media /app/media/enrollment_forms /app/media/
 
 USER app
 
+# Bake static files into the image so containers boot fast.
+# Dummy env values let settings.py load; collectstatic does not hit the DB.
+RUN SECRET_KEY=build-time-dummy DEBUG=False \
+    DB_NAME=x DB_USER=x DB_PASSWORD=x DB_HOST=x DB_PORT=3306 \
+    PROD_URL=https://example.invalid/ QR_METHOD_NAME=checkInView \
+    python manage.py collectstatic --noinput --clear
+
 EXPOSE 8000
 
 ENTRYPOINT ["/app/entrypoint.sh"]
