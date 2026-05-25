@@ -37,7 +37,7 @@ qrcode==7.4.2
 reportlab==4.4.1
 requests==2.32.4
 six==1.17.0
-Spire.Barcode==7.2.0
+Spire.Barcode
 sqlparse==0.4.4
 svglib==1.5.1
 tinycss2==1.4.0
