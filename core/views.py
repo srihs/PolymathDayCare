@@ -16178,13 +16178,15 @@ def requestAttendanceRemoval(request):
 def getRemovalRequestsJS(request):
     """Get all pending attendance removal requests for approval"""
     try:
-        # Get all pending removal requests from last 45 days
-        # NOTE: Don't filter by is_active - show all pending removal requests
-        from_date = datetime.now().date() - timedelta(days=45)
+        # Show pending requests submitted in the last 45 days. Filter by the
+        # request's submission date, not the attendance date — a removal for a
+        # 2-month-old record submitted yesterday is still actionable today.
+        from django.utils import timezone
+        from_date = timezone.now() - timedelta(days=45)
 
         pending_requests = AttendanceLog.objects.filter(
             removal_status="PENDING",
-            date_logged__gte=from_date  # Last 45 days only
+            removal_requested_date__gte=from_date,
         ).select_related("child").order_by('-removal_requested_date')
 
         requests_data = []
