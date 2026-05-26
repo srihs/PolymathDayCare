@@ -6691,22 +6691,27 @@ def get_effective_discount(enrollment, billing_date):
     return enrollment.discount
 
 
-def get_expected_days(package, first_day, last_day):
+def get_expected_days(package, month, year):
     """
     Compute the denominator for attendance-percentage calculations.
 
     For FixedPackage (monthly time-based packages like "Up to 6.30"), uses
-    the actual calendar: weekdays in [first_day, last_day] minus public
-    holidays that fall on weekdays. This matches the "monthly fee covers
-    the month" intuition — a child attending all 21 weekdays of a
-    21-weekday month is at 100%, not 105% just because the package's
-    no_days_months baseline is 20.
+    the actual calendar of the given month: weekdays minus public holidays
+    that fall on weekdays. This matches the "monthly fee covers the month"
+    intuition — a child attending all 21 weekdays of a 21-weekday month is
+    at 100%, not 105% just because the package's no_days_months baseline
+    is 20.
 
     For FlexPackages (day-limited / drop-in), no_days_months remains the
     real cap and is returned as-is.
     """
     if isinstance(package, FlexPackages):
         return package.no_days_months or 22
+
+    month = int(month)
+    year = int(year)
+    first_day = date(year, month, 1)
+    last_day = date(year, month, calendar.monthrange(year, month)[1])
 
     weekday_count = sum(
         1
@@ -6760,7 +6765,7 @@ def calculate_current_month_charges(child, package_mapping, enrollment, month, y
         if not package:
             raise Exception("No valid package assigned.")
 
-        expected_days = get_expected_days(package, first_day, last_day)
+        expected_days = get_expected_days(package, month, year)
         package_total = package.package_total or Decimal("0.00")
 
         # Get attendance logs
@@ -7340,7 +7345,7 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
         if not package:
             raise Exception("No valid package assigned.")
 
-        expected_days = get_expected_days(package, first_day, last_day)
+        expected_days = get_expected_days(package, month, year)
         package_total = package.package_total or Decimal("0.00")
 
         # Get attendance logs for the month (only active records)
@@ -7764,7 +7769,7 @@ def calculate_month_full_package(child, package_mapping, enrollment, month, year
         if not package:
             raise Exception("No valid package assigned.")
 
-        expected_days = get_expected_days(package, first_day, last_day)
+        expected_days = get_expected_days(package, month, year)
         package_total = package.package_total or Decimal("0.00")
 
         # For future months, charge full package amount
@@ -8042,7 +8047,7 @@ def calculate_enhanced_month_with_attendance(
     if not package:
         raise Exception("No valid package assigned.")
 
-    expected_days = get_expected_days(package, first_day, last_day)
+    expected_days = get_expected_days(package, month, year)
     package_total = package.package_total or Decimal("0.00")
 
     # Get attendance logs for the month (only active records)
@@ -8548,7 +8553,7 @@ def calculate_enhanced_advance_month(child, package_mapping, enrollment, month, 
     if not package:
         raise Exception("No valid package assigned.")
 
-    expected_days = get_expected_days(package, first_day, last_day)
+    expected_days = get_expected_days(package, month, year)
     package_total = package.package_total or Decimal("0.00")
 
     # For future months, charge full package amount
@@ -11606,7 +11611,7 @@ def calculate_month_attendance_summary(child, month, year):
                 package = package_mapping.holiday_package
 
             if package and hasattr(package, 'no_days_months'):
-                expected_days = get_expected_days(package, first_day, last_day)
+                expected_days = get_expected_days(package, month, year)
 
         attendance_percentage = (
             round((days_attended / expected_days * 100), 1) if expected_days > 0 else 0
@@ -12121,7 +12126,7 @@ def getDetailedChargesBreakdown(request):
         # ===== EXCESS DAY CHARGING =====
         # Count present days (days with complete attendance)
         present_days = sum(1 for logs in logs_by_date.values() if len(logs) >= 2)
-        expected_days = get_expected_days(package, first_day, last_day)
+        expected_days = get_expected_days(package, month, year)
 
         excess_day_charges = Decimal("0.00")
         excess_days = 0
