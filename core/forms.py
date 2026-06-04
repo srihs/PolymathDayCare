@@ -679,6 +679,32 @@ class UpdateExtraChargesForm(forms.ModelForm):
         ),
     )
 
+    effective_from = forms.DateField(
+        required=True,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "required": "true",
+                "id": "effective_from_update",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+                "placeholder": "Effective from",
+            }
+        ),
+    )
+    effective_to = forms.DateField(
+        required=False,
+        widget=MyDateInput(
+            attrs={
+                "class": "form-control",
+                "id": "effective_to_update",
+                "data-provider": "flatpickr",
+                "data-date-format": "Y-m-d",
+                "placeholder": "Effective to",
+            }
+        ),
+    )
+
     class Meta:
         model = ExtraHoursAfter530
         fields = (
@@ -686,6 +712,8 @@ class UpdateExtraChargesForm(forms.ModelForm):
             "from_time",
             "extra_rate",
             "to_time",
+            "effective_from",
+            "effective_to",
         )
 
 

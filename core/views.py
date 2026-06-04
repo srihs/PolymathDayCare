@@ -1388,6 +1388,8 @@ def updateAdditionalRates(request):
             from_time = request.POST.get("from_time")
             to_time = request.POST.get("to_time")
             extra_rate = request.POST.get("extra_rate")
+            effective_from = request.POST.get("effective_from")
+            effective_to = request.POST.get("effective_to")
             if id is not None:
                 user = User.objects.get(username=request.user.username)
                 objNewAdditionalRates = get_object_or_404(ExtraHoursAfter530, pk=id)
@@ -1401,6 +1403,9 @@ def updateAdditionalRates(request):
                         objNewAdditionalRates.extra_rate = extra_rate
                         objNewAdditionalRates.from_time = from_time
                         objNewAdditionalRates.to_time = to_time
+                        if effective_from:
+                            objNewAdditionalRates.effective_from = effective_from
+                        objNewAdditionalRates.effective_to = effective_to or None
                         objNewAdditionalRates.user_updated = request.user.username
                         objNewAdditionalRates.save()
                         # ---------------- This section will save a log in to the extra charge history table------------

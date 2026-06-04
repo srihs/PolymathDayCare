@@ -22,6 +22,14 @@
             <label for="StartleaveDate" class="form-label">Extra rate</label>
             <div>{{ formU.extra_rate }}</div>
           </div>
+          <div class="mb-3">
+            <label class="form-label">Effective from</label>
+            {{ formU.effective_from }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Effective to</label>
+            {{ formU.effective_to }}
+          </div>
 
 
         </div>
@@ -38,4 +46,8 @@
 <script>
   jQuery("#from_time").flatpickr();
   jQuery("#to_time").flatpickr();
+  // Effective dates: allow any date (incl. back-dated). Distinct ids avoid
+  // clashing with the add form's #effective_from / #effective_to.
+  jQuery("#effective_from_update").flatpickr();
+  jQuery("#effective_to_update").flatpickr();
 </script>
