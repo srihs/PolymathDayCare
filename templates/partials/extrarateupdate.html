@@ -50,4 +50,13 @@
   // clashing with the add form's #effective_from / #effective_to.
   jQuery("#effective_from_update").flatpickr();
   jQuery("#effective_to_update").flatpickr();
+
+  // Guard against double submission (a rapid double-click was posting the edit
+  // twice, creating duplicate rate-history rows).
+  jQuery("#modelForm form").off("submit.noDouble").on("submit.noDouble", function () {
+    var $f = jQuery(this);
+    if ($f.data("submitted")) { return false; }
+    $f.data("submitted", true);
+    $f.find('button[type="submit"]').prop("disabled", true).text("Saving...");
+  });
 </script>
