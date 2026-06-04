@@ -483,17 +483,11 @@
             retrieve: true,
     });
 
-    jQuery('#effective_from').flatpickr({
-                minDate: "today",
-                maxDate: new Date().fp_incr(15), 
-                
-            });
-    
-    jQuery('#effective_to').flatpickr({
-            minDate: new Date().fp_incr(365), 
-            
-                
-    });
+    // Allow any date (including past / back-dated) for effective from & to
+    // so historical rate periods can be entered.
+    jQuery('#effective_from').flatpickr();
+
+    jQuery('#effective_to').flatpickr();
 
     window.setTimeout(function() {
     // Select the inner div with the class "alert" inside the outer div with class "flex-shrink-0"

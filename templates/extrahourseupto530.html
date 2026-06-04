@@ -437,54 +437,20 @@
 
 
 
-        jQuery('#effective_from_1').flatpickr({
-            minDate: "today",
-        });
-
-        jQuery('#effective_to_1').flatpickr({
-            minDate: new Date().fp_incr(365),
-        });
-        jQuery('#effective_from_2').flatpickr({
-            minDate: "today",
-        });
-
-        jQuery('#effective_to_2').flatpickr({
-            minDate: new Date().fp_incr(365),
-        });
-
-        jQuery('#effective_from_3').flatpickr({
-            minDate: "today",
-
-        });
-
-        jQuery('#effective_to_3').flatpickr({
-            minDate: new Date().fp_incr(365),
-        });
-
-        jQuery('#effective_from_4').flatpickr({
-            minDate: "today",
-        });
-
-        jQuery('#effective_to_4').flatpickr({
-            minDate: new Date().fp_incr(365),
-        });
-
-        jQuery('#effective_from_5').flatpickr({
-            minDate: "today",
-
-        });
-
-        jQuery('#effective_to_5').flatpickr({
-            minDate: new Date().fp_incr(365),
-        });
-
-        jQuery('#effective_from_6').flatpickr({
-            minDate: "today",
-        });
-
-        jQuery('#effective_to_6').flatpickr({
-            minDate: new Date().fp_incr(365),
-        });
+        // Allow any date (including past / back-dated) for effective from & to
+        // so historical rate periods can be entered.
+        jQuery('#effective_from_1').flatpickr();
+        jQuery('#effective_to_1').flatpickr();
+        jQuery('#effective_from_2').flatpickr();
+        jQuery('#effective_to_2').flatpickr();
+        jQuery('#effective_from_3').flatpickr();
+        jQuery('#effective_to_3').flatpickr();
+        jQuery('#effective_from_4').flatpickr();
+        jQuery('#effective_to_4').flatpickr();
+        jQuery('#effective_from_5').flatpickr();
+        jQuery('#effective_to_5').flatpickr();
+        jQuery('#effective_from_6').flatpickr();
+        jQuery('#effective_to_6').flatpickr();
 
 
         window.setTimeout(function () {
