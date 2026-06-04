@@ -6760,6 +6760,58 @@ def get_expected_days(package, month, year):
     return max(1, weekday_count - holiday_weekdays)
 
 
+def get_package_price_for_date(package, billing_date):
+    """Return the package price that was effective on `billing_date`.
+
+    Honours PackagePriceRevision records (price changes with effective dates) so
+    that a memo generated for a past month uses the price that applied then, not
+    the package's current price. Logic:
+      * Take the new_price of the latest revision with effective_from <= date
+        (ties on the same date are broken by the highest id).
+      * If the date is before every revision, use the earliest revision's
+        current_price (the price that existed before any revision).
+      * If the package has no revisions, fall back to package.package_total.
+
+    This is effective-date based (Option B): a revision applies from its
+    effective_from regardless of whether the "apply pending price changes" step
+    has been run.
+    """
+    from decimal import Decimal
+
+    if package is None:
+        return Decimal("0.00")
+
+    base = package.package_total or Decimal("0.00")
+
+    if isinstance(package, FlexPackages):
+        revisions = PackagePriceRevision.objects.filter(
+            flex_package=package, is_active=True
+        )
+    else:
+        revisions = PackagePriceRevision.objects.filter(
+            fixed_package=package, is_active=True
+        )
+
+    # Ascending by (effective_from, id): the last row whose effective_from is on
+    # or before billing_date is the applicable one (and, on date ties, the
+    # highest id wins because it comes last).
+    revisions = list(revisions.order_by("effective_from", "id"))
+    if not revisions:
+        return base
+
+    applicable = None
+    for rev in revisions:
+        if rev.effective_from and rev.effective_from <= billing_date:
+            applicable = rev
+
+    if applicable is not None:
+        return applicable.new_price if applicable.new_price is not None else base
+
+    # billing_date precedes every revision -> price before the first revision
+    earliest = revisions[0]
+    return earliest.current_price if earliest.current_price is not None else base
+
+
 def calculate_current_month_charges(child, package_mapping, enrollment, month, year):
     """Calculate current month charges (fresh calculation) - FIXED VERSION"""
     try:
@@ -6792,7 +6844,7 @@ def calculate_current_month_charges(child, package_mapping, enrollment, month, y
             raise Exception("No valid package assigned.")
 
         expected_days = get_expected_days(package, month, year)
-        package_total = package.package_total or Decimal("0.00")
+        package_total = get_package_price_for_date(package, date(year, month, 1))
 
         # Get attendance logs
         attendance_logs = AttendanceLog.objects.filter(
@@ -7430,7 +7482,7 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
             raise Exception("No valid package assigned.")
 
         expected_days = get_expected_days(package, month, year)
-        package_total = package.package_total or Decimal("0.00")
+        package_total = get_package_price_for_date(package, date(year, month, 1))
 
         # Get attendance logs for the month (only active records)
         attendance_logs = AttendanceLog.objects.filter(
@@ -7861,7 +7913,7 @@ def calculate_month_full_package(child, package_mapping, enrollment, month, year
             raise Exception("No valid package assigned.")
 
         expected_days = get_expected_days(package, month, year)
-        package_total = package.package_total or Decimal("0.00")
+        package_total = get_package_price_for_date(package, date(year, month, 1))
 
         # For future months, charge full package amount
         package_fee = package_total
@@ -8221,7 +8273,7 @@ def calculate_enhanced_month_with_attendance(
         raise Exception("No valid package assigned.")
 
     expected_days = get_expected_days(package, month, year)
-    package_total = package.package_total or Decimal("0.00")
+    package_total = get_package_price_for_date(package, date(year, month, 1))
 
     # Group logs by date
     logs_by_date = defaultdict(list)
@@ -8749,7 +8801,7 @@ def calculate_enhanced_advance_month(child, package_mapping, enrollment, month, 
         raise Exception("No valid package assigned.")
 
     expected_days = get_expected_days(package, month, year)
-    package_total = package.package_total or Decimal("0.00")
+    package_total = get_package_price_for_date(package, date(year, month, 1))
 
     # For future months, charge full package amount
     package_fee = package_total
@@ -10839,6 +10891,7 @@ def getChildPackageDetails(request):
         no_days_week = 0
         no_days_month = 0
         package_term = ""
+        pkg = None
 
         # Priority order: normal_package > flex_package > holiday_package
         # Holiday package is only a fallback for children without normal/flex packages
@@ -10876,6 +10929,15 @@ def getChildPackageDetails(request):
             no_days_week = pkg.no_days_week or 0
             no_days_month = pkg.no_days_months or 0
             package_term = pkg.package_term.package_type_name if pkg.package_term else "Fixed"
+
+        # If a specific month/year was requested, show the price that was
+        # effective for that month (honour price revisions), not the current
+        # price. Keeps the "Current Package Details" box consistent with the
+        # memo calculation for past months.
+        if pkg is not None and month and year:
+            package_fee = float(
+                get_package_price_for_date(pkg, date(int(year), int(month), 1))
+            )
 
         # Get discount information
         # Check both package_mapping.discount AND enrollment.discount
