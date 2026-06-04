@@ -242,7 +242,6 @@ function displayMemoResult(memo) {
 
     if (memo.month_details && memo.month_details.length > 0) {
         memo.month_details.forEach(function(detail) {
-            const headerClass = getHeaderClass(detail.month_type);
             const badge = getMonthTypeBadge(detail.month_type);
 
             // Month header row - use Bootstrap table classes

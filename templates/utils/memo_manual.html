@@ -1068,71 +1068,98 @@ function loadPreviousMonthBreakdown() {
     $('#breakdown-loading').show();
     $('#breakdown-content').hide();
 
-    // First, get the child's base package fee for PREVIOUS month (the calculated month)
+    // SINGLE SOURCE OF TRUTH: the vacation-aware 3-month engine.
+    // Populates BOTH the PREVIOUS (calculated) and CURRENT (advance) months so the
+    // manual page matches batch generation, including vacation-month handling.
     $.ajax({
-        url: "{% url 'core:get_child_package_details' %}",
+        url: "{% url 'core:preview_single_child_memo' %}",
         data: {
             child_id: childId,
-            month: prevMonth,
-            year: prevYear
+            month: month,
+            year: year
         },
-        success: function(packageResponse) {
-            const basePackageFee = parseFloat(packageResponse.package_fee) || 0;
+        success: function(response) {
+            $('#breakdown-loading').hide();
 
-            // Then get attendance data for previous month
-            $.ajax({
-                url: "{% url 'core:get_attendance_summary' %}",
-                data: {
-                    child_id: childId,
-                    month: prevMonth,
-                    year: prevYear
-                },
-                success: function(attendanceResponse) {
-                    const daysAttended = attendanceResponse.days_attended || 0;
-                    const expectedDays = attendanceResponse.expected_days || 22;
-                    const attendancePercentage = attendanceResponse.attendance_percentage || 0;
-                    
-                    // Apply attendance-based logic
-                    let adjustedPackageFee = 0;
-                    let chargeType = '';
-                    let isHalfCharge = false;
-                    
-                    if (attendancePercentage === 0) {
-                        adjustedPackageFee = 0;
-                        chargeType = 'No Charge (0% attendance)';
-                    } else if (attendancePercentage < 50) {
-                        adjustedPackageFee = basePackageFee / 2;
-                        chargeType = `Half Charge (${attendancePercentage.toFixed(1)}% attendance)`;
-                        isHalfCharge = true;
-                    } else {
-                        adjustedPackageFee = basePackageFee;
-                        chargeType = `Full Charge (${attendancePercentage.toFixed(1)}% attendance)`;
-                    }
-                    
-                    // Set the calculated package fee (using setFormattedValue for proper display)
-                    setFormattedValue('previous_package_fee', adjustedPackageFee);
+            if (!response.success || !response.preview) {
+                setFormattedValue('previous_extra_hours', 0);
+                setFormattedValue('previous_holiday_charges', 0);
+                showAttendanceWarning(prevMonth, prevYear);
+                $('#breakdown-content').html('<p class="text-muted">No calculation data available for this month.</p>').show();
+                setTimeout(calculateTotals, 100);
+                return;
+            }
 
-                    // Store attendance data for display
-                    $('#previous_days_attended').val(daysAttended);
-                    $('#previous_expected_days').val(expectedDays);
+            const p = response.preview;
+            const m2 = p.month2 || {};
+            const m3 = p.month3 || {};
 
-                    // Show attendance info to user
-                    showAttendanceInfo(prevMonth, prevYear, daysAttended, expectedDays, attendancePercentage, chargeType, basePackageFee, adjustedPackageFee, isHalfCharge);
+            // ===== PREVIOUS MONTH (month2 - attendance based) =====
+            const prevBaseFee = parseFloat(m2.package_base_fee) || 0;
+            const prevPackageFee = parseFloat(m2.package_fee) || 0;
+            const prevExcess = parseFloat(m2.excess_day_charges) || 0;
+            // The previous-month package fee field also carries excess-day charges (legacy behaviour)
+            setFormattedValue('previous_package_fee', prevPackageFee + prevExcess);
+            setFormattedValue('previous_extra_hours', parseFloat(m2.extra_charges) || 0);
+            setFormattedValue('previous_holiday_charges', parseFloat(m2.holiday_charges) || 0);
+            setFormattedValue('previous_discount_applied', parseFloat(m2.discount) || 0);
+            $('#previous_days_attended').val(m2.days_attended || 0);
+            $('#previous_expected_days').val(m2.expected_days || 0);
 
-                    // Continue with breakdown loading
-                    loadChargesBreakdown(childId, prevMonth, prevYear);
-                },
-                error: function() {
-                    // Fallback to full package fee if attendance data not available
-                    setFormattedValue('previous_package_fee', basePackageFee);
-                    showAttendanceWarning(prevMonth, prevYear);
-                    loadChargesBreakdown(childId, prevMonth, prevYear);
-                }
-            });
+            // Attendance info box
+            const pct = parseFloat(m2.attendance_percentage) || 0;
+            let chargeType;
+            if (pct === 0) {
+                chargeType = 'No Charge (0% attendance)';
+            } else if (m2.is_half_charge) {
+                chargeType = `Half Charge (${pct.toFixed(1)}% attendance)`;
+            } else {
+                chargeType = `Full Charge (${pct.toFixed(1)}% attendance)`;
+            }
+            showAttendanceInfo(prevMonth, prevYear, m2.days_attended || 0, m2.expected_days || 0, pct, chargeType, prevBaseFee, prevPackageFee, !!m2.is_half_charge);
+
+            // Holiday charges info icon + stored breakdown (for modal)
+            if (m2.holiday_charges_breakdown && m2.holiday_charges_breakdown.length > 0) {
+                window.currentHolidayBreakdown = m2.holiday_charges_breakdown;
+                $('#previousHolidayChargesInfoIcon').css('display', 'inline-block');
+            } else {
+                window.currentHolidayBreakdown = null;
+                $('#previousHolidayChargesInfoIcon').css('display', 'none');
+            }
+
+            // Excess-day info (for breakdown display)
+            if (prevExcess > 0 && m2.excess_days_breakdown && m2.excess_days_breakdown.length > 0) {
+                const ex = m2.excess_days_breakdown[0];
+                window.currentExcessDayInfo = {
+                    excess_days: ex.excess_days_count,
+                    adhoc_daily_rate: ex.adhoc_daily_rate,
+                    total: prevExcess
+                };
+            } else {
+                window.currentExcessDayInfo = null;
+            }
+
+            // ===== CURRENT MONTH (month3 - advance) =====
+            const curPackageFee = parseFloat(m3.package_fee) || 0;
+            const curCharge = parseFloat(m3.charge) || 0;
+            const curDiscount = Math.max(0, curPackageFee - curCharge);
+            setFormattedValue('package_fee', curPackageFee);
+            setFormattedValue('extra_hours', 0);
+            setFormattedValue('holiday_charges', 0);
+            setFormattedValue('discount_applied', curDiscount);
+
+            // ===== BREAKDOWN TABLE (from engine month2) =====
+            renderEngineBreakdown(m2);
+            $('#breakdown-content').show();
+
+            setTimeout(calculateTotals, 100);
         },
         error: function() {
-            // Fallback if package data not available
-            loadChargesBreakdown(childId, prevMonth, prevYear);
+            $('#breakdown-loading').hide();
+            setFormattedValue('previous_extra_hours', 0);
+            setFormattedValue('previous_holiday_charges', 0);
+            $('#breakdown-content').html('<p class="text-danger">Error loading calculation data.</p>').show();
+            setTimeout(calculateTotals, 100);
         },
         complete: function() {
             // Reset the flag after completion
@@ -1141,6 +1168,55 @@ function loadPreviousMonthBreakdown() {
             }, 500);
         }
     });
+}
+
+// Adapt the engine's month2 breakdown into the shape displayBreakdownTable expects.
+function renderEngineBreakdown(m2) {
+    const extraBreakdown = (m2.extra_charges_breakdown || []).map(function(it) {
+        return {
+            date: it.date,
+            day_name: '',
+            time_in: it.time_in,
+            time_out: it.time_out,
+            package_end_time: '',
+            extra_hours: it.extra_hours,
+            extra_hours_display: it.extra_hours_display,
+            charges: it.charges,
+            applied_rates: it.applied_rates || [],
+            is_holiday: false
+        };
+    });
+    const extraTotal = parseFloat(m2.extra_charges) || 0;
+    const holidayTotal = parseFloat(m2.holiday_charges) || 0;
+    const excessTotal = parseFloat(m2.excess_day_charges) || 0;
+
+    const data = {
+        month_name: m2.name,
+        year: m2.year,
+        package_info: { name: m2.package_name || '', end_time: '' },
+        extra_hours: {
+            breakdown: extraBreakdown,
+            total: extraTotal,
+            total_hours_decimal: 0,
+            total_hours_display: '',
+            days_count: extraBreakdown.length
+        },
+        holiday_charges: {
+            total: holidayTotal,
+            days_count: (m2.holiday_charges_breakdown || []).length,
+            breakdown: m2.holiday_charges_breakdown || []
+        },
+        excess_day_charges: (excessTotal > 0 && window.currentExcessDayInfo) ? {
+            total: excessTotal,
+            excess_days: window.currentExcessDayInfo.excess_days,
+            adhoc_daily_rate: window.currentExcessDayInfo.adhoc_daily_rate
+        } : null,
+        summary: {
+            combined_total: extraTotal + holidayTotal + excessTotal,
+            total_extra_hours_display: ''
+        }
+    };
+    displayBreakdownTable(data);
 }
 
 function showAttendanceInfo(month, year, daysAttended, expectedDays, percentage, chargeType, baseFee, adjustedFee, isHalfCharge) {
@@ -2002,23 +2078,18 @@ function loadChildDetails() {
         success: function(response) {
             // Check if package_fee exists (including zero values)
             if (response.package_fee !== undefined && response.package_fee !== null) {
-                // Set current month package fee (advance payment) using setFormattedValue
-                setFormattedValue('package_fee', response.package_fee);
-
-                // Store discount info
+                // NOTE: actual money fields (current package fee, discount, previous
+                // month charges) are populated by the vacation-aware engine inside
+                // loadPreviousMonthBreakdown(). This call is only used for the
+                // discount banner / metadata.
                 window.childDiscountRate = response.discount_rate || 0;
                 window.childDiscountName = response.discount_name || '';
 
-                // Apply discount for current month
                 if (response.discount_rate && response.discount_rate > 0) {
-                    const packageFee = parseFloat(response.package_fee);
-                    const discountAmount = (packageFee * response.discount_rate) / 100;
-                    setFormattedValue('discount_applied', discountAmount);
-
                     showDiscountInfo(response.discount_name, response.discount_rate);
                 }
 
-                // Load previous month breakdown
+                // Load engine-based calculation (sets previous + current months)
                 setTimeout(function() {
                     loadPreviousMonthBreakdown();
                 }, 200);
