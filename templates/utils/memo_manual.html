@@ -1676,8 +1676,9 @@ function calculateTotals() {
     $('#current_remaining_balance').val(currentRemainingBalance.toFixed(2));
     $('#current_remaining_balance_display').val(formatAmountForDisplay(currentRemainingBalance));
 
-    // Grand total is sum of all balances
-    const grandTotal = remainingBalance + prevMonthBalance + currentMonthBalance;
+    // Grand total = Outstanding + Previous month only. The Current/Advance month
+    // is shown on the memo for information but is excluded from the amount due.
+    const grandTotal = remainingBalance + prevMonthBalance;
 
     // Update summary display
     $('#summary_outstanding').text('Rs. ' + formatCurrency(remainingBalance));

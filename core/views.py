@@ -8032,9 +8032,11 @@ def calculate_enhanced_three_month_data(child, target_month, target_year):
     current_month_charge = month2_data["total_charge"]
     next_month_charge = month3_data["total_charge"]
 
-    # Grand total = Outstanding + Previous Month Charges + Current Month Advance
-    # No payment deductions - this is the TOTAL AMOUNT DUE before any new payments
-    grand_total = total_outstanding + current_month_charge + next_month_charge
+    # Grand total = Outstanding + Previous Month charges ONLY.
+    # The Current/Advance month (next_month_charge) is still returned and shown
+    # on the memo for information, but is NOT included in the amount due; it is
+    # billed next cycle as the attendance-based Previous month.
+    grand_total = total_outstanding + current_month_charge
 
     return {
         "child_name": f"{child.child_first_name} {child.child_last_name}",
