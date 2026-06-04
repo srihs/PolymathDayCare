@@ -1044,7 +1044,33 @@ def saveAdditionalRatesUpTo530(request):
                     effective_from = form.cleaned_data.get(f"effective_from_{i}")
                     effective_to = form.cleaned_data.get(f"effective_to_{i}")
                     if extra_rate is not None and effective_from is not None:
+                        from django.db.models import Q
+
                         with transaction.atomic():
+                            # Close any existing active rate for this hour that
+                            # would overlap the new effective period, so at most
+                            # one rate is active per hour on any given date.
+                            # Without this, re-saving the form created duplicate /
+                            # overlapping rows and billing picked the oldest one.
+                            prior_rates = ExtraHoursUpTo530.objects.filter(
+                                hour_number=hour_number, is_active=True
+                            ).filter(
+                                Q(effective_to__isnull=True)
+                                | Q(effective_to__gte=effective_from)
+                            )
+                            for prior in prior_rates:
+                                if (
+                                    prior.effective_from
+                                    and prior.effective_from >= effective_from
+                                ):
+                                    # New rate fully supersedes the prior one.
+                                    prior.is_active = False
+                                else:
+                                    # End the prior rate the day before the new starts.
+                                    prior.effective_to = effective_from - timedelta(days=1)
+                                prior.user_updated = request.user.username
+                                prior.save()
+
                             objExtraHoursUpTo530 = ExtraHoursUpTo530.objects.create(
                                 hour_number=hour_number,
                                 extra_rate=extra_rate,
