@@ -19,11 +19,17 @@ SAFETY:
       BACK UP THE DATABASE BEFORE RUNNING WITH --apply.
 
 USAGE (inside the web/app container - NOT the db container):
-    # dry-run (safe, shows what would happen)
+    # dry-run of everything (safe, shows what would happen)
     docker exec <web-container> python /app/script/reset_memos_and_cleanup_rates.py
 
-    # execute
+    # execute everything (wipe memos/receipts + clean rates)
     docker exec <web-container> python /app/script/reset_memos_and_cleanup_rates.py --apply
+
+    # ONLY clean the upto-5:30 rates, keep all memos/receipts:
+    docker exec <web-container> python /app/script/reset_memos_and_cleanup_rates.py --rates-only           # dry-run
+    docker exec <web-container> python /app/script/reset_memos_and_cleanup_rates.py --rates-only --apply   # execute
+
+    # ONLY wipe memos/receipts, leave rates alone:  add --memos-only
 """
 
 import os
@@ -58,6 +64,8 @@ except Exception:  # pragma: no cover - model may not exist in older schemas
     MemoRegenerationRequest = None
 
 APPLY = "--apply" in sys.argv
+RATES_ONLY = "--rates-only" in sys.argv  # skip STEP 1 (memo/receipt wipe)
+MEMOS_ONLY = "--memos-only" in sys.argv  # skip STEP 2 (rate cleanup)
 
 # Order matters only for readability; FK checks are disabled during TRUNCATE.
 MEMO_TABLES = [
@@ -174,8 +182,16 @@ def step2_cleanup_rates():
 
 def main():
     print("MODE:", "APPLY (changes WILL be committed)" if APPLY else "DRY-RUN (no changes)")
-    step1_clear_memos()
-    step2_cleanup_rates()
+    if RATES_ONLY:
+        print("SCOPE: --rates-only (STEP 1 memo/receipt wipe is SKIPPED)")
+    elif MEMOS_ONLY:
+        print("SCOPE: --memos-only (STEP 2 rate cleanup is SKIPPED)")
+
+    if not RATES_ONLY:
+        step1_clear_memos()
+    if not MEMOS_ONLY:
+        step2_cleanup_rates()
+
     if not APPLY:
         print(
             "\nDRY-RUN complete. Re-run with --apply to execute. "
