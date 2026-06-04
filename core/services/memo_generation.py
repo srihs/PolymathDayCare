@@ -394,7 +394,9 @@ class MemoGenerationService:
                     holiday_charges=Decimal(str(month2_data.get("holiday_charges", 0))),
                     other_charges=Decimal("0"),
                     discount_applied=Decimal(str(month2_data.get("discount", 0))),
-                    other_deductions=Decimal("0"),
+                    # Reconciliation: subtract the advance already billed for this
+                    # month last cycle (so the same month is not charged twice).
+                    other_deductions=Decimal(str(month2_data.get("advance_reconciliation", 0))),
                     payments_received=Decimal(str(month2_data.get("payments", 0))),
                     payment_receipts=month2_data.get("payment_details", []),
                     package_name=month2_data.get("package_name", "Normal Package"),

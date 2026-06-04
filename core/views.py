@@ -7955,6 +7955,34 @@ def calculate_month_full_package(child, package_mapping, enrollment, month, year
         raise Exception(f"Error calculating full package month: {str(e)}")
 
 
+def get_prior_advance_for_month(child, month, year):
+    """Advance already billed for (month, year) in a prior memo.
+
+    When a memo's target was this month, its Current/advance line billed that
+    month in advance. When the month later appears as the Previous (calculated)
+    month, we subtract that advance from the actual so it is not billed twice
+    (reconciliation). Returns the prior memo's Current-detail net charge, or 0.00
+    if no such memo exists.
+    """
+    from decimal import Decimal
+
+    prior_memo = (
+        InvoiceMemo.objects.filter(
+            child=child, memo_month=month, memo_year=year, is_active=True
+        )
+        .order_by("-id")
+        .first()
+    )
+    if not prior_memo:
+        return Decimal("0.00")
+    current_detail = prior_memo.month_details.filter(
+        month_sequence=3, month_type="CURRENT"
+    ).first()
+    if not current_detail:
+        return Decimal("0.00")
+    return current_detail.net_charges or Decimal("0.00")
+
+
 def calculate_enhanced_three_month_data(child, target_month, target_year):
     """
     Enhanced 3-month calculation with detailed breakdown and payment tracking
@@ -8028,15 +8056,19 @@ def calculate_enhanced_three_month_data(child, target_month, target_year):
     # We do NOT subtract payments here because:
     # 1. Outstanding already reflects balance after payments from previous memo
     # 2. Month 2 and Month 3 are NEW charges that haven't had payments applied yet
-    total_outstanding = month1_data["balance_after_payments"]
-    current_month_charge = month2_data["total_charge"]
-    next_month_charge = month3_data["total_charge"]
+    # Reconciliation: the Previous month (month2) was already billed in advance
+    # last cycle (as that month's Current/advance). Subtract that advance so we
+    # bill only the actual MINUS what was already advanced — a credit if the child
+    # attended less, a top-up if there were extra hours. This avoids charging the
+    # same month twice while still billing the Current month in advance (payable now).
+    prior_advance = get_prior_advance_for_month(child, month2, year2)
 
-    # Grand total = Outstanding + Previous Month charges ONLY.
-    # The Current/Advance month (next_month_charge) is still returned and shown
-    # on the memo for information, but is NOT included in the amount due; it is
-    # billed next cycle as the attendance-based Previous month.
-    grand_total = total_outstanding + current_month_charge
+    total_outstanding = month1_data["balance_after_payments"]
+    current_month_charge = month2_data["total_charge"]   # previous-month ACTUAL
+    next_month_charge = month3_data["total_charge"]       # current-month ADVANCE
+
+    # Grand total = Outstanding + (Previous actual − advance already billed) + Current advance
+    grand_total = total_outstanding + (current_month_charge - prior_advance) + next_month_charge
 
     return {
         "child_name": f"{child.child_first_name} {child.child_last_name}",
@@ -8065,13 +8097,16 @@ def calculate_enhanced_three_month_data(child, target_month, target_year):
             "excess_day_charges": month2_data.get("excess_day_charges", 0),
             "excess_days_breakdown": month2_data.get("excess_days_breakdown", []),
             "discount": month2_data["discount"],
+            # Advance already billed for this month last cycle (reconciliation).
+            # Applied as the Previous detail's other_deductions: net = actual − advance.
+            "advance_reconciliation": prior_advance,
             "days_attended": month2_data["days_attended"],
             "expected_days": month2_data["expected_days"],
             "attendance_percentage": month2_data["attendance_percentage"],
             "is_half_charge": month2_data["is_half_charge"],
             # PAYMENT TRACKING
             "payments": month2_data["payments_received"],
-            "balance": month2_data["total_charge"] - month2_data["payments_received"],
+            "balance": month2_data["total_charge"] - prior_advance - month2_data["payments_received"],
             "payment_details": month2_data["payment_details"],
             # BREAKDOWN DETAILS
             "extra_charges_breakdown": month2_data.get("extra_charges_breakdown", []),
@@ -11345,6 +11380,8 @@ def saveMemoDataEntry(request):
             request.POST.get("previous_holiday_charges") or "0"
         )
         prev_discount = Decimal(request.POST.get("previous_discount_applied") or "0")
+        # Reconciliation: advance already billed for the previous month last cycle.
+        prev_other_deductions = Decimal(request.POST.get("previous_other_deductions") or "0")
         prev_days_attended = int(request.POST.get("previous_days_attended") or "0")
         prev_expected_days = int(request.POST.get("previous_expected_days") or "22")
 
@@ -11688,6 +11725,7 @@ def saveMemoDataEntry(request):
                 extra_hours_charge=prev_extra_hours,
                 holiday_charges=prev_holiday_charges,
                 discount_applied=prev_discount,
+                other_deductions=prev_other_deductions,
                 days_attended=prev_days_attended,
                 expected_days=prev_expected_days,
                 attendance_percentage=round(

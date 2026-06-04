@@ -1116,14 +1116,15 @@ class InvoiceMemo(BaseClass):
             self.gross_total += detail.gross_charges
             self.total_payments += detail.payments_received or Decimal("0.00")
 
-        # FINAL NET AMOUNT = Outstanding + Previous month only.
-        # The Current/Advance month is shown on the memo for information but is
-        # NOT included in the amount due (it gets billed next cycle as the
-        # attendance-based Previous month). total_current_month is still computed
-        # above and stored for display.
+        # FINAL NET AMOUNT = Outstanding + Previous + Current.
+        # The Current/Advance month IS billed (payable in advance). The Previous
+        # month's net already reflects the reconciliation (its other_deductions
+        # carry the advance billed for that month last cycle), so the same month
+        # is not charged twice.
         self.net_amount_due = (
             self.total_outstanding
             + self.total_previous_month
+            + self.total_current_month
         )
 
         # Update status based on balance
