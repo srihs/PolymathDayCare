@@ -6963,18 +6963,7 @@ def calculate_current_month_charges(child, package_mapping, enrollment, month, y
                                 hour_count += 1
 
                             for hour_num in range(1, min(hour_count + 1, 7)):
-                                rate_obj = (
-                                    ExtraHoursUpTo530.objects.filter(
-                                        hour_number=hour_num,
-                                        effective_from__lte=log_date,
-                                        is_active=True,
-                                    )
-                                    .filter(
-                                        Q(effective_to__gte=log_date)
-                                        | Q(effective_to__isnull=True)
-                                    )
-                                    .first()
-                                )
+                                rate_obj = resolve_upto530_rate(hour_num, log_date)
 
                                 if rate_obj:
                                     day_extra_charges += rate_obj.extra_rate
@@ -7613,18 +7602,7 @@ def calculate_month_with_attendance(child, package_mapping, enrollment, month, y
 
                             # Charge ExtraHoursUpTo530 (max 6 hours)
                             for hour_num in range(1, min(hour_count + 1, 7)):
-                                rate_obj = (
-                                    ExtraHoursUpTo530.objects.filter(
-                                        hour_number=hour_num,
-                                        effective_from__lte=log_date,
-                                        is_active=True,
-                                    )
-                                    .filter(
-                                        Q(effective_to__gte=log_date)
-                                        | Q(effective_to__isnull=True)
-                                    )
-                                    .first()
-                                )
+                                rate_obj = resolve_upto530_rate(hour_num, log_date)
 
                                 if rate_obj:
                                     day_extra_charges += rate_obj.extra_rate
@@ -8250,6 +8228,68 @@ def get_enhanced_outstanding_data(child, month, year):
         }
 
 
+def resolve_upto530_rate(hour_number, billing_date):
+    """Return the before-5:30 (ExtraHoursUpTo530) rate row effective on
+    billing_date for the given hour. Prefers a live row; if none is effective
+    for that date, falls back to the rate History (ExtraChargesHistory) snapshot
+    effective on that date (latest id wins). Returns a row with .extra_rate or None.
+    """
+    from django.db.models import Q as _Q
+
+    live = (
+        ExtraHoursUpTo530.objects.filter(
+            hour_number=hour_number, is_active=True, effective_from__lte=billing_date
+        )
+        .filter(_Q(effective_to__gte=billing_date) | _Q(effective_to__isnull=True))
+        .order_by("-id")
+        .first()
+    )
+    if live:
+        return live
+    return (
+        ExtraChargesHistory.objects.filter(
+            extra_charges_before530__isnull=False,
+            extra_charges_before530__hour_number=hour_number,
+            effective_from__lte=billing_date,
+        )
+        .filter(_Q(effective_to__gte=billing_date) | _Q(effective_to__isnull=True))
+        .order_by("-id")
+        .first()
+    )
+
+
+def resolve_after530_rows(package_type, billing_date):
+    """Return the after-5:30 (ExtraHoursAfter530) slot rows effective on
+    billing_date for the package type. Prefers live rows; if none are effective
+    for that date, falls back to rate-History snapshots effective on that date,
+    de-duplicated per (from_time, to_time) slot with the latest id winning.
+    Each returned row has .from_time, .to_time, .extra_rate.
+    """
+    from django.db.models import Q as _Q
+
+    live = list(
+        ExtraHoursAfter530.objects.filter(
+            package_type=package_type, is_active=True, effective_from__lte=billing_date
+        ).filter(_Q(effective_to__gte=billing_date) | _Q(effective_to__isnull=True))
+    )
+    if live:
+        return live
+
+    hist = (
+        ExtraChargesHistory.objects.filter(
+            extra_charges_after530__isnull=False,
+            extra_charges_after530__package_type=package_type,
+            effective_from__lte=billing_date,
+        )
+        .filter(_Q(effective_to__gte=billing_date) | _Q(effective_to__isnull=True))
+        .order_by("id")
+    )
+    by_slot = {}
+    for h in hist:
+        by_slot[(h.from_time, h.to_time)] = h  # latest id wins
+    return list(by_slot.values())
+
+
 def calculate_enhanced_month_with_attendance(
     child, package_mapping, enrollment, month, year
 ):
@@ -8443,18 +8483,7 @@ def calculate_enhanced_month_with_attendance(
 
                         # Charge ExtraHoursUpTo530 (max 6 hours)
                         for hour_num in range(1, min(hour_count + 1, 7)):
-                            rate_obj = (
-                                ExtraHoursUpTo530.objects.filter(
-                                    hour_number=hour_num,
-                                    effective_from__lte=log_date,
-                                    is_active=True,
-                                )
-                                .filter(
-                                    Q(effective_to__gte=log_date)
-                                    | Q(effective_to__isnull=True)
-                                )
-                                .first()
-                            )
+                            rate_obj = resolve_upto530_rate(hour_num, log_date)
 
                             if rate_obj:
                                 day_extra_charges += rate_obj.extra_rate
@@ -8480,18 +8509,7 @@ def calculate_enhanced_month_with_attendance(
 
                             # Charge ExtraHoursUpTo530 for excess before 5:30
                             for hour_num in range(1, min(hour_count + 1, 7)):
-                                rate_obj = (
-                                    ExtraHoursUpTo530.objects.filter(
-                                        hour_number=hour_num,
-                                        effective_from__lte=log_date,
-                                        is_active=True,
-                                    )
-                                    .filter(
-                                        Q(effective_to__gte=log_date)
-                                        | Q(effective_to__isnull=True)
-                                    )
-                                    .first()
-                                )
+                                rate_obj = resolve_upto530_rate(hour_num, log_date)
 
                                 if rate_obj:
                                     day_extra_charges += rate_obj.extra_rate
@@ -8505,18 +8523,14 @@ def calculate_enhanced_month_with_attendance(
 
                         # Second: Charge for time AFTER 5:30 PM using ExtraHoursAfter530
                         # Get ALL applicable slots after 5:30 PM
-                        applicable_slots = (
-                            ExtraHoursAfter530.objects.filter(
-                                package_type=package_type,
-                                from_time__gte=cutoff_530,
-                                from_time__lt=time_out,
-                                effective_from__lte=log_date,
-                            )
-                            .filter(
-                                Q(effective_to__gte=log_date)
-                                | Q(effective_to__isnull=True)
-                            )
-                            .order_by("from_time")
+                        _eff_after530 = resolve_after530_rows(package_type, log_date)
+                        applicable_slots = sorted(
+                            [
+                                r
+                                for r in _eff_after530
+                                if cutoff_530 <= r.from_time < time_out
+                            ],
+                            key=lambda r: r.from_time,
                         )
 
                         # Add charges for ALL applicable slots (CUMULATIVE)
@@ -8531,19 +8545,15 @@ def calculate_enhanced_month_with_attendance(
                             )
 
                         # Handle partial slot
-                        partial_slot = (
-                            ExtraHoursAfter530.objects.filter(
-                                package_type=package_type,
-                                from_time__lt=time_out,
-                                to_time__gt=time_out,
-                                from_time__gte=cutoff_530,
-                                effective_from__lte=log_date,
-                            )
-                            .filter(
-                                Q(effective_to__gte=log_date)
-                                | Q(effective_to__isnull=True)
-                            )
-                            .first()
+                        partial_slot = next(
+                            (
+                                r
+                                for r in _eff_after530
+                                if r.from_time < time_out
+                                and r.to_time > time_out
+                                and r.from_time >= cutoff_530
+                            ),
+                            None,
                         )
 
                         if partial_slot and partial_slot not in [
@@ -8586,18 +8596,7 @@ def calculate_enhanced_month_with_attendance(
                                 hour_count += 1
 
                             for hour_num in range(1, min(hour_count + 1, 7)):
-                                rate_obj = (
-                                    ExtraHoursUpTo530.objects.filter(
-                                        hour_number=hour_num,
-                                        effective_from__lte=log_date,
-                                        is_active=True,
-                                    )
-                                    .filter(
-                                        Q(effective_to__gte=log_date)
-                                        | Q(effective_to__isnull=True)
-                                    )
-                                    .first()
-                                )
+                                rate_obj = resolve_upto530_rate(hour_num, log_date)
 
                                 if rate_obj:
                                     day_extra_charges += rate_obj.extra_rate
@@ -8614,17 +8613,14 @@ def calculate_enhanced_month_with_attendance(
                         start_time_after_530 = max(package_end_time, cutoff_530)
 
                         # Get ALL applicable slots (CUMULATIVE)
-                        applicable_slots = (
-                            ExtraHoursAfter530.objects.filter(
-                                package_type=package_type,
-                                from_time__gte=start_time_after_530,
-                                from_time__lt=time_out,
-                                effective_from__lte=log_date,
-                            )
-                            .filter(
-                                Q(effective_to__gte=log_date) | Q(effective_to__isnull=True)
-                            )
-                            .order_by("from_time")
+                        _eff_after530 = resolve_after530_rows(package_type, log_date)
+                        applicable_slots = sorted(
+                            [
+                                r
+                                for r in _eff_after530
+                                if start_time_after_530 <= r.from_time < time_out
+                            ],
+                            key=lambda r: r.from_time,
                         )
 
                         # Add charges for ALL applicable slots
@@ -8639,18 +8635,15 @@ def calculate_enhanced_month_with_attendance(
                             )
 
                         # Handle partial slot
-                        partial_slot = (
-                            ExtraHoursAfter530.objects.filter(
-                                package_type=package_type,
-                                from_time__lt=time_out,
-                                to_time__gt=time_out,
-                                from_time__gte=start_time_after_530,
-                                effective_from__lte=log_date,
-                            )
-                            .filter(
-                                Q(effective_to__gte=log_date) | Q(effective_to__isnull=True)
-                            )
-                            .first()
+                        partial_slot = next(
+                            (
+                                r
+                                for r in _eff_after530
+                                if r.from_time < time_out
+                                and r.to_time > time_out
+                                and r.from_time >= start_time_after_530
+                            ),
+                            None,
                         )
 
                         if partial_slot and partial_slot not in [
@@ -12158,18 +12151,7 @@ def getDetailedChargesBreakdown(request):
 
                         # Charge ExtraHoursUpTo530 (max 6 hours)
                         for hour_num in range(1, min(hour_count + 1, 7)):
-                            rate_obj = (
-                                ExtraHoursUpTo530.objects.filter(
-                                    hour_number=hour_num,
-                                    effective_from__lte=log_date,
-                                    is_active=True,
-                                )
-                                .filter(
-                                    Q(effective_to__gte=log_date)
-                                    | Q(effective_to__isnull=True)
-                                )
-                                .first()
-                            )
+                            rate_obj = resolve_upto530_rate(hour_num, log_date)
 
                             if rate_obj:
                                 day_extra_charges += rate_obj.extra_rate
@@ -12195,18 +12177,7 @@ def getDetailedChargesBreakdown(request):
 
                             # Charge ExtraHoursUpTo530 for excess before 5:30
                             for hour_num in range(1, min(hour_count + 1, 7)):
-                                rate_obj = (
-                                    ExtraHoursUpTo530.objects.filter(
-                                        hour_number=hour_num,
-                                        effective_from__lte=log_date,
-                                        is_active=True,
-                                    )
-                                    .filter(
-                                        Q(effective_to__gte=log_date)
-                                        | Q(effective_to__isnull=True)
-                                    )
-                                    .first()
-                                )
+                                rate_obj = resolve_upto530_rate(hour_num, log_date)
 
                                 if rate_obj:
                                     day_extra_charges += rate_obj.extra_rate
@@ -12220,18 +12191,14 @@ def getDetailedChargesBreakdown(request):
 
                         # Second: Charge for time AFTER 5:30 PM using ExtraHoursAfter530
                         # Get ALL applicable slots after 5:30 PM
-                        applicable_slots = (
-                            ExtraHoursAfter530.objects.filter(
-                                package_type=package_type,
-                                from_time__gte=cutoff_530,
-                                from_time__lt=time_out,
-                                effective_from__lte=log_date,
-                            )
-                            .filter(
-                                Q(effective_to__gte=log_date)
-                                | Q(effective_to__isnull=True)
-                            )
-                            .order_by("from_time")
+                        _eff_after530 = resolve_after530_rows(package_type, log_date)
+                        applicable_slots = sorted(
+                            [
+                                r
+                                for r in _eff_after530
+                                if cutoff_530 <= r.from_time < time_out
+                            ],
+                            key=lambda r: r.from_time,
                         )
 
                         # Add charges for ALL applicable slots (CUMULATIVE)
@@ -12246,19 +12213,15 @@ def getDetailedChargesBreakdown(request):
                             )
 
                         # Handle partial slot
-                        partial_slot = (
-                            ExtraHoursAfter530.objects.filter(
-                                package_type=package_type,
-                                from_time__lt=time_out,
-                                to_time__gt=time_out,
-                                from_time__gte=cutoff_530,
-                                effective_from__lte=log_date,
-                            )
-                            .filter(
-                                Q(effective_to__gte=log_date)
-                                | Q(effective_to__isnull=True)
-                            )
-                            .first()
+                        partial_slot = next(
+                            (
+                                r
+                                for r in _eff_after530
+                                if r.from_time < time_out
+                                and r.to_time > time_out
+                                and r.from_time >= cutoff_530
+                            ),
+                            None,
                         )
 
                         if partial_slot and partial_slot not in [
