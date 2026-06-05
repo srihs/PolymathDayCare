@@ -40,4 +40,13 @@ action="{% url 'core:update_AdditionalRates_Upto530'  %}"
 <script>
   jQuery("#effective_from").flatpickr();
   jQuery("#effective_to").flatpickr();
+
+  // Guard against double submission (a rapid double-click was posting the edit
+  // twice, creating duplicate rate-history rows).
+  jQuery("#modelForm form").off("submit.noDouble").on("submit.noDouble", function () {
+    var $f = jQuery(this);
+    if ($f.data("submitted")) { return false; }
+    $f.data("submitted", true);
+    $f.find('button[type="submit"]').prop("disabled", true).text("Saving...");
+  });
 </script>
