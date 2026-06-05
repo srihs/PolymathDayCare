@@ -30,6 +30,11 @@ USAGE (inside the web/app container - NOT the db container):
     docker exec <web-container> python /app/script/reset_memos_and_cleanup_rates.py --rates-only --apply   # execute
 
     # ONLY wipe memos/receipts, leave rates alone:  add --memos-only
+
+    # EMPTY the rate tables entirely (after-5:30 + upto-5:30 + history) so you can
+    # re-enter rates from scratch. Memos are NOT touched:
+    docker exec <web-container> python /app/script/reset_memos_and_cleanup_rates.py --clear-rates           # dry-run
+    docker exec <web-container> python /app/script/reset_memos_and_cleanup_rates.py --clear-rates --apply   # execute
 """
 
 import os
@@ -52,6 +57,8 @@ from datetime import date, timedelta  # noqa: E402
 from django.db import connection, transaction  # noqa: E402
 
 from core.models import (  # noqa: E402
+    ExtraChargesHistory,
+    ExtraHoursAfter530,
     ExtraHoursUpTo530,
     InvoiceMemo,
     InvoiceMemoDetail,
@@ -66,6 +73,10 @@ except Exception:  # pragma: no cover - model may not exist in older schemas
 APPLY = "--apply" in sys.argv
 RATES_ONLY = "--rates-only" in sys.argv  # skip STEP 1 (memo/receipt wipe)
 MEMOS_ONLY = "--memos-only" in sys.argv  # skip STEP 2 (rate cleanup)
+# Empty the rate tables entirely (after-5:30 + upto-5:30 + their change history)
+# and reset their AUTO_INCREMENT to 1, so the rates can be re-entered from
+# scratch. When set, ONLY this runs (no memo wipe, no de-dup).
+CLEAR_RATES = "--clear-rates" in sys.argv
 
 # Order matters only for readability; FK checks are disabled during TRUNCATE.
 MEMO_TABLES = [
@@ -73,6 +84,13 @@ MEMO_TABLES = [
     "dc_invoice_memo_details",
     "dc_memo_regeneration_request",
     "dc_invoice_memos",
+]
+
+# Rate tables to empty for --clear-rates (history first; FK checks off anyway).
+RATE_TABLES = [
+    "dc_extra_charges_history",
+    "dc_extra_charge_after_530",
+    "dc_extra_charges_till_530",
 ]
 
 
@@ -180,8 +198,48 @@ def step2_cleanup_rates():
             transaction.set_rollback(True)
 
 
+def step_clear_rate_tables():
+    print("\n=== CLEAR RATES: empty rate tables + reset identity to 1 ===")
+    print("Current counts:")
+    print("  after-5:30 rates (dc_extra_charge_after_530):", ExtraHoursAfter530.objects.count())
+    print("  upto-5:30 rates  (dc_extra_charges_till_530):", ExtraHoursUpTo530.objects.count())
+    print("  rate history     (dc_extra_charges_history) :", ExtraChargesHistory.objects.count())
+
+    if not APPLY:
+        print(f"DRY-RUN: would TRUNCATE {RATE_TABLES} and reset AUTO_INCREMENT to 1.")
+        return
+
+    with connection.cursor() as cur:
+        cur.execute("SET FOREIGN_KEY_CHECKS=0")
+        for t in RATE_TABLES:
+            cur.execute(f"TRUNCATE TABLE `{t}`")
+            print(f"  truncated {t}")
+        cur.execute("SET FOREIGN_KEY_CHECKS=1")
+
+    print("After:")
+    print("  after-5:30 rates:", ExtraHoursAfter530.objects.count())
+    print("  upto-5:30 rates :", ExtraHoursUpTo530.objects.count())
+    print("  rate history    :", ExtraChargesHistory.objects.count())
+    for t in RATE_TABLES:
+        print(f"  AUTO_INCREMENT[{t}] = {_auto_increment(t)}")
+
+
 def main():
     print("MODE:", "APPLY (changes WILL be committed)" if APPLY else "DRY-RUN (no changes)")
+
+    # --clear-rates is a standalone action: empty the rate tables only.
+    if CLEAR_RATES:
+        print("SCOPE: --clear-rates (ONLY empties rate tables; memos untouched)")
+        step_clear_rate_tables()
+        if not APPLY:
+            print(
+                "\nDRY-RUN complete. Re-run with --apply to execute. "
+                "TRUNCATE is irreversible — BACK UP THE DATABASE FIRST."
+            )
+        else:
+            print("\nDONE. Rate tables are empty; you can now re-enter the rates.")
+        return
+
     if RATES_ONLY:
         print("SCOPE: --rates-only (STEP 1 memo/receipt wipe is SKIPPED)")
     elif MEMOS_ONLY:
