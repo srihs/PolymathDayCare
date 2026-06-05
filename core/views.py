@@ -1138,19 +1138,34 @@ def updateAdditionalRatesUpto530(request):
                             "You are not authorized to performe this operation.",
                         )
                     else:
+                        # Capture old values so we only log history on a real change
+                        # (re-saving unchanged values must not create duplicate
+                        # history rows).
+                        old_vals = (
+                            objNewAdditionalRates.extra_rate,
+                            objNewAdditionalRates.effective_from,
+                            objNewAdditionalRates.effective_to,
+                        )
                         objNewAdditionalRates.extra_rate = extra_rate
                         objNewAdditionalRates.effective_from = effective_from
                         objNewAdditionalRates.effective_to = effective_to
                         objNewAdditionalRates.user_updated = request.user.username
                         objNewAdditionalRates.save()
-                        # ---------------- This section will save a log in to the extra charge history table------------
-                        ExtraChargesHistory.objects.create(
-                            extra_charges_before530=objNewAdditionalRates,
-                            extra_rate=objNewAdditionalRates.extra_rate,
-                            effective_from=objNewAdditionalRates.effective_from,
-                            effective_to=objNewAdditionalRates.effective_to,
-                            user_created=request.user.username,
+                        objNewAdditionalRates.refresh_from_db()
+                        new_vals = (
+                            objNewAdditionalRates.extra_rate,
+                            objNewAdditionalRates.effective_from,
+                            objNewAdditionalRates.effective_to,
                         )
+                        # ----- Log a history row ONLY when something actually changed -----
+                        if new_vals != old_vals:
+                            ExtraChargesHistory.objects.create(
+                                extra_charges_before530=objNewAdditionalRates,
+                                extra_rate=objNewAdditionalRates.extra_rate,
+                                effective_from=objNewAdditionalRates.effective_from,
+                                effective_to=objNewAdditionalRates.effective_to,
+                                user_created=request.user.username,
+                            )
                         messages.success(request, "Additional rate details Updated.")
                 else:
                     messages.error(
@@ -1400,6 +1415,16 @@ def updateAdditionalRates(request):
                             "You are not authorized to performe this operation.",
                         )
                     else:
+                        # Capture old values so we only log history on a real change
+                        # (re-saving unchanged values must not create duplicate
+                        # history rows).
+                        old_vals = (
+                            objNewAdditionalRates.from_time,
+                            objNewAdditionalRates.to_time,
+                            objNewAdditionalRates.extra_rate,
+                            objNewAdditionalRates.effective_from,
+                            objNewAdditionalRates.effective_to,
+                        )
                         objNewAdditionalRates.extra_rate = extra_rate
                         objNewAdditionalRates.from_time = from_time
                         objNewAdditionalRates.to_time = to_time
@@ -1408,19 +1433,28 @@ def updateAdditionalRates(request):
                         objNewAdditionalRates.effective_to = effective_to or None
                         objNewAdditionalRates.user_updated = request.user.username
                         objNewAdditionalRates.save()
-                        # ---------------- This section will save a log in to the extra charge history table------------
-                        with transaction.atomic():  # <-- if the extra charge history fails, addtional rates will be failed.
-                            objExtrachargeHistory = ExtraChargesHistory(
-                                extra_charges_after530=objNewAdditionalRates,
-                                from_time=objNewAdditionalRates.from_time,
-                                to_time=objNewAdditionalRates.to_time,
-                                extra_rate=objNewAdditionalRates.extra_rate,
-                                effective_from=objNewAdditionalRates.effective_from,
-                                effective_to=objNewAdditionalRates.effective_to,
-                                user_created=objNewAdditionalRates.user_created,
-                                date_created=objNewAdditionalRates.date_created,
-                            )
-                            objExtrachargeHistory.save()
+                        objNewAdditionalRates.refresh_from_db()
+                        new_vals = (
+                            objNewAdditionalRates.from_time,
+                            objNewAdditionalRates.to_time,
+                            objNewAdditionalRates.extra_rate,
+                            objNewAdditionalRates.effective_from,
+                            objNewAdditionalRates.effective_to,
+                        )
+                        # ----- Log a history row ONLY when something actually changed -----
+                        if new_vals != old_vals:
+                            with transaction.atomic():  # <-- if the extra charge history fails, addtional rates will be failed.
+                                objExtrachargeHistory = ExtraChargesHistory(
+                                    extra_charges_after530=objNewAdditionalRates,
+                                    from_time=objNewAdditionalRates.from_time,
+                                    to_time=objNewAdditionalRates.to_time,
+                                    extra_rate=objNewAdditionalRates.extra_rate,
+                                    effective_from=objNewAdditionalRates.effective_from,
+                                    effective_to=objNewAdditionalRates.effective_to,
+                                    user_created=objNewAdditionalRates.user_created,
+                                    date_created=objNewAdditionalRates.date_created,
+                                )
+                                objExtrachargeHistory.save()
                         messages.success(request, "Additional rate details Updated.")
                 else:
                     messages.error(
