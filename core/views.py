@@ -46,6 +46,7 @@ from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from reportlab.platypus.flowables import HRFlowable
+from xml.sax.saxutils import escape as xml_escape
 
 from .forms import (
     AttendanceReportForm,
@@ -11686,38 +11687,20 @@ def saveMemoDataEntry(request):
 
             # Try to get detailed breakdown if child has data for previous month
             detailed_breakdown = {}
-            try:
-                # Attempt to get detailed charges breakdown for previous month
-                detailed_breakdown_response = getDetailedChargesBreakdown(
-                    type(
-                        "MockRequest",
-                        (),
-                        {
-                            "GET": {
-                                "child_id": child_id,
-                                "month": str(prev_month),
-                                "year": str(prev_year),
-                            }
-                        },
-                    )()
-                )
-
-                if hasattr(detailed_breakdown_response, "content"):
-                    import json
-
-                    breakdown_data = json.loads(detailed_breakdown_response.content)
-                    if breakdown_data.get("success"):
-                        detailed_breakdown = {
-                            "extra_hours_breakdown": breakdown_data.get(
-                                "extra_hours", {}
-                            ).get("breakdown", []),
-                            "holiday_charges_breakdown": breakdown_data.get(
-                                "holiday_charges", {}
-                            ).get("breakdown", []),
-                            "summary": breakdown_data.get("summary", {}),
-                        }
-            except Exception as e:
-                print(f"Could not get detailed breakdown: {str(e)}")
+            breakdown_data = fetch_detailed_charges_breakdown(
+                child_id, prev_month, prev_year
+            )
+            if breakdown_data:
+                detailed_breakdown = {
+                    "extra_hours_breakdown": breakdown_data.get(
+                        "extra_hours", {}
+                    ).get("breakdown", []),
+                    "holiday_charges_breakdown": breakdown_data.get(
+                        "holiday_charges", {}
+                    ).get("breakdown", []),
+                    "summary": breakdown_data.get("summary", {}),
+                }
+            else:
                 # Create summary breakdown if detailed data not available
                 if prev_extra_hours > 0:
                     detailed_breakdown["extra_hours_breakdown"] = [
@@ -12503,6 +12486,24 @@ def getDetailedChargesBreakdown(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+def fetch_detailed_charges_breakdown(child_id, month, year):
+    """Run getDetailedChargesBreakdown in-process (bypassing @login_required) and
+    return its JSON dict, or None if it failed. Same per-day rows as the memo
+    data entry "Charges Breakdown" panel."""
+    fake_request = type(
+        "BreakdownRequest",
+        (),
+        {"GET": {"child_id": str(child_id), "month": str(month), "year": str(year)}},
+    )()
+    try:
+        response = getDetailedChargesBreakdown.__wrapped__(fake_request)
+        data = json.loads(response.content)
+    except Exception as e:
+        print(f"Could not get detailed breakdown: {str(e)}")
+        return None
+    return data if data.get("success") else None
+
+
 @login_required
 def getChildComprehensiveView(request):
     """Display comprehensive child view page"""
@@ -12979,6 +12980,18 @@ def searchInvoiceMemo(request):
                 "notes": memo.notes or "",
                 "month_details": month_details,
             }
+
+            # Same running-balance ledger as the memo preview and PDF. Skipped when
+            # the display data is only a placeholder (not exactly 3 month rows or
+            # a load error) so the page falls back to the plain breakdown.
+            memo_data["ledger"] = None
+            try:
+                if len(month_details) == 3:
+                    display_data = prepare_memo_display_data_fixed(memo)
+                    if "package_fee" in display_data.get("previous_month", {}):
+                        memo_data["ledger"] = build_memo_ledger(display_data)
+            except Exception as e:
+                print(f"Could not build memo ledger for {memo.memo_code}: {e}")
 
             return JsonResponse(
                 {
@@ -14121,55 +14134,39 @@ def prepare_memo_display_data_fixed(memo):
             extra_hours_breakdown = calc_details.get("extra_hours_breakdown", [])
             holiday_breakdown = calc_details.get("holiday_charges_breakdown", [])
 
-            # Convert manual entry format to detailed format for display
-            if is_manual_entry and extra_hours_breakdown:
-                detailed_breakdown = []
-                for item in extra_hours_breakdown:
-                    if item.get("type") == "manual_summary":
-                        total_charge = float(item.get("charges", 0))
-                        if total_charge > 0:
-                            daily_rate = 150.0
-                            num_instances = int(total_charge / daily_rate)
-                            month = previous_detail.actual_month
-                            year = previous_detail.actual_year
-
-                            working_days = []
-                            last_day = calendar.monthrange(year, month)[1]
-
-                            for day in range(1, last_day + 1):
-                                date_obj = date(year, month, day)
-                                if date_obj.weekday() < 5:
-                                    working_days.append(date_obj)
-
-                            for i in range(min(num_instances, len(working_days))):
-                                work_day = working_days[i]
-                                times = [
-                                    "18:02",
-                                    "18:05",
-                                    "18:08",
-                                    "18:10",
-                                    "18:12",
-                                    "18:14",
-                                    "18:18",
-                                    "18:20",
-                                ]
-                                time_out = times[i % len(times)]
-                                extra_hours = round(0.6 + (i * 0.03), 2)
-
-                                detailed_breakdown.append(
-                                    {
-                                        "date": work_day.strftime("%Y-%m-%d"),
-                                        "day_name": work_day.strftime("%A"),
-                                        "time_out": time_out,
-                                        "extra_hours": extra_hours,
-                                        "extra_hours_display": f"{extra_hours} h extra",
-                                        "charges": daily_rate,
-                                        "type": "converted_from_manual",
-                                    }
-                                )
-                    else:
-                        detailed_breakdown.append(item)
-                extra_hours_breakdown = detailed_breakdown
+            # Older manual memos only stored a single "manual_summary" line. Replace
+            # it with the real per-day rows (same calculation as the memo data
+            # entry "Charges Breakdown" panel) when they can be computed.
+            has_extra_summary = any(
+                item.get("type") == "manual_summary" for item in extra_hours_breakdown
+            )
+            has_holiday_summary = any(
+                item.get("type") == "manual_summary" for item in holiday_breakdown
+            )
+            needs_holiday_rows = (
+                is_manual_entry
+                and previous_detail.holiday_charges > 0
+                and not holiday_breakdown
+            )
+            if (
+                has_extra_summary or has_holiday_summary or needs_holiday_rows
+            ) and previous_detail.actual_month and previous_detail.actual_year:
+                real_breakdown = fetch_detailed_charges_breakdown(
+                    memo.child.id,
+                    previous_detail.actual_month,
+                    previous_detail.actual_year,
+                )
+                if real_breakdown:
+                    real_extra = real_breakdown.get("extra_hours", {}).get(
+                        "breakdown", []
+                    )
+                    real_holiday = real_breakdown.get("holiday_charges", {}).get(
+                        "breakdown", []
+                    )
+                    if has_extra_summary and real_extra:
+                        extra_hours_breakdown = real_extra
+                    if (has_holiday_summary or needs_holiday_rows) and real_holiday:
+                        holiday_breakdown = real_holiday
 
             # Handle holiday breakdown
             if (
@@ -14290,12 +14287,9 @@ def prepare_memo_display_data_fixed(memo):
                         "holiday_charges": float(previous_detail.holiday_charges),
                         "holiday_description": "Holiday Attendance Charges",
                         "holiday_breakdown_list": holiday_breakdown,
-                        # Month total
-                        "month_total": float(
-                            previous_detail.net_balance
-                            + previous_detail.extra_hours_charge
-                            + previous_detail.holiday_charges
-                        ),
+                        # Month total (net_balance already includes extra hours
+                        # and holiday charges, less payments)
+                        "month_total": float(previous_detail.net_balance),
                         # Attendance details
                         "days_attended": days_attended,
                         "expected_days": expected_days,
@@ -14323,15 +14317,11 @@ def prepare_memo_display_data_fixed(memo):
                     # Summary totals
                     "totals": {
                         "outstanding": float(outstanding_detail.net_balance),
-                        "previous_month": float(
-                            previous_detail.net_balance
-                            + previous_detail.extra_hours_charge
-                            + previous_detail.holiday_charges
-                        ),
+                        "previous_month": float(previous_detail.net_balance),
                         "current_month": float(current_detail.net_balance),
                         "grand_total": float(memo.net_amount_due),
                         "total_payments": float(memo.total_payments),
-                        "final_calculation": f"Rs.{outstanding_detail.net_balance:,.2f} + Rs.{previous_detail.net_balance + previous_detail.extra_hours_charge + previous_detail.holiday_charges:,.2f} + Rs.{current_detail.net_balance:,.2f} = Rs.{memo.net_amount_due:,.2f}",
+                        "final_calculation": f"Rs.{outstanding_detail.net_balance:,.2f} + Rs.{previous_detail.net_balance:,.2f} + Rs.{current_detail.net_balance:,.2f} = Rs.{memo.net_amount_due:,.2f}",
                     },
                     # ===== ENHANCED PAYMENT SUMMARY =====
                     "payment_summary": {
@@ -14409,6 +14399,39 @@ def prepare_memo_display_data_fixed(memo):
             "payment_summary": {"total_payments": 0, "all_payments": []},
             "error": str(e),
         }
+
+
+MEMO_FONT_FILES = {
+    "MemoSans": "NotoSans-Regular.ttf",
+    "MemoSans-Bold": "NotoSans-Bold.ttf",
+    "MemoSans-Italic": "NotoSans-Italic.ttf",
+    "MemoSans-BoldItalic": "NotoSans-BoldItalic.ttf",
+}
+
+
+def register_memo_pdf_fonts():
+    """Register Noto Sans (static/assets/fonts) so the memo PDF uses the same
+    typeface as the HTML preview. Returns (regular, bold) font names, falling
+    back to Helvetica if the font files are missing."""
+    from reportlab.lib.fonts import addMapping
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    if "MemoSans" in pdfmetrics.getRegisteredFontNames():
+        return "MemoSans", "MemoSans-Bold"
+    font_dir = os.path.join(settings.BASE_DIR, "static", "assets", "fonts")
+    try:
+        for name, filename in MEMO_FONT_FILES.items():
+            pdfmetrics.registerFont(TTFont(name, os.path.join(font_dir, filename)))
+    except Exception as e:
+        print(f"Memo PDF font registration failed, using Helvetica: {e}")
+        return "Helvetica", "Helvetica-Bold"
+    # Let <b>/<i> markup inside Paragraphs pick the matching faces.
+    addMapping("MemoSans", 0, 0, "MemoSans")
+    addMapping("MemoSans", 1, 0, "MemoSans-Bold")
+    addMapping("MemoSans", 0, 1, "MemoSans-Italic")
+    addMapping("MemoSans", 1, 1, "MemoSans-BoldItalic")
+    return "MemoSans", "MemoSans-Bold"
 
 
 def generate_memo_pdf_with_two_column_breakdown(memo_data):
@@ -14528,6 +14551,7 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
         - Payment verification
         - Audit trail documentation
     """
+    FONT, FONT_BOLD = register_memo_pdf_fonts()
     try:
         buffer = BytesIO()
         doc = SimpleDocTemplate(
@@ -14545,26 +14569,26 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
         header_style = ParagraphStyle(
             "CustomHeader",
             parent=styles["Heading1"],
-            fontSize=16,
+            fontSize=13,
             spaceAfter=6,
             alignment=1,
-            fontName="Helvetica-Bold",
+            fontName=FONT_BOLD,
         )
 
         address_style = ParagraphStyle(
             "AddressStyle",
             parent=styles["Normal"],
-            fontSize=11,
+            fontSize=9,
             alignment=1,
             spaceAfter=12,
-            fontName="Helvetica",
+            fontName=FONT,
         )
 
         normal_style = ParagraphStyle(
             "NormalStyle",
             parent=styles["Normal"],
-            fontSize=11,
-            fontName="Helvetica",
+            fontSize=9, leading=12,
+            fontName=FONT,
         )
 
         story = []
@@ -14596,8 +14620,8 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
         child_info_table.setStyle(
             TableStyle(
                 [
-                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 11),
+                    ("FONTNAME", (0, 0), (-1, -1), FONT),
+                    ("FONTSIZE", (0, 0), (-1, -1), 9),
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
                     ("ALIGN", (1, 0), (1, -1), "RIGHT"),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
@@ -14607,222 +14631,175 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
         story.append(child_info_table)
         story.append(Spacer(1, 15))
 
-        # Main table data
-        table_data = [["Description", "Amount (Rs.)"]]
+        # ===== 3-month ledger with running balance =====
+        ledger = build_memo_ledger(memo_data)
 
-        # Outstanding section
-        outstanding = memo_data.get("outstanding_month", {})
-        table_data.append(
-            [
-                f"{outstanding.get('name', 'Outstanding')} {outstanding.get('year', 2025)} • OUTSTANDING",
-                "",
-            ]
+        cell_style = ParagraphStyle(
+            "LedgerCell", parent=normal_style, fontSize=9, leading=11.5
+        )
+        detail_style = ParagraphStyle(
+            "LedgerDetail",
+            parent=normal_style,
+            fontSize=7.5,
+            leading=9.5,
+            textColor=colors.Color(0.4, 0.4, 0.4),
+        )
+        detail_right_style = ParagraphStyle(
+            "LedgerDetailRight", parent=detail_style, alignment=2
+        )
+        band_style = ParagraphStyle(
+            "LedgerBand", parent=normal_style, fontSize=10, leading=12.5
         )
 
-        outstanding_desc = f"Outstanding from {outstanding.get('name', 'Outstanding')}"
-        table_data.append(
-            [outstanding_desc, f"{outstanding.get('original_charge', 0):,.2f}"]
-        )
+        def pdf_money(v):
+            return f"{v:,.2f}" if v else ""
 
-        # Add outstanding payment - ALWAYS SHOW
-        payment_text = outstanding.get("payment_display_text", "Payments")
-        table_data.append(
-            [payment_text, f"-{outstanding.get('payment_amount', 0):,.2f}"]
-        )
+        band_colors = {
+            "outstanding": (colors.Color(0.99, 0.93, 0.93), colors.Color(0.85, 0.33, 0.31)),
+            "previous": (colors.Color(0.92, 0.95, 0.99), colors.Color(0.18, 0.48, 0.77)),
+            "current": (colors.Color(0.91, 0.97, 0.95), colors.Color(0.18, 0.62, 0.42)),
+        }
+        green = colors.Color(0.12, 0.49, 0.2)
+        rule = colors.Color(0.82, 0.84, 0.87)
 
-        table_data.append(
-            [
-                f"Outstanding from {outstanding.get('name', 'Outstanding')}",
-                f"{outstanding.get('balance', 0):,.2f}",
-            ]
-        )
-
-        # Previous month section
-        previous = memo_data.get("previous_month", {})
-        table_data.append(
-            [
-                f"{previous.get('name', 'Previous')} {previous.get('year', 2025)} • CALCULATED",
-                "",
-            ]
-        )
-
-        # Day care monthly fee
-        package_desc = previous.get(
-            "package_description",
-            f"Day Care Monthly fee - {previous.get('name', 'Previous')} ({previous.get('days_attended', 0)}/{previous.get('expected_days', 22)} days attended)",
-        )
-        table_data.append([package_desc, f"{previous.get('package_fee', 0):,.2f}"])
-
-        # Extra hours with 2-column detailed breakdown
-        if previous.get("extra_charges", 0) > 0:
-            extra_breakdown = previous.get("extra_hours_breakdown_list", [])
-            extra_description = "Extra Hours for the month"
-
-            if extra_breakdown and len(extra_breakdown) > 0:
-                # Create 2-column breakdown table
-                breakdown_table_data = []
-
-                for i in range(0, len(extra_breakdown), 2):
-                    left_item = extra_breakdown[i]
-                    right_item = (
-                        extra_breakdown[i + 1] if i + 1 < len(extra_breakdown) else None
-                    )
-
-                    left_text = format_breakdown_item(left_item)
-                    right_text = format_breakdown_item(right_item) if right_item else ""
-
-                    breakdown_table_data.append([left_text, right_text])
-
-                breakdown_table = Table(
-                    breakdown_table_data, colWidths=[60 * mm, 60 * mm]
-                )
-                breakdown_table.setStyle(
-                    TableStyle(
-                        [
-                            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-                            ("FONTSIZE", (0, 0), (-1, -1), 9),
-                            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                            ("LEFTPADDING", (0, 0), (-1, -1), 4),
-                            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-                            ("TOPPADDING", (0, 0), (-1, -1), 2),
-                            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-                            ("GRID", (0, 0), (-1, -1), 0, colors.white),
-                        ]
-                    )
-                )
-
-                full_extra_desc = [
-                    [extra_description, f"{previous.get('extra_charges', 0):,.2f}"],
-                    [breakdown_table, ""],
-                ]
-                table_data.extend(full_extra_desc)
-            else:
-                table_data.append(
-                    [extra_description, f"{previous.get('extra_charges', 0):,.2f}"]
-                )
-
-        # Holiday charges with 2-column breakdown
-        if previous.get("holiday_charges", 0) > 0:
-            holiday_breakdown = previous.get("holiday_breakdown_list", [])
-            holiday_count = len(holiday_breakdown)
-            holiday_description = f"Holiday Attendance Charges {holiday_count} days"
-
-            if holiday_breakdown and len(holiday_breakdown) > 0:
-                holiday_breakdown_data = []
-
-                for i in range(0, len(holiday_breakdown), 2):
-                    left_item = holiday_breakdown[i]
-                    right_item = (
-                        holiday_breakdown[i + 1]
-                        if i + 1 < len(holiday_breakdown)
-                        else None
-                    )
-
-                    left_text = format_holiday_breakdown_item(left_item)
-                    right_text = (
-                        format_holiday_breakdown_item(right_item) if right_item else ""
-                    )
-
-                    holiday_breakdown_data.append([left_text, right_text])
-
-                holiday_breakdown_table = Table(
-                    holiday_breakdown_data, colWidths=[60 * mm, 60 * mm]
-                )
-                holiday_breakdown_table.setStyle(
-                    TableStyle(
-                        [
-                            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-                            ("FONTSIZE", (0, 0), (-1, -1), 9),
-                            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                            ("LEFTPADDING", (0, 0), (-1, -1), 4),
-                            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-                            ("TOPPADDING", (0, 0), (-1, -1), 2),
-                            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-                            ("GRID", (0, 0), (-1, -1), 0, colors.white),
-                        ]
-                    )
-                )
-
-                full_holiday_desc = [
-                    [holiday_description, f"{previous.get('holiday_charges', 0):,.2f}"],
-                    [holiday_breakdown_table, ""],
-                ]
-                table_data.extend(full_holiday_desc)
-            else:
-                table_data.append(
-                    [holiday_description, f"{previous.get('holiday_charges', 0):,.2f}"]
-                )
-
-        # ===== ADD PREVIOUS MONTH PAYMENTS - ALWAYS SHOW =====
-        payment_text = previous.get("payment_display_text", "Payments")
-        table_data.append([payment_text, f"-{previous.get('payment_amount', 0):,.2f}"])
-
-        # Previous month total
-        table_data.append(
-            [
-                f"Total for {previous.get('name', 'Previous')} {previous.get('year', 2025)}",
-                f"{previous.get('month_total', 0):,.2f}",
-            ]
-        )
-
-        # Current month section
-        current = memo_data.get("current_month", {})
-        table_data.append(
-            [
-                f"{current.get('name', 'Current')} {current.get('year', 2025)} • ADVANCE",
-                "",
-            ]
-        )
-
-        current_desc = current.get(
-            "package_description",
-            f"Day Care Monthly fee - {current.get('name', 'Current')} {current.get('year', 2025)} (Full Package)",
-        )
-        current_desc += (
-            f"\n{current.get('advance_note', 'Advance charge for upcoming month')}"
-        )
-        table_data.append([current_desc, f"{current.get('package_fee', 0):,.2f}"])
-
-        # ===== ADD CURRENT MONTH PAYMENTS - ALWAYS SHOW =====
-        payment_text = current.get("payment_display_text", "Payments")
-        table_data.append([payment_text, f"-{current.get('payment_amount', 0):,.2f}"])
-
-        # Final total
-        totals = memo_data.get("totals", {})
-        table_data.append(
-            [
-                "TOTAL AMOUNT TO PAY",
-                f"Rs. {totals.get('grand_total', 0):,.2f}",
-            ]
-        )
-
-        # Create and style main table
-        main_table = Table(table_data, colWidths=[120 * mm, 35 * mm])
-
+        table_data = [["Description", "Charge (Rs.)", "Paid (Rs.)", "Balance (Rs.)"]]
         table_styles = [
-            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-            ("FONTSIZE", (0, 0), (-1, -1), 10),
-            ("GRID", (0, 0), (-1, -1), 1, colors.black),
+            ("FONTNAME", (0, 0), (-1, -1), FONT),
+            ("FONTNAME", (0, 0), (-1, 0), FONT_BOLD),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
             ("LEFTPADDING", (0, 0), (-1, -1), 6),
             ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-            ("TOPPADDING", (0, 0), (-1, -1), 6),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-            # Header row
-            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            # Section headers
-            ("BACKGROUND", (0, 1), (-1, 1), colors.Color(1, 0.9, 0.9)),  # Outstanding
-            ("FONTNAME", (0, 1), (-1, 1), "Helvetica-Bold"),
-            # Final total
-            ("BACKGROUND", (0, -1), (-1, -1), colors.Color(1, 0.95, 0.8)),
-            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("LINEBELOW", (0, 0), (-1, 0), 1.5, colors.black),
+            ("BACKGROUND", (3, 1), (3, -1), colors.Color(0.98, 0.98, 0.98)),
+            ("FONTNAME", (3, 1), (3, -1), FONT_BOLD),
+            ("TEXTCOLOR", (2, 1), (2, -1), green),
         ]
 
+        for section in ledger["sections"]:
+            r = len(table_data)
+            bg, accent = band_colors.get(section["style"], band_colors["previous"])
+            table_data.append(
+                [
+                    Paragraph(
+                        f"<b>{xml_escape(section['title'])}</b>"
+                        f"&nbsp;&nbsp;<font size='7.5' color='#555555'>"
+                        f"{xml_escape(section['tag'])}</font>",
+                        band_style,
+                    ),
+                    "",
+                    "",
+                    "",
+                ]
+            )
+            table_styles += [
+                ("SPAN", (0, r), (-1, r)),
+                ("BACKGROUND", (0, r), (-1, r), bg),
+                ("LINEBEFORE", (0, r), (0, r), 3, accent),
+                ("TOPPADDING", (0, r), (-1, r), 7),
+            ]
+            for row in section["rows"]:
+                r = len(table_data)
+                label = xml_escape(row["label"])
+                if row["kind"] == "payment":
+                    label = f"<font color='#1e7e34'>{label}</font>"
+                elif row["kind"] == "adjustment":
+                    label = f"<i>{label}</i>"
+                table_data.append(
+                    [
+                        Paragraph(label, cell_style),
+                        pdf_money(row["charge"]),
+                        pdf_money(row["paid"]),
+                        format_ledger_balance(row["balance"]),
+                    ]
+                )
+                if row["details"]:
+                    # Per-day lines go in their own row spanning Description,
+                    # Charge and Paid. Each detail is "part  part  part"; lay the
+                    # parts out as aligned mini-columns, two days per line.
+                    parts = [d.split("  ") for d in row["details"]]
+                    width = max(len(p) for p in parts)
+                    parts = [p + [""] * (width - len(p)) for p in parts]
+                    blank = [""] * width
+                    lines = [
+                        [
+                            Paragraph(xml_escape(text), detail_right_style)
+                            if (j % width) == width - 1
+                            else Paragraph(xml_escape(text), detail_style)
+                            for j, text in enumerate(
+                                parts[i]
+                                + (parts[i + 1] if i + 1 < len(parts) else blank)
+                            )
+                        ]
+                        for i in range(0, len(parts), 2)
+                    ]
+                    # each day-group is 62mm: date 13mm, amount 17mm, middle split
+                    n_middle = max(width - 2, 0)
+                    middle = [(32 / max(n_middle, 1)) * mm] * n_middle
+                    group_w = ([13 * mm] + middle + [17 * mm])[:width]
+                    details_table = Table(lines, colWidths=group_w * 2)
+                    details_table.setStyle(
+                        TableStyle(
+                            [
+                                ("FONTNAME", (0, 0), (-1, -1), FONT),
+                                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                                ("TOPPADDING", (0, 0), (-1, -1), 0.5),
+                                ("BOTTOMPADDING", (0, 0), (-1, -1), 0.5),
+                                ("RIGHTPADDING", (width - 1, 0), (width - 1, -1), 12),
+                            ]
+                        )
+                    )
+                    table_data.append([details_table, "", "", ""])
+                    table_styles += [
+                        ("SPAN", (0, r + 1), (2, r + 1)),
+                        ("TOPPADDING", (0, r + 1), (-1, r + 1), 0),
+                        ("LEFTPADDING", (0, r + 1), (0, r + 1), 12),
+                    ]
+                    r += 1
+                table_styles.append(("LINEBELOW", (0, r), (-1, r), 0.5, rule))
+
+        amount_due = ledger["amount_due"]
+        table_data.append(
+            [
+                "AMOUNT DUE" if amount_due >= 0 else "CREDIT BALANCE (nothing to pay)",
+                "",
+                "",
+                f"Rs. {abs(amount_due):,.2f}",
+            ]
+        )
+        table_styles += [
+            ("SPAN", (0, -1), (2, -1)),
+            ("FONTNAME", (0, -1), (-1, -1), FONT_BOLD),
+            ("FONTSIZE", (0, -1), (-1, -1), 11),
+            ("LINEABOVE", (0, -1), (-1, -1), 1.5, colors.black),
+            ("LINEBELOW", (0, -1), (-1, -1), 1.5, colors.black),
+            ("BACKGROUND", (0, -1), (-1, -1), colors.Color(1, 0.95, 0.8)),
+            ("TOPPADDING", (0, -1), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, -1), (-1, -1), 8),
+        ]
+
+        main_table = Table(
+            table_data, colWidths=[98 * mm, 24 * mm, 24 * mm, 24 * mm], repeatRows=1
+        )
         main_table.setStyle(TableStyle(table_styles))
         story.append(main_table)
-        story.append(Spacer(1, 20))
+        story.append(Spacer(1, 4))
+        story.append(
+            Paragraph(
+                "Balance runs down the right-hand column. CR = credit in your favour.",
+                ParagraphStyle(
+                    "LedgerLegend",
+                    parent=normal_style,
+                    fontSize=7.5,
+                    textColor=colors.Color(0.4, 0.4, 0.4),
+                ),
+            )
+        )
+        story.append(Spacer(1, 16))
 
         # Footer note
         story.append(
@@ -14853,9 +14830,9 @@ def generate_memo_pdf_with_two_column_breakdown(memo_data):
         account_table.setStyle(
             TableStyle(
                 [
-                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 10),
-                    ("FONTNAME", (0, 0), (0, 0), "Helvetica-Bold"),
+                    ("FONTNAME", (0, 0), (-1, -1), FONT),
+                    ("FONTSIZE", (0, 0), (-1, -1), 9),
+                    ("FONTNAME", (0, 0), (0, 0), FONT_BOLD),
                     ("GRID", (0, 0), (-1, -1), 1, colors.black),
                     ("LEFTPADDING", (0, 0), (-1, -1), 6),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 6),
@@ -15140,127 +15117,230 @@ def format_holiday_breakdown_item_html(item):
     return f"{formatted_date} → {holiday_name} (Rs.{charges:,.2f})"
 
 
-def generate_memo_preview_html_with_two_columns(memo_data):
-    """Generate HTML preview with 2-column breakdown display and PAYMENTS"""
+def format_ledger_balance(amount):
+    """Running-balance display: credits (money in the parent's favour) as "CR"."""
+    if round(amount, 2) < 0:
+        return f"{abs(amount):,.2f} CR"
+    return f"{amount:,.2f}"
 
-    # Process breakdown data
-    previous = memo_data.get("previous_month", {})
-    extra_breakdown = previous.get("extra_hours_breakdown_list", [])
-    holiday_breakdown = previous.get("holiday_breakdown_list", [])
 
-    # Generate extra hours HTML with 2-column layout
-    extra_hours_html = ""
-    if previous.get("extra_charges", 0) > 0:
-        extra_count = len(extra_breakdown)
-        extra_description = "Extra Hours Charges for the month"
+def _ledger_short_date(date_str):
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").strftime("%d %b")
+    except (TypeError, ValueError):
+        return date_str or ""
 
-        # Create 2-column breakdown
-        breakdown_html = ""
-        if extra_breakdown:
-            breakdown_html = '<div class="breakdown-grid">'
-            for i in range(0, len(extra_breakdown), 2):
-                left_item = extra_breakdown[i]
-                right_item = (
-                    extra_breakdown[i + 1] if i + 1 < len(extra_breakdown) else None
-                )
 
-                left_text = format_breakdown_item_html(left_item)
-                right_text = (
-                    format_breakdown_item_html(right_item) if right_item else ""
-                )
+def build_memo_ledger(memo_data):
+    """
+    Build the 3-month statement shown on the memo preview and PDF as a ledger
+    with a running balance, so every figure adds straight down to the amount due.
 
-                breakdown_html += f"""
-                <div class="breakdown-row">
-                    <div class="breakdown-col">{left_text}</div>
-                    <div class="breakdown-col">{right_text}</div>
-                </div>"""
-            breakdown_html += "</div>"
-
-        extra_hours_html = f"""
-                    <tr>
-                        <td>
-                            {extra_description}
-                            {breakdown_html}
-                        </td>
-                        <td class="amount-col">{previous.get("extra_charges", 0):,.2f}</td>
-                    </tr>"""
-
-    # Generate holiday charges HTML with 2-column layout
-    holiday_charges_html = ""
-    if previous.get("holiday_charges", 0) > 0:
-        holiday_count = len(holiday_breakdown)
-        holiday_description = f"Holiday Attendance Charges {holiday_count} days"
-
-        # Create 2-column breakdown for holidays
-        holiday_breakdown_html = ""
-        if holiday_breakdown:
-            holiday_breakdown_html = '<div class="breakdown-grid">'
-            for i in range(0, len(holiday_breakdown), 2):
-                left_item = holiday_breakdown[i]
-                right_item = (
-                    holiday_breakdown[i + 1] if i + 1 < len(holiday_breakdown) else None
-                )
-
-                left_text = format_holiday_breakdown_item_html(left_item)
-                right_text = (
-                    format_holiday_breakdown_item_html(right_item) if right_item else ""
-                )
-
-                holiday_breakdown_html += f"""
-                <div class="breakdown-row">
-                    <div class="breakdown-col">{left_text}</div>
-                    <div class="breakdown-col">{right_text}</div>
-                </div>"""
-            holiday_breakdown_html += "</div>"
-
-        holiday_charges_html = f"""
-                    <tr>
-                        <td>
-                            {holiday_description}
-                            {holiday_breakdown_html}
-                        </td>
-                        <td class="amount-col">{previous.get("holiday_charges", 0):,.2f}</td>
-                    </tr>"""
-
-    # ===== GENERATE PAYMENT HTML SECTIONS =====
+    Returns {"sections": [...], "amount_due": float}. Each section is
+    {"title", "tag", "style", "rows"} and each row is
+    {"label", "charge", "paid", "balance", "kind", "details"} where kind is one of
+    "charge" / "payment" / "adjustment" / "subtotal", and details is a list of
+    short strings (per-day extra hours / holiday lines) shown under the row.
+    """
     outstanding = memo_data.get("outstanding_month", {})
+    previous = memo_data.get("previous_month", {})
     current = memo_data.get("current_month", {})
+    totals = memo_data.get("totals", {})
 
-    # Outstanding payment HTML - ALWAYS SHOW
-    outstanding_payment_color = (
-        "payment-amount"
-        if outstanding.get("payment_amount", 0) > 0
-        else "payment-amount text-muted"
+    running = 0.0
+    sections = []
+
+    def add_row(rows, label, charge=0.0, paid=0.0, kind="charge", details=None):
+        nonlocal running
+        running += charge - paid
+        rows.append(
+            {
+                "label": label,
+                "charge": charge,
+                "paid": paid,
+                "balance": running,
+                "kind": kind,
+                "details": details or [],
+            }
+        )
+
+    def add_payments(rows, month):
+        payments = month.get("payment_details") or []
+        if payments:
+            for p in payments:
+                receipt = str(p.get("receipt_number", "")).strip()
+                when = p.get("date", "")
+                label = "Payment received"
+                if receipt:
+                    label += f" – Receipt {receipt}"
+                if when and when != "N/A":
+                    label += f" ({when})"
+                add_row(rows, label, paid=float(p.get("amount", 0)), kind="payment")
+        elif month.get("payment_amount", 0):
+            add_row(
+                rows,
+                "Payment received",
+                paid=float(month.get("payment_amount", 0)),
+                kind="payment",
+            )
+
+    def reconcile(rows, month_start, expected_month_balance):
+        # Keep the ledger honest if the month has discounts/other adjustments
+        # that are not itemised above.
+        diff = round(expected_month_balance - (running - month_start), 2)
+        if diff:
+            add_row(
+                rows,
+                "Discounts / other adjustments",
+                charge=diff if diff > 0 else 0.0,
+                paid=-diff if diff < 0 else 0.0,
+                kind="adjustment",
+            )
+
+    # ---- Month 1: balance brought forward ----
+    rows = []
+    start = running
+    add_row(
+        rows,
+        f"Balance brought forward from {outstanding.get('name', '')} "
+        f"{outstanding.get('year', '')}",
+        charge=float(outstanding.get("original_charge", 0)),
     )
-    outstanding_payment_html = f"""
-                    <tr>
-                        <td class="payment-row">{outstanding.get("payment_display_text", "Payments")}</td>
-                        <td class="amount-col {outstanding_payment_color}">-{outstanding.get("payment_amount", 0):,.2f}</td>
+    add_payments(rows, outstanding)
+    reconcile(rows, start, float(outstanding.get("balance", 0)))
+    sections.append(
+        {
+            "title": f"{outstanding.get('name', '')} {outstanding.get('year', '')}",
+            "tag": "Brought forward",
+            "style": "outstanding",
+            "rows": rows,
+        }
+    )
+
+    # ---- Month 2: last month, calculated on attendance ----
+    rows = []
+    start = running
+    add_row(
+        rows,
+        previous.get("package_description", "Day care monthly fee"),
+        charge=float(previous.get("package_fee", 0)),
+    )
+    extra_list = previous.get("extra_hours_breakdown_list") or []
+    if previous.get("extra_charges", 0):
+        details = [
+            f"{_ledger_short_date(i.get('date'))}  out {i.get('time_out', '')}  "
+            + str(i.get("extra_hours_display", ""))
+            .replace(" hrs", "h")
+            .replace(" hr", "h")
+            .replace(" mins", "m")
+            .replace(" min", "m")
+            + f"  {float(i.get('charges', 0)):,.2f}"
+            for i in extra_list
+            if i.get("type") != "manual_summary"
+        ]
+        label = "Extra hours"
+        if details:
+            label += f" ({len(details)} day{'s' if len(details) != 1 else ''})"
+        add_row(
+            rows, label, charge=float(previous.get("extra_charges", 0)), details=details
+        )
+    holiday_list = previous.get("holiday_breakdown_list") or []
+    if previous.get("holiday_charges", 0):
+        details = [
+            f"{_ledger_short_date(i.get('date'))}  {i.get('holiday_name', 'Holiday')}  "
+            f"{float(i.get('charges', 0)):,.2f}"
+            for i in holiday_list
+            if i.get("type") not in ("manual_summary", "converted_from_manual")
+        ]
+        label = "Holiday attendance"
+        if details:
+            label += f" ({len(details)} day{'s' if len(details) != 1 else ''})"
+        add_row(
+            rows,
+            label,
+            charge=float(previous.get("holiday_charges", 0)),
+            details=details,
+        )
+    add_payments(rows, previous)
+    reconcile(rows, start, float(previous.get("month_total", 0)))
+    sections.append(
+        {
+            "title": f"{previous.get('name', '')} {previous.get('year', '')}",
+            "tag": "Last month · based on attendance",
+            "style": "previous",
+            "rows": rows,
+        }
+    )
+
+    # ---- Month 3: this month, billed in advance ----
+    rows = []
+    start = running
+    add_row(
+        rows,
+        f"Day care monthly fee – {current.get('name', '')} {current.get('year', '')} "
+        "(full month, in advance)",
+        charge=float(current.get("package_fee", 0)),
+    )
+    add_payments(rows, current)
+    reconcile(rows, start, float(current.get("balance", 0)))
+    sections.append(
+        {
+            "title": f"{current.get('name', '')} {current.get('year', '')}",
+            "tag": "This month · advance",
+            "style": "current",
+            "rows": rows,
+        }
+    )
+
+    amount_due = float(totals.get("grand_total", running))
+    if round(amount_due - running, 2):
+        # Memo header total differs from the itemised months - show it explicitly.
+        add_row(
+            sections[-1]["rows"],
+            "Other adjustments",
+            charge=max(amount_due - running, 0.0),
+            paid=max(running - amount_due, 0.0),
+            kind="adjustment",
+        )
+
+    return {"sections": sections, "amount_due": amount_due}
+
+
+def generate_memo_preview_html_with_two_columns(memo_data):
+    """Generate the memo preview HTML as a 3-month ledger with a running balance."""
+    from django.templatetags.static import static
+    from django.utils.html import escape
+
+    ledger = build_memo_ledger(memo_data)
+
+    def money(v):
+        return f"{v:,.2f}" if v else ""
+
+    ledger_rows_html = ""
+    for section in ledger["sections"]:
+        ledger_rows_html += f"""
+                    <tr class="band band-{section["style"]}">
+                        <td colspan="4"><span class="band-title">{escape(section["title"])}</span>
+                            <span class="band-tag">{escape(section["tag"])}</span></td>
+                    </tr>"""
+        for row in section["rows"]:
+            details_html = ""
+            if row["details"]:
+                details_html = (
+                    '<div class="row-details">'
+                    + "".join(f"<span>{escape(d)}</span>" for d in row["details"])
+                    + "</div>"
+                )
+            ledger_rows_html += f"""
+                    <tr class="line line-{row["kind"]}">
+                        <td>{escape(row["label"])}{details_html}</td>
+                        <td class="amount-col">{money(row["charge"])}</td>
+                        <td class="amount-col paid-col">{money(row["paid"])}</td>
+                        <td class="amount-col balance-col">{format_ledger_balance(row["balance"])}</td>
                     </tr>"""
 
-    # Previous month payment HTML - ALWAYS SHOW
-    previous_payment_color = (
-        "payment-amount"
-        if previous.get("payment_amount", 0) > 0
-        else "payment-amount text-muted"
-    )
-    previous_payment_html = f"""
-                    <tr>
-                        <td class="payment-row">{previous.get("payment_display_text", "Payments")}</td>
-                        <td class="amount-col {previous_payment_color}">-{previous.get("payment_amount", 0):,.2f}</td>
-                    </tr>"""
-
-    # Current month payment HTML - ALWAYS SHOW
-    current_payment_color = (
-        "payment-amount"
-        if current.get("payment_amount", 0) > 0
-        else "payment-amount text-muted"
-    )
-    current_payment_html = f"""
-                    <tr>
-                        <td class="payment-row">{current.get("payment_display_text", "Payments")}</td>
-                        <td class="amount-col {current_payment_color}">-{current.get("payment_amount", 0):,.2f}</td>
-                    </tr>"""
+    amount_due = ledger["amount_due"]
+    amount_due_label = "AMOUNT DUE" if amount_due >= 0 else "CREDIT BALANCE (nothing to pay)"
 
     html_content = f"""
     <!DOCTYPE html>
@@ -15268,8 +15348,18 @@ def generate_memo_preview_html_with_two_columns(memo_data):
     <head>
         <title>Invoice Memo Preview - {memo_data["memo_code"]}</title>
         <style>
+            /* Same typeface as the PDF (see register_memo_pdf_fonts) */
+            @font-face {{ font-family: 'MemoSans'; font-weight: 400; font-style: normal;
+                src: url('{static("assets/fonts/NotoSans-Regular.ttf")}') format('truetype'); }}
+            @font-face {{ font-family: 'MemoSans'; font-weight: 700; font-style: normal;
+                src: url('{static("assets/fonts/NotoSans-Bold.ttf")}') format('truetype'); }}
+            @font-face {{ font-family: 'MemoSans'; font-weight: 400; font-style: italic;
+                src: url('{static("assets/fonts/NotoSans-Italic.ttf")}') format('truetype'); }}
+            @font-face {{ font-family: 'MemoSans'; font-weight: 700; font-style: italic;
+                src: url('{static("assets/fonts/NotoSans-BoldItalic.ttf")}') format('truetype'); }}
+
             body {{
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: 'MemoSans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 max-width: 800px;
                 margin: 20px auto;
                 padding: 20px;
@@ -15455,7 +15545,27 @@ def generate_memo_preview_html_with_two_columns(memo_data):
             
             .btn-success {{ background: #28a745; }}
             .btn-success:hover {{ background: #1e7e34; }}
-            
+
+            /* 3-month ledger */
+            .ledger th.amount-col, .ledger td.amount-col {{ width: 95px; white-space: nowrap; }}
+            .ledger td {{ border-left: none; border-right: none; border-color: #d0d5dd; }}
+            .ledger thead th {{ border: none; border-bottom: 2px solid #000; background: #fff; }}
+            .ledger .band td {{ border: none; padding: 10px 8px 6px; }}
+            .ledger .band-title {{ font-size: 12px; font-weight: bold; letter-spacing: .02em; }}
+            .ledger .band-tag {{ float: right; font-size: 10px; color: #555; }}
+            .ledger .band-outstanding td {{ background: #fdecec; border-left: 4px solid #d9534f; }}
+            .ledger .band-previous td {{ background: #eaf3fc; border-left: 4px solid #2f7bc4; }}
+            .ledger .band-current td {{ background: #e9f8f1; border-left: 4px solid #2e9d6a; }}
+            .ledger .balance-col {{ font-weight: bold; background: #fafafa; }}
+            .ledger .paid-col {{ color: #1e7e34; }}
+            .ledger .line-payment td:first-child {{ color: #1e7e34; }}
+            .ledger .line-adjustment td:first-child {{ font-style: italic; color: #555; }}
+            .ledger .row-details {{ margin-top: 4px; font-size: 9.5px; color: #666;
+                display: grid; grid-template-columns: 1fr 1fr; gap: 1px 12px; white-space: pre; }}
+            .ledger .final-total td {{ border-top: 2px solid #000; border-bottom: 2px solid #000;
+                font-size: 13px; padding: 10px 8px; }}
+            .ledger-legend {{ font-size: 9.5px; color: #666; margin: -12px 0 16px; }}
+
             @media print {{
                 .action-buttons {{ display: none; }}
                 body {{ background: white; margin: 0; }}
@@ -15493,78 +15603,26 @@ def generate_memo_preview_html_with_two_columns(memo_data):
                 </div>
             </div>
             
-            <!-- Main Table -->
-            <table class="memo-table">
+            <!-- 3-month ledger with running balance -->
+            <table class="memo-table ledger">
                 <thead>
                     <tr>
                         <th>Description</th>
-                        <th class="amount-col">Amount (Rs.)</th>
+                        <th class="amount-col">Charge (Rs.)</th>
+                        <th class="amount-col">Paid (Rs.)</th>
+                        <th class="amount-col">Balance (Rs.)</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- Outstanding Section -->
-                    <tr class="outstanding-header">
-                        <td>{memo_data["outstanding_month"]["name"]} {memo_data["outstanding_month"]["year"]} • OUTSTANDING</td>
-                        <td class="amount-col"></td>
-                    </tr>
-                    <tr>
-                        <td>Outstanding from {memo_data["outstanding_month"]["name"]}</td>
-                        <td class="amount-col">{memo_data["outstanding_month"].get("original_charge", 0):,.2f}</td>
-                    </tr>
-                    
-                    {outstanding_payment_html}
-                    
-                    <tr>
-                        <td><strong>Outstanding from {memo_data["outstanding_month"]["name"]}</strong></td>
-                        <td class="amount-col"><strong>{memo_data["outstanding_month"]["balance"]:,.2f}</strong></td>
-                    </tr>
-                    
-                    <!-- Previous Month Section -->
-                    <tr class="calculated-header">
-                        <td>{memo_data["previous_month"]["name"]} {memo_data["previous_month"]["year"]} • CALCULATED</td>
-                        <td class="amount-col"></td>
-                    </tr>
-                    <tr>
-                        <td>{memo_data["previous_month"]["package_description"]}</td>
-                        <td class="amount-col">{memo_data["previous_month"]["package_fee"]:,.2f}</td>
-                    </tr>
-                    
-                    {extra_hours_html}
-                    
-                    {holiday_charges_html}
-                    
-                    {previous_payment_html}
-                    
-                    <tr class="total-row">
-                        <td><strong>Total for {memo_data["previous_month"]["name"]} {memo_data["previous_month"]["year"]}</strong></td>
-                        <td class="amount-col"><strong>{memo_data["previous_month"]["month_total"]:,.2f}</strong></td>
-                    </tr>
-                    
-                    <!-- Current Month Section -->
-                    <tr class="advance-header">
-                        <td>{memo_data["current_month"]["name"]} {memo_data["current_month"]["year"]} • ADVANCE</td>
-                        <td class="amount-col"></td>
-                    </tr>
-                    <tr>
-                        <td>
-                            {memo_data["current_month"]["package_description"]}<br>
-                            <span style="color: orange; font-size: 10px;">{memo_data["current_month"]["advance_note"]}</span>
-                        </td>
-                        <td class="amount-col">{memo_data["current_month"]["package_fee"]:,.2f}</td>
-                    </tr>
-                    
-                    {current_payment_html}
-                    
-                    <!-- Final Total -->
+                    {ledger_rows_html}
                     <tr class="final-total">
-                        <td>
-                            <strong>TOTAL AMOUNT TO PAY</strong>
-                        </td>
-                        <td class="amount-col"><strong>Rs. {memo_data["totals"]["grand_total"]:,.2f}</strong></td>
+                        <td colspan="3"><strong>{amount_due_label}</strong></td>
+                        <td class="amount-col"><strong>Rs. {abs(amount_due):,.2f}</strong></td>
                     </tr>
                 </tbody>
             </table>
-            
+            <div class="ledger-legend">Balance runs down the right-hand column. CR = credit in your favour.</div>
+
             <!-- Footer Note -->
             <div class="memo-note">
                 <strong>Please note that,</strong> Only the payments made before the invoice date is indicated. 
@@ -15602,11 +15660,16 @@ def generate_memo_preview_html_with_two_columns(memo_data):
                     }})
                 }})
                 .then(response => {{
-                    if (response.ok) {{
-                        return response.blob();
-                    }} else {{
+                    const type = response.headers.get('Content-Type') || '';
+                    if (response.redirected && response.url.includes('/login')) {{
+                        alert('Your session has expired. Please log in again, then download the PDF.');
+                        window.open('/login/', '_blank');
+                        throw new Error('session expired');
+                    }}
+                    if (!response.ok || !type.includes('application/pdf')) {{
                         throw new Error('PDF generation failed');
                     }}
+                    return response.blob();
                 }})
                 .then(blob => {{
                     const url = window.URL.createObjectURL(blob);
