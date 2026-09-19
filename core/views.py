@@ -12981,17 +12981,17 @@ def searchInvoiceMemo(request):
                 "month_details": month_details,
             }
 
-            # Same running-balance ledger as the memo preview and PDF. Skipped when
-            # the display data is only a placeholder (not exactly 3 month rows or
-            # a load error) so the page falls back to the plain breakdown.
-            memo_data["ledger"] = None
+            # Same "Daycare Invoice" as the memo preview and PDF. Skipped when the
+            # display data is only a placeholder (not exactly 3 month rows or a
+            # load error) so the page falls back to the plain breakdown.
+            memo_data["invoice"] = None
             try:
                 if len(month_details) == 3:
                     display_data = prepare_memo_display_data_fixed(memo)
                     if "package_fee" in display_data.get("previous_month", {}):
-                        memo_data["ledger"] = build_memo_ledger(display_data)
+                        memo_data["invoice"] = build_memo_invoice(display_data)
             except Exception as e:
-                print(f"Could not build memo ledger for {memo.memo_code}: {e}")
+                print(f"Could not build memo invoice for {memo.memo_code}: {e}")
 
             return JsonResponse(
                 {
@@ -14436,412 +14436,171 @@ def register_memo_pdf_fonts():
 
 def generate_memo_pdf_with_two_column_breakdown(memo_data):
     """
-    Generates a professional PDF invoice memo with detailed two-column breakdown layout.
-
-    This function creates a comprehensive PDF invoice memo using ReportLab, featuring
-    a professional layout with detailed charge breakdowns in two-column format for
-    better readability. It includes payment history, outstanding balances, and
-    itemized charges with professional formatting.
-
-    Args:
-        memo_data (dict): Comprehensive memo data dictionary containing:
-            - child_name: Child's full name
-            - child_admission: Child's admission number
-            - memo_code: Unique memo identifier
-            - due_date: Payment due date
-            - package_name: Enrolled package name
-            - outstanding_month: Outstanding balance details
-            - previous_month: Previous month charges and breakdown
-            - current_month: Current month charges and breakdown
-            - payment_history: Payment transaction details
-            - extra_hours_breakdown_list: Detailed extra hours charges
-            - holiday_breakdown_list: Holiday attendance charges
-
-    Returns:
-        BytesIO: PDF buffer containing the generated invoice memo
-
-    PDF Structure:
-        1. Header Section:
-           - Company logo and name
-           - Address and contact information
-           - Professional styling with centered alignment
-
-        2. Child Information Section:
-           - Child name and admission number
-           - Package details and due date
-           - Formatted in table layout for clarity
-
-        3. Outstanding Balance Section:
-           - Previous outstanding amounts
-           - Payment history with detailed breakdown
-           - Current outstanding balance calculations
-
-        4. Previous Month Charges:
-           - Monthly package fees
-           - Extra hours breakdown in two-column format
-           - Holiday charges with individual day details
-           - Subtotal calculations
-
-        5. Current Month Charges:
-           - Current package fees
-           - Extra hours breakdown
-           - Holiday charges
-           - Total amount due
-
-        6. Payment Information:
-           - Payment history table
-           - Current balance calculations
-           - Due date information
-
-    Typography and Styling:
-        - Header: Helvetica-Bold, 16pt
-        - Address: Helvetica, 11pt
-        - Content: Helvetica, 11pt
-        - Breakdown details: Helvetica, 9pt
-        - Professional color scheme with black text
-
-    Two-Column Breakdown Features:
-        - Extra hours displayed in paired columns
-        - Holiday charges in structured format
-        - Improved readability for detailed information
-        - Efficient space utilization
-        - Clear separation between different charge types
-
-    Table Formatting:
-        - Professional table styling with borders
-        - Alternating row colors for readability
-        - Right-aligned monetary values
-        - Consistent spacing and padding
-        - Clear headers and sections
-
-    Payment Integration:
-        - Shows all payment transactions
-        - Calculates running balances
-        - Displays payment dates and amounts
-        - Includes payment reference numbers
-
-    Error Handling:
-        - Handles missing data gracefully
-        - Provides default values for missing fields
-        - Manages formatting errors in amounts
-        - Ensures PDF generation doesn't fail
-
-    Business Logic:
-        - Calculates outstanding balances automatically
-        - Formats monetary values consistently
-        - Maintains chronological order of transactions
-        - Provides comprehensive billing documentation
-
-    Integration:
-        - Works with prepare_memo_display_data_fixed() for data preparation
-        - Uses format_breakdown_item() for extra hours formatting
-        - Uses format_holiday_breakdown_item() for holiday formatting
-        - Supports enhanced memo system architecture
-
-    Performance:
-        - Generates PDF in memory using BytesIO
-        - Efficient table creation with ReportLab
-        - Optimized for A4 page size
-        - Minimal memory footprint
-
-    Use Cases:
-        - Professional invoice generation
-        - Parent billing documentation
-        - Administrative record keeping
-        - Payment verification
-        - Audit trail documentation
+    Generate the memo PDF in the centre's "Daycare Invoice" format (see
+    build_memo_invoice): monthly package fee for this month, last month's extra
+    charges per day, net outstanding from previous months, total, and an
+    "Outstanding Breakup" table. Returns a BytesIO with the PDF.
     """
     FONT, FONT_BOLD = register_memo_pdf_fonts()
     try:
+        inv = build_memo_invoice(memo_data)
+
         buffer = BytesIO()
         doc = SimpleDocTemplate(
             buffer,
             pagesize=A4,
-            rightMargin=20 * mm,
-            leftMargin=20 * mm,
-            topMargin=15 * mm,
+            rightMargin=45 * mm,
+            leftMargin=45 * mm,
+            topMargin=18 * mm,
             bottomMargin=15 * mm,
         )
-
         styles = getSampleStyleSheet()
 
-        # Define consistent styles
-        header_style = ParagraphStyle(
-            "CustomHeader",
-            parent=styles["Heading1"],
-            fontSize=13,
-            spaceAfter=6,
-            alignment=1,
-            fontName=FONT_BOLD,
-        )
-
-        address_style = ParagraphStyle(
-            "AddressStyle",
-            parent=styles["Normal"],
-            fontSize=9,
-            alignment=1,
-            spaceAfter=12,
-            fontName=FONT,
-        )
-
-        normal_style = ParagraphStyle(
-            "NormalStyle",
-            parent=styles["Normal"],
-            fontSize=9, leading=12,
-            fontName=FONT,
-        )
-
-        story = []
-
-        # Header
-        story.append(Paragraph("POLYMATH KIDS DIVISION - MEMO", header_style))
-        story.append(
-            Paragraph(
-                "No 452/3 High Level Road, Nawinna, Maharagama<br/>PV 63200 | Phone 0112802554",
-                address_style,
+        def style(name, size, bold=False, align=0, leading=None, color=colors.black):
+            return ParagraphStyle(
+                name,
+                parent=styles["Normal"],
+                fontName=FONT_BOLD if bold else FONT,
+                fontSize=size,
+                leading=leading or size * 1.25,
+                alignment=align,
+                textColor=color,
             )
-        )
-        story.append(HRFlowable(width="100%", thickness=1, color=colors.black))
-        story.append(Spacer(1, 12))
 
-        # Child info
-        child_info_data = [
-            [
-                f"Name: {memo_data.get('child_name', 'N/A')}",
-                f"Child ID: {memo_data.get('child_admission', 'N/A')}",
-            ],
-            [
-                f"Package: {memo_data.get('package_name', 'N/A')}",
-                f"Due Date: {memo_data.get('due_date', 'N/A')}",
-            ],
-        ]
+        center = style("InvCenter", 9, align=1, leading=13)
+        info = style("InvInfo", 9.5)
+        label = style("InvLabel", 9, bold=True)
+        normal = style("InvNormal", 9.5, leading=12.5)
 
-        child_info_table = Table(child_info_data, colWidths=[100 * mm, 70 * mm])
-        child_info_table.setStyle(
-            TableStyle(
-                [
-                    ("FONTNAME", (0, 0), (-1, -1), FONT),
-                    ("FONTSIZE", (0, 0), (-1, -1), 9),
-                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-                ]
-            )
-        )
-        story.append(child_info_table)
-        story.append(Spacer(1, 15))
-
-        # ===== 3-month ledger with running balance =====
-        ledger = build_memo_ledger(memo_data)
-
-        cell_style = ParagraphStyle(
-            "LedgerCell", parent=normal_style, fontSize=9, leading=11.5
-        )
-        detail_style = ParagraphStyle(
-            "LedgerDetail",
-            parent=normal_style,
-            fontSize=7.5,
-            leading=9.5,
-            textColor=colors.Color(0.4, 0.4, 0.4),
-        )
-        detail_right_style = ParagraphStyle(
-            "LedgerDetailRight", parent=detail_style, alignment=2
-        )
-        band_style = ParagraphStyle(
-            "LedgerBand", parent=normal_style, fontSize=10, leading=12.5
-        )
-
-        def pdf_money(v):
-            return f"{v:,.2f}" if v else ""
-
-        band_colors = {
-            "outstanding": (colors.Color(0.99, 0.93, 0.93), colors.Color(0.85, 0.33, 0.31)),
-            "previous": (colors.Color(0.92, 0.95, 0.99), colors.Color(0.18, 0.48, 0.77)),
-            "current": (colors.Color(0.91, 0.97, 0.95), colors.Color(0.18, 0.62, 0.42)),
-        }
-        green = colors.Color(0.12, 0.49, 0.2)
-        rule = colors.Color(0.82, 0.84, 0.87)
-
-        table_data = [["Description", "Charge (Rs.)", "Paid (Rs.)", "Balance (Rs.)"]]
-        table_styles = [
+        # 4 columns: date | time | per-day amount | Amount Rs  (labels span 0-2)
+        col_widths = [40 * mm, 21 * mm, 26 * mm, 28 * mm]  # fits the 115mm frame
+        data = []
+        ts = [
             ("FONTNAME", (0, 0), (-1, -1), FONT),
-            ("FONTNAME", (0, 0), (-1, 0), FONT_BOLD),
             ("FONTSIZE", (0, 0), (-1, -1), 9),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 6),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-            ("TOPPADDING", (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-            ("LINEBELOW", (0, 0), (-1, 0), 1.5, colors.black),
-            ("BACKGROUND", (3, 1), (3, -1), colors.Color(0.98, 0.98, 0.98)),
-            ("FONTNAME", (3, 1), (3, -1), FONT_BOLD),
-            ("TEXTCOLOR", (2, 1), (2, -1), green),
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 1),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+            ("BOX", (0, 0), (-1, -1), 0.8, colors.black),
         ]
 
-        for section in ledger["sections"]:
-            r = len(table_data)
-            bg, accent = band_colors.get(section["style"], band_colors["previous"])
-            table_data.append(
-                [
-                    Paragraph(
-                        f"<b>{xml_escape(section['title'])}</b>"
-                        f"&nbsp;&nbsp;<font size='7.5' color='#555555'>"
-                        f"{xml_escape(section['tag'])}</font>",
-                        band_style,
-                    ),
-                    "",
-                    "",
-                    "",
-                ]
-            )
-            table_styles += [
-                ("SPAN", (0, r), (-1, r)),
-                ("BACKGROUND", (0, r), (-1, r), bg),
-                ("LINEBEFORE", (0, r), (0, r), 3, accent),
-                ("TOPPADDING", (0, r), (-1, r), 7),
-            ]
-            for row in section["rows"]:
-                r = len(table_data)
-                label = xml_escape(row["label"])
-                if row["kind"] == "payment":
-                    label = f"<font color='#1e7e34'>{label}</font>"
-                elif row["kind"] == "adjustment":
-                    label = f"<i>{label}</i>"
-                table_data.append(
-                    [
-                        Paragraph(label, cell_style),
-                        pdf_money(row["charge"]),
-                        pdf_money(row["paid"]),
-                        format_ledger_balance(row["balance"]),
-                    ]
-                )
-                if row["details"]:
-                    # Per-day lines go in their own row spanning Description,
-                    # Charge and Paid. Each detail is "part  part  part"; lay the
-                    # parts out as aligned mini-columns, two days per line.
-                    parts = [d.split("  ") for d in row["details"]]
-                    width = max(len(p) for p in parts)
-                    parts = [p + [""] * (width - len(p)) for p in parts]
-                    blank = [""] * width
-                    lines = [
-                        [
-                            Paragraph(xml_escape(text), detail_right_style)
-                            if (j % width) == width - 1
-                            else Paragraph(xml_escape(text), detail_style)
-                            for j, text in enumerate(
-                                parts[i]
-                                + (parts[i + 1] if i + 1 < len(parts) else blank)
-                            )
-                        ]
-                        for i in range(0, len(parts), 2)
-                    ]
-                    # each day-group is 62mm: date 13mm, amount 17mm, middle split
-                    n_middle = max(width - 2, 0)
-                    middle = [(32 / max(n_middle, 1)) * mm] * n_middle
-                    group_w = ([13 * mm] + middle + [17 * mm])[:width]
-                    details_table = Table(lines, colWidths=group_w * 2)
-                    details_table.setStyle(
-                        TableStyle(
-                            [
-                                ("FONTNAME", (0, 0), (-1, -1), FONT),
-                                ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-                                ("TOPPADDING", (0, 0), (-1, -1), 0.5),
-                                ("BOTTOMPADDING", (0, 0), (-1, -1), 0.5),
-                                ("RIGHTPADDING", (width - 1, 0), (width - 1, -1), 12),
-                            ]
-                        )
-                    )
-                    table_data.append([details_table, "", "", ""])
-                    table_styles += [
-                        ("SPAN", (0, r + 1), (2, r + 1)),
-                        ("TOPPADDING", (0, r + 1), (-1, r + 1), 0),
-                        ("LEFTPADDING", (0, r + 1), (0, r + 1), 12),
-                    ]
-                    r += 1
-                table_styles.append(("LINEBELOW", (0, r), (-1, r), 0.5, rule))
+        def add(row, *extra):
+            data.append(row)
+            r = len(data) - 1
+            for cmd in extra:
+                ts.append((cmd[0], (cmd[1][0], r), (cmd[2][0], r)) + tuple(cmd[3:]))
+            return r
 
-        amount_due = ledger["amount_due"]
-        table_data.append(
-            [
-                "AMOUNT DUE" if amount_due >= 0 else "CREDIT BALANCE (nothing to pay)",
-                "",
-                "",
-                f"Rs. {abs(amount_due):,.2f}",
-            ]
-        )
-        table_styles += [
-            ("SPAN", (0, -1), (2, -1)),
-            ("FONTNAME", (0, -1), (-1, -1), FONT_BOLD),
-            ("FONTSIZE", (0, -1), (-1, -1), 11),
-            ("LINEABOVE", (0, -1), (-1, -1), 1.5, colors.black),
-            ("LINEBELOW", (0, -1), (-1, -1), 1.5, colors.black),
-            ("BACKGROUND", (0, -1), (-1, -1), colors.Color(1, 0.95, 0.8)),
-            ("TOPPADDING", (0, -1), (-1, -1), 8),
-            ("BOTTOMPADDING", (0, -1), (-1, -1), 8),
+        # Header
+        add([Paragraph("Daycare Invoice", center), "", "", ""],
+            ("SPAN", (0,), (-1,)), ("LINEBELOW", (0,), (-1,), 0.8, colors.black))
+        add([Paragraph("<br/>".join(xml_escape(a) for a in INVOICE_ADDRESS_LINES), center), "", "", ""],
+            ("SPAN", (0,), (-1,)), ("BOTTOMPADDING", (0,), (-1,), 10),
+            ("LINEBELOW", (0,), (-1,), 0.8, colors.black))
+
+        info_rows = [
+            ("Name", inv["child"]),
+            ("Month", inv["month"]),
+            ("Date", inv["date"]),
+            ("Package", inv["package"]),
         ]
-
-        main_table = Table(
-            table_data, colWidths=[98 * mm, 24 * mm, 24 * mm, 24 * mm], repeatRows=1
+        info_table = Table(
+            [[Paragraph(k, info), Paragraph(xml_escape(str(v)), info)] for k, v in info_rows],
+            colWidths=[20 * mm, 92 * mm],
         )
-        main_table.setStyle(TableStyle(table_styles))
-        story.append(main_table)
-        story.append(Spacer(1, 4))
-        story.append(
-            Paragraph(
-                "Balance runs down the right-hand column. CR = credit in your favour.",
-                ParagraphStyle(
-                    "LedgerLegend",
-                    parent=normal_style,
-                    fontSize=7.5,
-                    textColor=colors.Color(0.4, 0.4, 0.4),
-                ),
-            )
-        )
-        story.append(Spacer(1, 16))
+        info_table.setStyle(TableStyle([
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0.5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0.5),
+        ]))
+        add([info_table, "", "", ""],
+            ("SPAN", (0,), (-1,)), ("LINEBELOW", (0,), (-1,), 0.8, colors.black))
 
-        # Footer note
-        story.append(
+        head = add(
+            [Paragraph("Description", style("InvDesc", 9, align=1)), "", "",
+             Paragraph("Amount<br/>Rs", style("InvAmtHead", 9, bold=True, align=2))],
+            ("SPAN", (0,), (2,)), ("VALIGN", (0,), (2,), "BOTTOM"),
+            ("LINEBELOW", (0,), (-1,), 0.8, colors.black),
+        )
+
+        # Charge lines
+        for line in inv["lines"]:
+            amount = _invoice_amount(line["amount"])
+            details = line["details"]
+            add([Paragraph(xml_escape(line["label"]), label), "", "", "" if details else amount],
+                ("SPAN", (0,), (2,)), ("TOPPADDING", (0,), (-1,), 9),
+                ("ALIGN", (3,), (3,), "RIGHT"), ("FONTSIZE", (3,), (3,), 9.5))
+            for i, d in enumerate(details):
+                add([d["date"], d["time"], d["amount"], amount if i == len(details) - 1 else ""],
+                    ("FONTSIZE", (0,), (2,), 7.5),
+                    ("LEFTPADDING", (0,), (0,), 22 * mm if line["detail_kind"] == "extra" else 12 * mm),
+                    ("ALIGN", (2,), (3,), "RIGHT"), ("FONTSIZE", (3,), (3,), 9.5),
+                    ("VALIGN", (3,), (3,), "BOTTOM"))
+
+        add(["", "", "", ""], ("TOPPADDING", (0,), (-1,), 4))
+        total = add(
+            [Paragraph("Total", label), "", "", _invoice_amount(inv["total"])],
+            ("SPAN", (0,), (2,)), ("LINEABOVE", (0,), (-1,), 0.8, colors.black),
+            ("FONTNAME", (3,), (3,), FONT_BOLD), ("ALIGN", (3,), (3,), "RIGHT"),
+            ("TOPPADDING", (0,), (-1,), 3), ("BOTTOMPADDING", (0,), (-1,), 3),
+        )
+        # Vertical rule before the Amount column (header down to total)
+        ts.append(("LINEBEFORE", (3, head), (3, total), 0.8, colors.black))
+
+        invoice_table = Table(data, colWidths=col_widths)
+        invoice_table.setStyle(TableStyle(ts))
+
+        story = [invoice_table]
+
+        # Outstanding Breakup
+        if inv["breakup"]:
+            small = style("InvSmall", 7.5)
+            small_r = style("InvSmallR", 7.5, align=2)
+            bold_r = style("InvBoldR", 9, bold=True, align=2)
+            rows = [[Paragraph("Description", label), Paragraph("Amount", label)]]
+            rows += [
+                [Paragraph(xml_escape(b["label"]), small), Paragraph(_invoice_amount(b["amount"]), small_r)]
+                for b in inv["breakup"]
+            ]
+            rows.append([Paragraph("Total", label), Paragraph(_invoice_amount(inv["breakup_total"]), bold_r)])
+            breakup_table = Table(rows, colWidths=[92 * mm, 23 * mm], hAlign="LEFT")
+            breakup_table.setStyle(TableStyle([
+                ("GRID", (0, 0), (-1, -1), 0.6, colors.black),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+                ("TOPPADDING", (0, 0), (-1, -1), 1),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+            ]))
+            story += [
+                Spacer(1, 16),
+                Paragraph("Outstanding Breakup", style("InvBreakupTitle", 10, bold=True)),
+                breakup_table,
+            ]
+
+        # Note, sign-off and account details
+        story += [
+            Spacer(1, 28),
+            Paragraph("<b>Please note that,</b>", style("InvNoteHead", 10)),
+            Spacer(1, 8),
             Paragraph(
-                f"<b>Please note that,</b> Only the payments made before the invoice date is indicated. "
-                f"If there is any outstanding amount please settle on or before {memo_data.get('due_date', 'N/A')}. "
+                "Only the payments made before the invoice date is indicated. If there is "
+                "any outstanding amount please settle on or before "
+                f"<font color='#e00000'>{xml_escape(inv['due_date'])}</font>. "
                 "Ignore this message if you have already settled that outstanding.",
-                normal_style,
-            )
-        )
-        story.append(Spacer(1, 12))
-        story.append(
-            Paragraph("<b>Thank you,</b><br/><b>The Management,</b>", normal_style)
-        )
-        story.append(Spacer(1, 12))
-
-        # Account details
-        account_details = [
-            ["Account Details"],
-            ["Account Name - Polymath College (PVT) Ltd"],
-            ["Bank - Peoples Bank"],
-            ["Branch - Gangodawila"],
-            ["Account Number - 097100130026495"],
-            ["Whatsapp - 0705565858"],
+                normal,
+            ),
+            Spacer(1, 8),
+            Paragraph("Thank you,", normal),
+            Spacer(1, 8),
+            Paragraph("The Management.", normal),
+            Spacer(1, 20),
+            Paragraph("<b>Account Details</b>", normal),
         ]
-
-        account_table = Table(account_details, colWidths=[170 * mm])
-        account_table.setStyle(
-            TableStyle(
-                [
-                    ("FONTNAME", (0, 0), (-1, -1), FONT),
-                    ("FONTSIZE", (0, 0), (-1, -1), 9),
-                    ("FONTNAME", (0, 0), (0, 0), FONT_BOLD),
-                    ("GRID", (0, 0), (-1, -1), 1, colors.black),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-                    ("TOPPADDING", (0, 0), (-1, -1), 4),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                ]
-            )
-        )
-        story.append(account_table)
+        story += [Paragraph(xml_escape(a), normal) for a in INVOICE_ACCOUNT_LINES]
+        story += [Spacer(1, 8), Paragraph(xml_escape(INVOICE_WHATSAPP), normal)]
 
         doc.build(story)
         buffer.seek(0)
@@ -15117,459 +14876,326 @@ def format_holiday_breakdown_item_html(item):
     return f"{formatted_date} → {holiday_name} (Rs.{charges:,.2f})"
 
 
-def format_ledger_balance(amount):
-    """Running-balance display: credits (money in the parent's favour) as "CR"."""
-    if round(amount, 2) < 0:
-        return f"{abs(amount):,.2f} CR"
-    return f"{amount:,.2f}"
+INVOICE_ADDRESS_LINES = [
+    "No 452/3 High Level Road , Nawinna , Maharagama",
+    "PV 63200",
+    "Phone 0112802554",
+]
+INVOICE_ACCOUNT_LINES = [
+    "Account Name - Polymath College (PVT) Ltd",
+    "Bank - Sampath Bank",
+    "Branch - Piliyandala",
+    "Account Number - 001910020095",
+]
+INVOICE_WHATSAPP = "Whatsapp - 0706183227"
 
 
-def _ledger_short_date(date_str):
+def _invoice_amount(value):
+    """Invoice money format: 20,700.00 (negative as -6,900.00)."""
+    return f"{value:,.2f}"
+
+
+def _invoice_day_amount(value):
+    """Per-day amounts as on the paper invoice: 500 / 1,250.50."""
+    value = float(value or 0)
+    return f"{value:,.0f}" if value == int(value) else f"{value:,.2f}"
+
+
+def _invoice_date(date_str):
+    """2026-08-03 -> 03/08/2026."""
     try:
-        return datetime.strptime(date_str, "%Y-%m-%d").strftime("%d %b")
+        return datetime.strptime(date_str, "%Y-%m-%d").strftime("%d/%m/%Y")
     except (TypeError, ValueError):
         return date_str or ""
 
 
-def build_memo_ledger(memo_data):
-    """
-    Build the 3-month statement shown on the memo preview and PDF as a ledger
-    with a running balance, so every figure adds straight down to the amount due.
+def _invoice_time(time_str):
+    """18:22 -> 6:22 (12-hour, as on the paper invoice)."""
+    try:
+        t = datetime.strptime(time_str, "%H:%M")
+    except (TypeError, ValueError):
+        return time_str or ""
+    return f"{t.hour % 12 or 12}:{t.minute:02d}"
 
-    Returns {"sections": [...], "amount_due": float}. Each section is
-    {"title", "tag", "style", "rows"} and each row is
-    {"label", "charge", "paid", "balance", "kind", "details"} where kind is one of
-    "charge" / "payment" / "adjustment" / "subtotal", and details is a list of
-    short strings (per-day extra hours / holiday lines) shown under the row.
+
+def _last_receipt_note(*months):
+    """
+    " (RN 7945 paid in September)" for the most recent receipt among the given
+    months' payments (later months win ties), or "" if there are none.
+    """
+    latest = None
+    for order, month in enumerate(months):
+        for p in month.get("payment_details") or []:
+            receipt = str(p.get("receipt_number", "")).strip()
+            if not receipt or receipt == "N/A":
+                continue
+            try:
+                paid_on = datetime.strptime(str(p.get("date")), "%Y-%m-%d")
+            except ValueError:
+                paid_on = None
+            key = (paid_on or datetime.min, order)
+            if latest is None or key >= latest[0]:
+                latest = (key, receipt, paid_on, month.get("name", ""))
+    if latest is None:
+        return ""
+    _, receipt, paid_on, month_name = latest
+    number = receipt[2:].strip() if receipt.upper().startswith("RN") else receipt
+    paid_month = paid_on.strftime("%B") if paid_on else month_name
+    return f" (RN {number} paid in {paid_month})"
+
+
+def build_memo_invoice(memo_data):
+    """
+    Build the parent-facing "Daycare Invoice" (the format the centre uses):
+
+        Monthly Package fee - <this month>            (billed in advance)
+        Extra Charges - <last month>  + one line per day
+        Holiday Charges - <last month> + one line per day   (if any)
+        Outstanding previous months                    (net of payments)
+        Total                                          (= memo amount due)
+
+    plus an "Outstanding Breakup" listing what is still unpaid from earlier
+    months. Payments are not shown as lines: earlier-month payments are
+    applied oldest-first, so each breakup line is the amount still unpaid;
+    any overpayment becomes a single credit line.
+
+    Used by the memo preview, the PDF and the load_invoice_memo page so all
+    three always show the same figures.
     """
     outstanding = memo_data.get("outstanding_month", {})
     previous = memo_data.get("previous_month", {})
     current = memo_data.get("current_month", {})
     totals = memo_data.get("totals", {})
 
-    running = 0.0
-    sections = []
+    out_balance = float(outstanding.get("balance", 0) or 0)
+    prev_fee = float(previous.get("package_fee", 0) or 0)
+    prev_extra = float(previous.get("extra_charges", 0) or 0)
+    prev_holiday = float(previous.get("holiday_charges", 0) or 0)
+    prev_paid = float(previous.get("payment_amount", 0) or 0)
+    prev_total = float(previous.get("month_total", 0) or 0)
+    cur_fee = float(current.get("package_fee", 0) or 0)
+    cur_paid = float(current.get("payment_amount", 0) or 0)
+    cur_balance = float(current.get("balance", cur_fee - cur_paid) or 0)
+    prev_name = previous.get("name", "")
+    cur_name = current.get("name", "")
 
-    def add_row(rows, label, charge=0.0, paid=0.0, kind="charge", details=None):
-        nonlocal running
-        running += charge - paid
-        rows.append(
+    # Discounts / other charges on last month that are not itemised
+    prev_adjust = round(prev_total - (prev_fee + prev_extra + prev_holiday - prev_paid), 2)
+
+    lines = []
+
+    def add_line(label, amount, details=None, detail_kind=None):
+        lines.append(
             {
                 "label": label,
-                "charge": charge,
-                "paid": paid,
-                "balance": running,
-                "kind": kind,
+                "amount": round(amount, 2),
                 "details": details or [],
+                "detail_kind": detail_kind,
             }
         )
 
-    def add_payments(rows, month):
-        payments = month.get("payment_details") or []
-        if payments:
-            for p in payments:
-                receipt = str(p.get("receipt_number", "")).strip()
-                when = p.get("date", "")
-                label = "Payment received"
-                if receipt:
-                    label += f" – Receipt {receipt}"
-                if when and when != "N/A":
-                    label += f" ({when})"
-                add_row(rows, label, paid=float(p.get("amount", 0)), kind="payment")
-        elif month.get("payment_amount", 0):
-            add_row(
-                rows,
-                "Payment received",
-                paid=float(month.get("payment_amount", 0)),
-                kind="payment",
-            )
+    add_line(f"Monthly Package fee - {cur_name}", cur_fee)
 
-    def reconcile(rows, month_start, expected_month_balance):
-        # Keep the ledger honest if the month has discounts/other adjustments
-        # that are not itemised above.
-        diff = round(expected_month_balance - (running - month_start), 2)
-        if diff:
-            add_row(
-                rows,
-                "Discounts / other adjustments",
-                charge=diff if diff > 0 else 0.0,
-                paid=-diff if diff < 0 else 0.0,
-                kind="adjustment",
-            )
-
-    # ---- Month 1: balance brought forward ----
-    rows = []
-    start = running
-    add_row(
-        rows,
-        f"Balance brought forward from {outstanding.get('name', '')} "
-        f"{outstanding.get('year', '')}",
-        charge=float(outstanding.get("original_charge", 0)),
-    )
-    add_payments(rows, outstanding)
-    reconcile(rows, start, float(outstanding.get("balance", 0)))
-    sections.append(
-        {
-            "title": f"{outstanding.get('name', '')} {outstanding.get('year', '')}",
-            "tag": "Brought forward",
-            "style": "outstanding",
-            "rows": rows,
-        }
-    )
-
-    # ---- Month 2: last month, calculated on attendance ----
-    rows = []
-    start = running
-    add_row(
-        rows,
-        previous.get("package_description", "Day care monthly fee"),
-        charge=float(previous.get("package_fee", 0)),
-    )
-    extra_list = previous.get("extra_hours_breakdown_list") or []
-    if previous.get("extra_charges", 0):
+    if prev_extra:
         details = [
-            f"{_ledger_short_date(i.get('date'))}  out {i.get('time_out', '')}  "
-            + str(i.get("extra_hours_display", ""))
-            .replace(" hrs", "h")
-            .replace(" hr", "h")
-            .replace(" mins", "m")
-            .replace(" min", "m")
-            + f"  {float(i.get('charges', 0)):,.2f}"
-            for i in extra_list
+            {
+                "date": _invoice_date(i.get("date")),
+                "time": _invoice_time(i.get("time_out")),
+                "amount": _invoice_day_amount(i.get("charges")),
+            }
+            for i in previous.get("extra_hours_breakdown_list") or []
             if i.get("type") != "manual_summary"
         ]
-        label = "Extra hours"
-        if details:
-            label += f" ({len(details)} day{'s' if len(details) != 1 else ''})"
-        add_row(
-            rows, label, charge=float(previous.get("extra_charges", 0)), details=details
-        )
-    holiday_list = previous.get("holiday_breakdown_list") or []
-    if previous.get("holiday_charges", 0):
+        add_line(f"Extra Charges - {prev_name}", prev_extra, details, "extra")
+
+    if prev_holiday:
         details = [
-            f"{_ledger_short_date(i.get('date'))}  {i.get('holiday_name', 'Holiday')}  "
-            f"{float(i.get('charges', 0)):,.2f}"
-            for i in holiday_list
+            {
+                "date": _invoice_date(i.get("date")),
+                "time": i.get("holiday_name", "Holiday"),
+                "amount": _invoice_day_amount(i.get("charges")),
+            }
+            for i in previous.get("holiday_breakdown_list") or []
             if i.get("type") not in ("manual_summary", "converted_from_manual")
         ]
-        label = "Holiday attendance"
-        if details:
-            label += f" ({len(details)} day{'s' if len(details) != 1 else ''})"
-        add_row(
-            rows,
-            label,
-            charge=float(previous.get("holiday_charges", 0)),
-            details=details,
+        add_line(f"Holiday Charges - {prev_name}", prev_holiday, details, "holiday")
+
+    # This month: payments already received / adjustments (not on the paper
+    # format, only shown when they exist so the total stays correct)
+    if cur_paid:
+        add_line(f"Less: payment received - {cur_name}", -cur_paid)
+    cur_adjust = round(cur_balance - (cur_fee - cur_paid), 2)
+    if cur_adjust:
+        add_line(f"Discounts / adjustments - {cur_name}", cur_adjust)
+
+    # ---- Outstanding previous months (net) and its breakup ----
+    days = previous.get("days_attended", 0)
+    charges = []
+    if out_balance > 0:
+        charges.append(
+            [f"Outstanding balance - {outstanding.get('name', '')}", out_balance]
         )
-    add_payments(rows, previous)
-    reconcile(rows, start, float(previous.get("month_total", 0)))
-    sections.append(
-        {
-            "title": f"{previous.get('name', '')} {previous.get('year', '')}",
-            "tag": "Last month · based on attendance",
-            "style": "previous",
-            "rows": rows,
-        }
-    )
-
-    # ---- Month 3: this month, billed in advance ----
-    rows = []
-    start = running
-    add_row(
-        rows,
-        f"Day care monthly fee – {current.get('name', '')} {current.get('year', '')} "
-        "(full month, in advance)",
-        charge=float(current.get("package_fee", 0)),
-    )
-    add_payments(rows, current)
-    reconcile(rows, start, float(current.get("balance", 0)))
-    sections.append(
-        {
-            "title": f"{current.get('name', '')} {current.get('year', '')}",
-            "tag": "This month · advance",
-            "style": "current",
-            "rows": rows,
-        }
-    )
-
-    amount_due = float(totals.get("grand_total", running))
-    if round(amount_due - running, 2):
-        # Memo header total differs from the itemised months - show it explicitly.
-        add_row(
-            sections[-1]["rows"],
-            "Other adjustments",
-            charge=max(amount_due - running, 0.0),
-            paid=max(running - amount_due, 0.0),
-            kind="adjustment",
+    if prev_fee > 0:
+        charges.append(
+            [f"Monthly Package Fee - {prev_name} ( {days} Day Attendance )", prev_fee]
         )
+    if prev_adjust > 0:
+        charges.append([f"Other charges - {prev_name}", prev_adjust])
 
-    return {"sections": sections, "amount_due": amount_due}
+    credit_pool = prev_paid + max(-out_balance, 0) + max(-prev_adjust, 0)
+    breakup = []
+    for label, amount in charges:  # oldest first
+        applied = min(amount, credit_pool)
+        credit_pool -= applied
+        remaining = round(amount - applied, 2)
+        if remaining:
+            breakup.append({"label": label, "amount": remaining})
+    if round(credit_pool, 2):
+        breakup.append(
+            {
+                "label": "Advance paid - carried forward"
+                + _last_receipt_note(outstanding, previous),
+                "amount": -round(credit_pool, 2),
+            }
+        )
+    outstanding_prev = round(sum(b["amount"] for b in breakup), 2)
+
+    add_line(
+        "Outstanding previous months"
+        if outstanding_prev >= 0
+        else "Credit from previous months",
+        outstanding_prev,
+    )
+
+    amount_due = float(totals.get("grand_total", 0) or 0)
+    diff = round(amount_due - sum(line["amount"] for line in lines), 2)
+    if diff:
+        add_line("Other adjustments", diff)
+
+    return {
+        "child": f"{memo_data.get('child_name', '')} {memo_data.get('child_admission', '')}".strip(),
+        "month": cur_name,
+        "date": str(memo_data.get("memo_date", "")).replace("/", "."),
+        "package": memo_data.get("package_name", ""),
+        "due_date": str(memo_data.get("due_date", "")).replace("/", "."),
+        "lines": lines,
+        "total": round(amount_due, 2),
+        "breakup": breakup,
+        "breakup_total": outstanding_prev,
+    }
 
 
 def generate_memo_preview_html_with_two_columns(memo_data):
-    """Generate the memo preview HTML as a 3-month ledger with a running balance."""
+    """Generate the memo preview HTML in the centre's "Daycare Invoice" format."""
     from django.templatetags.static import static
     from django.utils.html import escape
 
-    ledger = build_memo_ledger(memo_data)
+    inv = build_memo_invoice(memo_data)
 
-    def money(v):
-        return f"{v:,.2f}" if v else ""
-
-    ledger_rows_html = ""
-    for section in ledger["sections"]:
-        ledger_rows_html += f"""
-                    <tr class="band band-{section["style"]}">
-                        <td colspan="4"><span class="band-title">{escape(section["title"])}</span>
-                            <span class="band-tag">{escape(section["tag"])}</span></td>
+    lines_html = ""
+    for line in inv["lines"]:
+        amount = _invoice_amount(line["amount"])
+        details = line["details"]
+        # With per-day lines, the amount sits on the last day, like the paper invoice
+        lines_html += f"""
+                    <tr class="inv-line">
+                        <td colspan="3"><strong>{escape(line["label"])}</strong></td>
+                        <td class="amt">{"" if details else amount}</td>
                     </tr>"""
-        for row in section["rows"]:
-            details_html = ""
-            if row["details"]:
-                details_html = (
-                    '<div class="row-details">'
-                    + "".join(f"<span>{escape(d)}</span>" for d in row["details"])
-                    + "</div>"
-                )
-            ledger_rows_html += f"""
-                    <tr class="line line-{row["kind"]}">
-                        <td>{escape(row["label"])}{details_html}</td>
-                        <td class="amount-col">{money(row["charge"])}</td>
-                        <td class="amount-col paid-col">{money(row["paid"])}</td>
-                        <td class="amount-col balance-col">{format_ledger_balance(row["balance"])}</td>
+        for i, d in enumerate(details):
+            lines_html += f"""
+                    <tr class="inv-detail">
+                        <td class="d-date">{escape(d["date"])}</td>
+                        <td class="d-time">{escape(d["time"])}</td>
+                        <td class="d-amt">{escape(d["amount"])}</td>
+                        <td class="amt">{amount if i == len(details) - 1 else ""}</td>
                     </tr>"""
 
-    amount_due = ledger["amount_due"]
-    amount_due_label = "AMOUNT DUE" if amount_due >= 0 else "CREDIT BALANCE (nothing to pay)"
+    breakup_html = ""
+    if inv["breakup"]:
+        rows = "".join(
+            f"""
+                <tr><td>{escape(b["label"])}</td><td class="amt">{_invoice_amount(b["amount"])}</td></tr>"""
+            for b in inv["breakup"]
+        )
+        breakup_html = f"""
+            <div class="breakup-title">Outstanding Breakup</div>
+            <table class="breakup">
+                <tr><th>Description</th><th class="amt">Amount</th></tr>{rows}
+                <tr class="total"><td>Total</td><td class="amt">{_invoice_amount(inv["breakup_total"])}</td></tr>
+            </table>"""
+
+    address_html = "<br>".join(escape(a) for a in INVOICE_ADDRESS_LINES)
+    account_html = "<br>".join(escape(a) for a in INVOICE_ACCOUNT_LINES)
 
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Invoice Memo Preview - {memo_data["memo_code"]}</title>
+        <meta charset="utf-8">
+        <title>Daycare Invoice - {escape(memo_data["memo_code"])}</title>
         <style>
             /* Same typeface as the PDF (see register_memo_pdf_fonts) */
             @font-face {{ font-family: 'MemoSans'; font-weight: 400; font-style: normal;
                 src: url('{static("assets/fonts/NotoSans-Regular.ttf")}') format('truetype'); }}
             @font-face {{ font-family: 'MemoSans'; font-weight: 700; font-style: normal;
                 src: url('{static("assets/fonts/NotoSans-Bold.ttf")}') format('truetype'); }}
-            @font-face {{ font-family: 'MemoSans'; font-weight: 400; font-style: italic;
-                src: url('{static("assets/fonts/NotoSans-Italic.ttf")}') format('truetype'); }}
-            @font-face {{ font-family: 'MemoSans'; font-weight: 700; font-style: italic;
-                src: url('{static("assets/fonts/NotoSans-BoldItalic.ttf")}') format('truetype'); }}
 
             body {{
                 font-family: 'MemoSans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                max-width: 800px;
-                margin: 20px auto;
-                padding: 20px;
                 background: #f5f5f5;
-                font-size: 11px;
-                line-height: 1.4;
+                margin: 20px auto;
+                font-size: 12px;
+                color: #000;
             }}
-            
-            .memo-container {{
-                background: white;
-                padding: 30px;
-                border-radius: 8px;
+            .page {{
+                background: #fff;
+                width: 560px;
+                margin: 0 auto;
+                padding: 30px 40px;
                 box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             }}
-            
-            .company-header {{
-                text-align: center;
-                margin-bottom: 20px;
-            }}
-            
-            .company-title {{
-                font-size: 16px;
-                font-weight: bold;
-                margin-bottom: 8px;
-            }}
-            
-            .company-address {{
-                font-size: 11px;
-                color: #000;
-                margin-bottom: 15px;
-            }}
-            
-            .divider {{
-                height: 1px;
-                background: #000;
-                margin: 15px 0;
-            }}
-            
-            .memo-info {{
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 20px;
-                font-size: 11px;
-            }}
-            
-            .memo-table {{
-                width: 100%;
-                border-collapse: collapse;
-                font-size: 11px;
-                margin-bottom: 20px;
-            }}
-            
-            .memo-table th,
-            .memo-table td {{
-                border: 1px solid #000;
-                padding: 8px;
-                text-align: left;
-                vertical-align: top;
-                font-size: 11px;
-            }}
-            
-            .memo-table th {{
-                background: #e9ecef;
-                font-weight: bold;
-            }}
-            
-            .memo-table .amount-col {{
-                text-align: right;
-                width: 120px;
-            }}
-            
-            /* Payment styling */
-            .payment-amount {{
-                color: #28a745 !important;
-                font-weight: bold;
-            }}
-            
-            .payment-row {{
-                font-style: italic;
-                color: #666;
-            }}
-            
-            .outstanding-header {{
-                background: #ffeaea !important;
-                font-weight: bold;
-            }}
-            
-            .calculated-header {{
-                background: #e6f3ff !important;
-                font-weight: bold;
-            }}
-            
-            .advance-header {{
-                background: #e6ffff !important;
-                font-weight: bold;
-            }}
-            
-            .total-row {{
-                font-weight: bold;
-            }}
-            
-            .final-total {{
-                background: #fff0cc !important;
-                font-weight: bold;
-            }}
-            
-            /* 2-Column Breakdown Styles */
-            .breakdown-grid {{
-                margin-top: 8px;
-                font-size: 9px;
-                color: #666;
-                font-style: italic;
-            }}
-            
-            .breakdown-row {{
-                display: flex;
-                margin-bottom: 3px;
-            }}
-            
-            .breakdown-col {{
-                flex: 1;
-                padding-right: 10px;
-                line-height: 1.3;
-            }}
-            
-            .breakdown-col:last-child {{
-                padding-right: 0;
-            }}
-            
-            .memo-note {{
-                font-size: 11px;
-                margin: 15px 0;
-                line-height: 1.4;
-            }}
-            
-            .account-details {{
-                border: 1px solid #000;
-                margin-top: 15px;
-            }}
-            
-            .account-details .title {{
-                background: #f0f0f0;
-                font-weight: bold;
-                padding: 8px;
-                border-bottom: 1px solid #000;
-                font-size: 11px;
-            }}
-            
-            .account-details .row {{
-                padding: 6px 8px;
-                border-bottom: 1px solid #000;
-                font-size: 11px;
-            }}
-            
-            .account-details .row:last-child {{
-                border-bottom: none;
-            }}
-            
-            .action-buttons {{
-                text-align: center;
-                margin: 20px 0;
-                padding: 15px;
-                background: #f8f9fa;
-                border-radius: 5px;
-            }}
-            
-            .btn {{
-                display: inline-block;
-                padding: 8px 16px;
-                margin: 0 5px;
-                background: #007bff;
-                color: white;
-                text-decoration: none;
-                border-radius: 4px;
-                font-size: 12px;
-            }}
-            
-            .btn:hover {{
-                background: #0056b3;
-                color: white;
-                text-decoration: none;
-            }}
-            
+            .invoice {{ width: 100%; border-collapse: collapse; border: 1px solid #000; }}
+            .invoice td, .invoice th {{ padding: 2px 4px; vertical-align: top; }}
+            .invoice .title {{ text-align: center; border-bottom: 1px solid #000; }}
+            .invoice .address {{ text-align: center; line-height: 1.6; padding: 4px 0 14px;
+                border-bottom: 1px solid #000; }}
+            .invoice .info td {{ font-size: 13px; padding: 1px 4px; }}
+            .invoice .info .k {{ display: inline-block; width: 80px; }}
+            .invoice .info-last td {{ padding-bottom: 4px; border-bottom: 1px solid #000; }}
+            .invoice .amt {{ text-align: right; width: 80px; border-left: 1px solid #000;
+                white-space: nowrap; }}
+            .invoice .head th {{ font-weight: bold; border-bottom: 1px solid #000; }}
+            .invoice .head .desc {{ text-align: center; font-weight: normal; vertical-align: bottom; }}
+            .invoice .head .amt {{ text-align: right; }}
+            .invoice .inv-line td {{ padding-top: 14px; }}
+            .invoice .inv-detail td {{ font-size: 10px; padding-top: 0; padding-bottom: 1px; }}
+            .invoice .inv-detail .d-date {{ padding-left: 90px; width: 150px; }}
+            .invoice .inv-detail .d-amt {{ text-align: right; border-left: 0; padding-right: 4px; }}
+            .invoice .inv-detail .amt {{ font-size: 12px; vertical-align: bottom; }}
+            .invoice .spacer td {{ height: 8px; padding: 0; }}
+            .invoice .total td {{ font-weight: bold; border-top: 1px solid #000; }}
+            .breakup-title {{ font-weight: bold; font-size: 13px; margin-top: 30px; }}
+            .breakup {{ border-collapse: collapse; min-width: 400px; font-size: 10px; }}
+            .breakup td:first-child {{ white-space: nowrap; padding-right: 12px; }}
+            .breakup td, .breakup th {{ border: 1px solid #000; padding: 1px 3px; }}
+            .breakup th {{ text-align: left; font-size: 12px; }}
+            .breakup .amt {{ text-align: right; width: 80px; }}
+            .breakup .total td {{ font-weight: bold; font-size: 12px; }}
+            .note {{ margin-top: 40px; font-size: 13px; line-height: 1.35; }}
+            .note .due {{ color: #e00; }}
+            .accounts {{ margin-top: 26px; font-size: 13px; line-height: 1.6; }}
+            .action-buttons {{ text-align: center; margin: 0 auto 20px; width: 640px; padding: 12px;
+                background: #f8f9fa; border-radius: 5px; }}
+            .btn {{ display: inline-block; padding: 8px 16px; margin: 0 5px; background: #007bff;
+                color: white; text-decoration: none; border-radius: 4px; font-size: 12px; }}
+            .btn:hover {{ background: #0056b3; }}
             .btn-success {{ background: #28a745; }}
             .btn-success:hover {{ background: #1e7e34; }}
-
-            /* 3-month ledger */
-            .ledger th.amount-col, .ledger td.amount-col {{ width: 95px; white-space: nowrap; }}
-            .ledger td {{ border-left: none; border-right: none; border-color: #d0d5dd; }}
-            .ledger thead th {{ border: none; border-bottom: 2px solid #000; background: #fff; }}
-            .ledger .band td {{ border: none; padding: 10px 8px 6px; }}
-            .ledger .band-title {{ font-size: 12px; font-weight: bold; letter-spacing: .02em; }}
-            .ledger .band-tag {{ float: right; font-size: 10px; color: #555; }}
-            .ledger .band-outstanding td {{ background: #fdecec; border-left: 4px solid #d9534f; }}
-            .ledger .band-previous td {{ background: #eaf3fc; border-left: 4px solid #2f7bc4; }}
-            .ledger .band-current td {{ background: #e9f8f1; border-left: 4px solid #2e9d6a; }}
-            .ledger .balance-col {{ font-weight: bold; background: #fafafa; }}
-            .ledger .paid-col {{ color: #1e7e34; }}
-            .ledger .line-payment td:first-child {{ color: #1e7e34; }}
-            .ledger .line-adjustment td:first-child {{ font-style: italic; color: #555; }}
-            .ledger .row-details {{ margin-top: 4px; font-size: 9.5px; color: #666;
-                display: grid; grid-template-columns: 1fr 1fr; gap: 1px 12px; white-space: pre; }}
-            .ledger .final-total td {{ border-top: 2px solid #000; border-bottom: 2px solid #000;
-                font-size: 13px; padding: 10px 8px; }}
-            .ledger-legend {{ font-size: 9.5px; color: #666; margin: -12px 0 16px; }}
-
             @media print {{
                 .action-buttons {{ display: none; }}
                 body {{ background: white; margin: 0; }}
-                .memo-container {{ box-shadow: none; }}
+                .page {{ box-shadow: none; }}
             }}
         </style>
     </head>
@@ -15578,74 +15204,44 @@ def generate_memo_preview_html_with_two_columns(memo_data):
             <a href="javascript:window.print()" class="btn">🖨️ Print</a>
             <a href="#" onclick="downloadPDF()" class="btn btn-success">📄 Download PDF</a>
         </div>
-        
-        <div class="memo-container">
-            <!-- Company Header -->
-            <div class="company-header">
-                <div class="company-title">POLYMATH KIDS DIVISION - MEMO</div>
-                <div class="company-address">
-                    No 452/3 High Level Road, Nawinna, Maharagama<br>
-                    PV 63200 | Phone 0112802554
-                </div>
-            </div>
-            
-            <div class="divider"></div>
-            
-            <!-- Memo Info -->
-            <div class="memo-info">
-                <div>
-                    <strong>Name:</strong> {memo_data["child_name"]}<br>
-                    <strong>Package:</strong> {memo_data["package_name"]}
-                </div>
-                <div>
-                    <strong>Child ID:</strong> {memo_data["child_admission"]}<br>
-                    <strong>Due Date:</strong> {memo_data["due_date"]}
-                </div>
-            </div>
-            
-            <!-- 3-month ledger with running balance -->
-            <table class="memo-table ledger">
-                <thead>
-                    <tr>
-                        <th>Description</th>
-                        <th class="amount-col">Charge (Rs.)</th>
-                        <th class="amount-col">Paid (Rs.)</th>
-                        <th class="amount-col">Balance (Rs.)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {ledger_rows_html}
-                    <tr class="final-total">
-                        <td colspan="3"><strong>{amount_due_label}</strong></td>
-                        <td class="amount-col"><strong>Rs. {abs(amount_due):,.2f}</strong></td>
-                    </tr>
-                </tbody>
-            </table>
-            <div class="ledger-legend">Balance runs down the right-hand column. CR = credit in your favour.</div>
 
-            <!-- Footer Note -->
-            <div class="memo-note">
-                <strong>Please note that,</strong> Only the payments made before the invoice date is indicated. 
-                If there is any outstanding amount please settle on or before {memo_data["due_date"]}. 
-                Ignore this message if you have already settled that outstanding.
+        <div class="page">
+            <table class="invoice">
+                <tr><td colspan="4" class="title">Daycare Invoice</td></tr>
+                <tr><td colspan="4" class="address">{address_html}</td></tr>
+                <tr class="info"><td colspan="4"><span class="k">Name</span>{escape(inv["child"])}</td></tr>
+                <tr class="info"><td colspan="4"><span class="k">Month</span>{escape(inv["month"])}</td></tr>
+                <tr class="info"><td colspan="4"><span class="k">Date</span>{escape(inv["date"])}</td></tr>
+                <tr class="info info-last"><td colspan="4"><span class="k">Package</span>{escape(inv["package"])}</td></tr>
+                <tr class="head">
+                    <th colspan="3" class="desc">Description</th>
+                    <th class="amt">Amount<br>Rs</th>
+                </tr>
+                {lines_html}
+                <tr class="spacer"><td colspan="3"></td><td class="amt"></td></tr>
+                <tr class="total">
+                    <td colspan="3">Total</td>
+                    <td class="amt">{_invoice_amount(inv["total"])}</td>
+                </tr>
+            </table>
+            {breakup_html}
+
+            <div class="note">
+                <strong>Please note that,</strong><br><br>
+                Only the payments made before the invoice date is indicated. If there is any
+                outstanding amount please settle on or before <span class="due">{escape(inv["due_date"])}</span>.
+                Ignore this message if you have already settled that outstanding.<br><br>
+                Thank you,<br><br>
+                The Management.
             </div>
-            
-            <div class="memo-note">
-                <strong>Thank you,</strong><br>
-                <strong>The Management,</strong>
-            </div>
-            
-            <!-- Account Details -->
-            <div class="account-details">
-                <div class="title">Account Details</div>
-                <div class="row">Account Name - Polymath College (PVT) Ltd</div>
-                <div class="row">Bank - Peoples Bank</div>
-                <div class="row">Branch - Gangodawila</div>
-                <div class="row">Account Number - 097100130026495</div>
-                <div class="row">Whatsapp - 0705565858</div>
+
+            <div class="accounts">
+                <strong>Account Details</strong><br>
+                {account_html}<br><br>
+                {escape(INVOICE_WHATSAPP)}
             </div>
         </div>
-        
+
         <script>
             function downloadPDF() {{
                 fetch('/download_invoice_memo_pdf/', {{
@@ -15684,10 +15280,12 @@ def generate_memo_preview_html_with_two_columns(memo_data):
                 }})
                 .catch(error => {{
                     console.error('Error:', error);
-                    alert('Error generating PDF. Please try again.');
+                    if (error.message !== 'session expired') {{
+                        alert('Error generating PDF. Please try again.');
+                    }}
                 }});
             }}
-            
+
             function getCookie(name) {{
                 let cookieValue = null;
                 if (document.cookie && document.cookie !== '') {{

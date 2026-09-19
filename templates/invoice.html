@@ -413,67 +413,65 @@ function displayMemoResult(memo) {
     const netAmountDue = parseFloat(memo.net_amount_due || 0);
     const isCredit = netAmountDue < 0;
 
-    // Running-balance ledger (same as memo preview/PDF) when the server sends it
+    // "Daycare Invoice" layout (same as memo preview/PDF) when the server sends it
     function escapeHtml(text) {
         return $('<div>').text(text == null ? '' : String(text)).html();
     }
-    function ledgerMoney(v) {
-        return v ? formatAmount(v) : '';
-    }
-    function ledgerBalance(v) {
-        return Math.round(v * 100) < 0 ? `${formatAmount(Math.abs(v))} CR` : formatAmount(v);
-    }
-    const bandClass = {outstanding: 'table-warning', previous: 'table-info', current: 'table-success'};
 
     let tableHtml;
-    if (memo.ledger) {
-        let ledgerRows = '';
-        memo.ledger.sections.forEach(function(section) {
-            ledgerRows += `
-                <tr class="${bandClass[section.style] || 'table-light'}">
-                    <td colspan="4">
-                        <strong>${escapeHtml(section.title)}</strong>
-                        <span class="text-muted small ms-2">${escapeHtml(section.tag)}</span>
-                    </td>
+    if (memo.invoice) {
+        const inv = memo.invoice;
+        let invoiceRows = '';
+        inv.lines.forEach(function(line) {
+            const amount = formatAmount(line.amount);
+            const details = line.details.length ? `
+                <table class="table table-sm table-borderless mb-0 mt-1 small text-muted" style="max-width: 380px;">
+                    ${line.details.map(d => `
+                        <tr>
+                            <td class="py-0 ps-4">${escapeHtml(d.date)}</td>
+                            <td class="py-0">${escapeHtml(d.time)}</td>
+                            <td class="py-0 text-end">${escapeHtml(d.amount)}</td>
+                        </tr>`).join('')}
+                </table>` : '';
+            invoiceRows += `
+                <tr>
+                    <td><strong>${escapeHtml(line.label)}</strong>${details}</td>
+                    <td class="text-end align-bottom">${amount}</td>
                 </tr>`;
-            section.rows.forEach(function(row) {
-                const labelClass = row.kind === 'payment' ? 'text-success'
-                                 : row.kind === 'adjustment' ? 'fst-italic text-muted' : '';
-                const details = row.details.length ? `
-                    <div class="row g-0 small text-muted mt-1">
-                        ${row.details.map(d => `<div class="col-md-6" style="white-space: pre;">${escapeHtml(d)}</div>`).join('')}
-                    </div>` : '';
-                ledgerRows += `
-                    <tr>
-                        <td class="ps-4 ${labelClass}">${escapeHtml(row.label)}${details}</td>
-                        <td class="text-end">${ledgerMoney(row.charge)}</td>
-                        <td class="text-end text-success">${ledgerMoney(row.paid)}</td>
-                        <td class="text-end fw-semibold bg-light">${ledgerBalance(row.balance)}</td>
-                    </tr>`;
-            });
         });
-        const due = parseFloat(memo.ledger.amount_due || 0);
+        const breakup = inv.breakup.length ? `
+                <h6 class="mt-4 mb-2">Outstanding Breakup</h6>
+                <div class="table-responsive" style="max-width: 560px;">
+                    <table class="table table-sm table-bordered mb-0">
+                        <thead class="table-light">
+                            <tr><th>Description</th><th class="text-end" style="width: 130px;">Amount</th></tr>
+                        </thead>
+                        <tbody>
+                            ${inv.breakup.map(b => `
+                                <tr><td>${escapeHtml(b.label)}</td><td class="text-end">${formatAmount(b.amount)}</td></tr>`).join('')}
+                            <tr class="fw-bold"><td>Total</td><td class="text-end">${formatAmount(inv.breakup_total)}</td></tr>
+                        </tbody>
+                    </table>
+                </div>` : '';
         tableHtml = `
                 <div class="table-responsive">
-                    <table class="table table-bordered table-hover mb-0" role="table" aria-label="Invoice ledger">
+                    <table class="table table-bordered mb-0" role="table" aria-label="Daycare invoice">
                         <thead class="table-light">
                             <tr>
                                 <th scope="col">Description</th>
-                                <th scope="col" class="text-end" style="width: 130px;">Charge (Rs.)</th>
-                                <th scope="col" class="text-end" style="width: 130px;">Paid (Rs.)</th>
-                                <th scope="col" class="text-end" style="width: 140px;">Balance (Rs.)</th>
+                                <th scope="col" class="text-end" style="width: 150px;">Amount (Rs.)</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${ledgerRows}
+                            ${invoiceRows}
                             <tr class="table-dark">
-                                <td colspan="3"><strong>${due < 0 ? 'CREDIT BALANCE' : 'AMOUNT DUE'}</strong></td>
-                                <td class="text-end"><strong>Rs. ${formatAmount(Math.abs(due))}</strong></td>
+                                <td><strong>Total</strong></td>
+                                <td class="text-end"><strong>Rs. ${formatAmount(inv.total)}</strong></td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-                <small class="text-muted">Balance runs down the right-hand column. CR = credit in the parent's favour.</small>`;
+                ${breakup}`;
     } else {
         tableHtml = `
                 <div class="table-responsive">
