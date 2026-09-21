@@ -1,0 +1,23 @@
+# Canonical author identity for this repository.
+#
+# Display only: .mailmap changes how git shows names (log, shortlog, blame). It
+# does not rewrite history, and the commits themselves are untouched.
+#
+# Every variant below was found with: git shortlog -sne --all
+#   srimal <srimalhs@gmail.com>                 (197)
+#   Srimal <srimalhs@gmail.com>                 (116)
+#   SAS <sas@SASs-MacBook-Pro.local>             (51)  laptop default identity
+#   Srimal Samarasooriya <srimalhs@gmail.com>    (35)
+#   srimals <srimalhs@gmail.com>                 (17)
+#   Srimal <srimal@sascreative.co.nz>            (15)  work address
+#   srimalhs <srimalhs@gmail.com>                (10)
+#   Srimal <srialhs@gmail.com>                    (8)  typo'd address
+
+Srimal Samarasooriya <srimalhs@gmail.com> srimal <srimalhs@gmail.com>
+Srimal Samarasooriya <srimalhs@gmail.com> Srimal <srimalhs@gmail.com>
+Srimal Samarasooriya <srimalhs@gmail.com> srimals <srimalhs@gmail.com>
+Srimal Samarasooriya <srimalhs@gmail.com> srimalhs <srimalhs@gmail.com>
+Srimal Samarasooriya <srimalhs@gmail.com> Srimal Samarasooriya <srimalhs@gmail.com>
+Srimal Samarasooriya <srimalhs@gmail.com> SAS <sas@SASs-MacBook-Pro.local>
+Srimal Samarasooriya <srimalhs@gmail.com> Srimal <srimal@sascreative.co.nz>
+Srimal Samarasooriya <srimalhs@gmail.com> Srimal <srialhs@gmail.com>
