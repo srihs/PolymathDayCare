@@ -171,3 +171,10 @@ staticfiles/
 # Documentation build artifacts (auto-generated)
 docs/FINANCE_REPORTS_IMPLEMENTATION_PLAN.md
 *.sql
+
+# Spreadsheets - these carry real child names and billing data
+*.xlsx
+*.xls
+*.xlsm
+*.xlsb
+~$*.xlsx
